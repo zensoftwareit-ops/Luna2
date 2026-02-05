@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE struts PUBLIC
+    "-//Apache Software Foundation//DTD Struts Configuration 6.0//EN"
+    "http://struts.apache.org/dtds/struts-6.0.dtd">
+
+<struts>
+    <!-- Constants -->
+    <constant name="struts.enable.DynamicMethodInvocation" value="false"/>
+    <constant name="struts.devMode" value="false"/>
+    <constant name="struts.i18n.encoding" value="UTF-8"/>
+    <constant name="struts.multipart.maxSize" value="10485760"/>
+    <constant name="struts.convention.result.path" value="/WEB-INF/jsp/"/>
+    <constant name="struts.convention.action.suffix" value="Action"/>
+    <constant name="struts.convention.action.mapAllMatches" value="true"/>
+    <constant name="struts.convention.default.parent.package" value="luna2-default"/>
+
+    <!-- Packages -->
+    <package name="luna2-default" extends="struts-default">
+        <!-- Interceptors -->
+        <interceptors>
+            <interceptor name="authentication" 
+                class="it.zensoftware.luna2.interceptor.AuthenticationInterceptor"/>
+            <interceptor name="moduleAccess"
+                class="it.zensoftware.luna2.interceptor.ModuleAccessInterceptor"/>
+            
+            <interceptor-stack name="authStack">
+                <interceptor-ref name="authentication"/>
+                <interceptor-ref name="moduleAccess"/>
+                <interceptor-ref name="defaultStack"/>
+            </interceptor-stack>
+        </interceptors>
+
+        <default-interceptor-ref name="authStack"/>
+
+        <!-- Global Results -->
+        <global-results>
+            <result name="login" type="redirectAction">
+                <param name="actionName">login</param>
+                <param name="namespace">/</param>
+            </result>
+            <result name="forbidden">/WEB-INF/jsp/error/forbidden.jsp</result>
+            <result name="moduleDisabled">/WEB-INF/jsp/error/module-disabled.jsp</result>
+            <result name="error">/WEB-INF/jsp/error/error.jsp</result>
+        </global-results>
+
+        <!-- Global Exception Mappings -->
+        <global-exception-mappings>
+            <exception-mapping exception="java.lang.Exception" result="error"/>
+        </global-exception-mappings>
+    </package>
+
+    <!-- Public Package (no authentication required) -->
+    <package name="public" extends="struts-default" namespace="/">
+        <action name="login" class="it.zensoftware.luna2.action.LoginAction">
+            <result name="success">/WEB-INF/jsp/login.jsp</result>
+            <result name="input">/WEB-INF/jsp/login.jsp</result>
+        </action>
+
+        <action name="authenticate" class="it.zensoftware.luna2.action.LoginAction" method="authenticate">
+            <result name="success" type="redirectAction">
+                <param name="actionName">dashboard</param>
+                <param name="namespace">/app</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/login.jsp</result>
+        </action>
+
+        <action name="logout" class="it.zensoftware.luna2.action.LoginAction" method="logout">
+            <result name="success" type="redirectAction">
+                <param name="actionName">login</param>
+                <param name="namespace">/</param>
+            </result>
+        </action>
+    </package>
+
+    <!-- Application Package (authentication required) -->
+    <package name="app" extends="luna2-default" namespace="/app">
+        <action name="dashboard" class="it.zensoftware.luna2.action.DashboardAction">
+            <result name="success">/WEB-INF/jsp/dashboard.jsp</result>
+        </action>
+    </package>
+
+    <!-- Clienti Package -->
+    <package name="clienti" extends="luna2-default" namespace="/app/clienti">
+        <action name="list" class="it.zensoftware.luna2.action.ClientiAction" method="list">
+            <result name="success">/WEB-INF/jsp/clienti/list.jsp</result>
+        </action>
+
+        <action name="create" class="it.zensoftware.luna2.action.ClientiAction" method="create">
+            <result name="success">/WEB-INF/jsp/clienti/form.jsp</result>
+        </action>
+
+        <action name="edit" class="it.zensoftware.luna2.action.ClientiAction" method="edit">
+            <result name="success">/WEB-INF/jsp/clienti/form.jsp</result>
+        </action>
+
+        <action name="save" class="it.zensoftware.luna2.action.ClientiAction" method="save">
+            <result name="success" type="redirectAction">list</result>
+            <result name="input">/WEB-INF/jsp/clienti/form.jsp</result>
+        </action>
+
+        <action name="delete" class="it.zensoftware.luna2.action.ClientiAction" method="delete">
+            <result name="success" type="redirectAction">list</result>
+        </action>
+
+        <action name="view" class="it.zensoftware.luna2.action.ClientiAction" method="view">
+            <result name="success">/WEB-INF/jsp/clienti/view.jsp</result>
+        </action>
+
+        <action name="exportExcel" class="it.zensoftware.luna2.action.ClientiAction" method="exportExcel">
+            <result name="excel" type="stream">
+                <param name="contentType">application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">attachment;filename="clienti.xlsx"</param>
+                <param name="bufferSize">4096</param>
+            </result>
+        </action>
+
+        <action name="exportCsv" class="it.zensoftware.luna2.action.ClientiAction" method="exportCsv">
+            <result name="csv" type="stream">
+                <param name="contentType">text/csv;charset=UTF-8</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">attachment;filename="clienti.csv"</param>
+                <param name="bufferSize">4096</param>
+            </result>
+        </action>
+
+        <action name="importForm" class="it.zensoftware.luna2.action.ClientiAction" method="importForm">
+            <result name="success">/WEB-INF/jsp/clienti/import.jsp</result>
+        </action>
+
+        <action name="parseFile" class="it.zensoftware.luna2.action.ClientiAction" method="parseFile">
+            <interceptor-ref name="fileUpload">
+                <param name="allowedTypes">text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</param>
+                <param name="maximumSize">10485760</param>
+            </interceptor-ref>
+            <interceptor-ref name="authStack"/>
+            <result name="success">/WEB-INF/jsp/clienti/import.jsp</result>
+            <result name="input">/WEB-INF/jsp/clienti/import.jsp</result>
+        </action>
+
+        <action name="processImport" class="it.zensoftware.luna2.action.ClientiAction" method="processImport">
+            <result name="success" type="redirectAction">
+                <param name="actionName">importForm</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/clienti/import.jsp</result>
+        </action>
+    </package>
+
+    <!-- Fornitori Package -->
+    <package name="fornitori" extends="luna2-default" namespace="/app/fornitori">
+        <action name="list" class="it.zensoftware.luna2.action.FornitoriAction" method="list">
+            <result name="success">/WEB-INF/jsp/fornitori/list.jsp</result>
+        </action>
+
+        <action name="create" class="it.zensoftware.luna2.action.FornitoriAction" method="create">
+            <result name="success">/WEB-INF/jsp/fornitori/form.jsp</result>
+        </action>
+
+        <action name="edit" class="it.zensoftware.luna2.action.FornitoriAction" method="edit">
+            <result name="success">/WEB-INF/jsp/fornitori/form.jsp</result>
+        </action>
+
+        <action name="save" class="it.zensoftware.luna2.action.FornitoriAction" method="save">
+            <result name="success" type="redirectAction">list</result>
+            <result name="input">/WEB-INF/jsp/fornitori/form.jsp</result>
+        </action>
+
+        <action name="delete" class="it.zensoftware.luna2.action.FornitoriAction" method="delete">
+            <result name="success" type="redirectAction">list</result>
+        </action>
+
+        <action name="exportExcel" class="it.zensoftware.luna2.action.FornitoriAction" method="exportExcel">
+            <result name="excel" type="stream">
+                <param name="contentType">application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">attachment;filename="fornitori.xlsx"</param>
+                <param name="bufferSize">4096</param>
+            </result>
+        </action>
+
+        <action name="exportCsv" class="it.zensoftware.luna2.action.FornitoriAction" method="exportCsv">
+            <result name="csv" type="stream">
+                <param name="contentType">text/csv;charset=UTF-8</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">attachment;filename="fornitori.csv"</param>
+                <param name="bufferSize">4096</param>
+            </result>
+        </action>
+
+        <action name="importForm" class="it.zensoftware.luna2.action.FornitoriAction" method="importForm">
+            <result name="success">/WEB-INF/jsp/fornitori/import.jsp</result>
+        </action>
+
+        <action name="parseFile" class="it.zensoftware.luna2.action.FornitoriAction" method="parseFile">
+            <interceptor-ref name="fileUpload">
+                <param name="allowedTypes">text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</param>
+                <param name="maximumSize">10485760</param>
+            </interceptor-ref>
+            <interceptor-ref name="authStack"/>
+            <result name="success">/WEB-INF/jsp/fornitori/import.jsp</result>
+            <result name="input">/WEB-INF/jsp/fornitori/import.jsp</result>
+        </action>
+
+        <action name="processImport" class="it.zensoftware.luna2.action.FornitoriAction" method="processImport">
+            <result name="success" type="redirectAction">
+                <param name="actionName">importForm</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/fornitori/import.jsp</result>
+        </action>
+    </package>
+
+    <!-- Prodotti Package -->
+    <package name="prodotti" extends="luna2-default" namespace="/app/prodotti">
+        <action name="list" class="it.zensoftware.luna2.action.ProdottiAction" method="list">
+            <result name="success">/WEB-INF/jsp/prodotti/list.jsp</result>
+        </action>
+
+        <action name="create" class="it.zensoftware.luna2.action.ProdottiAction" method="create">
+            <result name="success">/WEB-INF/jsp/prodotti/form.jsp</result>
+        </action>
+
+        <action name="edit" class="it.zensoftware.luna2.action.ProdottiAction" method="edit">
+            <result name="success">/WEB-INF/jsp/prodotti/form.jsp</result>
+        </action>
+
+        <action name="save" class="it.zensoftware.luna2.action.ProdottiAction" method="save">
+            <result name="success" type="redirectAction">list</result>
+            <result name="input">/WEB-INF/jsp/prodotti/form.jsp</result>
+        </action>
+
+        <action name="delete" class="it.zensoftware.luna2.action.ProdottiAction" method="delete">
+            <result name="success" type="redirectAction">list</result>
+        </action>
+    </package>
+
+    <!-- Documenti Package -->
+    <package name="documenti" extends="luna2-default" namespace="/app/documenti">
+        <!-- Preventivi -->
+        <action name="preventivi" class="it.zensoftware.luna2.action.PreventiviAction" method="list">
+            <result name="success">/WEB-INF/jsp/documenti/preventivi/list.jsp</result>
+        </action>
+
+        <action name="preventivi-create" class="it.zensoftware.luna2.action.PreventiviAction" method="create">
+            <result name="success">/WEB-INF/jsp/documenti/preventivi/form.jsp</result>
+        </action>
+
+        <action name="preventivi-save" class="it.zensoftware.luna2.action.PreventiviAction" method="save">
+            <result name="success" type="redirectAction">preventivi</result>
+            <result name="input">/WEB-INF/jsp/documenti/preventivi/form.jsp</result>
+        </action>
+
+        <!-- Ordini -->
+        <action name="ordini" class="it.zensoftware.luna2.action.OrdiniAction" method="list">
+            <result name="success">/WEB-INF/jsp/documenti/ordini/list.jsp</result>
+        </action>
+
+        <action name="ordini-create" class="it.zensoftware.luna2.action.OrdiniAction" method="create">
+            <result name="success">/WEB-INF/jsp/documenti/ordini/form.jsp</result>
+        </action>
+
+        <action name="ordini-save" class="it.zensoftware.luna2.action.OrdiniAction" method="save">
+            <result name="success" type="redirectAction">ordini</result>
+            <result name="input">/WEB-INF/jsp/documenti/ordini/form.jsp</result>
+        </action>
+
+        <!-- Fatture -->
+        <action name="fatture" class="it.zensoftware.luna2.action.FattureAction" method="list">
+            <result name="success">/WEB-INF/jsp/documenti/fatture/list.jsp</result>
+        </action>
+
+        <action name="fatture-create" class="it.zensoftware.luna2.action.FattureAction" method="create">
+            <result name="success">/WEB-INF/jsp/documenti/fatture/form.jsp</result>
+        </action>
+
+        <action name="fatture-save" class="it.zensoftware.luna2.action.FattureAction" method="save">
+            <result name="success" type="redirectAction">fatture</result>
+            <result name="input">/WEB-INF/jsp/documenti/fatture/form.jsp</result>
+        </action>
+
+        <!-- DDT -->
+        <action name="ddt" class="it.zensoftware.luna2.action.DdtAction" method="list">
+            <result name="success">/WEB-INF/jsp/documenti/ddt/list.jsp</result>
+        </action>
+    </package>
+
+    <!-- Lead/CRM Package -->
+    <package name="lead" extends="luna2-default" namespace="/app/lead">
+        <action name="list" class="it.zensoftware.luna2.action.LeadAction" method="list">
+            <result name="success">/WEB-INF/jsp/lead/list.jsp</result>
+        </action>
+
+        <action name="create" class="it.zensoftware.luna2.action.LeadAction" method="create">
+            <result name="success">/WEB-INF/jsp/lead/form.jsp</result>
+        </action>
+
+        <action name="edit" class="it.zensoftware.luna2.action.LeadAction" method="edit">
+            <result name="success">/WEB-INF/jsp/lead/form.jsp</result>
+        </action>
+
+        <action name="save" class="it.zensoftware.luna2.action.LeadAction" method="save">
+            <result name="success" type="redirectAction">list</result>
+            <result name="input">/WEB-INF/jsp/lead/form.jsp</result>
+        </action>
+
+        <action name="delete" class="it.zensoftware.luna2.action.LeadAction" method="delete">
+            <result name="success" type="redirectAction">list</result>
+        </action>
+    </package>
+
+    <!-- Report Package -->
+    <package name="report" extends="luna2-default" namespace="/app/report">
+        <action name="vendite" class="it.zensoftware.luna2.action.ReportAction" method="vendite">
+            <result name="success">/WEB-INF/jsp/report/vendite.jsp</result>
+        </action>
+
+        <action name="clienti-top" class="it.zensoftware.luna2.action.ReportAction" method="clientiTop">
+            <result name="success">/WEB-INF/jsp/report/clienti-top.jsp</result>
+        </action>
+
+        <action name="prodotti-top" class="it.zensoftware.luna2.action.ReportAction" method="prodottiTop">
+            <result name="success">/WEB-INF/jsp/report/prodotti-top.jsp</result>
+        </action>
+
+        <action name="export" class="it.zensoftware.luna2.action.ReportAction" method="export">
+            <result name="success" type="stream">
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">attachment;filename="${filename}"</param>
+                <param name="bufferSize">1024</param>
+            </result>
+        </action>
+    </package>
+
+    <!-- Magazzino Package -->
+    <package name="magazzino" extends="luna2-default" namespace="/app/magazzino">
+        <action name="giacenze" class="it.zensoftware.luna2.action.MagazzinoAction" method="giacenze">
+            <result name="success">/WEB-INF/jsp/magazzino/giacenze.jsp</result>
+        </action>
+    </package>
+
+    <!-- Produzione/Commesse Package -->
+    <package name="produzione" extends="luna2-default" namespace="/app/produzione">
+        <action name="commesse" class="it.zensoftware.luna2.action.ProduzioneAction" method="commesse">
+            <result name="success">/WEB-INF/jsp/produzione/commesse.jsp</result>
+        </action>
+    </package>
+
+    <!-- Modulo AI Package -->
+    <package name="ai" extends="luna2-default" namespace="/app/ai">
+        <action name="index" class="it.zensoftware.luna2.action.AiAction" method="index">
+            <result name="success">/WEB-INF/jsp/ai/index.jsp</result>
+        </action>
+    </package>
+
+    <!-- Admin Package -->
+    <package name="admin" extends="luna2-default" namespace="/app/admin">
+        <action name="moduli" class="it.zensoftware.luna2.action.ModuleSettingsAction" method="execute">
+            <result name="success">/WEB-INF/jsp/admin/modules.jsp</result>
+            <result name="forbidden">/WEB-INF/jsp/error/forbidden.jsp</result>
+        </action>
+
+        <action name="moduli-save" class="it.zensoftware.luna2.action.ModuleSettingsAction" method="save">
+            <result name="success">/WEB-INF/jsp/admin/modules.jsp</result>
+            <result name="forbidden">/WEB-INF/jsp/error/forbidden.jsp</result>
+        </action>
+    </package>
+
+    <!-- Leads/CRM Package -->
+    <package name="leads" extends="luna2-default" namespace="/app/leads">
+        <action name="list" class="it.zensoftware.luna2.action.LeadAction" method="list">
+            <result name="success">/WEB-INF/jsp/leads/list.jsp</result>
+            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+        </action>
+
+        <action name="view" class="it.zensoftware.luna2.action.LeadAction" method="view">
+            <result name="success">/WEB-INF/jsp/leads/view.jsp</result>
+            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+        </action>
+
+        <action name="create" class="it.zensoftware.luna2.action.LeadAction" method="create">
+            <result name="success">/WEB-INF/jsp/leads/form.jsp</result>
+            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+        </action>
+
+        <action name="edit" class="it.zensoftware.luna2.action.LeadAction" method="edit">
+            <result name="success">/WEB-INF/jsp/leads/form.jsp</result>
+            <result name="input">/WEB-INF/jsp/leads/list.jsp</result>
+            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+        </action>
+
+        <action name="save" class="it.zensoftware.luna2.action.LeadAction" method="save">
+            <result name="success" type="redirectAction">
+                <param name="actionName">list</param>
+                <param name="namespace">/app/leads</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/leads/form.jsp</result>
+            <result name="error">/WEB-INF/jsp/leads/form.jsp</result>
+        </action>
+
+        <action name="delete" class="it.zensoftware.luna2.action.LeadAction" method="delete">
+            <result name="success" type="redirectAction">
+                <param name="actionName">list</param>
+                <param name="namespace">/app/leads</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+        </action>
+    </package>
+</struts>
