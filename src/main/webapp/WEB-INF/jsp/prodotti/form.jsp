@@ -123,6 +123,25 @@
                             </div>
                         </div>
 
+                        <!-- Fornitore -->
+                        <h5 class="border-bottom pb-2 mb-3 mt-4">Fornitore</h5>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Fornitore Preferito</label>
+                                <s:select name="prodotto.fornitore.id" 
+                                         list="fornitori" 
+                                         listKey="id"
+                                         listValue="ragioneSociale"
+                                         cssClass="form-select"
+                                         headerKey=""
+                                         headerValue="-- Nessun fornitore --"/>
+                                <div class="form-text">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Fornitore abituale per questo prodotto (opzionale)
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Sezione Prodotto A Misura -->
                         <div id="sezioneMisura" class="tipo-prodotto-section">
                             <h5 class="border-bottom pb-2 mb-3 mt-4">Informazioni Prodotto a Misura</h5>

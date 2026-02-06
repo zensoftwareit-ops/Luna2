@@ -39,4 +39,19 @@ public class FornitoreDAO extends GenericDAOImpl<Fornitore, Long> {
             return "FOR001";
         }
     }
+
+    /**
+     * Find fornitore by codice fornitore
+     */
+    public Fornitore findByCodiceFornitore(String codiceFornitore) {
+        try (Session session = getSession()) {
+            Query<Fornitore> query = session.createQuery(
+                "FROM Fornitore WHERE codiceFornitore = :codice", Fornitore.class);
+            query.setParameter("codice", codiceFornitore);
+            return query.uniqueResult();
+        } catch (Exception e) {
+            logger.error("Error finding fornitore by codice", e);
+            return null;
+        }
+    }
 }

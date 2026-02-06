@@ -2,7 +2,9 @@ package it.zensoftware.luna2.action;
 
 import com.opensymphony.xwork2.ActionSupport;
 import it.zensoftware.luna2.dao.ProdottoDAO;
+import it.zensoftware.luna2.dao.FornitoreDAO;
 import it.zensoftware.luna2.model.Prodotto;
+import it.zensoftware.luna2.model.Fornitore;
 import it.zensoftware.luna2.model.User;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,8 +15,10 @@ import java.util.Map;
 public class ProdottiAction extends ActionSupport {
     private static final Logger logger = LogManager.getLogger(ProdottiAction.class);
     private ProdottoDAO prodottoDAO = new ProdottoDAO();
+    private FornitoreDAO fornitoreDAO = new FornitoreDAO();
     private Prodotto prodotto;
     private List<Prodotto> prodotti;
+    private List<Fornitore> fornitori;
     private Long id;
     private String searchTerm;
 
@@ -29,6 +33,7 @@ public class ProdottiAction extends ActionSupport {
 
     public String create() {
         prodotto = new Prodotto();
+        fornitori = fornitoreDAO.findAll();
         return SUCCESS;
     }
 
@@ -36,6 +41,7 @@ public class ProdottiAction extends ActionSupport {
         if (id != null) {
             prodotto = prodottoDAO.findById(id);
         }
+        fornitori = fornitoreDAO.findAll();
         return SUCCESS;
     }
 
@@ -77,6 +83,10 @@ public class ProdottiAction extends ActionSupport {
 
     public Prodotto.UnitaMisura[] getUnitaMisura() {
         return Prodotto.UnitaMisura.values();
+    }
+
+    public List<Fornitore> getFornitori() {
+        return fornitori;
     }
 
     public Prodotto getProdotto() { return prodotto; }

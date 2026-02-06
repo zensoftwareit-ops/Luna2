@@ -76,6 +76,7 @@
                                     <th>Nome</th>
                                     <th>Tipo</th>
                                     <th>Categoria</th>
+                                    <th>Fornitore</th>
                                     <th>Prezzo Base</th>
                                     <th>U.M.</th>
                                     <th>Attivo</th>
@@ -100,6 +101,14 @@
                                             </span>
                                         </td>
                                         <td><s:property value="categoria" default="-"/></td>
+                                        <td>
+                                            <s:if test="fornitore != null">
+                                                <small><s:property value="fornitore.ragioneSociale"/></small>
+                                            </s:if>
+                                            <s:else>
+                                                <span class="text-muted">-</span>
+                                            </s:else>
+                                        </td>
                                         <td>€ <s:property value="prezzoBase"/></td>
                                         <td><s:property value="unitaMisura"/></td>
                                         <td>

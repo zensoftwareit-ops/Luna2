@@ -2,7 +2,9 @@ package it.zensoftware.luna2.action;
 
 import com.opensymphony.xwork2.ActionSupport;
 import it.zensoftware.luna2.dao.ProdottoDAO;
+import it.zensoftware.luna2.dao.FornitoreDAO;
 import it.zensoftware.luna2.model.Prodotto;
+import it.zensoftware.luna2.model.Fornitore;
 import it.zensoftware.luna2.model.User;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,6 +19,7 @@ public class ProdottiImportExportAction extends ActionSupport {
     private static final Logger logger = LogManager.getLogger(ProdottiImportExportAction.class);
     
     private ProdottoDAO prodottoDAO = new ProdottoDAO();
+    private FornitoreDAO fornitoreDAO = new FornitoreDAO();
     private File uploadFile;
     private String uploadFileContentType;
     private String uploadFileFileName;
@@ -53,7 +56,7 @@ public class ProdottiImportExportAction extends ActionSupport {
             // Header
             Row headerRow = sheet.createRow(0);
             String[] columns = {
-                "Codice*", "Nome*", "Descrizione", "Categoria", "TipoProdotto*",
+                "Codice*", "Nome*", "Descrizione", "Categoria", "CodiceFornitore", "TipoProdotto*",
                 "UnitaMisura*", "PrezzoBase*", "CostoAcquisto", "IvaPercentuale",
                 "ScontoMassimo", "Peso", "Volume", "CodiceEAN", 
                 "GiacenzaMinima", "GestioneMagazzino", "Attivo", "Note"
@@ -72,19 +75,20 @@ public class ProdottiImportExportAction extends ActionSupport {
             exampleRow.createCell(1).setCellValue("Prodotto Esempio");
             exampleRow.createCell(2).setCellValue("Descrizione del prodotto");
             exampleRow.createCell(3).setCellValue("Elettronica");
-            exampleRow.createCell(4).setCellValue("STANDARD");
-            exampleRow.createCell(5).setCellValue("PEZZO");
-            exampleRow.createCell(6).setCellValue(99.90);
-            exampleRow.createCell(7).setCellValue(50.00);
-            exampleRow.createCell(8).setCellValue(22.00);
-            exampleRow.createCell(9).setCellValue(10.00);
-            exampleRow.createCell(10).setCellValue(0.500);
-            exampleRow.createCell(11).setCellValue(0.001);
-            exampleRow.createCell(12).setCellValue("1234567890123");
-            exampleRow.createCell(13).setCellValue(5.00);
-            exampleRow.createCell(14).setCellValue("SI");
+            exampleRow.createCell(4).setCellValue("FOR001");
+            exampleRow.createCell(5).setCellValue("STANDARD");
+            exampleRow.createCell(6).setCellValue("PEZZO");
+            exampleRow.createCell(7).setCellValue(99.90);
+            exampleRow.createCell(8).setCellValue(50.00);
+            exampleRow.createCell(9).setCellValue(22.00);
+            exampleRow.createCell(10).setCellValue(10.00);
+            exampleRow.createCell(11).setCellValue(0.500);
+            exampleRow.createCell(12).setCellValue(0.001);
+            exampleRow.createCell(13).setCellValue("1234567890123");
+            exampleRow.createCell(14).setCellValue(5.00);
             exampleRow.createCell(15).setCellValue("SI");
-            exampleRow.createCell(16).setCellValue("Note facoltative");
+            exampleRow.createCell(16).setCellValue("SI");
+            exampleRow.createCell(17).setCellValue("Note facoltative");
 
             // Istruzioni
             Sheet instructionsSheet = workbook.createSheet("Istruzioni");
@@ -157,7 +161,7 @@ public class ProdottiImportExportAction extends ActionSupport {
             // Header
             Row headerRow = sheet.createRow(0);
             String[] columns = {
-                "Codice", "Nome", "Descrizione", "Categoria", "TipoProdotto",
+                "Codice", "Nome", "Descrizione", "Categoria", "CodiceFornitore", "TipoProdotto",
                 "UnitaMisura", "PrezzoBase", "CostoAcquisto", "IvaPercentuale",
                 "ScontoMassimo", "Peso", "Volume", "CodiceEAN", 
                 "GiacenzaMinima", "GestioneMagazzino", "Attivo", "Note"
@@ -179,19 +183,20 @@ public class ProdottiImportExportAction extends ActionSupport {
                 row.createCell(1).setCellValue(p.getNome());
                 row.createCell(2).setCellValue(p.getDescrizione() != null ? p.getDescrizione() : "");
                 row.createCell(3).setCellValue(p.getCategoria() != null ? p.getCategoria() : "");
-                row.createCell(4).setCellValue(p.getTipoProdotto().name());
-                row.createCell(5).setCellValue(p.getUnitaMisura().name());
-                row.createCell(6).setCellValue(p.getPrezzoBase() != null ? p.getPrezzoBase().doubleValue() : 0);
-                row.createCell(7).setCellValue(p.getCostoAcquisto() != null ? p.getCostoAcquisto().doubleValue() : 0);
-                row.createCell(8).setCellValue(p.getIvaPercentuale() != null ? p.getIvaPercentuale().doubleValue() : 22);
-                row.createCell(9).setCellValue(p.getScontoMassimo() != null ? p.getScontoMassimo().doubleValue() : 0);
-                row.createCell(10).setCellValue(p.getPeso() != null ? p.getPeso().doubleValue() : 0);
-                row.createCell(11).setCellValue(p.getVolume() != null ? p.getVolume().doubleValue() : 0);
-                row.createCell(12).setCellValue(p.getCodiceEan() != null ? p.getCodiceEan() : "");
-                row.createCell(13).setCellValue(p.getGiacenzaMinima() != null ? p.getGiacenzaMinima().doubleValue() : 0);
-                row.createCell(14).setCellValue(p.getGestioneMagazzino() ? "SI" : "NO");
-                row.createCell(15).setCellValue(p.getAttivo() ? "SI" : "NO");
-                row.createCell(16).setCellValue(p.getNote() != null ? p.getNote() : "");
+                row.createCell(4).setCellValue(p.getFornitore() != null ? p.getFornitore().getCodiceFornitore() : "");
+                row.createCell(5).setCellValue(p.getTipoProdotto().name());
+                row.createCell(6).setCellValue(p.getUnitaMisura().name());
+                row.createCell(7).setCellValue(p.getPrezzoBase() != null ? p.getPrezzoBase().doubleValue() : 0);
+                row.createCell(8).setCellValue(p.getCostoAcquisto() != null ? p.getCostoAcquisto().doubleValue() : 0);
+                row.createCell(9).setCellValue(p.getIvaPercentuale() != null ? p.getIvaPercentuale().doubleValue() : 22);
+                row.createCell(10).setCellValue(p.getScontoMassimo() != null ? p.getScontoMassimo().doubleValue() : 0);
+                row.createCell(11).setCellValue(p.getPeso() != null ? p.getPeso().doubleValue() : 0);
+                row.createCell(12).setCellValue(p.getVolume() != null ? p.getVolume().doubleValue() : 0);
+                row.createCell(13).setCellValue(p.getCodiceEan() != null ? p.getCodiceEan() : "");
+                row.createCell(14).setCellValue(p.getGiacenzaMinima() != null ? p.getGiacenzaMinima().doubleValue() : 0);
+                row.createCell(15).setCellValue(p.getGestioneMagazzino() ? "SI" : "NO");
+                row.createCell(16).setCellValue(p.getAttivo() ? "SI" : "NO");
+                row.createCell(17).setCellValue(p.getNote() != null ? p.getNote() : "");
             }
 
             // Scrivi in memoria
@@ -266,8 +271,21 @@ public class ProdottiImportExportAction extends ActionSupport {
                     prodotto.setDescrizione(getCellValueAsString(row.getCell(2)));
                     prodotto.setCategoria(getCellValueAsString(row.getCell(3)));
 
+                    // Fornitore (opzionale)
+                    String codiceFornitore = getCellValueAsString(row.getCell(4));
+                    if (codiceFornitore != null && !codiceFornitore.trim().isEmpty()) {
+                        Fornitore fornitore = fornitoreDAO.findByCodiceFornitore(codiceFornitore);
+                        if (fornitore != null) {
+                            prodotto.setFornitore(fornitore);
+                        } else {
+                            errorMessages.add("Riga " + (i+1) + ": Fornitore " + codiceFornitore + " non trovato (ignorato)");
+                        }
+                    } else {
+                        prodotto.setFornitore(null);
+                    }
+
                     // TipoProdotto
-                    String tipoProdottoStr = getCellValueAsString(row.getCell(4));
+                    String tipoProdottoStr = getCellValueAsString(row.getCell(5));
                     if (tipoProdottoStr != null && !tipoProdottoStr.isEmpty()) {
                         try {
                             prodotto.setTipoProdotto(Prodotto.TipoProdotto.valueOf(tipoProdottoStr.toUpperCase()));
@@ -279,7 +297,7 @@ public class ProdottiImportExportAction extends ActionSupport {
                     }
 
                     // UnitaMisura
-                    String unitaMisuraStr = getCellValueAsString(row.getCell(5));
+                    String unitaMisuraStr = getCellValueAsString(row.getCell(6));
                     if (unitaMisuraStr != null && !unitaMisuraStr.isEmpty()) {
                         try {
                             prodotto.setUnitaMisura(Prodotto.UnitaMisura.valueOf(unitaMisuraStr.toUpperCase()));
@@ -291,7 +309,7 @@ public class ProdottiImportExportAction extends ActionSupport {
                     }
 
                     // Prezzi e valori numerici
-                    BigDecimal prezzoBase = getCellValueAsBigDecimal(row.getCell(6));
+                    BigDecimal prezzoBase = getCellValueAsBigDecimal(row.getCell(7));
                     if (prezzoBase == null) {
                         errorMessages.add("Riga " + (i+1) + ": Prezzo base obbligatorio mancante");
                         errorCount++;
@@ -299,25 +317,25 @@ public class ProdottiImportExportAction extends ActionSupport {
                     }
                     prodotto.setPrezzoBase(prezzoBase);
                     
-                    prodotto.setCostoAcquisto(getCellValueAsBigDecimal(row.getCell(7)));
+                    prodotto.setCostoAcquisto(getCellValueAsBigDecimal(row.getCell(8)));
                     
-                    BigDecimal iva = getCellValueAsBigDecimal(row.getCell(8));
+                    BigDecimal iva = getCellValueAsBigDecimal(row.getCell(9));
                     prodotto.setIvaPercentuale(iva != null ? iva : new BigDecimal("22.00"));
                     
-                    prodotto.setScontoMassimo(getCellValueAsBigDecimal(row.getCell(9)));
-                    prodotto.setPeso(getCellValueAsBigDecimal(row.getCell(10)));
-                    prodotto.setVolume(getCellValueAsBigDecimal(row.getCell(11)));
-                    prodotto.setCodiceEan(getCellValueAsString(row.getCell(12)));
-                    prodotto.setGiacenzaMinima(getCellValueAsBigDecimal(row.getCell(13)));
+                    prodotto.setScontoMassimo(getCellValueAsBigDecimal(row.getCell(10)));
+                    prodotto.setPeso(getCellValueAsBigDecimal(row.getCell(11)));
+                    prodotto.setVolume(getCellValueAsBigDecimal(row.getCell(12)));
+                    prodotto.setCodiceEan(getCellValueAsString(row.getCell(13)));
+                    prodotto.setGiacenzaMinima(getCellValueAsBigDecimal(row.getCell(14)));
 
                     // Boolean
-                    String gestioneMagazzino = getCellValueAsString(row.getCell(14));
+                    String gestioneMagazzino = getCellValueAsString(row.getCell(15));
                     prodotto.setGestioneMagazzino(!"NO".equalsIgnoreCase(gestioneMagazzino));
                     
-                    String attivo = getCellValueAsString(row.getCell(15));
+                    String attivo = getCellValueAsString(row.getCell(16));
                     prodotto.setAttivo(!"NO".equalsIgnoreCase(attivo));
                     
-                    prodotto.setNote(getCellValueAsString(row.getCell(16)));
+                    prodotto.setNote(getCellValueAsString(row.getCell(17)));
 
                     // Salva
                     if (isNew) {
