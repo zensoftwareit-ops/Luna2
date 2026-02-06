@@ -17,10 +17,25 @@
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3"><i class="bi bi-box-seam me-2"></i>Catalogo Prodotti</h1>
-                <div>
+                <div class="btn-group">
                     <a href="<s:url action='create' namespace='/app/prodotti'/>" class="btn btn-primary">
                         <i class="bi bi-plus-circle me-2"></i>Nuovo Prodotto
                     </a>
+                    <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Import/Export
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="<s:url action='importPage' namespace='/app/prodotti'/>">
+                            <i class="bi bi-upload me-2"></i>Import da Excel
+                        </a></li>
+                        <li><a class="dropdown-item" href="<s:url action='exportCatalog' namespace='/app/prodotti'/>">
+                            <i class="bi bi-download me-2"></i>Export in Excel
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="<s:url action='downloadTemplate' namespace='/app/prodotti'/>">
+                            <i class="bi bi-file-earmark-text me-2"></i>Scarica Template
+                        </a></li>
+                    </ul>
                 </div>
             </div>
 
