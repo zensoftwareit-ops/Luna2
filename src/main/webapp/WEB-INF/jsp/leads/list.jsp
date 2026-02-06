@@ -64,9 +64,8 @@
                                 <s:select name="statoFiltro" 
                                          list="statiLead" 
                                          cssClass="form-select"
-                                         listKey="name()" listValue="name()">
-                                    <s:option key="" value="">-- Tutti gli Stati --</s:option>
-                                </s:select>
+                                         listKey="name()" listValue="name()"
+                                         headerKey="" headerValue="-- Tutti gli Stati --"/>
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary">
@@ -111,7 +110,8 @@
                                             <s:elseif test="stato.name() == 'PREVENTIVO'"><s:set var="badgeColor" value="'warning'"/></s:elseif>
                                             <s:elseif test="stato.name() == 'NEGOZIAZIONE'"><s:set var="badgeColor" value="'danger'"/></s:elseif>
                                             <s:elseif test="stato.name() == 'VINTO'"><s:set var="badgeColor" value="'success'"/></s:elseif>
-                                            <span class="badge bg-<s:property value='badgeColor'/>">
+                                            <s:set var="badgeClass" value="'badge bg-' + badgeColor"/>
+                                            <span class="${badgeClass}">
                                                 <s:property value="stato"/>
                                             </span>
                                         </td>

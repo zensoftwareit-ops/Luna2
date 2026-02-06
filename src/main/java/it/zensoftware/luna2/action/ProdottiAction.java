@@ -70,6 +70,15 @@ public class ProdottiAction extends ActionSupport {
         return (User) session.get("currentUser");
     }
 
+    // Getter per gli enum da usare nei JSP
+    public Prodotto.TipoProdotto[] getTipiProdotto() {
+        return Prodotto.TipoProdotto.values();
+    }
+
+    public Prodotto.UnitaMisura[] getUnitaMisura() {
+        return Prodotto.UnitaMisura.values();
+    }
+
     public Prodotto getProdotto() { return prodotto; }
     public void setProdotto(Prodotto prodotto) { this.prodotto = prodotto; }
     public List<Prodotto> getProdotti() { return prodotti; }

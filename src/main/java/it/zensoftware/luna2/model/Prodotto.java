@@ -4,6 +4,8 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Entity class for Prodotto
@@ -29,6 +31,10 @@ public class Prodotto implements Serializable {
 
     @Column(length = 100)
     private String categoria;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_prodotto", nullable = false, length = 20)
+    private TipoProdotto tipoProdotto = TipoProdotto.STANDARD;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "unita_misura", nullable = false)
@@ -71,6 +77,12 @@ public class Prodotto implements Serializable {
     @Column(nullable = false)
     private Boolean attivo = true;
 
+    @OneToMany(mappedBy = "prodotto", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProdottoComponente> componenti = new ArrayList<>();
+
+    @OneToMany(mappedBy = "prodotto", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProdottoVariante> varianti = new ArrayList<>();
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "data_creazione", updatable = false)
     private Date dataCreazione;
@@ -86,6 +98,14 @@ public class Prodotto implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "modified_by")
     private User modifiedBy;
+
+    public enum TipoProdotto {
+        STANDARD,      // Prodotto standard venduto a unità
+        A_MISURA,      // Prodotto venduto a misura (peso, lunghezza, area)
+        COMPOSTO,      // Prodotto composto da sottoprodotti
+        VARIABILE,     // Prodotto con varianti (taglie, colori, ecc.)
+        SERVIZIO       // Servizio (es. consulenza, assistenza)
+    }
 
     public enum UnitaMisura {
         PEZZO, KG, LITRO, METRO, MQ, MC, ORA
@@ -150,6 +170,14 @@ public class Prodotto implements Serializable {
 
     public void setCategoria(String categoria) {
         this.categoria = categoria;
+    }
+
+    public TipoProdotto getTipoProdotto() {
+        return tipoProdotto;
+    }
+
+    public void setTipoProdotto(TipoProdotto tipoProdotto) {
+        this.tipoProdotto = tipoProdotto;
     }
 
     public UnitaMisura getUnitaMisura() {
@@ -286,6 +314,42 @@ public class Prodotto implements Serializable {
 
     public void setModifiedBy(User modifiedBy) {
         this.modifiedBy = modifiedBy;
+    }
+
+    public List<ProdottoComponente> getComponenti() {
+        return componenti;
+    }
+
+    public void setComponenti(List<ProdottoComponente> componenti) {
+        this.componenti = componenti;
+    }
+
+    public void addComponente(ProdottoComponente componente) {
+        componenti.add(componente);
+        componente.setProdotto(this);
+    }
+
+    public void removeComponente(ProdottoComponente componente) {
+        componenti.remove(componente);
+        componente.setProdotto(null);
+    }
+
+    public List<ProdottoVariante> getVarianti() {
+        return varianti;
+    }
+
+    public void setVarianti(List<ProdottoVariante> varianti) {
+        this.varianti = varianti;
+    }
+
+    public void addVariante(ProdottoVariante variante) {
+        varianti.add(variante);
+        variante.setProdotto(this);
+    }
+
+    public void removeVariante(ProdottoVariante variante) {
+        varianti.remove(variante);
+        variante.setProdotto(null);
     }
 
     public BigDecimal getMargine() {

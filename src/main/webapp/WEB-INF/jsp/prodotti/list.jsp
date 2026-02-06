@@ -59,10 +59,10 @@
                                 <tr>
                                     <th>Codice</th>
                                     <th>Nome</th>
+                                    <th>Tipo</th>
                                     <th>Categoria</th>
-                                    <th>Prezzo</th>
-                                    <th>IVA %</th>
-                                    <th>Giacenza</th>
+                                    <th>Prezzo Base</th>
+                                    <th>U.M.</th>
                                     <th>Attivo</th>
                                     <th>Azioni</th>
                                 </tr>
@@ -72,14 +72,21 @@
                                     <tr>
                                         <td><strong><s:property value="codice"/></strong></td>
                                         <td><s:property value="nome"/></td>
-                                        <td><s:property value="categoria"/></td>
-                                        <td>€ <s:property value="prezzo"/></td>
-                                        <td><s:property value="aliquotaIva"/>%</td>
                                         <td>
-                                            <span class="badge bg-<s:if test='quantitaDisponibile > 10'>success</s:if><s:elseif test='quantitaDisponibile > 0'>warning</s:elseif><s:else>danger</s:else>">
-                                                <s:property value="quantitaDisponibile"/>
+                                            <s:set var="tipoBadge" value="'secondary'"/>
+                                            <s:if test="tipoProdotto.name() == 'STANDARD'"><s:set var="tipoBadge" value="'primary'"/></s:if>
+                                            <s:elseif test="tipoProdotto.name() == 'A_MISURA'"><s:set var="tipoBadge" value="'info'"/></s:elseif>
+                                            <s:elseif test="tipoProdotto.name() == 'COMPOSTO'"><s:set var="tipoBadge" value="'warning'"/></s:elseif>
+                                            <s:elseif test="tipoProdotto.name() == 'VARIABILE'"><s:set var="tipoBadge" value="'success'"/></s:elseif>
+                                            <s:elseif test="tipoProdotto.name() == 'SERVIZIO'"><s:set var="tipoBadge" value="'dark'"/></s:elseif>
+                                            <s:set var="tipoBadgeClass" value="'badge bg-' + tipoBadge"/>
+                                            <span class="${tipoBadgeClass}">
+                                                <s:property value="tipoProdotto"/>
                                             </span>
                                         </td>
+                                        <td><s:property value="categoria" default="-"/></td>
+                                        <td>€ <s:property value="prezzoBase"/></td>
+                                        <td><s:property value="unitaMisura"/></td>
                                         <td>
                                             <s:if test="attivo">
                                                 <span class="badge bg-success">Sì</span>
@@ -90,7 +97,7 @@
                                         </td>
                                         <td>
                                             <div class="btn-group btn-group-sm">
-                                                <a href="<s:url action='edit'><s:param name='id' value='id'/></s:url>" 
+                                                <a href="<s:url action='edit' namespace='/app/prodotti'><s:param name='id' value='id'/></s:url>" 
                                                    class="btn btn-outline-primary" title="Modifica">
                                                     <i class="bi bi-pencil"></i>
                                                 </a>
@@ -129,7 +136,10 @@
         });
 
         function confirmDelete(id) {
-            if (confirm('Sei sicuro di voler eliminare questo prodotto?')) {
+            if (confirm('Sei sicuro di voler disattivare questo prodotto?')) {
+                window.location.href = '<s:url action="delete" namespace="/app/prodotti"/>?id=' + id;
+            }
+        }
                 window.location.href = '<s:url action="delete"/>' + '?id=' + id;
             }
         }
