@@ -52,6 +52,18 @@ public class ProdottoDAO extends GenericDAOImpl<Prodotto, Long> {
         }
     }
 
+    public Prodotto findByCodiceEan(String codiceEan) {
+        try (Session session = getSession()) {
+            Query<Prodotto> query = session.createQuery(
+                "FROM Prodotto WHERE codiceEan = :codiceEan", Prodotto.class);
+            query.setParameter("codiceEan", codiceEan);
+            return query.uniqueResult();
+        } catch (Exception e) {
+            logger.error("Error finding product by EAN code", e);
+            return null;
+        }
+    }
+
     public List<Prodotto> findByCategoria(String categoria) {
         try (Session session = getSession()) {
             Query<Prodotto> query = session.createQuery(

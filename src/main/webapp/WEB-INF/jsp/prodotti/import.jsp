@@ -39,6 +39,29 @@
                 </div>
             </s:if>
 
+            <s:if test="importedCount > 0 || updatedCount > 0 || errorCount > 0">
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <h5 class="card-title">Risultati Import</h5>
+                        <p class="mb-2">
+                            <span class="badge bg-success">Importati: <s:property value="importedCount"/></span>
+                            <span class="badge bg-info ms-2">Aggiornati: <s:property value="updatedCount"/></span>
+                            <span class="badge bg-danger ms-2">Errori: <s:property value="errorCount"/></span>
+                        </p>
+                        <s:if test="importErrors != null && !importErrors.isEmpty()">
+                            <div class="alert alert-warning mt-3">
+                                <strong>Dettaglio errori:</strong>
+                                <ul class="mb-0 mt-2">
+                                    <s:iterator value="importErrors">
+                                        <li><s:property/></li>
+                                    </s:iterator>
+                                </ul>
+                            </div>
+                        </s:if>
+                    </div>
+                </div>
+            </s:if>
+
             <!-- Export Section -->
             <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
@@ -61,92 +84,144 @@
                 </div>
             </div>
 
-            <!-- Import Section -->
-            <div class="card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">
-                        <i class="bi bi-upload me-2"></i>Import Catalogo
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <h6 class="alert-heading">
-                            <i class="bi bi-info-circle me-2"></i>Istruzioni per l'import
-                        </h6>
-                        <ul class="mb-0">
-                            <li>Scarica il <strong>template vuoto</strong> o <strong>esporta il catalogo</strong> esistente</li>
-                            <li>Compila/modifica il file Excel seguendo le istruzioni nel foglio "Istruzioni"</li>
-                            <li>Campi obbligatori: Codice, Nome, TipoProdotto, UnitaMisura, PrezzoBase</li>
-                            <li>Se il <strong>Codice</strong> esiste già, il prodotto verrà <strong>aggiornato</strong></li>
-                            <li>Dimensione massima file: 10 MB</li>
-                        </ul>
+            <s:if test="previewData == null || previewData.isEmpty()">
+                <!-- Step 1: Upload File -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-1-circle me-2"></i>Carica File</h5>
                     </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Formati supportati:</strong> CSV (UTF-8) o Excel (.xlsx, .xls)
+                            <br>
+                            Il file deve contenere una riga di intestazione con i nomi delle colonne.
+                        </div>
 
-                    <s:form action="importCatalog" namespace="/app/prodotti" method="post" enctype="multipart/form-data" theme="simple">
-                        <div class="mb-3">
-                            <label for="uploadFile" class="form-label">
-                                <i class="bi bi-file-earmark-excel me-2"></i>Seleziona file Excel (.xlsx)
-                            </label>
-                            <s:file name="uploadFile" id="uploadFile" cssClass="form-control" accept=".xlsx,.xls" required="true"/>
-                            <div class="form-text">
-                                Formati supportati: .xlsx, .xls (Excel)
+                        <s:form action="parseFile" namespace="/app/prodotti" method="post" enctype="multipart/form-data" theme="simple">
+                            <div class="mb-3">
+                                <label class="form-label">Seleziona file da importare:</label>
+                                <s:file name="fileImport" cssClass="form-control" accept=".csv,.xlsx,.xls" required="true"/>
                             </div>
-                        </div>
-
-                        <div class="d-grid gap-2 d-md-flex">
                             <button type="submit" class="btn btn-success">
-                                <i class="bi bi-upload me-2"></i>Importa Prodotti
+                                <i class="bi bi-arrow-right me-2"></i>Procedi con Anteprima
                             </button>
-                            <button type="reset" class="btn btn-outline-secondary">
-                                <i class="bi bi-x-circle me-2"></i>Reset
-                            </button>
-                        </div>
-                    </s:form>
-                </div>
-            </div>
-
-            <!-- Info tipologie prodotto -->
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h6 class="mb-0">
-                        <i class="bi bi-info-circle me-2"></i>Tipologie Prodotto Supportate
-                    </h6>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6><span class="badge bg-primary">STANDARD</span></h6>
-                            <p class="small">Prodotto standard venduto a unità</p>
-
-                            <h6><span class="badge bg-info">A_MISURA</span></h6>
-                            <p class="small">Prodotto venduto a misura (peso, lunghezza, area, ecc.)</p>
-
-                            <h6><span class="badge bg-warning">COMPOSTO</span></h6>
-                            <p class="small">Prodotto composto da sottoprodotti</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6><span class="badge bg-success">VARIABILE</span></h6>
-                            <p class="small">Prodotto con varianti (taglie, colori, ecc.)</p>
-
-                            <h6><span class="badge bg-dark">SERVIZIO</span></h6>
-                            <p class="small">Servizio (consulenza, assistenza, ore lavoro)</p>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <h6 class="mb-2">Unità di Misura Supportate:</h6>
-                    <div class="d-flex flex-wrap gap-2">
-                        <span class="badge bg-secondary">PEZZO</span>
-                        <span class="badge bg-secondary">KG</span>
-                        <span class="badge bg-secondary">LITRO</span>
-                        <span class="badge bg-secondary">METRO</span>
-                        <span class="badge bg-secondary">MQ</span>
-                        <span class="badge bg-secondary">MC</span>
-                        <span class="badge bg-secondary">ORA</span>
+                        </s:form>
                     </div>
                 </div>
-            </div>
+            </s:if>
+            <s:else>
+                <!-- Step 2: Map Fields and Import -->
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-2-circle me-2"></i>Mappatura Campi e Anteprima</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle me-2"></i>
+                            File caricato con successo! Trovate <strong><s:property value="previewData.size()"/></strong> righe.
+                        </div>
+
+                        <s:form action="processImport" namespace="/app/prodotti" method="post" theme="simple" id="importForm">
+                            <h5 class="mb-3">Mappatura Colonne</h5>
+                            <p class="text-muted">Associa ogni colonna del file a un campo del database:</p>
+
+                            <div class="table-responsive mb-4">
+                                <table class="table table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 30%">Colonna File</th>
+                                            <th style="width: 30%">Campo Database</th>
+                                            <th style="width: 40%">Esempio Valore</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <s:iterator value="fileHeaders" var="header" status="stat">
+                                            <tr>
+                                                <td><strong><s:property value="#header"/></strong></td>
+                                                <td>
+                                                    <select name="fieldMapping['<s:property value="#header"/>']" class="form-select form-select-sm">
+                                                        <option value="">-- Ignora --</option>
+                                                        <option value="codice">Codice *</option>
+                                                        <option value="nome">Nome *</option>
+                                                        <option value="descrizione">Descrizione</option>
+                                                        <option value="categoria">Categoria</option>
+                                                        <option value="codiceFornitore">Codice Fornitore</option>
+                                                        <option value="tipoProdotto">TipoProdotto *</option>
+                                                        <option value="unitaMisura">UnitaMisura *</option>
+                                                        <option value="prezzoBase">PrezzoBase *</option>
+                                                        <option value="costoAcquisto">CostoAcquisto</option>
+                                                        <option value="ivaPercentuale">IvaPercentuale</option>
+                                                        <option value="scontoMassimo">ScontoMassimo</option>
+                                                        <option value="peso">Peso</option>
+                                                        <option value="volume">Volume</option>
+                                                        <option value="codiceEan">CodiceEAN</option>
+                                                        <option value="giacenzaMinima">GiacenzaMinima</option>
+                                                        <option value="gestioneMagazzino">GestioneMagazzino (SI/NO)</option>
+                                                        <option value="attivo">Attivo (SI/NO)</option>
+                                                        <option value="note">Note</option>
+                                                    </select>
+                                                </td>
+                                                <td class="text-muted small">
+                                                    <s:if test="previewData.size() > 0">
+                                                        <s:property value="previewData[0][#header]"/>
+                                                    </s:if>
+                                                </td>
+                                            </tr>
+                                        </s:iterator>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <strong>Note:</strong>
+                                <ul class="mb-0">
+                                    <li>I campi <strong>Codice, Nome, TipoProdotto, UnitaMisura, PrezzoBase</strong> sono obbligatori</li>
+                                    <li>TipoProdotto: STANDARD, A_MISURA, COMPOSTO, VARIABILE, SERVIZIO</li>
+                                    <li>UnitaMisura: PEZZO, KG, LITRO, METRO, MQ, MC, ORA</li>
+                                    <li>GestioneMagazzino/Attivo accettano SI/NO, TRUE/FALSE, 1/0</li>
+                                    <li>Se il <strong>Codice</strong> esiste gia', il prodotto verra' aggiornato</li>
+                                    <li>Le prime 100 righe sono mostrate in anteprima, ma verra' importato l'intero file</li>
+                                </ul>
+                            </div>
+
+                            <h5 class="mb-3 mt-4">Anteprima Dati (prime 10 righe)</h5>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>#</th>
+                                            <s:iterator value="fileHeaders" var="header">
+                                                <th><s:property value="#header"/></th>
+                                            </s:iterator>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <s:iterator value="previewData" var="row" status="stat" begin="0" end="9">
+                                            <tr>
+                                                <td><s:property value="#stat.index + 1"/></td>
+                                                <s:iterator value="fileHeaders" var="header">
+                                                    <td><s:property value="#row[#header]"/></td>
+                                                </s:iterator>
+                                            </tr>
+                                        </s:iterator>
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="mt-4">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle me-2"></i>Conferma e Importa
+                                </button>
+                                <a href="<s:url action='importPage' namespace='/app/prodotti'/>" class="btn btn-secondary btn-lg ms-2">
+                                    <i class="bi bi-x-circle me-2"></i>Annulla
+                                </a>
+                            </div>
+                        </s:form>
+                    </div>
+                </div>
+            </s:else>
         </div>
     </div>
 
@@ -154,12 +229,5 @@
 </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Mostra nome file selezionato
-        document.getElementById('uploadFile').addEventListener('change', function(e) {
-            var fileName = e.target.files[0]?.name || 'Nessun file selezionato';
-            console.log('File selezionato:', fileName);
-        });
-    </script>
 </body>
 </html>

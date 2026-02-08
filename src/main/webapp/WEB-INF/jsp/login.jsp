@@ -46,7 +46,7 @@
             <div class="card">
                 <div class="card-body p-5">
                     <div class="logo-section">
-                        <img src="${pageContext.request.contextPath}/assets/images/logo.png" alt="Luna2" class="img-fluid mb-3" style="max-height: 80px;">
+                        <img src="${pageContext.request.contextPath}/assets/images/logo-blue.png" alt="Luna2" class="img-fluid mb-3" style="max-height: 120px;">
                         <p class="logo-subtitle">Gestionale in cloud</p>
                     </div>
 

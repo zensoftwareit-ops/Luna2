@@ -114,7 +114,7 @@
                 </s:if>
                 <s:if test="#session.enabledModules['MAGAZZINO']">
                     <li class="nav-item mt-3">
-                        <a class="nav-link" href="<s:url action='giacenze' namespace='/app/magazzino'/>">
+                        <a class="nav-link" href="<s:url action='list' namespace='/app/magazzino'/>">
                             <i class="bi bi-archive me-2"></i>Magazzino
                         </a>
                     </li>

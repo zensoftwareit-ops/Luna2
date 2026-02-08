@@ -237,6 +237,23 @@
             <result name="success">/WEB-INF/jsp/prodotti/import.jsp</result>
         </action>
 
+        <action name="parseFile" class="it.zensoftware.luna2.action.ProdottiImportExportAction" method="parseFile">
+            <interceptor-ref name="fileUpload">
+                <param name="allowedTypes">text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</param>
+                <param name="maximumSize">10485760</param>
+            </interceptor-ref>
+            <interceptor-ref name="authStack"/>
+            <result name="success">/WEB-INF/jsp/prodotti/import.jsp</result>
+            <result name="input">/WEB-INF/jsp/prodotti/import.jsp</result>
+        </action>
+
+        <action name="processImport" class="it.zensoftware.luna2.action.ProdottiImportExportAction" method="processImport">
+            <result name="success" type="redirectAction">
+                <param name="actionName">importPage</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/prodotti/import.jsp</result>
+        </action>
+
         <action name="importCatalog" class="it.zensoftware.luna2.action.ProdottiImportExportAction" method="importCatalog">
             <interceptor-ref name="fileUpload">
                 <param name="allowedTypes">application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</param>
@@ -271,16 +288,59 @@
     <package name="documenti" extends="luna2-default" namespace="/app/documenti">
         <!-- Preventivi -->
         <action name="preventivi" class="it.zensoftware.luna2.action.PreventiviAction" method="list">
-            <result name="success">/WEB-INF/jsp/documenti/preventivi/list.jsp</result>
+            <result name="success">/WEB-INF/jsp/preventivi/list.jsp</result>
         </action>
 
         <action name="preventivi-create" class="it.zensoftware.luna2.action.PreventiviAction" method="create">
-            <result name="success">/WEB-INF/jsp/documenti/preventivi/form.jsp</result>
+            <result name="success">/WEB-INF/jsp/preventivi/form.jsp</result>
+        </action>
+
+        <action name="preventivi-edit" class="it.zensoftware.luna2.action.PreventiviAction" method="edit">
+            <result name="success">/WEB-INF/jsp/preventivi/form.jsp</result>
+        </action>
+
+        <action name="preventivi-view" class="it.zensoftware.luna2.action.PreventiviAction" method="view">
+            <result name="success">/WEB-INF/jsp/preventivi/view.jsp</result>
         </action>
 
         <action name="preventivi-save" class="it.zensoftware.luna2.action.PreventiviAction" method="save">
             <result name="success" type="redirectAction">preventivi</result>
-            <result name="input">/WEB-INF/jsp/documenti/preventivi/form.jsp</result>
+            <result name="error">/WEB-INF/jsp/preventivi/form.jsp</result>
+            <result name="input">/WEB-INF/jsp/preventivi/form.jsp</result>
+        </action>
+
+        <action name="preventivi-delete" class="it.zensoftware.luna2.action.PreventiviAction" method="delete">
+            <result name="success" type="redirectAction">preventivi</result>
+        </action>
+
+        <action name="preventivi-duplica" class="it.zensoftware.luna2.action.PreventiviAction" method="duplica">
+            <result name="success" type="redirectAction">
+                <param name="actionName">preventivi-edit</param>
+                <param name="id">${id}</param>
+            </result>
+            <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
+        <action name="preventivi-invia" class="it.zensoftware.luna2.action.PreventiviAction" method="invia">
+            <result name="success" type="redirectAction">preventivi</result>
+            <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
+        <action name="preventivi-accetta" class="it.zensoftware.luna2.action.PreventiviAction" method="accetta">
+            <result name="success" type="redirectAction">preventivi</result>
+            <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
+        <action name="preventivi-rifiuta" class="it.zensoftware.luna2.action.PreventiviAction" method="rifiuta">
+            <result name="success" type="redirectAction">preventivi</result>
+            <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
+        <action name="preventivi-ricalcola" class="it.zensoftware.luna2.action.PreventiviAction" method="ricalcolaTotali">
+            <result name="success" type="redirectAction">
+                <param name="actionName">preventivi-edit</param>
+                <param name="id">${id}</param>
+            </result>
         </action>
 
         <!-- Ordini -->
@@ -366,9 +426,81 @@
     </package>
 
     <!-- Magazzino Package -->
+    <!-- Magazzino Package (azioni normali) -->
     <package name="magazzino" extends="luna2-default" namespace="/app/magazzino">
-        <action name="giacenze" class="it.zensoftware.luna2.action.MagazzinoAction" method="giacenze">
-            <result name="success">/WEB-INF/jsp/magazzino/giacenze.jsp</result>
+        <!-- Lista giacenze -->
+        <action name="list" class="it.zensoftware.luna2.action.MagazzinoAction" method="list">
+              <result name="success">/WEB-INF/jsp/magazzino/warehouse.jsp</result>
+              <result name="error">/WEB-INF/jsp/magazzino/warehouse.jsp</result>
+        </action>
+        
+        <!-- Test warehouse view -->
+        <action name="warehouse" class="it.zensoftware.luna2.action.MagazzinoAction" method="list">
+              <result name="success">/WEB-INF/jsp/magazzino/warehouse.jsp</result>
+        </action>
+        
+        <!-- Compatibilità con la vecchia action -->
+        <action name="giacenze" class="it.zensoftware.luna2.action.MagazzinoAction" method="list">
+              <result name="success">/WEB-INF/jsp/magazzino/warehouse.jsp</result>
+        </action>
+
+        <!-- Nuovo movimento (carico/scarico) -->
+        <action name="nuovoMovimento" class="it.zensoftware.luna2.action.MagazzinoAction" method="nuovoMovimento">
+            <result name="success">/WEB-INF/jsp/magazzino/nuovoMovimento.jsp</result>
+            <result name="error">/WEB-INF/jsp/magazzino/nuovoMovimento.jsp</result>
+        </action>
+
+        <!-- Registra carico -->
+        <action name="carico" class="it.zensoftware.luna2.action.MagazzinoAction" method="carico">
+            <result name="success" type="redirect">list</result>
+            <result name="input">/WEB-INF/jsp/magazzino/nuovoMovimento.jsp</result>
+            <result name="error">/WEB-INF/jsp/magazzino/nuovoMovimento.jsp</result>
+        </action>
+
+        <!-- Registra scarico -->
+        <action name="scarico" class="it.zensoftware.luna2.action.MagazzinoAction" method="scarico">
+            <result name="success" type="redirect">list</result>
+            <result name="input">/WEB-INF/jsp/magazzino/nuovoMovimento.jsp</result>
+            <result name="error">/WEB-INF/jsp/magazzino/nuovoMovimento.jsp</result>
+        </action>
+
+        <!-- Storico movimenti -->
+        <action name="storicoMovimenti" class="it.zensoftware.luna2.action.MagazzinoAction" method="storicoMovimenti">
+            <result name="success">/WEB-INF/jsp/magazzino/storicoMovimenti.jsp</result>
+            <result name="error">/WEB-INF/jsp/magazzino/storicoMovimenti.jsp</result>
+        </action>
+
+        <!-- Scanner barcode -->
+        <action name="scanner" class="it.zensoftware.luna2.action.MagazzinoAction" method="scanner">
+            <result name="success">/WEB-INF/jsp/magazzino/scanner.jsp</result>
+        </action>
+
+        <!-- Stampa etichette (form selezione) -->
+        <action name="stampaEtichette" class="it.zensoftware.luna2.action.MagazzinoAction" method="listProdotti">
+            <result name="success">/WEB-INF/jsp/magazzino/stampaEtichette.jsp</result>
+            <result name="error">/WEB-INF/jsp/magazzino/stampaEtichette.jsp</result>
+        </action>
+
+        <!-- Stampa etichette (genera PDF) -->
+        <action name="stampaEtichetteBatch" class="it.zensoftware.luna2.action.MagazzinoAction" method="stampaEtichette">
+            <result name="success" type="stream">
+                <param name="contentType">application/pdf</param>
+                <param name="inputName">pdfStream</param>
+                <param name="contentDisposition">attachment;filename="${pdfFileName}"</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/magazzino/stampaEtichette.jsp</result>
+        </action>
+
+        <!-- Stampa etichetta singola -->
+        <action name="stampaEtichettaSingola" class="it.zensoftware.luna2.action.MagazzinoAction" method="stampaEtichettaSingola">
+            <result name="success" type="stream">
+                <param name="contentType">application/pdf</param>
+                <param name="inputName">pdfStream</param>
+                <param name="contentDisposition">attachment;filename="${pdfFileName}"</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/magazzino/list.jsp</result>
         </action>
     </package>
 
@@ -376,6 +508,21 @@
     <package name="produzione" extends="luna2-default" namespace="/app/produzione">
         <action name="commesse" class="it.zensoftware.luna2.action.ProduzioneAction" method="commesse">
             <result name="success">/WEB-INF/jsp/produzione/commesse.jsp</result>
+        </action>
+    </package>
+
+    <!-- Magazzino JSON Package (per azioni AJAX) -->
+    <package name="magazzino-json" extends="json-default,luna2-default" namespace="/app/magazzino">
+        <!-- Cerca barcode (AJAX) -->
+        <action name="cercaBarcode" class="it.zensoftware.luna2.action.MagazzinoAction" method="cercaBarcode">
+            <result name="success" type="json">
+                <param name="root">this</param>
+                <param name="includeProperties">scanResult, prodottoScansionato.*, prodottoId</param>
+            </result>
+            <result name="error" type="json">
+                <param name="root">this</param>
+                <param name="includeProperties">scanResult</param>
+            </result>
         </action>
     </package>
 
