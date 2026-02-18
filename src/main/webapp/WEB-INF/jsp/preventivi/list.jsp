@@ -109,10 +109,15 @@
                                                        class="btn btn-outline-info" title="Visualizza">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
-                                                    <a href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
-                                                       class="btn btn-outline-success" title="Scarica PDF" target="_blank">
-                                                        <i class="bi bi-file-pdf"></i>
-                                                    </a>
+                                                    <div class="btn-group" role="group">
+                                                        <button type="button" class="btn btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" title="Scarica PDF">
+                                                            <i class="bi bi-file-pdf"></i>
+                                                        </button>
+                                                        <ul class="dropdown-menu">
+                                                            <li><a class="dropdown-item" href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='#p.id'/><s:param name='tipo' value='tecnico'/></s:url>" target="_blank">PDF Tecnico</a></li>
+                                                            <li><a class="dropdown-item" href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='#p.id'/><s:param name='tipo' value='descrittivo'/></s:url>" target="_blank">PDF Descrittivo</a></li>
+                                                        </ul>
+                                                    </div>
                                                     <a href="<s:url action='preventivi-edit' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
                                                        class="btn btn-outline-primary" title="Modifica">
                                                         <i class="bi bi-pencil"></i>

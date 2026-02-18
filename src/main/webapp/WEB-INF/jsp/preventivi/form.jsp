@@ -31,10 +31,16 @@
                 </h1>
                 <div>
                     <s:if test="preventivo.id != null">
-                        <a href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='preventivo.id'/></s:url>" 
-                           class="btn btn-success me-2" target="_blank" title="Scarica PDF">
-                            <i class="bi bi-file-pdf me-2"></i>Scarica PDF
-                        </a>
+                        <div class="btn-group me-2" role="group">
+                            <a href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='preventivo.id'/><s:param name='tipo' value='tecnico'/></s:url>" 
+                               class="btn btn-outline-success" target="_blank" title="Scarica PDF Tecnico">
+                                <i class="bi bi-file-pdf me-1"></i>PDF Tecnico
+                            </a>
+                            <a href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='preventivo.id'/><s:param name='tipo' value='descrittivo'/></s:url>" 
+                               class="btn btn-outline-info" target="_blank" title="Scarica PDF Descrittivo">
+                                <i class="bi bi-file-pdf me-1"></i>PDF Descrittivo
+                            </a>
+                        </div>
                     </s:if>
                     <a href="<s:url action='preventivi' namespace='/app/documenti'/>" class="btn btn-secondary">
                         <i class="bi bi-arrow-left me-2"></i>Torna alla Lista
