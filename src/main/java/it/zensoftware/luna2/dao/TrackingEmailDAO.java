@@ -89,4 +89,60 @@ public class TrackingEmailDAO extends GenericDAOImpl<TrackingEmail, Long> {
             session.close();
         }
     }
+
+    public List<TrackingEmail> findByOrdineId(Long ordineId) {
+        Session session = getSession();
+        try {
+            Query<TrackingEmail> query = session.createQuery("FROM TrackingEmail WHERE ordine.id = :ordineId ORDER BY dataInvio DESC", TrackingEmail.class);
+            query.setParameter("ordineId", ordineId);
+            return query.list();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long countEmailsForOrdine(Long ordineId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE ordine.id = :ordineId", Long.class);
+            query.setParameter("ordineId", ordineId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long countOpensForOrdine(Long ordineId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE ordine.id = :ordineId AND aperto = true", Long.class);
+            query.setParameter("ordineId", ordineId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long countDownloadsForOrdine(Long ordineId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE ordine.id = :ordineId AND clickDownload > 0", Long.class);
+            query.setParameter("ordineId", ordineId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long getTotalDownloadCountOrdine(Long ordineId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT SUM(clickDownload) FROM TrackingEmail WHERE ordine.id = :ordineId", Long.class);
+            query.setParameter("ordineId", ordineId);
+            Long result = query.uniqueResult();
+            return result != null ? result : 0L;
+        } finally {
+            session.close();
+        }
+    }
 }

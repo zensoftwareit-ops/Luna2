@@ -17,6 +17,10 @@ public class TrackingEmail {
     @JoinColumn(name = "preventivo_id")
     private Preventivo preventivo;
 
+    @ManyToOne
+    @JoinColumn(name = "ordine_id")
+    private Ordine ordine;
+
     @Column(name = "email_destinatario")
     private String emailDestinatario;
 
@@ -53,6 +57,9 @@ public class TrackingEmail {
 
     public Preventivo getPreventivo() { return preventivo; }
     public void setPreventivo(Preventivo preventivo) { this.preventivo = preventivo; }
+
+    public Ordine getOrdine() { return ordine; }
+    public void setOrdine(Ordine ordine) { this.ordine = ordine; }
 
     public String getEmailDestinatario() { return emailDestinatario; }
     public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }

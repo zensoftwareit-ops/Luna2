@@ -394,6 +394,32 @@
             <result name="input">/WEB-INF/jsp/documenti/ordini/form.jsp</result>
         </action>
 
+        <action name="ordini-sendEmail" class="it.zensoftware.luna2.action.OrdiniAction" method="sendEmail">
+            <result name="success" type="redirectAction">
+                <param name="actionName">ordini</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/documenti/ordini/form.jsp</result>
+            <result name="error">/WEB-INF/jsp/documenti/ordini/form.jsp</result>
+        </action>
+
+        <action name="ordini-trackPixel" class="it.zensoftware.luna2.action.OrdiniAction" method="trackPixel">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">image/gif</param>
+                <param name="bufferSize">256</param>
+            </result>
+        </action>
+
+        <action name="ordini-downloadTracked" class="it.zensoftware.luna2.action.OrdiniAction" method="downloadWithTracking">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/pdf</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">ordini</result>
+        </action>
+
         <!-- Fatture -->
         <action name="fatture" class="it.zensoftware.luna2.action.FattureAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/fatture/list.jsp</result>
