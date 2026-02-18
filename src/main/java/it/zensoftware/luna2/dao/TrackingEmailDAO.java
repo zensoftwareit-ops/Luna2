@@ -145,4 +145,60 @@ public class TrackingEmailDAO extends GenericDAOImpl<TrackingEmail, Long> {
             session.close();
         }
     }
+
+    public List<TrackingEmail> findByFatturaId(Long fatturaId) {
+        Session session = getSession();
+        try {
+            Query<TrackingEmail> query = session.createQuery("FROM TrackingEmail WHERE fattura.id = :fatturaId ORDER BY dataInvio DESC", TrackingEmail.class);
+            query.setParameter("fatturaId", fatturaId);
+            return query.list();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long countEmailsForFattura(Long fatturaId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE fattura.id = :fatturaId", Long.class);
+            query.setParameter("fatturaId", fatturaId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long countOpensForFattura(Long fatturaId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE fattura.id = :fatturaId AND aperto = true", Long.class);
+            query.setParameter("fatturaId", fatturaId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long countDownloadsForFattura(Long fatturaId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE fattura.id = :fatturaId AND clickDownload > 0", Long.class);
+            query.setParameter("fatturaId", fatturaId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long getTotalDownloadCountFattura(Long fatturaId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT SUM(clickDownload) FROM TrackingEmail WHERE fattura.id = :fatturaId", Long.class);
+            query.setParameter("fatturaId", fatturaId);
+            Long result = query.uniqueResult();
+            return result != null ? result : 0L;
+        } finally {
+            session.close();
+        }
+    }
 }

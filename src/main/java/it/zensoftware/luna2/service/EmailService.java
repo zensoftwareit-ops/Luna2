@@ -3,6 +3,7 @@ package it.zensoftware.luna2.service;
 import it.zensoftware.luna2.dao.TrackingEmailDAO;
 import it.zensoftware.luna2.model.Preventivo;
 import it.zensoftware.luna2.model.Ordine;
+import it.zensoftware.luna2.model.Fattura;
 import it.zensoftware.luna2.model.TrackingEmail;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -183,6 +184,82 @@ public class EmailService {
                 "</div>" +
                 "<p style='text-align: center;'>" +
                 "<a href='http://localhost:8080/luna2/app/documenti/ordini-downloadTracked.action?tid=" + trackingId + "' class='button'>Scarica Ordine</a>" +
+                "</p>" +
+                "</div>" +
+                "<div class='footer'>" +
+                "<p>&copy; 2026 Luna2 - Gestionale Cloud. Tutti i diritti riservati.</p>" +
+                "</div>" +
+                "</div>" +
+                "<img src='" + trackingPixelUrl + "' width='1' height='1' style='display:none;' alt='' />" +
+                "</body>" +
+                "</html>";
+    }
+
+    public TrackingEmail sendFatturaEmail(Fattura fattura, String emailDestinatario, String emailBody, 
+                                          String smtpUsername, String smtpPassword, String smtpFromEmail) {
+        TrackingEmail tracking = new TrackingEmail();
+        String trackingId = UUID.randomUUID().toString();
+        tracking.setTrackingId(trackingId);
+        tracking.setFattura(fattura);
+        tracking.setEmailDestinatario(emailDestinatario);
+        tracking.setDataInvio(new Date());
+
+        try {
+            Session session = createSession(smtpUsername, smtpPassword);
+            Message message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(smtpFromEmail));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(emailDestinatario));
+            String tipoLabel = Fattura.TipoFattura.PROFORMA.equals(fattura.getTipoFattura()) ? "Proforma" : "Fattura";
+            message.setSubject(tipoLabel + ": " + fattura.getNumero());
+
+            // Crea il corpo della mail con HTML e tracciamento pixel
+            String trackingPixelUrl = "http://localhost:8080/luna2/app/documenti/fatture-trackPixel.action?tid=" + trackingId;
+            String htmlContent = prepareFatturaEmailContent(emailBody, fattura, trackingId, trackingPixelUrl);
+
+            message.setContent(htmlContent, "text/html; charset=utf-8");
+
+            Transport.send(message);
+            logger.info("Email inviata a " + emailDestinatario + " con tracking ID: " + trackingId);
+
+            // Salva il tracciamento
+            trackingEmailDAO.save(tracking);
+            return tracking;
+
+        } catch (Exception e) {
+            logger.error("Errore nell'invio email", e);
+            throw new RuntimeException("Errore nell'invio della mail: " + e.getMessage());
+        }
+    }
+
+    private String prepareFatturaEmailContent(String userMessage, Fattura fattura, String trackingId, String trackingPixelUrl) {
+        String tipoLabel = Fattura.TipoFattura.PROFORMA.equals(fattura.getTipoFattura()) ? "Proforma" : "Fattura";
+        return "<!DOCTYPE html>" +
+                "<html>" +
+                "<head>" +
+                "<meta charset='UTF-8'>" +
+                "<style>" +
+                "body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }" +
+                ".container { max-width: 600px; margin: 0 auto; padding: 20px; }" +
+                ".header { background-color: #9C27B0; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }" +
+                ".content { background-color: #f9f9f9; padding: 20px; border: 1px solid #ddd; }" +
+                ".footer { background-color: #eee; padding: 15px; text-align: center; font-size: 12px; border-radius: 0 0 5px 5px; }" +
+                ".button { background-color: #9C27B0; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }" +
+                ".fattura-info { background-color: white; padding: 15px; margin: 10px 0; border-left: 4px solid #9C27B0; }" +
+                "</style>" +
+                "</head>" +
+                "<body>" +
+                "<div class='container'>" +
+                "<div class='header'><h1>Nuova " + tipoLabel + "</h1></div>" +
+                "<div class='content'>" +
+                "<p>" + userMessage + "</p>" +
+                "<div class='fattura-info'>" +
+                "<strong>Numero " + tipoLabel + ":</strong> " + fattura.getNumero() + "<br>" +
+                "<strong>Data:</strong> " + new java.text.SimpleDateFormat("dd/MM/yyyy").format(fattura.getDataFattura()) + "<br>" +
+                (fattura.getCliente() != null ? "<strong>Cliente:</strong> " + fattura.getCliente().getRagioneSociale() + "<br>" : "") +
+                "<strong>Importo:</strong> € " + String.format("%.2f", fattura.getTotale() != null ? fattura.getTotale() : 0.0) +
+                "</div>" +
+                "<p style='text-align: center;'>" +
+                "<a href='http://localhost:8080/luna2/app/documenti/fatture-downloadTracked.action?tid=" + trackingId + "' class='button'>Scarica " + tipoLabel + "</a>" +
                 "</p>" +
                 "</div>" +
                 "<div class='footer'>" +

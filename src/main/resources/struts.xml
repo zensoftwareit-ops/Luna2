@@ -434,6 +434,49 @@
             <result name="input">/WEB-INF/jsp/documenti/fatture/form.jsp</result>
         </action>
 
+        <action name="fatture-delete" class="it.zensoftware.luna2.action.FattureAction" method="delete">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
+        <action name="fatture-generatePdf" class="it.zensoftware.luna2.action.FattureAction" method="generatePdf">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/pdf</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
+        <action name="fatture-sendEmail" class="it.zensoftware.luna2.action.FattureAction" method="sendEmail">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/documenti/fatture/form.jsp</result>
+            <result name="error">/WEB-INF/jsp/documenti/fatture/form.jsp</result>
+        </action>
+
+        <action name="fatture-trackPixel" class="it.zensoftware.luna2.action.FattureAction" method="trackPixel">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">image/gif</param>
+                <param name="bufferSize">256</param>
+            </result>
+        </action>
+
+        <action name="fatture-downloadTracked" class="it.zensoftware.luna2.action.FattureAction" method="downloadWithTracking">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/pdf</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
         <!-- DDT -->
         <action name="ddt" class="it.zensoftware.luna2.action.DdtAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/ddt/list.jsp</result>

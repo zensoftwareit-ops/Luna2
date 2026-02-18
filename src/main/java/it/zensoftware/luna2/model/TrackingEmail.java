@@ -21,6 +21,10 @@ public class TrackingEmail {
     @JoinColumn(name = "ordine_id")
     private Ordine ordine;
 
+    @ManyToOne
+    @JoinColumn(name = "fattura_id")
+    private Fattura fattura;
+
     @Column(name = "email_destinatario")
     private String emailDestinatario;
 
@@ -60,6 +64,9 @@ public class TrackingEmail {
 
     public Ordine getOrdine() { return ordine; }
     public void setOrdine(Ordine ordine) { this.ordine = ordine; }
+
+    public Fattura getFattura() { return fattura; }
+    public void setFattura(Fattura fattura) { this.fattura = fattura; }
 
     public String getEmailDestinatario() { return emailDestinatario; }
     public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }

@@ -33,7 +33,9 @@ public class HibernateUtil {
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Cliente.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Fornitore.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Ordine.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.OrdineRiga.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Fattura.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.FatturaRiga.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Preventivo.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PreventivoRiga.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Prodotto.class);
@@ -42,6 +44,7 @@ public class HibernateUtil {
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Lead.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Tag.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.ModuleSetting.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.TrackingEmail.class);
             
             logger.info("Annotated classes registered");
 

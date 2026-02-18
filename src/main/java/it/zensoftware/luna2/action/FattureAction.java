@@ -1,159 +1,431 @@
 package it.zensoftware.luna2.action;
 
 import com.opensymphony.xwork2.ActionSupport;
-import it.zensoftware.luna2.dao.GenericDAOImpl;
-import it.zensoftware.luna2.model.Cliente;
+import it.zensoftware.luna2.dao.FatturaDAO;
+import it.zensoftware.luna2.dao.FatturaRigaDAO;
+import it.zensoftware.luna2.dao.ClienteDAO;
+import it.zensoftware.luna2.dao.TrackingEmailDAO;
+import it.zensoftware.luna2.dto.FatturaTrackingDTO;
 import it.zensoftware.luna2.model.Fattura;
-import it.zensoftware.luna2.model.User;
+import it.zensoftware.luna2.model.FatturaRiga;
+import it.zensoftware.luna2.model.Cliente;
+import it.zensoftware.luna2.model.TrackingEmail;
+import it.zensoftware.luna2.service.EmailService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.struts2.ServletActionContext;
 
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.Properties;
 
 public class FattureAction extends ActionSupport {
     private static final Logger logger = LogManager.getLogger(FattureAction.class);
-    
-    private GenericDAOImpl<Fattura, Long> fatturaDAO = new GenericDAOImpl<>(Fattura.class);
-    private GenericDAOImpl<Cliente, Long> clienteDAO = new GenericDAOImpl<>(Cliente.class);
+    private FatturaDAO fatturaDAO = new FatturaDAO();
+    private FatturaRigaDAO fatturaRigaDAO = new FatturaRigaDAO();
+    private ClienteDAO clienteDAO = new ClienteDAO();
+    private TrackingEmailDAO trackingEmailDAO = new TrackingEmailDAO();
+    private EmailService emailService = new EmailService();
     
     private Fattura fattura;
     private List<Fattura> fatture;
-    private Long id;
+    private List<FatturaTrackingDTO> fattureConTracking;
     private List<Cliente> clienti;
+    private List<FatturaRiga> righe;
+    private FatturaRiga riga;
     
+    private Long id;
+    private Long rigaId;
+    private Integer anno;
+    private Fattura.TipoFattura tipo;
+    private Long clienteId;
+    private InputStream inputStream;
+    private String contentDisposition;
+    private String emailDestinatario;
+    private String trackingId;
+    private String messageEmail;
+
+    public String list() {
+        if (anno == null) {
+            anno = Calendar.getInstance().get(Calendar.YEAR);
+        }
+        
+        if (tipo != null) {
+            fatture = fatturaDAO.findByTipo(tipo);
+        } else {
+            fatture = fatturaDAO.findByAnno(anno);
+        }
+        
+        // Populate tracking data for each fattura
+        fattureConTracking = new ArrayList<>();
+        for (Fattura f : fatture) {
+            Long totalEmails = trackingEmailDAO.countEmailsForFattura(f.getId());
+            Long openedEmails = trackingEmailDAO.countOpensForFattura(f.getId());
+            Long downloadedEmails = trackingEmailDAO.countDownloadsForFattura(f.getId());
+            Long totalDownloads = trackingEmailDAO.getTotalDownloadCountFattura(f.getId());
+            
+            fattureConTracking.add(new FatturaTrackingDTO(f, totalEmails, openedEmails, downloadedEmails, totalDownloads));
+        }
+        
+        return SUCCESS;
+    }
+
+    public String create() {
+        fattura = new Fattura();
+        fattura.setDataFattura(new Date());
+        fattura.setAnno(Calendar.getInstance().get(Calendar.YEAR));
+        fattura.setTipoFattura(Fattura.TipoFattura.PROFORMA);
+        
+        clienti = clienteDAO.findAll();
+        
+        return SUCCESS;
+    }
+
+    public String edit() {
+        if (id != null) {
+            fattura = fatturaDAO.findWithRighe(id);
+            if (fattura == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+            fattura.getRighe().size(); // Force load
+            clienti = clienteDAO.findAll();
+        }
+        return SUCCESS;
+    }
+
+    public String save() {
+        try {
+            if (fattura == null) {
+                addActionError("Fattura non valida");
+                return ERROR;
+            }
+
+            if (fattura.getId() == null) {
+                fatturaDAO.save(fattura);
+            } else {
+                fatturaDAO.update(fattura);
+            }
+
+            addActionMessage("Fattura salvata con successo");
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Errore nel salvataggio fattura", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String delete() {
+        try {
+            if (id != null) {
+                fattura = fatturaDAO.findById(id);
+                if (fattura != null) {
+                    fatturaDAO.delete(fattura);
+                    addActionMessage("Fattura eliminata");
+                }
+            }
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Errore nell'eliminazione", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String generatePdf() {
+        try {
+            if (id == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            fattura = fatturaDAO.findWithRighe(id);
+            if (fattura == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            righe = fatturaDAO.findWithRighe(id).getRighe();
+
+            Document document = new Document(PageSize.A4);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            generaPdf(document);
+
+            document.close();
+
+            inputStream = new ByteArrayInputStream(baos.toByteArray());
+            contentDisposition = "attachment; filename=\"Fattura_" + fattura.getNumero() + ".pdf\"";
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nella generazione PDF", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String sendEmail() {
+        try {
+            if (id == null || emailDestinatario == null || emailDestinatario.isEmpty()) {
+                addActionError("Fattura e email ricevente sono obbligatori");
+                return INPUT;
+            }
+
+            fattura = fatturaDAO.findWithRighe(id);
+            if (fattura == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            // Leggi configurazione SMTP dalle properties
+            Properties props = new Properties();
+            try (java.io.InputStream is = this.getClass().getClassLoader().getResourceAsStream("application.properties")) {
+                props.load(is);
+            }
+
+            String smtpHost = props.getProperty("smtp.host", "smtp.gmail.com");
+            String smtpUsername = props.getProperty("smtp.username");
+            String smtpPassword = props.getProperty("smtp.password");
+            String smtpFromEmail = props.getProperty("smtp.username");
+
+            if (smtpUsername == null || smtpPassword == null) {
+                addActionError("Configurazione SMTP incompleta. Verifica application.properties");
+                logger.error("SMTP configuration missing in application.properties");
+                return ERROR;
+            }
+
+            String emailBodyMessage = messageEmail != null ? messageEmail : 
+                "Allega la fattura numero " + fattura.getNumero() + " per la review.";
+
+            // Invia email con tracciamento
+            TrackingEmail tracking = emailService.sendFatturaEmail(fattura, emailDestinatario, 
+                    emailBodyMessage, smtpUsername, smtpPassword, smtpFromEmail);
+
+            addActionMessage("Email inviata con successo a " + emailDestinatario);
+            logger.info("Email inviata per fattura " + fattura.getNumero() + " a " + emailDestinatario);
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore durante l'invio email", e);
+            addActionError("Errore durante l'invio: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String trackPixel() {
+        try {
+            if (trackingId == null || trackingId.isEmpty()) {
+                logger.warn("Track pixel called without tracking ID");
+                return ERROR;
+            }
+
+            String userAgent = ServletActionContext.getRequest().getHeader("User-Agent");
+            emailService.trackPixelOpen(trackingId, userAgent);
+
+            // Return 1x1 transparent GIF
+            byte[] gifBytes = {
+                0x47, 0x49, 0x46, 0x38, (byte) 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, (byte) 0x80,
+                0x00, 0x00, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, 0x00, 0x00, 0x00, 0x21, (byte) 0xF9,
+                0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01,
+                0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3B
+            };
+
+            inputStream = new ByteArrayInputStream(gifBytes);
+            contentDisposition = "inline; filename=\"pixel.gif\"";
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nel tracking pixel", e);
+            return ERROR;
+        }
+    }
+
+    public String downloadWithTracking() {
+        try {
+            if (trackingId == null || trackingId.isEmpty()) {
+                logger.warn("Download called without tracking ID");
+                return ERROR;
+            }
+
+            TrackingEmail tracking = trackingEmailDAO.findByTrackingId(trackingId);
+            if (tracking == null) {
+                logger.warn("Tracking record not found for ID: " + trackingId);
+                return ERROR;
+            }
+
+            Long fatturaId = tracking.getFattura().getId();
+            fattura = fatturaDAO.findWithRighe(fatturaId);
+
+            if (fattura == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            righe = fattura.getRighe();
+
+            // Traccia il download
+            String userAgent = ServletActionContext.getRequest().getHeader("User-Agent");
+            emailService.trackDownload(trackingId, userAgent);
+
+            // Genera PDF
+            Document document = new Document(PageSize.A4);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            generaPdf(document);
+
+            document.close();
+
+            inputStream = new ByteArrayInputStream(baos.toByteArray());
+            contentDisposition = "attachment; filename=\"Fattura_" + fattura.getNumero() + ".pdf\"";
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nel download con tracciamento", e);
+            addActionError("Errore durante il download: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    private void generaPdf(Document document) throws DocumentException {
+        String tipoLabel = Fattura.TipoFattura.PROFORMA.equals(fattura.getTipoFattura()) ? "PROFORMA" : "FATTURA";
+        document.add(new Paragraph(new Chunk(tipoLabel, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20))));
+        document.add(new Paragraph(" "));
+
+        PdfPTable infoTable = new PdfPTable(2);
+        infoTable.setWidthPercentage(100);
+        infoTable.setWidths(new float[]{50, 50});
+
+        addTableCell(infoTable, "Numero:", fattura.getNumero() != null ? fattura.getNumero() : "");
+        addTableCell(infoTable, "Data:", fattura.getDataFattura() != null ? 
+            new SimpleDateFormat("dd/MM/yyyy").format(fattura.getDataFattura()) : "");
+        addTableCell(infoTable, "Cliente:", fattura.getCliente() != null ? fattura.getCliente().getRagioneSociale() : "");
+        addTableCell(infoTable, "Tipo:", fattura.getTipoFattura() != null ? fattura.getTipoFattura().toString() : "");
+        document.add(infoTable);
+        document.add(new Paragraph(" "));
+
+        if (righe != null && !righe.isEmpty()) {
+            PdfPTable articoliTable = new PdfPTable(5);
+            articoliTable.setWidthPercentage(100);
+            articoliTable.setWidths(new float[]{35, 15, 15, 15, 20});
+
+            addTableHeaderCell(articoliTable, "Descrizione");
+            addTableHeaderCell(articoliTable, "Quantità");
+            addTableHeaderCell(articoliTable, "Prezzo");
+            addTableHeaderCell(articoliTable, "IVA %");
+            addTableHeaderCell(articoliTable, "Importo");
+
+            for (FatturaRiga riga : righe) {
+                String descrizione = riga.getDescrizione() != null ? riga.getDescrizione() : 
+                    (riga.getProdotto() != null ? riga.getProdotto().getNome() : "");
+                addTableCell(articoliTable, descrizione);
+                addTableCell(articoliTable, riga.getQuantita() != null ? riga.getQuantita().toString() : "");
+                addTableCell(articoliTable, "€ " + (riga.getPrezzoUnitario() != null ? 
+                    String.format("%.2f", riga.getPrezzoUnitario()) : "0.00"));
+                addTableCell(articoliTable, riga.getIvaPercentuale() != null ? 
+                    String.format("%.2f", riga.getIvaPercentuale()) + "%" : "0%");
+                addTableCell(articoliTable, "€ " + (riga.getTotaleRiga() != null ? 
+                    String.format("%.2f", riga.getTotaleRiga()) : "0.00"));
+            }
+
+            document.add(articoliTable);
+            document.add(new Paragraph(" "));
+        }
+
+        addTotalsSectionToPdf(document);
+    }
+
+    private void addTotalsSectionToPdf(Document document) throws DocumentException {
+        BigDecimal totaleImponibile = fattura.getImponibile() != null ? fattura.getImponibile() : BigDecimal.ZERO;
+        BigDecimal totaleIva = fattura.getIva() != null ? fattura.getIva() : BigDecimal.ZERO;
+        BigDecimal totaleGenerale = fattura.getTotale() != null ? fattura.getTotale() : BigDecimal.ZERO;
+
+        PdfPTable totalsTable = new PdfPTable(2);
+        totalsTable.setWidthPercentage(50);
+        totalsTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
+
+        addTableCell(totalsTable, "Imponibile:", "€ " + String.format("%.2f", totaleImponibile));
+        addTableCell(totalsTable, "IVA:", "€ " + String.format("%.2f", totaleIva));
+
+        PdfPCell totaleLabelCell = new PdfPCell(new Phrase("TOTALE:", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        totaleLabelCell.setBackgroundColor(new BaseColor(150, 150, 150));
+        totalsTable.addCell(totaleLabelCell);
+
+        PdfPCell totaleValueCell = new PdfPCell(new Phrase("€ " + String.format("%.2f", totaleGenerale), 
+            FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+        totaleValueCell.setBackgroundColor(new BaseColor(150, 150, 150));
+        totalsTable.addCell(totaleValueCell);
+
+        document.add(totalsTable);
+    }
+
+    private void addTableCell(PdfPTable table, String label, String value) {
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+        labelCell.setBackgroundColor(new BaseColor(200, 200, 200));
+        table.addCell(labelCell);
+
+        PdfPCell valueCell = new PdfPCell(new Phrase(value, FontFactory.getFont(FontFactory.HELVETICA, 10)));
+        table.addCell(valueCell);
+    }
+
+    private void addTableCell(PdfPTable table, String value) {
+        PdfPCell cell = new PdfPCell(new Phrase(value, FontFactory.getFont(FontFactory.HELVETICA, 10)));
+        table.addCell(cell);
+    }
+
+    private void addTableHeaderCell(PdfPTable table, String label) {
+        PdfPCell cell = new PdfPCell(new Phrase(label, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+        cell.setBackgroundColor(new BaseColor(100, 100, 100));
+        cell.setFixedHeight(25);
+        cell.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        com.itextpdf.text.Font font = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.WHITE);
+        cell.setPhrase(new Phrase(label, font));
+        table.addCell(cell);
+    }
+
     // Getters and Setters
     public Fattura getFattura() { return fattura; }
     public void setFattura(Fattura fattura) { this.fattura = fattura; }
     public List<Fattura> getFatture() { return fatture; }
+    public void setFatture(List<Fattura> fatture) { this.fatture = fatture; }
+    public List<FatturaTrackingDTO> getFattureConTracking() { return fattureConTracking; }
+    public void setFattureConTracking(List<FatturaTrackingDTO> fattureConTracking) { this.fattureConTracking = fattureConTracking; }
+    public List<Cliente> getClienti() { return clienti; }
+    public void setClienti(List<Cliente> clienti) { this.clienti = clienti; }
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-    public List<Cliente> getClienti() { return clienti; }
-    
-    public String list() {
-        try {
-            logger.info("Listing all fatture");
-            fatture = fatturaDAO.findAll();
-            return SUCCESS;
-        } catch (Exception e) {
-            logger.error("Error listing fatture", e);
-            addActionError("Errore nel caricamento delle fatture: " + e.getMessage());
-            return ERROR;
-        }
-    }
-    
-    public String create() {
-        try {
-            fattura = new Fattura();
-            fattura.setDataFattura(new Date());
-            fattura.setNumero(generateNextNumero());
-            clienti = clienteDAO.findAll();
-            return INPUT;
-        } catch (Exception e) {
-            logger.error("Error creating new fattura", e);
-            addActionError("Errore nella creazione della fattura: " + e.getMessage());
-            return ERROR;
-        }
-    }
-    
-    public String edit() {
-        try {
-            if (id == null) {
-                addActionError("ID fattura non specificato");
-                return ERROR;
-            }
-            fattura = fatturaDAO.findById(id);
-            if (fattura == null) {
-                addActionError("Fattura non trovata");
-                return ERROR;
-            }
-            clienti = clienteDAO.findAll();
-            return INPUT;
-        } catch (Exception e) {
-            logger.error("Error editing fattura", e);
-            addActionError("Errore nel caricamento della fattura: " + e.getMessage());
-            return ERROR;
-        }
-    }
-    
-    public String save() {
-        try {
-            if (fattura == null) {
-                addActionError("Dati fattura non validi");
-                return INPUT;
-            }
-            
-            // Set audit fields
-            User currentUser = getCurrentUser();
-            if (fattura.getId() == null) {
-                fattura.setCreatedBy(currentUser);
-            }
-            
-            // Calculate totals
-            // calculateTotals();
-            
-            fatturaDAO.save(fattura);
-            addActionMessage("Fattura salvata con successo");
-            return SUCCESS;
-        } catch (Exception e) {
-            logger.error("Error saving fattura", e);
-            addActionError("Errore nel salvataggio della fattura: " + e.getMessage());
-            return INPUT;
-        }
-    }
-    
-    public String delete() {
-        try {
-            if (id == null) {
-                addActionError("ID fattura non specificato");
-                return ERROR;
-            }
-            fattura = fatturaDAO.findById(id);
-            if (fattura == null) {
-                addActionError("Fattura non trovata");
-                return ERROR;
-            }
-            fatturaDAO.delete(fattura);
-            addActionMessage("Fattura eliminata con successo");
-            return SUCCESS;
-        } catch (Exception e) {
-            logger.error("Error deleting fattura", e);
-            addActionError("Errore nell'eliminazione della fattura: " + e.getMessage());
-            return ERROR;
-        }
-    }
-    
-    // private void calculateTotals() {
-    //     if (fattura.getRighe() == null || fattura.getRighe().isEmpty()) {
-    //         fattura.setTotale(BigDecimal.ZERO);
-    //         return;
-    //     }
-    //     
-    //     BigDecimal imponibile = BigDecimal.ZERO;
-    //     BigDecimal iva = BigDecimal.ZERO;
-    //     
-    //     fattura.setImponibile(imponibile);
-    //     fattura.setIva(iva);
-    //     fattura.setTotale(imponibile.add(iva));
-    // }
-    
-    private String generateNextNumero() {
-        try {
-            String anno = String.valueOf(new Date().getYear() + 1900);
-            return String.format("FT-%s-001", anno);
-        } catch (Exception e) {
-            logger.error("Error generating numero fattura", e);
-            return "FT-2026-001";
-        }
-    }
-    
-    private User getCurrentUser() {
-        // TODO: Implement proper session management
-        // For now, return a default user
-        User user = new User();
-        user.setId(1L);
-        user.setUsername("system");
-        return user;
-    }
+    public Integer getAnno() { return anno; }
+    public void setAnno(Integer anno) { this.anno = anno; }
+    public Fattura.TipoFattura getTipo() { return tipo; }
+    public void setTipo(Fattura.TipoFattura tipo) { this.tipo = tipo; }
+    public Long getClienteId() { return clienteId; }
+    public void setClienteId(Long clienteId) { this.clienteId = clienteId; }
+    public InputStream getInputStream() { return inputStream; }
+    public void setInputStream(InputStream inputStream) { this.inputStream = inputStream; }
+    public String getContentDisposition() { return contentDisposition; }
+    public void setContentDisposition(String contentDisposition) { this.contentDisposition = contentDisposition; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
+    public String getTrackingId() { return trackingId; }
+    public void setTrackingId(String trackingId) { this.trackingId = trackingId; }
+    public String getMessageEmail() { return messageEmail; }
+    public void setMessageEmail(String messageEmail) { this.messageEmail = messageEmail; }
 }
