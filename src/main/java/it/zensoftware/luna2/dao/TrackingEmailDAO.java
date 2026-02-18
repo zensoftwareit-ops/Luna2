@@ -44,4 +44,49 @@ public class TrackingEmailDAO extends GenericDAOImpl<TrackingEmail, Long> {
             session.close();
         }
     }
+
+    public Long countEmailsForPreventivo(Long preventivoId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE preventivo.id = :preventivoId", Long.class);
+            query.setParameter("preventivoId", preventivoId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long countOpensForPreventivo(Long preventivoId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE preventivo.id = :preventivoId AND aperto = true", Long.class);
+            query.setParameter("preventivoId", preventivoId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long countDownloadsForPreventivo(Long preventivoId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT COUNT(*) FROM TrackingEmail WHERE preventivo.id = :preventivoId AND clickDownload > 0", Long.class);
+            query.setParameter("preventivoId", preventivoId);
+            return query.uniqueResult();
+        } finally {
+            session.close();
+        }
+    }
+
+    public Long getTotalDownloadCount(Long preventivoId) {
+        Session session = getSession();
+        try {
+            Query<Long> query = session.createQuery("SELECT SUM(clickDownload) FROM TrackingEmail WHERE preventivo.id = :preventivoId", Long.class);
+            query.setParameter("preventivoId", preventivoId);
+            Long result = query.uniqueResult();
+            return result != null ? result : 0L;
+        } finally {
+            session.close();
+        }
+    }
 }

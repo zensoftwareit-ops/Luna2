@@ -6,6 +6,7 @@ import it.zensoftware.luna2.dao.PreventivoRigaDAO;
 import it.zensoftware.luna2.dao.ClienteDAO;
 import it.zensoftware.luna2.dao.ProdottoDAO;
 import it.zensoftware.luna2.dao.TrackingEmailDAO;
+import it.zensoftware.luna2.dto.PreventivoTrackingDTO;
 import it.zensoftware.luna2.model.Preventivo;
 import it.zensoftware.luna2.model.PreventivoRiga;
 import it.zensoftware.luna2.model.Cliente;
@@ -31,6 +32,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.ArrayList;
 import java.util.Properties;
 
 public class PreventiviAction extends ActionSupport {
@@ -44,6 +46,7 @@ public class PreventiviAction extends ActionSupport {
     
     private Preventivo preventivo;
     private List<Preventivo> preventivi;
+    private List<PreventivoTrackingDTO> preventiviConTracking;
     private List<Cliente> clienti;
     private List<Prodotto> prodotti;
     private List<PreventivoRiga> righe;
@@ -73,6 +76,17 @@ public class PreventiviAction extends ActionSupport {
             preventivi = preventivoDAO.findByClienteId(clienteId);
         } else {
             preventivi = preventivoDAO.findByAnno(anno);
+        }
+        
+        // Populate tracking data for each preventivo
+        preventiviConTracking = new ArrayList<>();
+        for (Preventivo p : preventivi) {
+            Long totalEmails = trackingEmailDAO.countEmailsForPreventivo(p.getId());
+            Long openedEmails = trackingEmailDAO.countOpensForPreventivo(p.getId());
+            Long downloadedEmails = trackingEmailDAO.countDownloadsForPreventivo(p.getId());
+            Long totalDownloads = trackingEmailDAO.getTotalDownloadCount(p.getId());
+            
+            preventiviConTracking.add(new PreventivoTrackingDTO(p, totalEmails, openedEmails, downloadedEmails, totalDownloads));
         }
         
         return SUCCESS;
@@ -904,6 +918,7 @@ public class PreventiviAction extends ActionSupport {
     public Preventivo getPreventivo() { return preventivo; }
     public void setPreventivo(Preventivo preventivo) { this.preventivo = preventivo; }
     public List<Preventivo> getPreventivi() { return preventivi; }
+    public List<PreventivoTrackingDTO> getPreventiviConTracking() { return preventiviConTracking; }
     public List<Cliente> getClienti() { return clienti; }
     public List<Prodotto> getProdotti() { return prodotti; }
     public List<PreventivoRiga> getRighe() { return righe; }

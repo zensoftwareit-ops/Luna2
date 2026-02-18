@@ -50,7 +50,7 @@
 
             <div class="card">
                 <div class="card-body">
-                    <s:if test="preventivi != null && !preventivi.isEmpty()">
+                    <s:if test="preventiviConTracking != null && !preventiviConTracking.isEmpty()">
                         <div class="table-responsive">
                             <table id="preventiviTable" class="table table-striped table-hover">
                                 <thead>
@@ -61,51 +61,61 @@
                                         <th>Oggetto</th>
                                         <th>Totale</th>
                                         <th>Stato</th>
+                                        <th>📧 Tracciamento</th>
                                         <th>Azioni</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <s:iterator value="preventivi" var="p">
-                                        <tr data-stato="<s:property value='#p.stato'/>">
-                                            <td><code><s:property value="#p.numero"/></code></td>
-                                            <td><s:date name="#p.dataPreventivo" format="dd/MM/yyyy"/></td>
+                                    <s:iterator value="preventiviConTracking" var="dto">
+                                        <tr data-stato="<s:property value='#dto.preventivo.stato'/>">
+                                            <td><code><s:property value="#dto.preventivo.numero"/></code></td>
+                                            <td><s:date name="#dto.preventivo.dataPreventivo" format="dd/MM/yyyy"/></td>
                                             <td>
-                                                <s:if test="#p.cliente != null">
-                                                    <s:property value="#p.cliente.ragioneSociale"/>
+                                                <s:if test="#dto.preventivo.cliente != null">
+                                                    <s:property value="#dto.preventivo.cliente.ragioneSociale"/>
                                                 </s:if>
                                                 <s:else>
                                                     <span class="text-muted">-</span>
                                                 </s:else>
                                             </td>
-                                            <td><s:property value="#p.oggetto"/></td>
+                                            <td><s:property value="#dto.preventivo.oggetto"/></td>
                                             <td class="text-end">
                                                 <strong>
-                                                    <s:if test="#p.totale != null">
-                                                        € <s:text name="format.number"><s:param value="#p.totale"/></s:text>
+                                                    <s:if test="#dto.preventivo.totale != null">
+                                                        € <s:text name="format.number"><s:param value="#dto.preventivo.totale"/></s:text>
                                                     </s:if>
                                                     <s:else>€ 0,00</s:else>
                                                 </strong>
                                             </td>
                                             <td>
-                                                <s:if test="#p.stato == @it.zensoftware.luna2.model.Preventivo$Stato@BOZZA">
+                                                <s:if test="#dto.preventivo.stato == @it.zensoftware.luna2.model.Preventivo$Stato@BOZZA">
                                                     <span class="badge bg-secondary">Bozza</span>
                                                 </s:if>
-                                                <s:elseif test="#p.stato == @it.zensoftware.luna2.model.Preventivo$Stato@INVIATO">
+                                                <s:elseif test="#dto.preventivo.stato == @it.zensoftware.luna2.model.Preventivo$Stato@INVIATO">
                                                     <span class="badge bg-info">Inviato</span>
                                                 </s:elseif>
-                                                <s:elseif test="#p.stato == @it.zensoftware.luna2.model.Preventivo$Stato@ACCETTATO">
+                                                <s:elseif test="#dto.preventivo.stato == @it.zensoftware.luna2.model.Preventivo$Stato@ACCETTATO">
                                                     <span class="badge bg-success">Accettato</span>
                                                 </s:elseif>
-                                                <s:elseif test="#p.stato == @it.zensoftware.luna2.model.Preventivo$Stato@RIFIUTATO">
+                                                <s:elseif test="#dto.preventivo.stato == @it.zensoftware.luna2.model.Preventivo$Stato@RIFIUTATO">
                                                     <span class="badge bg-danger">Rifiutato</span>
                                                 </s:elseif>
-                                                <s:elseif test="#p.stato == @it.zensoftware.luna2.model.Preventivo$Stato@SCADUTO">
+                                                <s:elseif test="#dto.preventivo.stato == @it.zensoftware.luna2.model.Preventivo$Stato@SCADUTO">
                                                     <span class="badge bg-warning text-dark">Scaduto</span>
                                                 </s:elseif>
                                             </td>
                                             <td>
+                                                <span class="badge" data-bs-toggle="tooltip" title="Email inviate / aperte / scaricate">
+                                                    <span class="badge bg-secondary" title="Email inviate"><s:property value="#dto.totalEmails"/></span>
+                                                    <s:if test="#dto.totalEmails > 0">
+                                                        <span class="badge bg-info" title="Email aperte">👁 <s:property value="#dto.openedEmails"/></span>
+                                                        <span class="badge bg-success" title="Email scaricate">⬇ <s:property value="#dto.totalDownloads"/></span>
+                                                    </s:if>
+                                                </span>
+                                            </td>
+                                            <td>
                                                 <div class="btn-group btn-group-sm">
-                                                    <a href="<s:url action='preventivi-view' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
+                                                    <a href="<s:url action='preventivi-view' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/></s:url>" 
                                                        class="btn btn-outline-info" title="Visualizza">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
@@ -114,26 +124,26 @@
                                                             <i class="bi bi-file-pdf"></i>
                                                         </button>
                                                         <ul class="dropdown-menu">
-                                                            <li><a class="dropdown-item" href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='#p.id'/><s:param name='tipo' value='tecnico'/></s:url>" target="_blank">PDF Tecnico</a></li>
-                                                            <li><a class="dropdown-item" href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='#p.id'/><s:param name='tipo' value='descrittivo'/></s:url>" target="_blank">PDF Descrittivo</a></li>
+                                                            <li><a class="dropdown-item" href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/><s:param name='tipo' value='tecnico'/></s:url>" target="_blank">PDF Tecnico</a></li>
+                                                            <li><a class="dropdown-item" href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/><s:param name='tipo' value='descrittivo'/></s:url>" target="_blank">PDF Descrittivo</a></li>
                                                         </ul>
                                                     </div>
-                                                    <a href="<s:url action='preventivi-edit' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
+                                                    <a href="<s:url action='preventivi-edit' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/></s:url>" 
                                                        class="btn btn-outline-primary" title="Modifica">
                                                         <i class="bi bi-pencil"></i>
                                                     </a>
-                                                    <s:if test="#p.stato == @it.zensoftware.luna2.model.Preventivo$Stato@BOZZA">
-                                                        <a href="<s:url action='preventivi-invia' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
+                                                    <s:if test="#dto.preventivo.stato == @it.zensoftware.luna2.model.Preventivo$Stato@BOZZA">
+                                                        <a href="<s:url action='preventivi-invia' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/></s:url>" 
                                                            class="btn btn-outline-success" title="Invia"
                                                            onclick="return confirm('Inviare questo preventivo?')">
                                                             <i class="bi bi-send"></i>
                                                         </a>
                                                     </s:if>
-                                                    <a href="<s:url action='preventivi-duplica' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
+                                                    <a href="<s:url action='preventivi-duplica' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/></s:url>" 
                                                        class="btn btn-outline-secondary" title="Duplica">
                                                         <i class="bi bi-files"></i>
                                                     </a>
-                                                    <a href="<s:url action='preventivi-delete' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
+                                                    <a href="<s:url action='preventivi-delete' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/></s:url>" 
                                                        class="btn btn-outline-danger" title="Elimina"
                                                        onclick="return confirm('Eliminare questo preventivo?')">
                                                         <i class="bi bi-trash"></i>
