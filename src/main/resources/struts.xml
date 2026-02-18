@@ -353,6 +353,33 @@
             <result name="error" type="redirectAction">preventivi</result>
         </action>
 
+        <action name="preventivi-sendEmail" class="it.zensoftware.luna2.action.PreventiviAction" method="sendEmail">
+            <result name="success" type="redirectAction">
+                <param name="actionName">preventivi-edit</param>
+                <param name="id">${id}</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/documenti/preventivi/form.jsp</result>
+            <result name="error">/WEB-INF/jsp/documenti/preventivi/form.jsp</result>
+        </action>
+
+        <action name="preventivi-trackPixel" class="it.zensoftware.luna2.action.PreventiviAction" method="trackPixel">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">image/gif</param>
+                <param name="bufferSize">256</param>
+            </result>
+        </action>
+
+        <action name="preventivi-downloadTracked" class="it.zensoftware.luna2.action.PreventiviAction" method="downloadWithTracking">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/pdf</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
         <!-- Ordini -->
         <action name="ordini" class="it.zensoftware.luna2.action.OrdiniAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/ordini/list.jsp</result>

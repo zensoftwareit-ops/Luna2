@@ -41,6 +41,9 @@
                                 <i class="bi bi-file-pdf me-1"></i>PDF Descrittivo
                             </a>
                         </div>
+                        <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#emailModal" title="Invia via Email">
+                            <i class="bi bi-envelope me-1"></i>Invia via Email
+                        </button>
                     </s:if>
                     <a href="<s:url action='preventivi' namespace='/app/documenti'/>" class="btn btn-secondary">
                         <i class="bi bi-arrow-left me-2"></i>Torna alla Lista
@@ -339,6 +342,52 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
                     <button type="button" class="btn btn-primary" id="saveRigaBtn">Salva Riga</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Email Preventivo -->
+    <div class="modal fade" id="emailModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Invia Preventivo via Email</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="<s:url action='preventivi-sendEmail' namespace='/app/documenti'/>" method="post">
+                    <div class="modal-body">
+                        <s:hidden name="id" value="%{preventivo.id}"/>
+                        
+                        <div class="mb-3">
+                            <label for="emailDestinatario" class="form-label">Email Destinatario *</label>
+                            <input type="email" class="form-control" id="emailDestinatario" name="emailDestinatario" required placeholder="email@cliente.it">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="messageEmail" class="form-label">Messaggio</label>
+                            <textarea class="form-control" id="messageEmail" name="messageEmail" rows="3" placeholder="Messaggio opzionale da includere nella mail"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="tipoLayoutEmail" class="form-label">Formato PDF *</label>
+                            <select class="form-select" id="tipoLayoutEmail" name="tipo" required>
+                                <option value="tecnico">PDF Tecnico (Layout tabellare)</option>
+                                <option value="descrittivo">PDF Descrittivo (Layout espanso)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="alert alert-info alert-sm">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>Il PDF sarà scaricabile direttamente dalla email tramite un pulsante. Saranno tracciati i download di ogni ricevente.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-envelope-check me-1"></i>Invia Email
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

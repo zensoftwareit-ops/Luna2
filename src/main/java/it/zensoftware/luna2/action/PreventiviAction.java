@@ -5,13 +5,17 @@ import it.zensoftware.luna2.dao.PreventivoDAO;
 import it.zensoftware.luna2.dao.PreventivoRigaDAO;
 import it.zensoftware.luna2.dao.ClienteDAO;
 import it.zensoftware.luna2.dao.ProdottoDAO;
+import it.zensoftware.luna2.dao.TrackingEmailDAO;
 import it.zensoftware.luna2.model.Preventivo;
 import it.zensoftware.luna2.model.PreventivoRiga;
 import it.zensoftware.luna2.model.Cliente;
 import it.zensoftware.luna2.model.Prodotto;
 import it.zensoftware.luna2.model.User;
+import it.zensoftware.luna2.model.TrackingEmail;
+import it.zensoftware.luna2.service.EmailService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.struts2.ServletActionContext;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfPCell;
@@ -27,6 +31,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 public class PreventiviAction extends ActionSupport {
     private static final Logger logger = LogManager.getLogger(PreventiviAction.class);
@@ -34,6 +39,8 @@ public class PreventiviAction extends ActionSupport {
     private PreventivoRigaDAO preventivoRigaDAO = new PreventivoRigaDAO();
     private ClienteDAO clienteDAO = new ClienteDAO();
     private ProdottoDAO prodottoDAO = new ProdottoDAO();
+    private TrackingEmailDAO trackingEmailDAO = new TrackingEmailDAO();
+    private EmailService emailService = new EmailService();
     
     private Preventivo preventivo;
     private List<Preventivo> preventivi;
@@ -51,6 +58,9 @@ public class PreventiviAction extends ActionSupport {
     private InputStream inputStream;
     private String contentDisposition;
     private String tipo;  // "tecnico" o "descrittivo"
+    private String emailDestinatario;
+    private String trackingId;
+    private String messageEmail;
 
     public String list() {
         if (anno == null) {
@@ -640,6 +650,251 @@ public class PreventiviAction extends ActionSupport {
         document.add(statoParagraph);
     }
 
+    public String sendEmail() {
+        try {
+            if (id == null || emailDestinatario == null || emailDestinatario.isEmpty()) {
+                addActionError("Preventivo e email ricevente sono obbligatori");
+                return INPUT;
+            }
+
+            preventivo = preventivoDAO.findWithRighe(id);
+            if (preventivo == null) {
+                addActionError("Preventivo non trovato");
+                return ERROR;
+            }
+
+            // Leggi configurazione SMTP dalle properties
+            Properties props = new Properties();
+            try (java.io.InputStream is = this.getClass().getClassLoader().getResourceAsStream("application.properties")) {
+                props.load(is);
+            }
+
+            String smtpHost = props.getProperty("smtp.host", "smtp.gmail.com");
+            String smtpUsername = props.getProperty("smtp.username");
+            String smtpPassword = props.getProperty("smtp.password");
+            String smtpFromEmail = props.getProperty("smtp.username");
+
+            if (smtpUsername == null || smtpPassword == null) {
+                addActionError("Configurazione SMTP incompleta. Verifica application.properties");
+                logger.error("SMTP configuration missing in application.properties");
+                return ERROR;
+            }
+
+            String emailBodyMessage = messageEmail != null ? messageEmail : 
+                "Allega il preventivo numero " + preventivo.getNumero() + " per la review.";
+
+            // Invia email con tracciamento
+            TrackingEmail tracking = emailService.sendPreventiveEmail(preventivo, emailDestinatario, 
+                    emailBodyMessage, smtpUsername, smtpPassword, smtpFromEmail);
+
+            preventivo.setStato(Preventivo.Stato.INVIATO);
+            preventivoDAO.update(preventivo);
+
+            addActionMessage("Email inviata con successo a " + emailDestinatario);
+            logger.info("Email inviata per preventivo " + preventivo.getNumero() + " a " + emailDestinatario);
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore durante l'invio email", e);
+            addActionError("Errore durante l'invio: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String trackPixel() {
+        try {
+            if (trackingId == null || trackingId.isEmpty()) {
+                logger.warn("Track pixel called without tracking ID");
+                return ERROR;
+            }
+
+            String userAgent = ServletActionContext.getRequest().getHeader("User-Agent");
+            emailService.trackPixelOpen(trackingId, userAgent);
+
+            // Return 1x1 transparent GIF
+            byte[] gifBytes = {
+                0x47, 0x49, 0x46, 0x38, (byte) 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, (byte) 0x80,
+                0x00, 0x00, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, 0x00, 0x00, 0x00, 0x21, (byte) 0xF9,
+                0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01,
+                0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3B
+            };
+
+            inputStream = new ByteArrayInputStream(gifBytes);
+            contentDisposition = "inline; filename=\"pixel.gif\"";
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nel tracking pixel", e);
+            return ERROR;
+        }
+    }
+
+    public String downloadWithTracking() {
+        try {
+            if (trackingId == null || trackingId.isEmpty()) {
+                logger.warn("Download called without tracking ID");
+                return ERROR;
+            }
+
+            TrackingEmail tracking = trackingEmailDAO.findByTrackingId(trackingId);
+            if (tracking == null) {
+                logger.warn("Tracking record not found for ID: " + trackingId);
+                return ERROR;
+            }
+
+            Long preventivoId = tracking.getPreventivo().getId();
+            preventivo = preventivoDAO.findWithRighe(preventivoId);
+
+            if (preventivo == null) {
+                addActionError("Preventivo non trovato");
+                return ERROR;
+            }
+
+            // Traccia il download
+            String userAgent = ServletActionContext.getRequest().getHeader("User-Agent");
+            emailService.trackDownload(trackingId, userAgent);
+
+            // Determina il tipo di layout
+            String layoutType = tipo != null ? tipo : "tecnico";
+
+            // Genera PDF
+            Document document = new Document(PageSize.A4);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            PdfWriter.getInstance(document, baos);
+            document.open();
+
+            if ("descrittivo".equals(layoutType)) {
+                generaPdfDescrittivo(document);
+            } else {
+                generaPdfTecnico(document);
+            }
+
+            document.close();
+
+            inputStream = new ByteArrayInputStream(baos.toByteArray());
+            contentDisposition = "attachment; filename=\"Preventivo_" + preventivo.getNumero() + ".pdf\"";
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nel download con tracciamento", e);
+            addActionError("Errore durante il download: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    private void generaPdfDescrittivo(Document document) throws DocumentException {
+        // Implementation from existing method
+        document.add(new Paragraph(new Chunk("PREVENTIVO", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20))));
+        document.add(new Paragraph(" "));
+
+        PdfPTable infoTable = new PdfPTable(2);
+        infoTable.setWidthPercentage(100);
+        infoTable.setWidths(new float[]{50, 50});
+
+        addTableCell(infoTable, "Numero:", preventivo.getNumero());
+        addTableCell(infoTable, "Data:", new SimpleDateFormat("dd/MM/yyyy").format(preventivo.getDataPreventivo()));
+        addTableCell(infoTable, "Cliente:", preventivo.getCliente() != null ? preventivo.getCliente().getRagioneSociale() : "");
+        addTableCell(infoTable, "Validità:", preventivo.getValiditaGiorni() != null ? preventivo.getValiditaGiorni().toString() + " giorni" : "");
+        document.add(infoTable);
+        document.add(new Paragraph(" "));
+
+        if (righe != null && !righe.isEmpty()) {
+            for (PreventivoRiga riga : righe) {
+                String nomeProdotto = riga.getProdotto() != null ? riga.getProdotto().getNome() : riga.getDescrizione();
+                Paragraph p = new Paragraph();
+                p.add(new Chunk(nomeProdotto, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 12)));
+                document.add(p);
+
+                if (riga.getProdotto() != null && riga.getProdotto().getDescrizione() != null && !riga.getProdotto().getDescrizione().isEmpty()) {
+                    Paragraph desc = new Paragraph(riga.getProdotto().getDescrizione(), FontFactory.getFont(FontFactory.HELVETICA, 10));
+                    document.add(desc);
+                }
+
+                PdfPTable rigaTable = new PdfPTable(4);
+                rigaTable.setWidthPercentage(80);
+                rigaTable.setWidths(new float[]{30, 20, 25, 25});
+
+                addTableHeaderCell(rigaTable, "Quantità");
+                addTableHeaderCell(rigaTable, "Unitá Misura");
+                addTableHeaderCell(rigaTable, "Prezzo Unitario");
+                addTableHeaderCell(rigaTable, "Importo");
+
+                addTableCell(rigaTable, riga.getQuantita().toString());
+                addTableCell(rigaTable, riga.getUnitaMisura() != null ? riga.getUnitaMisura() : "");
+                addTableCell(rigaTable, "€ " + String.format("%.2f", riga.getPrezzoUnitario()));
+                addTableCell(rigaTable, "€ " + String.format("%.2f", riga.getTotaleRiga()));
+
+                document.add(rigaTable);
+                document.add(new Paragraph(" "));
+            }
+        }
+
+        addTotalsSectionToPdf(document);
+    }
+
+    private void generaPdfTecnico(Document document) throws DocumentException {
+        // Implementation from existing method
+        document.add(new Paragraph(new Chunk("PREVENTIVO", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20))));
+        document.add(new Paragraph(" "));
+
+        PdfPTable infoTable = new PdfPTable(2);
+        infoTable.setWidthPercentage(100);
+        infoTable.setWidths(new float[]{50, 50});
+
+        addTableCell(infoTable, "Numero:", preventivo.getNumero());
+        addTableCell(infoTable, "Data:", new SimpleDateFormat("dd/MM/yyyy").format(preventivo.getDataPreventivo()));
+        addTableCell(infoTable, "Cliente:", preventivo.getCliente() != null ? preventivo.getCliente().getRagioneSociale() : "");
+        addTableCell(infoTable, "Validità:", preventivo.getValiditaGiorni() != null ? preventivo.getValiditaGiorni().toString() + " giorni" : "");
+        document.add(infoTable);
+        document.add(new Paragraph(" "));
+
+        if (righe != null && !righe.isEmpty()) {
+            PdfPTable articoliTable = new PdfPTable(4);
+            articoliTable.setWidthPercentage(100);
+            articoliTable.setWidths(new float[]{40, 20, 20, 20});
+
+            addTableHeaderCell(articoliTable, "Prodotto");
+            addTableHeaderCell(articoliTable, "Quantità");
+            addTableHeaderCell(articoliTable, "Prezzo");
+            addTableHeaderCell(articoliTable, "Importo");
+
+            for (PreventivoRiga riga : righe) {
+                String nomeProdotto = riga.getProdotto() != null ? riga.getProdotto().getNome() : riga.getDescrizione();
+                addTableCell(articoliTable, nomeProdotto);
+                addTableCell(articoliTable, riga.getQuantita().toString());
+                addTableCell(articoliTable, "€ " + String.format("%.2f", riga.getPrezzoUnitario()));
+                addTableCell(articoliTable, "€ " + String.format("%.2f", riga.getTotaleRiga()));
+            }
+
+            document.add(articoliTable);
+            document.add(new Paragraph(" "));
+        }
+
+        addTotalsSectionToPdf(document);
+    }
+
+    private void addTableCell(PdfPTable table, String label, String value) {
+        PdfPCell labelCell = new PdfPCell(new Phrase(label, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+        labelCell.setBackgroundColor(new BaseColor(200, 200, 200));
+        table.addCell(labelCell);
+
+        PdfPCell valueCell = new PdfPCell(new Phrase(value, FontFactory.getFont(FontFactory.HELVETICA, 10)));
+        table.addCell(valueCell);
+    }
+
+    private void addTableCell(PdfPTable table, String value) {
+        PdfPCell cell = new PdfPCell(new Phrase(value, FontFactory.getFont(FontFactory.HELVETICA, 10)));
+        cell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+        table.addCell(cell);
+    }
+
+    private void addTableHeaderCell(PdfPTable table, String header) {
+        PdfPCell cell = new PdfPCell(new Phrase(header, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+        cell.setBackgroundColor(new BaseColor(100, 100, 100));
+        cell.setHorizontalAlignment(Element.ALIGN_CENTER);
+        table.addCell(cell);
+    }
+
     private User getCurrentUser() {
         Map<String, Object> session = com.opensymphony.xwork2.ActionContext.getContext().getSession();
         return (User) session.get("currentUser");
@@ -671,4 +926,9 @@ public class PreventiviAction extends ActionSupport {
     public String getContentDisposition() { return contentDisposition; }
     public String getTipo() { return tipo; }
     public void setTipo(String tipo) { this.tipo = tipo; }
-}
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
+    public String getTrackingId() { return trackingId; }
+    public void setTrackingId(String trackingId) { this.trackingId = trackingId; }
+    public String getMessageEmail() { return messageEmail; }
+    public void setMessageEmail(String messageEmail) { this.messageEmail = messageEmail; }}
