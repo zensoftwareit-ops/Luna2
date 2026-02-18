@@ -343,6 +343,16 @@
             </result>
         </action>
 
+        <action name="preventivi-pdf" class="it.zensoftware.luna2.action.PreventiviAction" method="generatePdf">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/pdf</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
         <!-- Ordini -->
         <action name="ordini" class="it.zensoftware.luna2.action.OrdiniAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/ordini/list.jsp</result>

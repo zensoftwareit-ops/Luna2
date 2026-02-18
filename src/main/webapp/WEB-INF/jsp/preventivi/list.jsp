@@ -109,6 +109,10 @@
                                                        class="btn btn-outline-info" title="Visualizza">
                                                         <i class="bi bi-eye"></i>
                                                     </a>
+                                                    <a href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
+                                                       class="btn btn-outline-success" title="Scarica PDF" target="_blank">
+                                                        <i class="bi bi-file-pdf"></i>
+                                                    </a>
                                                     <a href="<s:url action='preventivi-edit' namespace='/app/documenti'><s:param name='id' value='#p.id'/></s:url>" 
                                                        class="btn btn-outline-primary" title="Modifica">
                                                         <i class="bi bi-pencil"></i>

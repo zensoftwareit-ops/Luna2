@@ -13,7 +13,16 @@ import it.zensoftware.luna2.model.User;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.math.BigDecimal;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -39,6 +48,8 @@ public class PreventiviAction extends ActionSupport {
     private Integer anno;
     private Preventivo.Stato stato;
     private Long clienteId;
+    private InputStream inputStream;
+    private String contentDisposition;
 
     public String list() {
         if (anno == null) {
@@ -389,6 +400,143 @@ public class PreventiviAction extends ActionSupport {
         return ERROR;
     }
 
+    public String generatePdf() {
+        try {
+            if (id != null) {
+                preventivo = preventivoDAO.findWithRighe(id);
+                if (preventivo != null) {
+                    Document document = new Document(PageSize.A4, 50, 50, 50, 50);
+                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                    PdfWriter.getInstance(document, baos);
+                    document.open();
+                    
+                    // Header con dati azienda
+                    Paragraph header = new Paragraph();
+                    header.add(new Chunk("PREVENTIVO", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 24)));
+                    header.setAlignment(Element.ALIGN_CENTER);
+                    document.add(header);
+                    
+                    document.add(new Paragraph(" "));
+                    
+                    // Numero e data preventivo
+                    Paragraph infoPreventivo = new Paragraph();
+                    infoPreventivo.add(new Chunk("Numero: ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+                    infoPreventivo.add(new Chunk(preventivo.getNumero() + "\n", FontFactory.getFont(FontFactory.HELVETICA, 11)));
+                    infoPreventivo.add(new Chunk("Data: ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+                    infoPreventivo.add(new Chunk(new SimpleDateFormat("dd/MM/yyyy").format(preventivo.getDataPreventivo()) + "\n", FontFactory.getFont(FontFactory.HELVETICA, 11)));
+                    if (preventivo.getDataValidita() != null) {
+                        infoPreventivo.add(new Chunk("Validità: ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+                        infoPreventivo.add(new Chunk(new SimpleDateFormat("dd/MM/yyyy").format(preventivo.getDataValidita()), FontFactory.getFont(FontFactory.HELVETICA, 11)));
+                    }
+                    document.add(infoPreventivo);
+                    document.add(new Paragraph(" "));
+                    
+                    // Cliente
+                    if (preventivo.getCliente() != null) {
+                        Paragraph clienteInfo = new Paragraph();
+                        clienteInfo.add(new Chunk("Destinatario:\n", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+                        clienteInfo.add(new Chunk(preventivo.getCliente().getRagioneSociale() + "\n", FontFactory.getFont(FontFactory.HELVETICA, 11)));
+                        if (preventivo.getCliente().getIndirizzo() != null) {
+                            clienteInfo.add(new Chunk(preventivo.getCliente().getIndirizzo() + "\n", FontFactory.getFont(FontFactory.HELVETICA, 10)));
+                        }
+                        if (preventivo.getCliente().getCitta() != null) {
+                            clienteInfo.add(new Chunk(preventivo.getCliente().getCitta(), FontFactory.getFont(FontFactory.HELVETICA, 10)));
+                        }
+                        document.add(clienteInfo);
+                    }
+                    document.add(new Paragraph(" "));
+                    
+                    // Tabella righe
+                    PdfPTable table = new PdfPTable(5);
+                    table.setWidthPercentage(100);
+                    table.setWidths(new float[]{30, 15, 15, 20, 20});
+                    
+                    // Header tabella
+                    String[] headers = {"Prodotto", "Quantità", "Prezzo", "Importo", ""};
+                    for (String headerText : headers) {
+                        PdfPCell cell = new PdfPCell(new Phrase(headerText, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+                        cell.setBackgroundColor(new BaseColor(220, 220, 220));
+                        cell.setPadding(5);
+                        table.addCell(cell);
+                    }
+                    
+                    // Righe preventivo
+                    if (preventivo.getRighe() != null) {
+                        for (PreventivoRiga riga : preventivo.getRighe()) {
+                            if (riga.getProdotto() != null) {
+                                table.addCell(new PdfPCell(new Phrase(riga.getProdotto().getNome(), FontFactory.getFont(FontFactory.HELVETICA, 9))));
+                            } else {
+                                table.addCell(new PdfPCell(new Phrase("-", FontFactory.getFont(FontFactory.HELVETICA, 9))));
+                            }
+                            table.addCell(new PdfPCell(new Phrase(riga.getQuantita().toString(), FontFactory.getFont(FontFactory.HELVETICA, 9))));
+                            table.addCell(new PdfPCell(new Phrase("€ " + String.format("%.2f", riga.getPrezzoUnitario()), FontFactory.getFont(FontFactory.HELVETICA, 9))));
+                            BigDecimal importo = riga.getQuantita().multiply(riga.getPrezzoUnitario());
+                            table.addCell(new PdfPCell(new Phrase("€ " + String.format("%.2f", importo), FontFactory.getFont(FontFactory.HELVETICA, 9))));
+                            table.addCell(new PdfPCell(new Phrase("", FontFactory.getFont(FontFactory.HELVETICA, 9))));
+                        }
+                    }
+                    document.add(table);
+                    document.add(new Paragraph(" "));
+                    
+                    // Totali
+                    PdfPTable totalsTable = new PdfPTable(2);
+                    totalsTable.setWidthPercentage(50);
+                    totalsTable.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    totalsTable.setWidths(new float[]{60, 40});
+                    
+                    // Imponibile
+                    PdfPCell labelCell = new PdfPCell(new Phrase("Imponibile:", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+                    labelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    totalsTable.addCell(labelCell);
+                    PdfPCell valueCell = new PdfPCell(new Phrase("€ " + String.format("%.2f", preventivo.getImponibile()), FontFactory.getFont(FontFactory.HELVETICA, 11)));
+                    valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    totalsTable.addCell(valueCell);
+                    
+                    // IVA
+                    labelCell = new PdfPCell(new Phrase("IVA (22%):", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+                    labelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    totalsTable.addCell(labelCell);
+                    valueCell = new PdfPCell(new Phrase("€ " + String.format("%.2f", preventivo.getIva()), FontFactory.getFont(FontFactory.HELVETICA, 11)));
+                    valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    totalsTable.addCell(valueCell);
+                    
+                    // Totale
+                    labelCell = new PdfPCell(new Phrase("TOTALE:", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14)));
+                    labelCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    labelCell.setBackgroundColor(new BaseColor(240, 240, 240));
+                    totalsTable.addCell(labelCell);
+                    valueCell = new PdfPCell(new Phrase("€ " + String.format("%.2f", preventivo.getTotale()), FontFactory.getFont(FontFactory.HELVETICA_BOLD, 14)));
+                    valueCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                    valueCell.setBackgroundColor(new BaseColor(240, 240, 240));
+                    totalsTable.addCell(valueCell);
+                    
+                    document.add(totalsTable);
+                    document.add(new Paragraph(" "));
+                    
+                    // Stato
+                    Paragraph statoParagraph = new Paragraph();
+                    statoParagraph.add(new Chunk("Stato: ", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11)));
+                    statoParagraph.add(new Chunk(preventivo.getStato().toString(), FontFactory.getFont(FontFactory.HELVETICA, 11)));
+                    document.add(statoParagraph);
+                    
+                    document.close();
+                    
+                    byte[] pdfBytes = baos.toByteArray();
+                    inputStream = new ByteArrayInputStream(pdfBytes);
+                    contentDisposition = "attachment;filename=" + preventivo.getNumero() + ".pdf";
+                    
+                    return SUCCESS;
+                }
+            }
+            addActionError("Preventivo non trovato");
+            return ERROR;
+        } catch (Exception e) {
+            logger.error("Error generating PDF", e);
+            addActionError("Errore nella generazione del PDF: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
     private User getCurrentUser() {
         Map<String, Object> session = com.opensymphony.xwork2.ActionContext.getContext().getSession();
         return (User) session.get("currentUser");
@@ -416,4 +564,6 @@ public class PreventiviAction extends ActionSupport {
     public void setStato(Preventivo.Stato stato) { this.stato = stato; }
     public Long getClienteId() { return clienteId; }
     public void setClienteId(Long clienteId) { this.clienteId = clienteId; }
+    public InputStream getInputStream() { return inputStream; }
+    public String getContentDisposition() { return contentDisposition; }
 }

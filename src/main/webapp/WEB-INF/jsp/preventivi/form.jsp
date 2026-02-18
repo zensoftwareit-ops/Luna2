@@ -29,9 +29,17 @@
                     </s:if>
                     <s:else>Nuovo Preventivo</s:else>
                 </h1>
-                <a href="<s:url action='preventivi' namespace='/app/documenti'/>" class="btn btn-secondary">
-                    <i class="bi bi-arrow-left me-2"></i>Torna alla Lista
-                </a>
+                <div>
+                    <s:if test="preventivo.id != null">
+                        <a href="<s:url action='preventivi-pdf' namespace='/app/documenti'><s:param name='id' value='preventivo.id'/></s:url>" 
+                           class="btn btn-success me-2" target="_blank" title="Scarica PDF">
+                            <i class="bi bi-file-pdf me-2"></i>Scarica PDF
+                        </a>
+                    </s:if>
+                    <a href="<s:url action='preventivi' namespace='/app/documenti'/>" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Torna alla Lista
+                    </a>
+                </div>
             </div>
 
             <s:if test="hasActionErrors()">
