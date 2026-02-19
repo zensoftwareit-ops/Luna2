@@ -155,22 +155,22 @@
                     </div>
                 </div>
 
-                <!-- Info SDI -->
+                <!-- Esportazione Assosoftware -->
                 <div class="card mt-4">
-                    <div class="card-header bg-light">
-                        <h5 class="card-title mb-0">
-                            <i class="bi bi-info-circle me-2"></i>Informazioni Sincronizzazione SDI
-                        </h5>
-                    </div>
                     <div class="card-body">
-                        <p class="text-muted small mb-2">
-                            <i class="bi bi-arrow-repeat me-1"></i>
-                            Le fatture passive vengono sincronizzate automaticamente ogni 5 minuti da SDI.
-                        </p>
-                        <p class="text-muted small mb-0">
-                            <i class="bi bi-lightning-fill me-1" style="color: #ff9800;"></i>
-                            Puoi forzare una sincronizzazione immediata cliccando il pulsante "Sincronizza da SDI" in alto a destra.
-                        </p>
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h6 class="mb-0"><i class="bi bi-download me-2"></i>Esportazione Assosoftware</h6>
+                                <small class="text-muted">Esporta le fatture passive in formato standard Assosoftware</small>
+                            </div>
+                            <div class="col-auto">
+                                <a href="<s:url action='fatture-passive-esporta-assosoftware' namespace='/app/documenti'><s:param name='anno' value='anno'/></s:url>" 
+                                   class="btn btn-outline-secondary btn-sm" 
+                                   title="Scarica tutte le fatture passive in formato Assosoftware per l'anno selezionato">
+                                    <i class="bi bi-file-earmark-text me-1"></i>Esporta Anno
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

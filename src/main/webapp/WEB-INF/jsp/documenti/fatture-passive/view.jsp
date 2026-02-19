@@ -294,6 +294,11 @@
                                    onclick="return confirm('Eliminare questa fattura?')">
                                     <i class="bi bi-trash me-2"></i>Elimina
                                 </a>
+                                <a href="<s:url action='fatture-passive-esporta-singola-assosoftware' namespace='/app/documenti'><s:param name='id' value='fatturaPassiva.id'/></s:url>" 
+                                   class="btn btn-outline-secondary"
+                                   title="Esporta questa fattura in formato Assosoftware">
+                                    <i class="bi bi-download me-1"></i>Esporta Assosoftware
+                                </a>
                                 <a href="<s:url action='fatture-passive' namespace='/app/documenti'/>" class="btn btn-outline-secondary">
                                     <i class="bi bi-arrow-left me-2"></i>Torna alla lista
                                 </a>

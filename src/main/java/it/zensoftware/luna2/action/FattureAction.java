@@ -12,6 +12,7 @@ import it.zensoftware.luna2.model.Cliente;
 import it.zensoftware.luna2.model.TrackingEmail;
 import it.zensoftware.luna2.service.EmailService;
 import it.zensoftware.luna2.service.FatturaXMLService;
+import it.zensoftware.luna2.service.FattureExportService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.struts2.ServletActionContext;
@@ -40,6 +41,7 @@ public class FattureAction extends ActionSupport {
     private TrackingEmailDAO trackingEmailDAO = new TrackingEmailDAO();
     private EmailService emailService = new EmailService();
     private FatturaXMLService xmlService = new FatturaXMLService();
+    private FattureExportService exportService = new FattureExportService();
     
     private Fattura fattura;
     private List<Fattura> fatture;
@@ -534,6 +536,68 @@ public class FattureAction extends ActionSupport {
         } catch (Exception e) {
             logger.error("Errore durante l'invio XML SDI", e);
             addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+
+    public String esportaAssosoftware() {
+        try {
+            if (anno == null) {
+                anno = Calendar.getInstance().get(Calendar.YEAR);
+            }
+
+            // Recupera tutte le fatture dell'anno
+            List<Fattura> fattureEsportazione = fatturaDAO.findByAnno(anno);
+
+            if (fattureEsportazione.isEmpty()) {
+                addActionError("Nessuna fattura trovata per l'anno " + anno);
+                return ERROR;
+            }
+
+            // Genera il file di esportazione
+            byte[] fileContent = exportService.esportaFattureAssosoftware(fattureEsportazione);
+            
+            // Imposta il download
+            inputStream = new ByteArrayInputStream(fileContent);
+            contentDisposition = "attachment;filename=" + exportService.generateFileName("attive", anno);
+
+            logger.info("Export Assosoftware fatture attive: " + fattureEsportazione.size() + " fatture esportate per anno " + anno);
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nell'esportazione Assosoftware", e);
+            addActionError("Errore durante l'esportazione: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String esportaSingolaAssosoftware() {
+        try {
+            if (id == null) {
+                addActionError("ID fattura non specificato");
+                return ERROR;
+            }
+
+            fattura = fatturaDAO.findById(id);
+            if (fattura == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            // Genera il file di esportazione
+            byte[] fileContent = exportService.esportaSingolaFatturaAssosoftware(fattura);
+            
+            // Imposta il download
+            inputStream = new ByteArrayInputStream(fileContent);
+            contentDisposition = "attachment;filename=fattura_" + fattura.getNumero() + "_assosoftware.txt";
+
+            logger.info("Export Assosoftware singola fattura: " + fattura.getNumero());
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nell'esportazione Assosoftware singola fattura", e);
+            addActionError("Errore durante l'esportazione: " + e.getMessage());
             return ERROR;
         }
     }

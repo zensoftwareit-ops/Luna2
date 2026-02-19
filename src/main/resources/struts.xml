@@ -504,6 +504,25 @@
             <result name="error" type="redirectAction">fatture</result>
         </action>
 
+        <!-- Esportazioni Assosoftware Fatture Attive -->
+        <action name="fatture-esporta-assosoftware" class="it.zensoftware.luna2.action.FattureAction" method="esportaAssosoftware">
+            <result name="success" type="stream">
+                <param name="contentType">text/plain;charset=UTF-8</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
+        <action name="fatture-esporta-singola-assosoftware" class="it.zensoftware.luna2.action.FattureAction" method="esportaSingolaAssosoftware">
+            <result name="success" type="stream">
+                <param name="contentType">text/plain;charset=UTF-8</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
         <!-- SDI Notifiche -->
         <action name="sdi-sincronizza-notifiche" class="it.zensoftware.luna2.action.SdiNotificheAction" method="sincronizzaNotifiche">
             <result name="success" type="redirectAction">
@@ -550,6 +569,25 @@
         <action name="fatture-passive-delete" class="it.zensoftware.luna2.action.FatturePassiveAction" method="delete">
             <result name="success" type="redirectAction">
                 <param name="actionName">fatture-passive</param>
+            </result>
+            <result name="error" type="redirectAction">fatture-passive</result>
+        </action>
+
+        <!-- Esportazioni Assosoftware Fatture Passive -->
+        <action name="fatture-passive-esporta-assosoftware" class="it.zensoftware.luna2.action.FatturePassiveAction" method="esportaAssosoftware">
+            <result name="success" type="stream">
+                <param name="contentType">text/plain;charset=UTF-8</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+            </result>
+            <result name="error" type="redirectAction">fatture-passive</result>
+        </action>
+
+        <action name="fatture-passive-esporta-singola-assosoftware" class="it.zensoftware.luna2.action.FatturePassiveAction" method="esportaSingolaAssosoftware">
+            <result name="success" type="stream">
+                <param name="contentType">text/plain;charset=UTF-8</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
             </result>
             <result name="error" type="redirectAction">fatture-passive</result>
         </action>

@@ -5,12 +5,16 @@ import it.zensoftware.luna2.dao.FatturaPassivaDAO;
 import it.zensoftware.luna2.dao.FornitoreDAO;
 import it.zensoftware.luna2.model.FatturaPassiva;
 import it.zensoftware.luna2.service.FatturePassiveService;
+import it.zensoftware.luna2.service.FattureExportService;
 import it.zensoftware.luna2.util.HibernateUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
+import java.util.Calendar;
 
 /**
  * Action per la gestione delle fatture passive (ricevute da SDI)
@@ -25,10 +29,13 @@ public class FatturePassiveAction extends ActionSupport {
     private Long id;
     private Integer anno;
     private String stato;
+    private InputStream inputStream;
+    private String contentDisposition;
     
     private final FatturaPassivaDAO fatturaPassivaDAO = new FatturaPassivaDAO();
     private final FornitoreDAO fornitoreDAO = new FornitoreDAO();
     private final FatturePassiveService fatturePassiveService = new FatturePassiveService(fatturaPassivaDAO, fornitoreDAO);
+    private final FattureExportService exportService = new FattureExportService();
     
     /**
      * Lista le fatture passive ricevute
@@ -158,6 +165,67 @@ public class FatturePassiveAction extends ActionSupport {
             return ERROR;
         }
     }
+
+    public String esportaAssosoftware() {
+        try {
+            if (anno == null) {
+                anno = Calendar.getInstance().get(Calendar.YEAR);
+            }
+
+            // Recupera tutte le fatture passive dell'anno
+            List<FatturaPassiva> fattureEsportazione = fatturaPassivaDAO.findByAnno(anno);
+
+            if (fattureEsportazione.isEmpty()) {
+                addActionError("Nessuna fattura passiva trovata per l'anno " + anno);
+                return ERROR;
+            }
+
+            // Genera il file di esportazione
+            byte[] fileContent = exportService.esportaFatturePassiveAssosoftware(fattureEsportazione);
+            
+            // Imposta il download
+            inputStream = new ByteArrayInputStream(fileContent);
+            contentDisposition = "attachment;filename=" + exportService.generateFileName("passive", anno);
+
+            logger.info("Export Assosoftware fatture passive: " + fattureEsportazione.size() + " fatture esportate per anno " + anno);
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nell'esportazione Assosoftware", e);
+            addActionError("Errore durante l'esportazione: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String esportaSingolaAssosoftware() {
+        try {
+            if (id == null) {
+                addActionError("ID fattura non specificato");
+                return ERROR;
+            }
+
+            fatturaPassiva = fatturaPassivaDAO.findById(id);
+            if (fatturaPassiva == null) {
+                addActionError("Fattura passiva non trovata");
+                return ERROR;
+            }
+
+            // Genera il file di esportazione
+            byte[] fileContent = exportService.esportaSingolaFatturaPassivaAssosoftware(fatturaPassiva);
+            
+            // Imposta il download
+            inputStream = new ByteArrayInputStream(fileContent);
+            contentDisposition = "attachment;filename=fattura_passiva_" + fatturaPassiva.getNumero() + "_assosoftware.txt";
+
+            logger.info("Export Assosoftware singola fattura passiva: " + fatturaPassiva.getNumero());
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nell'esportazione Assosoftware singola fattura passiva", e);
+            addActionError("Errore durante l'esportazione: " + e.getMessage());
+            return ERROR;
+        }
+    }
     
     /**
      * Estrae la partita IVA aziendale da application.properties
@@ -212,5 +280,21 @@ public class FatturePassiveAction extends ActionSupport {
     
     public void setStato(String stato) {
         this.stato = stato;
+    }
+
+    public InputStream getInputStream() {
+        return inputStream;
+    }
+
+    public void setInputStream(InputStream inputStream) {
+        this.inputStream = inputStream;
+    }
+
+    public String getContentDisposition() {
+        return contentDisposition;
+    }
+
+    public void setContentDisposition(String contentDisposition) {
+        this.contentDisposition = contentDisposition;
     }
 }

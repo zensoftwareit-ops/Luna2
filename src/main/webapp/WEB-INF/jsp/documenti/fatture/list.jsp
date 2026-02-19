@@ -188,6 +188,25 @@
                         </s:else>
                     </div>
                 </div>
+
+                <!-- Esprotazione Assosoftware -->
+                <div class="card mt-4">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h6 class="mb-0"><i class="bi bi-download me-2"></i>Esportazione Assosoftware</h6>
+                                <small class="text-muted">Esporta le fatture in formato standard Assosoftware</small>
+                            </div>
+                            <div class="col-auto">
+                                <a href="<s:url action='fatture-esporta-assosoftware' namespace='/app/documenti'><s:param name='anno' value='anno'/></s:url>" 
+                                   class="btn btn-outline-secondary btn-sm" 
+                                   title="Scarica tutte le fatture in formato Assosoftware per l'anno selezionato">
+                                    <i class="bi bi-file-earmark-text me-1"></i>Esporta Anno
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
