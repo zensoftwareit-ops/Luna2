@@ -54,4 +54,19 @@ public class FornitoreDAO extends GenericDAOImpl<Fornitore, Long> {
             return null;
         }
     }
+
+    /**
+     * Find fornitore by partita IVA
+     */
+    public Fornitore findByPartitaIva(String partitaIva) {
+        try (Session session = getSession()) {
+            Query<Fornitore> query = session.createQuery(
+                "FROM Fornitore WHERE partitaIva = :piva", Fornitore.class);
+            query.setParameter("piva", partitaIva);
+            return query.uniqueResult();
+        } catch (Exception e) {
+            logger.error("Error finding fornitore by partita IVA", e);
+            return null;
+        }
+    }
 }

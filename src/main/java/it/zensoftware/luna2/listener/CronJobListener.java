@@ -21,7 +21,8 @@ import java.util.TimerTask;
 public class CronJobListener implements ServletContextListener {
     
     private static final Logger logger = LogManager.getLogger(CronJobListener.class);
-    private Timer timer;
+    private Timer timerNotifiche;
+    private Timer timerFatturePassive;
     
     // Frequenza di polling in millisecondi (default: 5 minuti)
     private static final long POLLING_INTERVAL = 5 * 60 * 1000;
@@ -31,14 +32,23 @@ public class CronJobListener implements ServletContextListener {
         try {
             logger.info("Avvio del context listener per i cron job SDI");
             
-            // Arvia il timer per la sincronizzazione delle notifiche SDI
-            timer = new Timer("SdiNotifichePoller", true); // daemon thread
-            timer.scheduleAtFixedRate(new SdiNotifichePollerTask(), 
+            // Avvia il timer per la sincronizzazione delle notifiche SDI
+            timerNotifiche = new Timer("SdiNotifichePoller", true); // daemon thread
+            timerNotifiche.scheduleAtFixedRate(new SdiNotifichePollerTask(), 
                     POLLING_INTERVAL, // ritardo iniziale
                     POLLING_INTERVAL  // frequenza di ripetizione
             );
             
-            logger.info("Poller SDI avviato con frequenza " + (POLLING_INTERVAL / 1000 / 60) + " minuti");
+            logger.info("Poller SDI Notifiche avviato con frequenza " + (POLLING_INTERVAL / 1000 / 60) + " minuti");
+            
+            // Avvia il timer per la sincronizzazione delle fatture passive
+            timerFatturePassive = new Timer("FatturePassivePoller", true); // daemon thread
+            timerFatturePassive.scheduleAtFixedRate(new FatturePassivePollerTask(), 
+                    POLLING_INTERVAL, // ritardo iniziale
+                    POLLING_INTERVAL  // frequenza di ripetizione
+            );
+            
+            logger.info("Poller Fatture Passive avviato con frequenza " + (POLLING_INTERVAL / 1000 / 60) + " minuti");
             
         } catch (Exception e) {
             logger.error("Errore nell'inizializzazione del cron job listener", e);
@@ -48,9 +58,13 @@ public class CronJobListener implements ServletContextListener {
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
         try {
-            if (timer != null) {
-                timer.cancel();
-                logger.info("Poller SDI fermato");
+            if (timerNotifiche != null) {
+                timerNotifiche.cancel();
+                logger.info("Poller SDI Notifiche fermato");
+            }
+            if (timerFatturePassive != null) {
+                timerFatturePassive.cancel();
+                logger.info("Poller Fatture Passive fermato");
             }
         } catch (Exception e) {
             logger.error("Errore nella chiusura del cron job listener", e);

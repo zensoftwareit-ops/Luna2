@@ -1,0 +1,216 @@
+package it.zensoftware.luna2.action;
+
+import com.opensymphony.xwork2.ActionSupport;
+import it.zensoftware.luna2.dao.FatturaPassivaDAO;
+import it.zensoftware.luna2.dao.FornitoreDAO;
+import it.zensoftware.luna2.model.FatturaPassiva;
+import it.zensoftware.luna2.service.FatturePassiveService;
+import it.zensoftware.luna2.util.HibernateUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.util.List;
+import java.util.Properties;
+
+/**
+ * Action per la gestione delle fatture passive (ricevute da SDI)
+ * Fornisce endpoint per il polling automatico tramite cron job
+ */
+public class FatturePassiveAction extends ActionSupport {
+    
+    private static final Logger logger = LogManager.getLogger(FatturePassiveAction.class);
+    
+    private List<FatturaPassiva> fatturePassive;
+    private FatturaPassiva fatturaPassiva;
+    private Long id;
+    private Integer anno;
+    private String stato;
+    
+    private final FatturaPassivaDAO fatturaPassivaDAO = new FatturaPassivaDAO();
+    private final FornitoreDAO fornitoreDAO = new FornitoreDAO();
+    private final FatturePassiveService fatturePassiveService = new FatturePassiveService(fatturaPassivaDAO, fornitoreDAO);
+    
+    /**
+     * Lista le fatture passive ricevute
+     */
+    public String list() {
+        try {
+            if (anno != null) {
+                fatturePassive = fatturaPassivaDAO.findByAnno(anno);
+            } else {
+                fatturePassive = fatturaPassivaDAO.findAll();
+            }
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Errore nel caricamento lista fatture passive", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+    
+    /**
+     * Visualizza il dettaglio di una fattura passiva
+     */
+    public String view() {
+        try {
+            if (id == null) {
+                addActionError("ID fattura non fornito");
+                return ERROR;
+            }
+            
+            fatturaPassiva = fatturaPassivaDAO.findById(id);
+            if (fatturaPassiva == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+            
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Errore nel caricamento fattura passiva", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+    
+    /**
+     * Sincronizza le fatture passive ricevute da SDI (eseguito come cron job)
+     * Questo metodo richiama l'endpoint https://api.luna.itsolutions-cloud.com/ricevi-fatture/index.php?piva=xxxxx
+     */
+    public String sincronizzaFatturePassive() {
+        try {
+            logger.info("Inizio sincronizzazione fatture passive da SDI");
+            
+            // Leggi la partita IVA dalla configurazione
+            String partitaIva = getCompanyPartitaIva();
+            if (partitaIva == null || partitaIva.isEmpty()) {
+                addActionError("Partita IVA aziendale non configurata in application.properties");
+                logger.error("ERRORE: Company PIVA non configurata");
+                return ERROR;
+            }
+            
+            // Sincronizza le fatture
+            fatturePassiveService.sincronizzaFatturePassive(partitaIva);
+            
+            addActionMessage("Sincronizzazione fatture passive completata");
+            return SUCCESS;
+            
+        } catch (Exception e) {
+            logger.error("Errore durante la sincronizzazione delle fatture passive", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+    
+    /**
+     * Marca una fattura passiva come pagata
+     */
+    public String registraPagamento() {
+        try {
+            if (id == null) {
+                addActionError("ID fattura non fornito");
+                return ERROR;
+            }
+            
+            fatturaPassiva = fatturaPassivaDAO.findById(id);
+            if (fatturaPassiva == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+            
+            fatturaPassiva.setStatoPagamento(FatturaPassiva.StatoPagamento.PAGATA);
+            fatturaPassivaDAO.update(fatturaPassiva);
+            
+            addActionMessage("Fattura marcata come pagata");
+            logger.info("Fattura passiva " + fatturaPassiva.getNumero() + " marcata come pagata");
+            
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Errore nel registrazione pagamento", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+    
+    /**
+     * Elimina una fattura passiva
+     */
+    public String delete() {
+        try {
+            if (id == null) {
+                addActionError("ID fattura non fornito");
+                return ERROR;
+            }
+            
+            fatturaPassiva = fatturaPassivaDAO.findById(id);
+            if (fatturaPassiva == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+            
+            fatturaPassivaDAO.delete(fatturaPassiva);
+            addActionMessage("Fattura eliminata");
+            logger.info("Fattura passiva " + fatturaPassiva.getNumero() + " eliminata");
+            
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Errore nella eliminazione fattura", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+    
+    /**
+     * Estrae la partita IVA aziendale da application.properties
+     */
+    private String getCompanyPartitaIva() {
+        try {
+            Properties props = new Properties();
+            props.load(Thread.currentThread().getContextClassLoader().getResourceAsStream("application.properties"));
+            return props.getProperty("company.vat", "");
+        } catch (Exception e) {
+            logger.error("Errore nella lettura della PIVA aziendale", e);
+            return null;
+        }
+    }
+    
+    // Getters and Setters
+    public List<FatturaPassiva> getFatturePassive() {
+        return fatturePassive;
+    }
+    
+    public void setFatturePassive(List<FatturaPassiva> fatturePassive) {
+        this.fatturePassive = fatturePassive;
+    }
+    
+    public FatturaPassiva getFatturaPassiva() {
+        return fatturaPassiva;
+    }
+    
+    public void setFatturaPassiva(FatturaPassiva fatturaPassiva) {
+        this.fatturaPassiva = fatturaPassiva;
+    }
+    
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
+    public Integer getAnno() {
+        return anno;
+    }
+    
+    public void setAnno(Integer anno) {
+        this.anno = anno;
+    }
+    
+    public String getStato() {
+        return stato;
+    }
+    
+    public void setStato(String stato) {
+        this.stato = stato;
+    }
+}

@@ -523,6 +523,37 @@
             </result>
         </action>
 
+        <!-- Fatture Passive (Ricevute da SDI) -->
+        <action name="fatture-passive" class="it.zensoftware.luna2.action.FatturePassiveAction" method="list">
+            <result name="success">/WEB-INF/jsp/documenti/fatture-passive/list.jsp</result>
+        </action>
+
+        <action name="fatture-passive-view" class="it.zensoftware.luna2.action.FatturePassiveAction" method="view">
+            <result name="success">/WEB-INF/jsp/documenti/fatture-passive/view.jsp</result>
+            <result name="error" type="redirectAction">fatture-passive</result>
+        </action>
+
+        <action name="fatture-passive-sincronizza" class="it.zensoftware.luna2.action.FatturePassiveAction" method="sincronizzaFatturePassive">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture-passive</param>
+            </result>
+            <result name="error" type="redirectAction">fatture-passive</result>
+        </action>
+
+        <action name="fatture-passive-registra-pagamento" class="it.zensoftware.luna2.action.FatturePassiveAction" method="registraPagamento">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture-passive</param>
+            </result>
+            <result name="error" type="redirectAction">fatture-passive</result>
+        </action>
+
+        <action name="fatture-passive-delete" class="it.zensoftware.luna2.action.FatturePassiveAction" method="delete">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture-passive</param>
+            </result>
+            <result name="error" type="redirectAction">fatture-passive</result>
+        </action>
+
         <!-- DDT -->
         <action name="ddt" class="it.zensoftware.luna2.action.DdtAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/ddt/list.jsp</result>
