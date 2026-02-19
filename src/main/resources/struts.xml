@@ -592,6 +592,60 @@
             <result name="error" type="redirectAction">fatture-passive</result>
         </action>
 
+        <!-- Commesse/Produzione -->
+        <action name="commesse" class="it.zensoftware.luna2.action.ComMesseAction" method="list">
+            <result name="success">/WEB-INF/jsp/documenti/commesse/list.jsp</result>
+            <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
+        <action name="commesse-view" class="it.zensoftware.luna2.action.ComMesseAction" method="view">
+            <result name="success">/WEB-INF/jsp/documenti/commesse/view.jsp</result>
+            <result name="error" type="redirectAction">commesse</result>
+        </action>
+
+        <action name="commesse-crea-from-preventivo" class="it.zensoftware.luna2.action.ComMesseAction" method="creaFromPreventivo">
+            <result name="success" type="redirectAction">
+                <param name="actionName">commesse-view</param>
+                <param name="id">${commessa.id}</param>
+            </result>
+            <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
+        <action name="commesse-aggiorna-stato" class="it.zensoftware.luna2.action.ComMesseAction" method="aggiornaStato">
+            <result name="success" type="redirectAction">
+                <param name="actionName">commesse-view</param>
+            </result>
+            <result name="error" type="redirectAction">commesse</result>
+        </action>
+
+        <action name="commesse-completa" class="it.zensoftware.luna2.action.ComMesseAction" method="completa">
+            <result name="success" type="redirectAction">
+                <param name="actionName">commesse-view</param>
+            </result>
+            <result name="error" type="redirectAction">commesse</result>
+        </action>
+
+        <action name="commesse-sospendi" class="it.zensoftware.luna2.action.ComMesseAction" method="sospendi">
+            <result name="success" type="redirectAction">
+                <param name="actionName">commesse-view</param>
+            </result>
+            <result name="error" type="redirectAction">commesse</result>
+        </action>
+
+        <action name="commesse-riprendi" class="it.zensoftware.luna2.action.ComMesseAction" method="riprendi">
+            <result name="success" type="redirectAction">
+                <param name="actionName">commesse-view</param>
+            </result>
+            <result name="error" type="redirectAction">commesse</result>
+        </action>
+
+        <action name="commesse-annulla" class="it.zensoftware.luna2.action.ComMesseAction" method="annulla">
+            <result name="success" type="redirectAction">
+                <param name="actionName">commesse</param>
+            </result>
+            <result name="error" type="redirectAction">commesse</result>
+        </action>
+
         <!-- DDT -->
         <action name="ddt" class="it.zensoftware.luna2.action.DdtAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/ddt/list.jsp</result>

@@ -47,6 +47,8 @@ public class HibernateUtil {
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.TrackingEmail.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.SdiNotifica.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.FatturaPassiva.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Commessa.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.ComMessaRiga.class);
             
             logger.info("Annotated classes registered");
 

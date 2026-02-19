@@ -88,6 +88,9 @@ public class Preventivo implements Serializable {
     // @OrderBy("rigaNumero ASC")
     private transient List<PreventivoRiga> righe = new ArrayList<>();
 
+    @OneToMany(mappedBy = "preventivo", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Commessa> commesse = new ArrayList<>();
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "data_creazione", updatable = false)
     private Date dataCreazione;
@@ -393,5 +396,13 @@ public class Preventivo implements Serializable {
     @Override
     public int hashCode() {
         return getClass().hashCode();
+    }
+
+    public List<Commessa> getCommesse() {
+        return commesse;
+    }
+
+    public void setCommesse(List<Commessa> commesse) {
+        this.commesse = commesse;
     }
 }

@@ -62,6 +62,10 @@ public class Fattura implements Serializable {
     @Column(name = "sdi_stato")
     private String sdiStato; // "INVIATA", "ACCETTATA", "ERRORE", null
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "commessa_id")
+    private Commessa commessa;
+
     @OneToMany(mappedBy = "fattura", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("rigaNumero ASC")
     private List<FatturaRiga> righe = new ArrayList<>();
@@ -150,6 +154,9 @@ public class Fattura implements Serializable {
     public void setSdiCodice(String sdiCodice) { this.sdiCodice = sdiCodice; }
     public String getSdiStato() { return sdiStato; }
     public void setSdiStato(String sdiStato) { this.sdiStato = sdiStato; }
+    
+    public Commessa getCommessa() { return commessa; }
+    public void setCommessa(Commessa commessa) { this.commessa = commessa; }
 }
 
 @Entity
