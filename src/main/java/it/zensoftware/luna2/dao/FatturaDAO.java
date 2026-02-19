@@ -70,4 +70,18 @@ public class FatturaDAO extends GenericDAOImpl<Fattura, Long> {
         }
         return fattura;
     }
+
+    /**
+     * Finds all REALE invoices that have been sent to SDI but don't have a notification yet
+     */
+    public List<Fattura> findFattureWithoutNotifica() {
+        try (Session session = getSession()) {
+            Query<Fattura> query = session.createQuery(
+                    "FROM Fattura f WHERE f.tipoFattura = :tipo AND f.sdiCodice IS NOT NULL " +
+                    "AND f.sdiStato IS NULL ORDER BY f.dataFattura DESC",
+                    Fattura.class);
+            query.setParameter("tipo", TipoFattura.REALE);
+            return query.getResultList();
+        }
+    }
 }

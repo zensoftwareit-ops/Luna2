@@ -55,6 +55,12 @@ public class Fattura implements Serializable {
     private String metodoPagamento;
     @Column(name = "fattura_elettronica_inviata")
     private Boolean fatturaElettronicaInviata = false;
+    
+    @Column(name = "sdi_codice")
+    private String sdiCodice;
+    
+    @Column(name = "sdi_stato")
+    private String sdiStato; // "INVIATA", "ACCETTATA", "ERRORE", null
 
     @OneToMany(mappedBy = "fattura", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("rigaNumero ASC")
@@ -139,6 +145,11 @@ public class Fattura implements Serializable {
     public Date getDataModifica() { return dataModifica; }
     public User getCreatedBy() { return createdBy; }
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
+    
+    public String getSdiCodice() { return sdiCodice; }
+    public void setSdiCodice(String sdiCodice) { this.sdiCodice = sdiCodice; }
+    public String getSdiStato() { return sdiStato; }
+    public void setSdiStato(String sdiStato) { this.sdiStato = sdiStato; }
 }
 
 @Entity

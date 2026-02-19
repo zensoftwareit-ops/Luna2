@@ -477,6 +477,52 @@
             <result name="error" type="redirectAction">fatture</result>
         </action>
 
+        <action name="fatture-generateXmlSdi" class="it.zensoftware.luna2.action.FattureAction" method="generateXmlSdi">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/xml</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
+        <action name="fatture-downloadXmlSdi" class="it.zensoftware.luna2.action.FattureAction" method="downloadXmlSdi">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/xml</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
+        <action name="fatture-sendXmlSdi" class="it.zensoftware.luna2.action.FattureAction" method="sendXmlSdi">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
+        <!-- SDI Notifiche -->
+        <action name="sdi-sincronizza-notifiche" class="it.zensoftware.luna2.action.SdiNotificheAction" method="sincronizzaNotifiche">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture</param>
+            </result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">fatture</param>
+            </result>
+        </action>
+
+        <action name="sdi-stato-notifica" class="it.zensoftware.luna2.action.SdiNotificheAction" method="getStatoNotifica">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture</param>
+            </result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">fatture</param>
+            </result>
+        </action>
+
         <!-- DDT -->
         <action name="ddt" class="it.zensoftware.luna2.action.DdtAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/ddt/list.jsp</result>

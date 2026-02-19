@@ -64,6 +64,7 @@
                                             <th>Totale</th>
                                             <th>Tipo</th>
                                             <th>📧 Tracciamento</th>
+                                            <th>SDI Stato</th>
                                             <th>Azioni</th>
                                         </tr>
                                     </thead>
@@ -106,6 +107,35 @@
                                                     </span>
                                                 </td>
                                                 <td>
+                                                    <s:if test="#dto.fattura.tipoFattura == @it.zensoftware.luna2.model.Fattura$TipoFattura@REALE">
+                                                        <s:if test="#dto.fattura.sdiCodice != null && !#dto.fattura.sdiCodice.isEmpty()">
+                                                            <div>
+                                                                <small class="text-muted">Codice: <code><s:property value="#dto.fattura.sdiCodice"/></code></small>
+                                                            </div>
+                                                            <s:if test="#dto.fattura.sdiStato != null">
+                                                                <s:if test="#dto.fattura.sdiStato.equals('INVIATA')">
+                                                                    <span class="badge bg-info">🔄 <s:property value="#dto.fattura.sdiStato" default="In attesa"/></span>
+                                                                </s:if>
+                                                                <s:elseif test="#dto.fattura.sdiStato.equals('ACCETTATA')">
+                                                                    <span class="badge bg-success">✓ <s:property value="#dto.fattura.sdiStato"/></span>
+                                                                </s:elseif>
+                                                                <s:elseif test="#dto.fattura.sdiStato.equals('SCARTATA')">
+                                                                    <span class="badge bg-danger">✗ <s:property value="#dto.fattura.sdiStato"/></span>
+                                                                </s:elseif>
+                                                                <s:elseif test="#dto.fattura.sdiStato.equals('ERRORE')">
+                                                                    <span class="badge bg-danger">❌ Errore</span>
+                                                                </s:elseif>
+                                                            </s:if>
+                                                        </s:if>
+                                                        <s:else>
+                                                            <span class="text-muted small">-</span>
+                                                        </s:else>
+                                                    </s:if>
+                                                    <s:else>
+                                                        <span class="text-muted small">-</span>
+                                                    </s:else>
+                                                </td>
+                                                <td>
                                                     <div class="btn-group btn-group-sm">
                                                         <a href="<s:url action='fatture-edit' namespace='/app/documenti'><s:param name='id' value='#dto.fattura.id'/></s:url>" 
                                                            class="btn btn-outline-primary" title="Modifica">
@@ -115,6 +145,24 @@
                                                            target="_blank" class="btn btn-outline-success" title="Scarica PDF">
                                                             <i class="bi bi-file-pdf"></i>
                                                         </a>
+                                                        <s:if test="#dto.fattura.tipoFattura == @it.zensoftware.luna2.model.Fattura$TipoFattura@REALE">
+                                                            <a href="<s:url action='fatture-generateXmlSdi' namespace='/app/documenti'><s:param name='id' value='#dto.fattura.id'/></s:url>" 
+                                                               target="_blank" class="btn btn-outline-dark" title="Scarica XML SDI">
+                                                                <i class="bi bi-file-code"></i>
+                                                            </a>
+                                                            <a href="<s:url action='fatture-sendXmlSdi' namespace='/app/documenti'><s:param name='id' value='#dto.fattura.id'/></s:url>" 
+                                                               class="btn btn-outline-warning <s:if test='#dto.fattura.sdiCodice != null && !#dto.fattura.sdiCodice.isEmpty()'>disabled</s:if>" 
+                                                               title="<s:if test='#dto.fattura.sdiCodice != null && !#dto.fattura.sdiCodice.isEmpty()'>Già inviato a SDI</s:if><s:else>Invia XML a SDI</s:else>"
+                                                               <s:if test='#dto.fattura.sdiCodice == null || #dto.fattura.sdiCodice.isEmpty()'>
+                                                                   onclick="return confirm('Inviare XML SDI per questa fattura reale?')"
+                                                               </s:if>
+                                                               <s:else>
+                                                                   onclick="return false" style="cursor: not-allowed;"
+                                                               </s:else>
+                                                            >
+                                                                <i class="bi bi-send-check"></i>
+                                                            </a>
+                                                        </s:if>
                                                         <a href="<s:url action='fatture-sendEmail' namespace='/app/documenti'><s:param name='id' value='#dto.fattura.id'/></s:url>" 
                                                            class="btn btn-outline-success" title="Invia Email"
                                                            onclick="return confirm('Inviare questa fattura per email?')">

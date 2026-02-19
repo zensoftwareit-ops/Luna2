@@ -11,6 +11,7 @@ import it.zensoftware.luna2.model.FatturaRiga;
 import it.zensoftware.luna2.model.Cliente;
 import it.zensoftware.luna2.model.TrackingEmail;
 import it.zensoftware.luna2.service.EmailService;
+import it.zensoftware.luna2.service.FatturaXMLService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.struts2.ServletActionContext;
@@ -38,6 +39,7 @@ public class FattureAction extends ActionSupport {
     private ClienteDAO clienteDAO = new ClienteDAO();
     private TrackingEmailDAO trackingEmailDAO = new TrackingEmailDAO();
     private EmailService emailService = new EmailService();
+    private FatturaXMLService xmlService = new FatturaXMLService();
     
     private Fattura fattura;
     private List<Fattura> fatture;
@@ -400,6 +402,142 @@ public class FattureAction extends ActionSupport {
         cell.setPhrase(new Phrase(label, font));
         table.addCell(cell);
     }
+
+    public String generateXmlSdi() {
+        try {
+            if (id == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            fattura = fatturaDAO.findWithRighe(id);
+            if (fattura == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            if (!Fattura.TipoFattura.REALE.equals(fattura.getTipoFattura())) {
+                addActionError("L'XML SDI può essere generato solo per Fatture REALI, non per Proforma");
+                return ERROR;
+            }
+
+            // Genera XML
+            String xmlContent = xmlService.generateFatturaXML(fattura);
+
+            // Valida XML
+            if (!xmlService.validateXML(xmlContent)) {
+                addActionError("XML generato non è valido");
+                return ERROR;
+            }
+
+            inputStream = new ByteArrayInputStream(xmlContent.getBytes("UTF-8"));
+            contentDisposition = "attachment; filename=\"Fattura_" + fattura.getNumero() + ".xml\"";
+
+            addActionMessage("XML SDI generato per fattura " + fattura.getNumero());
+            logger.info("XML SDI generato per fattura " + fattura.getNumero());
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nella generazione XML SDI", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String downloadXmlSdi() {
+        try {
+            if (id == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            fattura = fatturaDAO.findWithRighe(id);
+            if (fattura == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            if (!Fattura.TipoFattura.REALE.equals(fattura.getTipoFattura())) {
+                addActionError("L'XML SDI è disponibile solo per Fatture REALI");
+                return ERROR;
+            }
+
+            // Genera XML
+            String xmlContent = xmlService.generateFatturaXML(fattura);
+
+            // Valida XML
+            if (!xmlService.validateXML(xmlContent)) {
+                addActionError("XML generato non è valido");
+                return ERROR;
+            }
+
+            inputStream = new ByteArrayInputStream(xmlContent.getBytes("UTF-8"));
+            contentDisposition = "attachment; filename=\"Fattura_" + fattura.getNumero() + ".xml\"";
+
+            logger.info("XML SDI scaricato per fattura " + fattura.getNumero());
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore durante lo scaricamento XML SDI", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String sendXmlSdi() {
+        try {
+            if (id == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            fattura = fatturaDAO.findWithRighe(id);
+            if (fattura == null) {
+                addActionError("Fattura non trovata");
+                return ERROR;
+            }
+
+            if (!Fattura.TipoFattura.REALE.equals(fattura.getTipoFattura())) {
+                addActionError("L'invio SDI e' disponibile solo per Fatture REALI");
+                return ERROR;
+            }
+
+            String xmlContent = xmlService.generateFatturaXML(fattura);
+            if (!xmlService.validateXML(xmlContent)) {
+                addActionError("XML generato non e' valido");
+                return ERROR;
+            }
+
+            FatturaXMLService.SdiResponse response = xmlService.sendToSdi(xmlContent);
+            if (response.isSuccess()) {
+                // Salva il codice SDI ricevuto nella fattura
+                if (response.getSdiCodice() != null && !response.getSdiCodice().isEmpty()) {
+                    fattura.setSdiCodice(response.getSdiCodice());
+                    fattura.setSdiStato("INVIATA"); // Stato iniziale
+                    fatturaDAO.update(fattura);
+                    addActionMessage("XML inviato a SDI con successo. Codice: " + response.getSdiCodice());
+                    logger.info("XML SDI inviato per fattura " + fattura.getNumero() + 
+                               " - Codice SDI: " + response.getSdiCodice() + " - HTTP " + response.getStatusCode());
+                } else {
+                    // Invio riuscito ma codice non ricevuto - possibile errore nella risposta
+                    addActionMessage("XML inviato a SDI (HTTP " + response.getStatusCode() + ") ma codice non ricevuto");
+                    logger.warn("XML inviato per fattura " + fattura.getNumero() + 
+                               " ma codice SDI non trovato nella risposta: " + response.getBody());
+                }
+                return SUCCESS;
+            }
+
+            addActionError("Errore invio SDI (HTTP " + response.getStatusCode() + ")");
+            logger.warn("Invio SDI fallito per fattura " + fattura.getNumero() + " - HTTP " + response.getStatusCode() + " - " + response.getBody());
+            return ERROR;
+
+        } catch (Exception e) {
+            logger.error("Errore durante l'invio XML SDI", e);
+            addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
 
     // Getters and Setters
     public Fattura getFattura() { return fattura; }
