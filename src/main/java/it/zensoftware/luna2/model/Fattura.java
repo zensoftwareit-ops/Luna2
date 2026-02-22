@@ -81,11 +81,20 @@ public class Fattura implements Serializable {
     private User createdBy;
 
     public enum TipoFattura {
-        PROFORMA, REALE
+        PROFORMA, REALE, ORDINARIA // ORDINARIA è alias di REALE
     }
 
     public enum StatoPagamento {
-        DA_PAGARE, PARZIALMENTE_PAGATA, PAGATA, SCADUTA
+        DA_PAGARE, PARZIALMENTE_PAGATA, PAGATA, SCADUTA, EMESSA // EMESSA per fatture elettroniche inviate
+    }
+
+    // Alias per compatibilità
+    public static class StatoFattura {
+        public static final StatoPagamento DA_PAGARE = StatoPagamento.DA_PAGARE;
+        public static final StatoPagamento PAGATA = StatoPagamento.PAGATA;
+        public static final StatoPagamento PARZIALMENTE_PAGATA = StatoPagamento.PARZIALMENTE_PAGATA;
+        public static final StatoPagamento SCADUTA = StatoPagamento.SCADUTA;
+        public static final StatoPagamento EMESSA = StatoPagamento.EMESSA;
     }
 
     @PrePersist
@@ -132,6 +141,16 @@ public class Fattura implements Serializable {
     public void setTotaleNetto(BigDecimal totaleNetto) { this.totaleNetto = totaleNetto; }
     public StatoPagamento getStatoPagamento() { return statoPagamento; }
     public void setStatoPagamento(StatoPagamento statoPagamento) { this.statoPagamento = statoPagamento; }
+    
+    // Alias per compatibilità
+    public void setStato(StatoPagamento stato) {
+        this.statoPagamento = stato;
+    }
+    
+    public StatoPagamento getStato() {
+        return statoPagamento;
+    }
+    
     public Date getDataScadenza() { return dataScadenza; }
     public void setDataScadenza(Date dataScadenza) { this.dataScadenza = dataScadenza; }
     public Date getDataPagamento() { return dataPagamento; }
@@ -140,6 +159,22 @@ public class Fattura implements Serializable {
     public void setMetodoPagamento(String metodoPagamento) { this.metodoPagamento = metodoPagamento; }
     public Boolean getFatturaElettronicaInviata() { return fatturaElettronicaInviata; }
     public void setFatturaElettronicaInviata(Boolean fatturaElettronicaInviata) { this.fatturaElettronicaInviata = fatturaElettronicaInviata; }
+    
+    public void setPagato(BigDecimal importo) {
+        // In realtà tracciamo importo pagato attraverso lo stato
+        if (importo != null && importo.compareTo(BigDecimal.ZERO) > 0) {
+            if (importo.compareTo(totale) >= 0) {
+                this.statoPagamento = StatoPagamento.PAGATA;
+                this.dataPagamento = new Date();
+            } else {
+                this.statoPagamento = StatoPagamento.PARZIALMENTE_PAGATA;
+            }
+        }
+    }
+    
+    public void setNote(String note) {
+        this.notePiede = note; // Note in piede fattura
+    }
 
     public List<FatturaRiga> getRighe() { return righe; }
     public void setRighe(List<FatturaRiga> righe) { this.righe = righe; }

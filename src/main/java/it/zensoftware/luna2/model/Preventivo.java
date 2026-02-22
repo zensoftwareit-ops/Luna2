@@ -108,7 +108,7 @@ public class Preventivo implements Serializable {
     private User modifiedBy;
 
     public enum Stato {
-        BOZZA, INVIATO, ACCETTATO, RIFIUTATO, SCADUTO
+        BOZZA, INVIATO, ACCETTATO, RIFIUTATO, SCADUTO, CONVERTITO
     }
 
     @PrePersist

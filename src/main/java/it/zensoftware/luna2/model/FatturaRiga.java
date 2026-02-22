@@ -70,4 +70,13 @@ public class FatturaRiga implements Serializable {
 
     public BigDecimal getTotaleRiga() { return totaleRiga; }
     public void setTotaleRiga(BigDecimal totaleRiga) { this.totaleRiga = totaleRiga; }
+    
+    // Alias per compatibilità
+    public void setImportoTotale(BigDecimal importoTotale) {
+        this.totaleRiga = importoTotale;
+    }
+    
+    public BigDecimal getImportoTotale() {
+        return totaleRiga;
+    }
 }

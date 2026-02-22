@@ -336,6 +336,15 @@
             <result name="error" type="redirectAction">preventivi</result>
         </action>
 
+        <!-- Trasforma preventivo in commessa (modulo produzione) -->
+        <action name="preventivi-trasforma-commessa" class="it.zensoftware.luna2.action.PreventiviAction" method="trasformaInCommessa">
+            <result name="redirect-commessa" type="redirect">/app/produzione/view?id=${id}</result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">preventivi-edit</param>
+                <param name="id">${id}</param>
+            </result>
+        </action>
+
         <action name="preventivi-ricalcola" class="it.zensoftware.luna2.action.PreventiviAction" method="ricalcolaTotali">
             <result name="success" type="redirectAction">
                 <param name="actionName">preventivi-edit</param>
@@ -378,6 +387,14 @@
                 <param name="bufferSize">4096</param>
             </result>
             <result name="error" type="redirectAction">preventivi</result>
+        </action>
+
+        <action name="preventivi-crea-fattura" class="it.zensoftware.luna2.action.FattureAction" method="createFromPreventivo">
+            <result name="redirect-fattura" type="redirect">/app/documenti/fatture-edit?id=${id}</result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">preventivi-edit</param>
+                <param name="id">${id}</param>
+            </result>
         </action>
 
         <!-- Ordini -->
@@ -504,6 +521,13 @@
             <result name="error" type="redirectAction">fatture</result>
         </action>
 
+        <action name="fatture-importXml" class="it.zensoftware.luna2.action.FattureAction" method="importXml">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture-edit</param>
+            </result>
+            <result name="error" type="redirectAction">fatture</result>
+        </action>
+
         <!-- Esportazioni Assosoftware Fatture Attive -->
         <action name="fatture-esporta-assosoftware" class="it.zensoftware.luna2.action.FattureAction" method="esportaAssosoftware">
             <result name="success" type="stream">
@@ -592,6 +616,23 @@
             <result name="error" type="redirectAction">fatture-passive</result>
         </action>
 
+        <action name="fatture-passive-exportXml" class="it.zensoftware.luna2.action.FatturePassiveAction" method="exportXml">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/xml</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">fatture-passive</result>
+        </action>
+
+        <action name="fatture-passive-importXml" class="it.zensoftware.luna2.action.FatturePassiveAction" method="importXml">
+            <result name="success" type="redirectAction">
+                <param name="actionName">fatture-passive-view</param>
+            </result>
+            <result name="error" type="redirectAction">fatture-passive</result>
+        </action>
+
         <!-- Commesse/Produzione -->
         <action name="commesse" class="it.zensoftware.luna2.action.ComMesseAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/commesse/list.jsp</result>
@@ -658,21 +699,87 @@
             <result name="success">/WEB-INF/jsp/lead/list.jsp</result>
         </action>
 
+        <action name="view" class="it.zensoftware.luna2.action.LeadAction" method="view">
+            <result name="success">/WEB-INF/jsp/lead/view.jsp</result>
+            <result name="error" type="redirectAction">list</result>
+        </action>
+
         <action name="create" class="it.zensoftware.luna2.action.LeadAction" method="create">
             <result name="success">/WEB-INF/jsp/lead/form.jsp</result>
         </action>
 
         <action name="edit" class="it.zensoftware.luna2.action.LeadAction" method="edit">
             <result name="success">/WEB-INF/jsp/lead/form.jsp</result>
+            <result name="error" type="redirectAction">list</result>
         </action>
 
         <action name="save" class="it.zensoftware.luna2.action.LeadAction" method="save">
             <result name="success" type="redirectAction">list</result>
             <result name="input">/WEB-INF/jsp/lead/form.jsp</result>
+            <result name="error">/WEB-INF/jsp/lead/form.jsp</result>
         </action>
 
         <action name="delete" class="it.zensoftware.luna2.action.LeadAction" method="delete">
             <result name="success" type="redirectAction">list</result>
+            <result name="error" type="redirectAction">list</result>
+        </action>
+
+        <action name="pipeline" class="it.zensoftware.luna2.action.LeadAction" method="pipeline">
+            <result name="success">/WEB-INF/jsp/lead/kanban.jsp</result>
+        </action>
+
+        <action name="changeStage" class="it.zensoftware.luna2.action.LeadAction" method="changeStage">
+            <result name="success" type="redirectAction">
+                <param name="actionName">view</param>
+                <param name="id">${id}</param>
+            </result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">view</param>
+                <param name="id">${id}</param>
+            </result>
+        </action>
+
+        <action name="addActivity" class="it.zensoftware.luna2.action.LeadAction" method="addActivity">
+            <result name="success" type="redirectAction">
+                <param name="actionName">view</param>
+                <param name="id">${id}</param>
+            </result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">view</param>
+                <param name="id">${id}</param>
+            </result>
+        </action>
+
+        <action name="addTask" class="it.zensoftware.luna2.action.LeadAction" method="addTask">
+            <result name="success" type="redirectAction">
+                <param name="actionName">view</param>
+                <param name="id">${id}</param>
+            </result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">view</param>
+                <param name="id">${id}</param>
+            </result>
+        </action>
+
+        <action name="export" class="it.zensoftware.luna2.action.LeadAction" method="export">
+            <result name="success" type="stream">
+                <param name="contentType">application/vnd.ms-excel</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">attachment;filename="leads_${#session.timestamp}.xls"</param>
+                <param name="bufferSize">1024</param>
+            </result>
+        </action>
+
+        <action name="convertToCliente" class="it.zensoftware.luna2.action.LeadAction" method="convertToCliente">
+            <result name="success" type="redirectAction">
+                <param name="actionName">view</param>
+                <param name="namespace">/app/clienti</param>
+                <param name="id">${clienteId}</param>
+            </result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">view</param>
+                <param name="id">${id}</param>
+            </result>
         </action>
     </package>
 
@@ -781,8 +888,64 @@
 
     <!-- Produzione/Commesse Package -->
     <package name="produzione" extends="luna2-default" namespace="/app/produzione">
+        <!-- Dashboard commesse -->
         <action name="commesse" class="it.zensoftware.luna2.action.ProduzioneAction" method="commesse">
             <result name="success">/WEB-INF/jsp/produzione/commesse.jsp</result>
+            <result name="error">/WEB-INF/jsp/produzione/commesse.jsp</result>
+        </action>
+
+        <!-- Visualizza dettaglio commessa -->
+        <action name="view" class="it.zensoftware.luna2.action.ProduzioneAction" method="view">
+            <result name="success">/WEB-INF/jsp/produzione/commessa-view.jsp</result>
+            <result name="error">/WEB-INF/jsp/produzione/commesse.jsp</result>
+        </action>
+
+        <!-- Crea commessa da preventivo -->
+        <action name="crea-da-preventivo" class="it.zensoftware.luna2.action.ProduzioneAction" method="creaCommessaDaPreventivo">
+            <result name="success" type="redirect">view?id=${commessa.id}</result>
+            <result name="error" type="redirect">commesse</result>
+        </action>
+
+        <!-- Avvia lavorazione -->
+        <action name="avvia" class="it.zensoftware.luna2.action.ProduzioneAction" method="avviaLavorazione">
+            <result name="success" type="redirect">view?id=${commessa.id}</result>
+            <result name="error" type="redirect">view?id=${id}</result>
+        </action>
+
+        <!-- Sospendi commessa -->
+        <action name="sospendi" class="it.zensoftware.luna2.action.ProduzioneAction" method="sospendi">
+            <result name="success" type="redirect">view?id=${commessa.id}</result>
+            <result name="error" type="redirect">view?id=${id}</result>
+        </action>
+
+        <!-- Riprendi commessa -->
+        <action name="riprendi" class="it.zensoftware.luna2.action.ProduzioneAction" method="riprendi">
+            <result name="success" type="redirect">view?id=${commessa.id}</result>
+            <result name="error" type="redirect">view?id=${id}</result>
+        </action>
+
+        <!-- Completa commessa -->
+        <action name="completa" class="it.zensoftware.luna2.action.ProduzioneAction" method="completa">
+            <result name="success" type="redirect">view?id=${commessa.id}</result>
+            <result name="error" type="redirect">view?id=${id}</result>
+        </action>
+
+        <!-- Annulla commessa -->
+        <action name="annulla" class="it.zensoftware.luna2.action.ProduzioneAction" method="annulla">
+            <result name="success" type="redirect">view?id=${commessa.id}</result>
+            <result name="error" type="redirect">view?id=${id}</result>
+        </action>
+
+        <!-- Aggiorna percentuale completamento -->
+        <action name="aggiorna-percentuale" class="it.zensoftware.luna2.action.ProduzioneAction" method="aggiornaPercentuale">
+            <result name="success" type="redirect">view?id=${commessa.id}</result>
+            <result name="error" type="redirect">view?id=${id}</result>
+        </action>
+
+        <!-- Crea fattura da commessa -->
+        <action name="fattura" class="it.zensoftware.luna2.action.ProduzioneAction" method="creaFatturaDaCommessa">
+            <result name="success" type="redirect">/app/fatture/view?id=${fattura.id}</result>
+            <result name="error" type="redirect">view?id=${id}</result>
         </action>
     </package>
 
@@ -821,44 +984,276 @@
         </action>
     </package>
 
-    <!-- Leads/CRM Package -->
-    <package name="leads" extends="luna2-default" namespace="/app/leads">
+    <!-- Leads/CRM Package - CONSOLIDATO IN /app/lead SOPRA -->
+    <!-- Package rimosso per evitare duplicazione. Usare namespace /app/lead -->
+
+
+    <!-- CRM Lead Management Package (Phase 1) -->
+    <package name="crm-lead" extends="luna2-default" namespace="/app/crm/leads">
+        <!-- LIST_LEAD - List all leads with filters -->
         <action name="list" class="it.zensoftware.luna2.action.LeadAction" method="list">
-            <result name="success">/WEB-INF/jsp/leads/list.jsp</result>
-            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+            <result name="success">/WEB-INF/jsp/crm/lead/list.jsp</result>
         </action>
 
+        <!-- VIEW_LEAD - View lead details, activities, and tasks -->
         <action name="view" class="it.zensoftware.luna2.action.LeadAction" method="view">
-            <result name="success">/WEB-INF/jsp/leads/view.jsp</result>
-            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+            <result name="success">/WEB-INF/jsp/crm/lead/view.jsp</result>
+            <result name="notfound">/WEB-INF/jsp/error/404.jsp</result>
         </action>
 
-        <action name="create" class="it.zensoftware.luna2.action.LeadAction" method="create">
-            <result name="success">/WEB-INF/jsp/leads/form.jsp</result>
-            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
-        </action>
-
+        <!-- EDIT_LEAD - Edit lead form -->
         <action name="edit" class="it.zensoftware.luna2.action.LeadAction" method="edit">
-            <result name="success">/WEB-INF/jsp/leads/form.jsp</result>
-            <result name="input">/WEB-INF/jsp/leads/list.jsp</result>
-            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+            <result name="success">/WEB-INF/jsp/crm/lead/edit.jsp</result>
+            <result name="notfound">/WEB-INF/jsp/error/404.jsp</result>
         </action>
 
+        <!-- SAVE_LEAD - Create or update lead -->
         <action name="save" class="it.zensoftware.luna2.action.LeadAction" method="save">
             <result name="success" type="redirectAction">
-                <param name="actionName">list</param>
-                <param name="namespace">/app/leads</param>
+                <param name="actionName">view</param>
+                <param name="id">${id}</param>
             </result>
-            <result name="input">/WEB-INF/jsp/leads/form.jsp</result>
-            <result name="error">/WEB-INF/jsp/leads/form.jsp</result>
+            <result name="input">/WEB-INF/jsp/crm/lead/edit.jsp</result>
         </action>
 
+        <!-- CHANGE_STAGE - Move lead through pipeline stages -->
+        <action name="changeStage" class="it.zensoftware.luna2.action.LeadAction" method="changeStage">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- ADD_ACTIVITY - Log activity (call, email, meeting, note) -->
+        <action name="addActivity" class="it.zensoftware.luna2.action.LeadAction" method="addActivity">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- ADD_TASK - Create follow-up task -->
+        <action name="addTask" class="it.zensoftware.luna2.action.LeadAction" method="addTask">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- VIEW_PIPELINE - Kanban board view of pipeline -->
+        <action name="pipeline" class="it.zensoftware.luna2.action.LeadAction" method="pipeline">
+            <result name="success">/WEB-INF/jsp/crm/lead/pipeline.jsp</result>
+        </action>
+
+        <!-- DELETE_LEAD - Delete lead -->
         <action name="delete" class="it.zensoftware.luna2.action.LeadAction" method="delete">
             <result name="success" type="redirectAction">
                 <param name="actionName">list</param>
-                <param name="namespace">/app/leads</param>
             </result>
-            <result name="error">/WEB-INF/jsp/leads/list.jsp</result>
+        </action>
+
+        <!-- EXPORT_LEAD - Export lead data (CSV) -->
+        <action name="export" class="it.zensoftware.luna2.action.LeadAction" method="export">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">text/csv; charset=UTF-8</param>
+                <param name="contentDisposition">attachment;filename="leads.csv"</param>
+                <param name="bufferSize">4096</param>
+            </result>
+        </action>
+    </package>
+
+    <!-- CRM Activity Management Package (Phase 1) -->
+    <package name="crm-activity" extends="luna2-default" namespace="/app/crm/activities">
+        <!-- LIST_ACTIVITY - List activities for a lead -->
+        <action name="listByLead" class="it.zensoftware.luna2.action.ActivityAction" method="listByLead">
+            <result name="success" type="json">
+                <param name="root">activities</param>
+            </result>
+        </action>
+
+        <!-- CREATE_ACTIVITY - Create new activity -->
+        <action name="create" class="it.zensoftware.luna2.action.ActivityAction" method="createActivity">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- COMPLETE_ACTIVITY - Mark activity as complete -->
+        <action name="complete" class="it.zensoftware.luna2.action.ActivityAction" method="completeActivity">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- UPDATE_DUE_DATE - Update activity due date reminder -->
+        <action name="updateDueDate" class="it.zensoftware.luna2.action.ActivityAction" method="updateDueDate">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- DELETE_ACTIVITY - Delete activity -->
+        <action name="delete" class="it.zensoftware.luna2.action.ActivityAction" method="deleteActivity">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- ACTIVITY_LOG - View timeline of all activities -->
+        <action name="log" class="it.zensoftware.luna2.action.ActivityAction" method="list">
+            <result name="success">/WEB-INF/jsp/crm/activity/log.jsp</result>
+        </action>
+    </package>
+    
+    <!-- Warehouse Management Package (Multi-warehouse WMS) -->
+    <package name="warehouse" extends="luna2-default" namespace="/app/warehouse">
+        <!-- Lista warehouse -->
+        <action name="listWarehouses" class="it.zensoftware.luna2.action.WarehouseAction" method="listWarehouses">
+            <result name="success">/WEB-INF/jsp/magazzino/warehouse-list.jsp</result>
+        </action>
+        
+        <!-- Nuovo warehouse -->
+        <action name="newWarehouse" class="it.zensoftware.luna2.action.WarehouseAction" method="newWarehouse">
+            <result name="success">/WEB-INF/jsp/magazzino/warehouse-form.jsp</result>
+        </action>
+        
+        <!-- Edit warehouse -->
+        <action name="editWarehouse" class="it.zensoftware.luna2.action.WarehouseAction" method="editWarehouse">
+            <result name="success">/WEB-INF/jsp/magazzino/warehouse-form.jsp</result>
+            <result name="error">/WEB-INF/jsp/magazzino/warehouse-list.jsp</result>
+        </action>
+        
+        <!-- Salva warehouse -->
+        <action name="saveWarehouse" class="it.zensoftware.luna2.action.WarehouseAction" method="saveWarehouse">
+            <result name="success" type="redirectAction">listWarehouses</result>
+            <result name="input">/WEB-INF/jsp/magazzino/warehouse-form.jsp</result>
+        </action>
+        
+        <!-- Dashboard giacenze -->
+        <action name="dashboardGiacenze" class="it.zensoftware.luna2.action.WarehouseAction" method="dashboardGiacenze">
+            <result name="success">/WEB-INF/jsp/magazzino/dashboard-giacenze.jsp</result>
+        </action>
+        
+        <!-- Lista giacenze -->
+        <action name="listGiacenze" class="it.zensoftware.luna2.action.WarehouseAction" method="listGiacenze">
+            <result name="success">/WEB-INF/jsp/magazzino/giacenze-list.jsp</result>
+        </action>
+        
+        <!-- View giacenza -->
+        <action name="viewGiacenza" class="it.zensoftware.luna2.action.WarehouseAction" method="viewGiacenza">
+            <result name="success">/WEB-INF/jsp/magazzino/giacenza-view.jsp</result>
+            <result name="error">/WEB-INF/jsp/magazzino/giacenze-list.jsp</result>
+        </action>
+        
+        <!-- Form carico -->
+        <action name="formCarico" class="it.zensoftware.luna2.action.WarehouseAction" method="formCarico">
+            <result name="success">/WEB-INF/jsp/magazzino/form-carico.jsp</result>
+        </action>
+        
+        <!-- Registra carico -->
+        <action name="carico" class="it.zensoftware.luna2.action.WarehouseAction" method="carico">
+            <result name="success" type="redirectAction">dashboardGiacenze</result>
+            <result name="input">/WEB-INF/jsp/magazzino/form-carico.jsp</result>
+        </action>
+        
+        <!-- Form scarico -->
+        <action name="formScarico" class="it.zensoftware.luna2.action.WarehouseAction" method="formScarico">
+            <result name="success">/WEB-INF/jsp/magazzino/form-scarico.jsp</result>
+        </action>
+        
+        <!-- Registra scarico -->
+        <action name="scarico" class="it.zensoftware.luna2.action.WarehouseAction" method="scarico">
+            <result name="success" type="redirectAction">dashboardGiacenze</result>
+            <result name="input">/WEB-INF/jsp/magazzino/form-scarico.jsp</result>
+        </action>
+        
+        <!-- Form trasferimento -->
+        <action name="formTrasferimento" class="it.zensoftware.luna2.action.WarehouseAction" method="formTrasferimento">
+            <result name="success">/WEB-INF/jsp/magazzino/form-trasferimento.jsp</result>
+        </action>
+        
+        <!-- Trasferimento -->
+        <action name="trasferimento" class="it.zensoftware.luna2.action.WarehouseAction" method="trasferimento">
+            <result name="success" type="redirectAction">dashboardGiacenze</result>
+            <result name="input">/WEB-INF/jsp/magazzino/form-trasferimento.jsp</result>
+        </action>
+        
+        <!-- Report giacenze -->
+        <action name="report" class="it.zensoftware.luna2.action.WarehouseAction" method="report">
+            <result name="success">/WEB-INF/jsp/magazzino/report-giacenze.jsp</result>
+        </action>
+    </package>
+    
+    <!-- Picking Management Package -->
+    <package name="picking" extends="luna2-default" namespace="/app/picking">
+        <!-- Dashboard picking -->
+        <action name="dashboard" class="it.zensoftware.luna2.action.PickingAction" method="dashboard">
+            <result name="success">/WEB-INF/jsp/magazzino/picking-dashboard.jsp</result>
+        </action>
+        
+        <!-- Lista picking -->
+        <action name="list" class="it.zensoftware.luna2.action.PickingAction" method="list">
+            <result name="success">/WEB-INF/jsp/magazzino/picking-list.jsp</result>
+        </action>
+        
+        <!-- View picking -->
+        <action name="view" class="it.zensoftware.luna2.action.PickingAction" method="view">
+            <result name="success">/WEB-INF/jsp/magazzino/picking-scan.jsp</result>
+            <result name="error">/WEB-INF/jsp/magazzino/picking-list.jsp</result>
+        </action>
+        
+        <!-- Form nuovo picking -->
+        <action name="formNew" class="it.zensoftware.luna2.action.PickingAction" method="formNew">
+            <result name="success">/WEB-INF/jsp/magazzino/picking-form.jsp</result>
+        </action>
+        
+        <!-- Crea picking da ordine -->
+        <action name="create" class="it.zensoftware.luna2.action.PickingAction" method="create">
+            <result name="success" type="redirectAction">view
+                <param name="pickingListId">${pickingListId}</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/magazzino/picking-form.jsp</result>
+        </action>
+        
+        <!-- Assegna picking -->
+        <action name="assegna" class="it.zensoftware.luna2.action.PickingAction" method="assegna">
+            <result name="success" type="redirectAction">view
+                <param name="pickingListId">${pickingListId}</param>
+            </result>
+            <result name="input" type="redirectAction">dashboard</result>
+        </action>
+        
+        <!-- Avvia picking -->
+        <action name="avvia" class="it.zensoftware.luna2.action.PickingAction" method="avvia">
+            <result name="success" type="redirectAction">view
+                <param name="pickingListId">${pickingListId}</param>
+            </result>
+            <result name="input" type="redirectAction">dashboard</result>
+        </action>
+        
+        <!-- Scansione barcode -->
+        <action name="scan" class="it.zensoftware.luna2.action.PickingAction" method="scan">
+            <result name="success">/WEB-INF/jsp/magazzino/picking-scan.jsp</result>
+            <result name="input">/WEB-INF/jsp/magazzino/picking-scan.jsp</result>
+        </action>
+        
+        <!-- Completa picking -->
+        <action name="completa" class="it.zensoftware.luna2.action.PickingAction" method="completa">
+            <result name="success" type="redirectAction">dashboard</result>
+            <result name="input" type="redirectAction">view
+                <param name="pickingListId">${pickingListId}</param>
+            </result>
+        </action>
+        
+        <!-- Annulla picking -->
+        <action name="annulla" class="it.zensoftware.luna2.action.PickingAction" method="annulla">
+            <result name="success" type="redirectAction">dashboard</result>
+            <result name="input" type="redirectAction">view
+                <param name="pickingListId">${pickingListId}</param>
+            </result>
+        </action>
+        
+        <!-- Le mie picking -->
+        <action name="myPicking" class="it.zensoftware.luna2.action.PickingAction" method="myPicking">
+            <result name="success">/WEB-INF/jsp/magazzino/my-picking.jsp</result>
         </action>
     </package>
 </struts>

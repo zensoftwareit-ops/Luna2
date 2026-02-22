@@ -57,6 +57,14 @@ public class FatturaDAO extends GenericDAOImpl<Fattura, Long> {
     }
 
     /**
+     * Genera un nuovo numero fattura formattato per l'anno specificato
+     */
+    public String generaNuovoNumero(int anno) {
+        Integer nextNum = getNextNumero(anno);
+        return String.format("%04d/%d", nextNum, anno);
+    }
+
+    /**
      * Finds an invoice with all its line items (righe)
      */
     public Fattura findWithRighe(Long id) {

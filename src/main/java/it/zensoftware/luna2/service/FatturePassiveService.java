@@ -33,6 +33,7 @@ public class FatturePassiveService {
     private static final Logger logger = LogManager.getLogger(FatturePassiveService.class);
     
     private static final String DEFAULT_RICEVI_FATTURE_ENDPOINT = "https://api.luna.itsolutions-cloud.com/ricevi-fatture/index.php";
+    private static final String DEFAULT_FATTURA_RICEVUTA_ENDPOINT = "https://api.luna.itsolutions-cloud.com/fattura-ricevuta/index.php";
     private static final int CONNECT_TIMEOUT = 15000;
     private static final int READ_TIMEOUT = 30000;
     
@@ -73,11 +74,16 @@ public class FatturePassiveService {
                         fatturaPassivaDAO.update(fattura);
                         aggiornate++;
                         logger.info("Fattura passiva aggiornata: " + fattura.getNumero() + " da " + fattura.getFornitoreNome());
+
+                        // Notifica endpoint esterno anche su update: il servizio remoto può essere idempotente
+                        notificaFatturaRicevutaSafe(fattura);
                     } else {
                         // Inserisci nuova fattura
                         fatturaPassivaDAO.save(fattura);
                         inserite++;
                         logger.info("Fattura passiva ricevuta: " + fattura.getNumero() + " da " + fattura.getFornitoreNome());
+
+                        notificaFatturaRicevutaSafe(fattura);
                     }
                     processate++;
                 } catch (Exception e) {
@@ -229,6 +235,28 @@ public class FatturePassiveService {
             // Dati SDI
             fattura.setSdiIdMessaggio(getElementValue(fatturaElement, "IdMessaggio"));
             fattura.setStatoRicezione(getElementValue(fatturaElement, "Stato"));
+
+            // XML fattura e codice (se presenti nella risposta)
+            String xmlSdi = firstNonEmpty(
+                    getElementValue(fatturaElement, "xml"),
+                    getElementValue(fatturaElement, "XML"),
+                    getElementValue(fatturaElement, "Xml"),
+                    getElementValue(fatturaElement, "XmlSdi"),
+                    getElementValue(fatturaElement, "FileXML"),
+                    getElementValue(fatturaElement, "FileXml")
+            );
+            if (xmlSdi != null && !xmlSdi.isEmpty()) {
+                fattura.setXmlSdi(xmlSdi);
+            }
+
+            String codice = firstNonEmpty(
+                    getElementValue(fatturaElement, "codice"),
+                    getElementValue(fatturaElement, "Codice")
+            );
+            if ((codice == null || codice.isEmpty()) && xmlSdi != null && !xmlSdi.isEmpty()) {
+                codice = extractCodiceFromXml(xmlSdi);
+            }
+            fattura.setCodice(codice);
             
             // Ricerca fornitore nel DB se esiste
             if (fattura.getFornitorePiva() != null && !fattura.getFornitorePiva().isEmpty()) {
@@ -298,5 +326,192 @@ public class FatturePassiveService {
     private String getPropertyValue(String key, String defaultValue) {
         String value = companyProps.getProperty(key);
         return value != null ? value : defaultValue;
+    }
+
+    private void notificaFatturaRicevutaSafe(FatturaPassiva fattura) {
+        try {
+            String codice = fattura != null ? fattura.getCodice() : null;
+            if (codice == null || codice.trim().isEmpty()) {
+                logger.warn("Skip chiamata fattura-ricevuta: tag codice mancante per fattura " + (fattura != null ? fattura.getNumero() : "(null)"));
+                return;
+            }
+            notificaFatturaRicevuta(codice.trim());
+        } catch (Exception e) {
+            logger.warn("Errore nella notifica fattura-ricevuta: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Chiama endpoint esterno dopo import fattura passiva.
+     * GET https://api.luna.itsolutions-cloud.com/fattura-ricevuta/index.php?codice=...
+     */
+    private void notificaFatturaRicevuta(String codice) {
+        HttpURLConnection connection = null;
+        try {
+            String endpoint = getPropertyValue("sdi.fattura-ricevuta.endpoint", DEFAULT_FATTURA_RICEVUTA_ENDPOINT);
+            String separator = endpoint.contains("?") ? "&" : "?";
+            String url = endpoint + separator + "codice=" + URLEncoder.encode(codice, "UTF-8");
+
+            connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(CONNECT_TIMEOUT);
+            connection.setReadTimeout(READ_TIMEOUT);
+            connection.setRequestProperty("Accept", "text/plain, application/xml, */*");
+
+            int statusCode = connection.getResponseCode();
+            String responseBody = readResponseBody(connection, statusCode);
+
+            if (statusCode >= 200 && statusCode < 300) {
+                logger.info("Notifica fattura-ricevuta OK per codice=" + codice + " (HTTP " + statusCode + ")");
+            } else {
+                logger.warn("Notifica fattura-ricevuta KO per codice=" + codice + " (HTTP " + statusCode + ") body=" + truncate(responseBody, 300));
+            }
+        } catch (Exception e) {
+            logger.warn("Errore chiamando endpoint fattura-ricevuta per codice=" + codice + ": " + e.getMessage());
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    private String extractCodiceFromXml(String xml) {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(new java.io.ByteArrayInputStream(xml.getBytes("UTF-8")));
+
+            NodeList n1 = doc.getElementsByTagName("codice");
+            if (n1 != null && n1.getLength() > 0) {
+                String v = n1.item(0).getTextContent();
+                return v != null ? v.trim() : null;
+            }
+            NodeList n2 = doc.getElementsByTagName("Codice");
+            if (n2 != null && n2.getLength() > 0) {
+                String v = n2.item(0).getTextContent();
+                return v != null ? v.trim() : null;
+            }
+        } catch (Exception e) {
+            logger.debug("Impossibile estrarre <codice> dall'XML: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private String firstNonEmpty(String... values) {
+        if (values == null) return null;
+        for (String v : values) {
+            if (v != null && !v.trim().isEmpty()) {
+                return v.trim();
+            }
+        }
+        return null;
+    }
+
+    private String truncate(String s, int maxLen) {
+        if (s == null) return null;
+        if (s.length() <= maxLen) return s;
+        return s.substring(0, maxLen) + "...";
+    }
+
+    /**
+     * Parsa un singolo XML FatturaPA e crea un oggetto FatturaPassiva
+     * @param xmlString XML da parsare
+     * @return FatturaPassiva entity popolata
+     */
+    public FatturaPassiva parseSingleFatturaXML(String xmlString) throws Exception {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(new java.io.ByteArrayInputStream(xmlString.getBytes("UTF-8")));
+
+            FatturaPassiva fattura = new FatturaPassiva();
+
+            // Estrai IdentificativoSdI
+            NodeList idSdiNodes = doc.getElementsByTagName("IdentificativoSdI");
+            if (idSdiNodes.getLength() > 0) {
+                fattura.setSdiIdMessaggio(idSdiNodes.item(0).getTextContent());
+            }
+
+            // Estrai dati del cedente prestatore (fornitore)
+            NodeList cedenteNodes = doc.getElementsByTagName("CedentePrestatore");
+            if (cedenteNodes.getLength() > 0) {
+                Element cedente = (Element) cedenteNodes.item(0);
+                
+                // Denominazione o Nome + Cognome
+                NodeList denomNodes = cedente.getElementsByTagName("Denominazione");
+                if (denomNodes.getLength() > 0) {
+                    fattura.setFornitoreNome(denomNodes.item(0).getTextContent());
+                } else {
+                    String nome = "";
+                    String cognome = "";
+                    NodeList nomeNodes = cedente.getElementsByTagName("Nome");
+                    NodeList cognomeNodes = cedente.getElementsByTagName("Cognome");
+                    if (nomeNodes.getLength() > 0) nome = nomeNodes.item(0).getTextContent();
+                    if (cognomeNodes.getLength() > 0) cognome = cognomeNodes.item(0).getTextContent();
+                    fattura.setFornitoreNome((nome + " " + cognome).trim());
+                }
+
+                // Partita IVA
+                NodeList pivaNodes = cedente.getElementsByTagName("IdCodice");
+                if (pivaNodes.getLength() > 0) {
+                    fattura.setFornitorePiva(pivaNodes.item(0).getTextContent());
+                }
+            }
+
+            // Estrai dati generali documento
+            NodeList datiDocNodes = doc.getElementsByTagName("DatiGeneraliDocumento");
+            if (datiDocNodes.getLength() > 0) {
+                Element datiDoc = (Element) datiDocNodes.item(0);
+
+                // Numero fattura
+                NodeList numeroNodes = datiDoc.getElementsByTagName("Numero");
+                if (numeroNodes.getLength() > 0) {
+                    fattura.setNumero(numeroNodes.item(0).getTextContent());
+                }
+
+                // Data fattura
+                NodeList dataNodes = datiDoc.getElementsByTagName("Data");
+                if (dataNodes.getLength() > 0) {
+                    String dataStr = dataNodes.item(0).getTextContent();
+                    SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+                    fattura.setDataFattura(sdf.parse(dataStr));
+                    fattura.setAnno(Integer.parseInt(dataStr.substring(0, 4)));
+                }
+
+                // Totale documento
+                NodeList totaleNodes = datiDoc.getElementsByTagName("ImportoTotaleDocumento");
+                if (totaleNodes.getLength() > 0) {
+                    fattura.setTotale(new BigDecimal(totaleNodes.item(0).getTextContent()));
+                }
+            }
+
+            // Estrai imponibile e IVA da DatiRiepilogo
+            NodeList riepilogoNodes = doc.getElementsByTagName("DatiRiepilogo");
+            if (riepilogoNodes.getLength() > 0) {
+                Element riepilogo = (Element) riepilogoNodes.item(0);
+
+                NodeList imponibileNodes = riepilogo.getElementsByTagName("ImponibileImporto");
+                if (imponibileNodes.getLength() > 0) {
+                    fattura.setImponibile(new BigDecimal(imponibileNodes.item(0).getTextContent()));
+                }
+
+                NodeList impostaNodes = riepilogo.getElementsByTagName("Imposta");
+                if (impostaNodes.getLength() > 0) {
+                    fattura.setIva(new BigDecimal(impostaNodes.item(0).getTextContent()));
+                }
+            }
+
+            logger.info("XML FatturaPA parsato per fattura passiva: " + fattura.getNumero());
+            return fattura;
+
+        } catch (Exception e) {
+            logger.error("Errore nel parsing XML fattura passiva", e);
+            throw new RuntimeException("Errore nel parsing XML: " + e.getMessage(), e);
+        }
     }
 }

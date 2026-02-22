@@ -6,6 +6,7 @@ import it.zensoftware.luna2.dao.PreventivoRigaDAO;
 import it.zensoftware.luna2.dao.ClienteDAO;
 import it.zensoftware.luna2.dao.ProdottoDAO;
 import it.zensoftware.luna2.dao.TrackingEmailDAO;
+import it.zensoftware.luna2.dao.ModuleSettingDAO;
 import it.zensoftware.luna2.dto.PreventivoTrackingDTO;
 import it.zensoftware.luna2.model.Preventivo;
 import it.zensoftware.luna2.model.PreventivoRiga;
@@ -13,7 +14,10 @@ import it.zensoftware.luna2.model.Cliente;
 import it.zensoftware.luna2.model.Prodotto;
 import it.zensoftware.luna2.model.User;
 import it.zensoftware.luna2.model.TrackingEmail;
+import it.zensoftware.luna2.model.Commessa;
+import it.zensoftware.luna2.model.ModuleSetting;
 import it.zensoftware.luna2.service.EmailService;
+import it.zensoftware.luna2.service.CommesseService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.struts2.ServletActionContext;
@@ -42,7 +46,9 @@ public class PreventiviAction extends ActionSupport {
     private ClienteDAO clienteDAO = new ClienteDAO();
     private ProdottoDAO prodottoDAO = new ProdottoDAO();
     private TrackingEmailDAO trackingEmailDAO = new TrackingEmailDAO();
+    private ModuleSettingDAO moduleSettingDAO = new ModuleSettingDAO();
     private EmailService emailService = new EmailService();
+    private CommesseService commesseService = new CommesseService();
     
     private Preventivo preventivo;
     private List<Preventivo> preventivi;
@@ -406,6 +412,72 @@ public class PreventiviAction extends ActionSupport {
             }
         }
         return ERROR;
+    }
+
+    /**
+     * Trasforma il preventivo accettato in una commessa
+     * (solo se modulo produzione è abilitato)
+     */
+    public String trasformaInCommessa() {
+        if (id == null) {
+            addActionError("ID preventivo non specificato");
+            return ERROR;
+        }
+
+        // Verifica che il modulo produzione sia abilitato
+        if (!isProduzioneEnabled()) {
+            addActionError("Il modulo Produzione/Commesse non è abilitato");
+            return ERROR;
+        }
+
+        try {
+            preventivo = preventivoDAO.findById(id);
+            
+            if (preventivo == null) {
+                addActionError("Preventivo non trovato");
+                return ERROR;
+            }
+
+            // Verifica che il preventivo sia ACCETTATO
+            if (preventivo.getStato() != Preventivo.Stato.ACCETTATO) {
+                addActionError("Solo i preventivi ACCETTATI possono essere trasformati in commesse");
+                return ERROR;
+            }
+
+            // Crea la commessa tramite il service
+            Commessa commessa = commesseService.creaCommessaDaPreventivo(id);
+            
+            if (commessa != null) {
+                addActionMessage("Commessa " + commessa.getNumero() + " creata con successo dal preventivo " + preventivo.getNumero());
+                // Redirect alla vista della commessa
+                id = commessa.getId();
+                return "redirect-commessa";
+            } else {
+                addActionError("Errore durante la creazione della commessa");
+                return ERROR;
+            }
+        } catch (IllegalStateException e) {
+            logger.warn("Cannot create commessa from preventivo {}: {}", id, e.getMessage());
+            addActionError(e.getMessage());
+            return ERROR;
+        } catch (Exception e) {
+            logger.error("Error creating commessa from preventivo", e);
+            addActionError("Errore durante la trasformazione in commessa: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    /**
+     * Verifica se il modulo Produzione è abilitato
+     */
+    public boolean isProduzioneEnabled() {
+        try {
+            ModuleSetting setting = moduleSettingDAO.findByCode("PRODUZIONE");
+            return setting != null && Boolean.TRUE.equals(setting.getEnabled());
+        } catch (Exception e) {
+            logger.error("Error checking produzione module status", e);
+            return false;
+        }
     }
 
     public String ricalcolaTotali() {

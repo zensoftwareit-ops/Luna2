@@ -143,6 +143,25 @@
                                                        class="btn btn-outline-secondary" title="Duplica">
                                                         <i class="bi bi-files"></i>
                                                     </a>
+                                                    
+                                                    <!-- Pulsante Trasforma in Commessa (solo se ACCETTATO e modulo produzione abilitato) -->
+                                                    <s:if test="#dto.preventivo.stato == @it.zensoftware.luna2.model.Preventivo$Stato@ACCETTATO && produzioneEnabled">
+                                                        <a href="<s:url action='preventivi-trasforma-commessa' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/></s:url>" 
+                                                           class="btn btn-success" title="Trasforma in Commessa"
+                                                           onclick="return confirm('Trasformare questo preventivo in una commessa?')">
+                                                            <i class="bi bi-gear"></i>
+                                                        </a>
+                                                    </s:if>
+                                                    
+                                                    <!-- Pulsante Crea Fattura diretta (solo se ACCETTATO e modulo produzione disabilitato) -->
+                                                    <s:if test="#dto.preventivo.stato == @it.zensoftware.luna2.model.Preventivo$Stato@ACCETTATO && !produzioneEnabled">
+                                                        <a href="<s:url action='preventivi-crea-fattura' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/></s:url>" 
+                                                           class="btn btn-primary" title="Crea Fattura"
+                                                           onclick="return confirm('Creare una fattura da questo preventivo?')">
+                                                            <i class="bi bi-file-earmark-text"></i>
+                                                        </a>
+                                                    </s:if>
+                                                    
                                                     <a href="<s:url action='preventivi-delete' namespace='/app/documenti'><s:param name='id' value='#dto.preventivo.id'/></s:url>" 
                                                        class="btn btn-outline-danger" title="Elimina"
                                                        onclick="return confirm('Eliminare questo preventivo?')">

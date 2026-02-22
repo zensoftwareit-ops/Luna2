@@ -44,6 +44,32 @@
                         <button type="button" class="btn btn-outline-primary me-2" data-bs-toggle="modal" data-bs-target="#emailModal" title="Invia via Email">
                             <i class="bi bi-envelope me-1"></i>Invia via Email
                         </button>
+                        
+                        <!-- Pulsante Trasforma in Commessa (solo se ACCETTATO e modulo produzione abilitato) -->
+                        <s:if test="preventivo.stato.name() == 'ACCETTATO' && produzioneEnabled">
+                            <a href="<s:url action='preventivi-trasforma-commessa' namespace='/app/documenti'><s:param name='id' value='preventivo.id'/></s:url>" 
+                               class="btn btn-success me-2" 
+                               onclick="return confirm('Vuoi trasformare questo preventivo in una commessa?')"
+                               title="Trasforma in Commessa">
+                                <i class="bi bi-gear me-1"></i>Crea Commessa
+                            </a>
+                        </s:if>
+                        
+                        <!-- Pulsante Crea Fattura diretta (solo se ACCETTATO e modulo produzione disabilitato) -->
+                        <s:if test="preventivo.stato.name() == 'ACCETTATO' && !produzioneEnabled">
+                            <a href="<s:url action='preventivi-crea-fattura' namespace='/app/documenti'><s:param name='id' value='preventivo.id'/></s:url>" 
+                               class="btn btn-primary me-2" 
+                               onclick="return confirm('Vuoi creare una fattura da questo preventivo?')"
+                               title="Crea Fattura">
+                                <i class="bi bi-file-earmark-text me-1"></i>Crea Fattura
+                            </a>
+                        </s:if>
+                        
+                        <s:elseif test="preventivo.stato.name() == 'CONVERTITO'">
+                            <span class="badge bg-success me-2" style="padding: 0.5rem 1rem;">
+                                <i class="bi bi-check-circle me-1"></i>Già convertito
+                            </span>
+                        </s:elseif>
                     </s:if>
                     <a href="<s:url action='preventivi' namespace='/app/documenti'/>" class="btn btn-secondary">
                         <i class="bi bi-arrow-left me-2"></i>Torna alla Lista

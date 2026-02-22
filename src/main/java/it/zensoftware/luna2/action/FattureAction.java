@@ -5,11 +5,15 @@ import it.zensoftware.luna2.dao.FatturaDAO;
 import it.zensoftware.luna2.dao.FatturaRigaDAO;
 import it.zensoftware.luna2.dao.ClienteDAO;
 import it.zensoftware.luna2.dao.TrackingEmailDAO;
+import it.zensoftware.luna2.dao.PreventivoDAO;
 import it.zensoftware.luna2.dto.FatturaTrackingDTO;
 import it.zensoftware.luna2.model.Fattura;
 import it.zensoftware.luna2.model.FatturaRiga;
 import it.zensoftware.luna2.model.Cliente;
 import it.zensoftware.luna2.model.TrackingEmail;
+import it.zensoftware.luna2.model.Preventivo;
+import it.zensoftware.luna2.model.PreventivoRiga;
+import it.zensoftware.luna2.model.Preventivo.Stato;
 import it.zensoftware.luna2.service.EmailService;
 import it.zensoftware.luna2.service.FatturaXMLService;
 import it.zensoftware.luna2.service.FattureExportService;
@@ -39,6 +43,7 @@ public class FattureAction extends ActionSupport {
     private FatturaRigaDAO fatturaRigaDAO = new FatturaRigaDAO();
     private ClienteDAO clienteDAO = new ClienteDAO();
     private TrackingEmailDAO trackingEmailDAO = new TrackingEmailDAO();
+    private PreventivoDAO preventivoDAO = new PreventivoDAO();
     private EmailService emailService = new EmailService();
     private FatturaXMLService xmlService = new FatturaXMLService();
     private FattureExportService exportService = new FattureExportService();
@@ -60,6 +65,9 @@ public class FattureAction extends ActionSupport {
     private String emailDestinatario;
     private String trackingId;
     private String messageEmail;
+    private java.io.File uploadFile;
+    private String uploadFileContentType;
+    private String uploadFileFileName;
 
     public String list() {
         if (anno == null) {
@@ -145,6 +153,91 @@ public class FattureAction extends ActionSupport {
         } catch (Exception e) {
             logger.error("Errore nell'eliminazione", e);
             addActionError("Errore: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    /**
+     * Crea una fattura direttamente da un preventivo ACCETTATO
+     * (usato quando il modulo Produzione è disabilitato)
+     */
+    public String createFromPreventivo() {
+        try {
+            if (id == null) {
+                addActionError("ID preventivo non specificato");
+                return ERROR;
+            }
+            
+            // Carica preventivo con righe
+            Preventivo preventivo = preventivoDAO.findWithRighe(id);
+            if (preventivo == null) {
+                addActionError("Preventivo non trovato");
+                return ERROR;
+            }
+            
+            // Verifica che il preventivo sia ACCETTATO
+            if (preventivo.getStato() != Stato.ACCETTATO) {
+                addActionError("Il preventivo deve essere ACCETTATO per creare una fattura");
+                return ERROR;
+            }
+            
+            // Crea nuova fattura
+            Calendar cal = Calendar.getInstance();
+            int anno = cal.get(Calendar.YEAR);
+            
+            fattura = new Fattura();
+            fattura.setNumero(fatturaDAO.generaNuovoNumero(anno));
+            fattura.setAnno(anno);
+            fattura.setDataFattura(new Date());
+            
+            // Data scadenza 30 giorni
+            cal.add(Calendar.DAY_OF_MONTH, 30);
+            fattura.setDataScadenza(cal.getTime());
+            
+            // Copia dati dal preventivo
+            fattura.setCliente(preventivo.getCliente());
+            fattura.setOggetto(preventivo.getOggetto());
+            fattura.setImponibile(preventivo.getImponibile());
+            fattura.setIva(preventivo.getIva());
+            fattura.setTotale(preventivo.getTotale());
+            fattura.setTipoFattura(Fattura.TipoFattura.ORDINARIA);
+            fattura.setStato(Fattura.StatoFattura.EMESSA);
+            
+            // Salva fattura
+            fattura = fatturaDAO.save(fattura);
+            
+            // Copia righe dal preventivo
+            if (preventivo.getRighe() != null && !preventivo.getRighe().isEmpty()) {
+                for (PreventivoRiga rigaPrev : preventivo.getRighe()) {
+                    FatturaRiga riga = new FatturaRiga();
+                    riga.setFattura(fattura);
+                    riga.setRigaNumero(rigaPrev.getRigaNumero());
+                    riga.setDescrizione(rigaPrev.getDescrizione());
+                    riga.setQuantita(rigaPrev.getQuantita());
+                    riga.setPrezzoUnitario(rigaPrev.getPrezzoUnitario());
+                    riga.setImportoTotale(rigaPrev.getImportoTotale());
+                    fatturaRigaDAO.save(riga);
+                }
+            }
+            
+            // Aggiorna stato preventivo
+            preventivo.setStato(Stato.CONVERTITO);
+            preventivoDAO.update(preventivo);
+            
+            logger.info("Fattura {} creata da preventivo {}", fattura.getNumero(), preventivo.getNumero());
+            addActionMessage("Fattura " + fattura.getNumero() + " creata con successo dal preventivo");
+            
+            // Imposta l'id della fattura per il redirect
+            id = fattura.getId();
+            return "redirect-fattura";
+            
+        } catch (IllegalStateException e) {
+            logger.error("Business rule violation: {}", e.getMessage());
+            addActionError(e.getMessage());
+            return ERROR;
+        } catch (Exception e) {
+            logger.error("Errore nella creazione fattura da preventivo", e);
+            addActionError("Errore nella creazione della fattura: " + e.getMessage());
             return ERROR;
         }
     }
@@ -540,6 +633,72 @@ public class FattureAction extends ActionSupport {
         }
     }
 
+    /**
+     * Import di una fattura da file XML FatturaPA
+     */
+    public String importXml() {
+        try {
+            if (uploadFile == null) {
+                addActionError("Nessun file XML caricato");
+                return ERROR;
+            }
+
+            // Leggi il file XML
+            java.io.FileInputStream fis = new java.io.FileInputStream(uploadFile);
+            byte[] data = new byte[(int) uploadFile.length()];
+            fis.read(data);
+            fis.close();
+            String xmlContent = new String(data, "UTF-8");
+
+            // Valida XML
+            if (!xmlService.validateXML(xmlContent)) {
+                addActionError("Il file XML non è valido");
+                return ERROR;
+            }
+
+            // Parsa XML e crea fattura
+            Fattura fatturaImportata = xmlService.parseFatturaXML(xmlContent);
+            
+            // Verifica se esiste già una fattura con lo stesso numero
+            Fattura esistente = null;
+            if (fatturaImportata.getNumero() != null && fatturaImportata.getAnno() != null) {
+                List<Fattura> fattureAnno = fatturaDAO.findByAnno(fatturaImportata.getAnno());
+                for (Fattura f : fattureAnno) {
+                    if (fatturaImportata.getNumero().equals(f.getNumero())) {
+                        esistente = f;
+                        break;
+                    }
+                }
+            }
+
+            if (esistente != null) {
+                addActionError("Fattura " + fatturaImportata.getNumero() + " già esistente nel sistema");
+                return ERROR;
+            }
+
+            // Salva la fattura (senza cliente per ora - può essere assegnato manualmente)
+            fatturaDAO.save(fatturaImportata);
+            
+            // Salva le righe
+            if (fatturaImportata.getRighe() != null) {
+                for (FatturaRiga r : fatturaImportata.getRighe()) {
+                    r.setFattura(fatturaImportata);
+                    fatturaRigaDAO.save(r);
+                }
+            }
+
+            addActionMessage("Fattura " + fatturaImportata.getNumero() + " importata con successo da XML");
+            logger.info("Fattura importata da XML: " + uploadFileFileName);
+            id = fatturaImportata.getId();
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore durante l'import XML fattura", e);
+            addActionError("Errore nell'import: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
 
     public String esportaAssosoftware() {
         try {
@@ -630,4 +789,10 @@ public class FattureAction extends ActionSupport {
     public void setTrackingId(String trackingId) { this.trackingId = trackingId; }
     public String getMessageEmail() { return messageEmail; }
     public void setMessageEmail(String messageEmail) { this.messageEmail = messageEmail; }
+    public java.io.File getUploadFile() { return uploadFile; }
+    public void setUploadFile(java.io.File uploadFile) { this.uploadFile = uploadFile; }
+    public String getUploadFileContentType() { return uploadFileContentType; }
+    public void setUploadFileContentType(String uploadFileContentType) { this.uploadFileContentType = uploadFileContentType; }
+    public String getUploadFileFileName() { return uploadFileFileName; }
+    public void setUploadFileFileName(String uploadFileFileName) { this.uploadFileFileName = uploadFileFileName; }
 }

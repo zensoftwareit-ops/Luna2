@@ -64,7 +64,9 @@ public class MovimentoMagazzino implements Serializable {
         CARICO("Carico", "+"),
         SCARICO("Scarico", "-"),
         RETTIFICA("Rettifica", "±"),
-        INVENTARIO("Inventario", "=");
+        INVENTARIO("Inventario", "="),
+        TRASFERIMENTO_USCITA("Trasferimento Uscita", "-"),
+        TRASFERIMENTO_ENTRATA("Trasferimento Entrata", "+");
 
         private final String descrizione;
         private final String simbolo;

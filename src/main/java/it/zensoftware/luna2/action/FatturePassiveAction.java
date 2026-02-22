@@ -31,6 +31,9 @@ public class FatturePassiveAction extends ActionSupport {
     private String stato;
     private InputStream inputStream;
     private String contentDisposition;
+    private java.io.File uploadFile;
+    private String uploadFileContentType;
+    private String uploadFileFileName;
     
     private final FatturaPassivaDAO fatturaPassivaDAO = new FatturaPassivaDAO();
     private final FornitoreDAO fornitoreDAO = new FornitoreDAO();
@@ -226,7 +229,124 @@ public class FatturePassiveAction extends ActionSupport {
             return ERROR;
         }
     }
+
+    /**
+     * Export XML di una fattura passiva (se disponibile)
+     */
+    public String exportXml() {
+        try {
+            if (id == null) {
+                addActionError("ID fattura non specificato");
+                return ERROR;
+            }
+
+            fatturaPassiva = fatturaPassivaDAO.findById(id);
+            if (fatturaPassiva == null) {
+                addActionError("Fattura passiva non trovata");
+                return ERROR;
+            }
+
+            String xmlContent = fatturaPassiva.getXmlSdi();
+            if (xmlContent == null || xmlContent.isEmpty()) {
+                addActionError("XML non disponibile per questa fattura passiva");
+                return ERROR;
+            }
+
+            inputStream = new ByteArrayInputStream(xmlContent.getBytes("UTF-8"));
+            contentDisposition = "attachment;filename=FatturaPassiva_" + 
+                (fatturaPassiva.getNumero() != null ? fatturaPassiva.getNumero().replaceAll("[^a-zA-Z0-9]", "_") : "unknown") + ".xml";
+
+            logger.info("Export XML fattura passiva: " + fatturaPassiva.getNumero());
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore nell'export XML fattura passiva", e);
+            addActionError("Errore durante l'export: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    /**
+     * Import di una fattura passiva da file XML
+     */
+    public String importXml() {
+        try {
+            if (uploadFile == null) {
+                addActionError("Nessun file XML caricato");
+                return ERROR;
+            }
+
+            // Leggi il file XML
+            java.io.FileInputStream fis = new java.io.FileInputStream(uploadFile);
+            byte[] data = new byte[(int) uploadFile.length()];
+            fis.read(data);
+            fis.close();
+            String xmlContent = new String(data, "UTF-8");
+
+            // Parsa XML per estrarre dati fattura passiva
+            FatturaPassiva fatturaImportata = fatturePassiveService.parseSingleFatturaXML(xmlContent);
+
+            // Verifica se la fattura esiste già
+            FatturaPassiva esistente = null;
+            if (fatturaImportata.getSdiIdMessaggio() != null) {
+                esistente = fatturaPassivaDAO.findBySdiIdMessaggio(fatturaImportata.getSdiIdMessaggio());
+            }
+
+            if (esistente != null) {
+                addActionError("Fattura passiva con ID messaggio " + fatturaImportata.getSdiIdMessaggio() + " già esistente");
+                return ERROR;
+            }
+
+            // Salva XML completo
+            fatturaImportata.setXmlSdi(xmlContent);
+
+            // Cerca fornitore se PIVA presente
+            if (fatturaImportata.getFornitorePiva() != null && !fatturaImportata.getFornitorePiva().isEmpty()) {
+                it.zensoftware.luna2.model.Fornitore fornitore = fornitoreDAO.findByPartitaIva(fatturaImportata.getFornitorePiva());
+                if (fornitore != null) {
+                    fatturaImportata.setFornitore(fornitore);
+                }
+            }
+
+            fatturaPassivaDAO.save(fatturaImportata);
+
+            addActionMessage("Fattura passiva " + fatturaImportata.getNumero() + " importata con successo");
+            logger.info("Fattura passiva importata da XML: " + uploadFileFileName);
+            id = fatturaImportata.getId();
+            return SUCCESS;
+
+        } catch (Exception e) {
+            logger.error("Errore durante l'import XML fattura passiva", e);
+            addActionError("Errore nell'import: " + e.getMessage());
+            return ERROR;
+        }
+    }
     
+    // Getters and Setters per upload file
+    public java.io.File getUploadFile() {
+        return uploadFile;
+    }
+    
+    public void setUploadFile(java.io.File uploadFile) {
+        this.uploadFile = uploadFile;
+    }
+    
+    public String getUploadFileContentType() {
+        return uploadFileContentType;
+    }
+    
+    public void setUploadFileContentType(String uploadFileContentType) {
+        this.uploadFileContentType = uploadFileContentType;
+    }
+    
+    public String getUploadFileFileName() {
+        return uploadFileFileName;
+    }
+    
+    public void setUploadFileFileName(String uploadFileFileName) {
+        this.uploadFileFileName = uploadFileFileName;
+    }
+
     /**
      * Estrae la partita IVA aziendale da application.properties
      */

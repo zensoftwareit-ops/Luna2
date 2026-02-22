@@ -68,6 +68,13 @@ public class Ordine implements Serializable {
     @JoinColumn(name = "modified_by")
     private User modifiedBy;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "warehouse_id")
+    private Warehouse warehouse;
+
+    @Column(name = "priorita")
+    private Integer priorita = 1;
+
     public enum Stato {
         CONFERMATO, IN_LAVORAZIONE, PARZIALMENTE_EVASO, EVASO, ANNULLATO
     }
@@ -134,5 +141,9 @@ public class Ordine implements Serializable {
     public void setCreatedBy(User createdBy) { this.createdBy = createdBy; }
     public User getModifiedBy() { return modifiedBy; }
     public void setModifiedBy(User modifiedBy) { this.modifiedBy = modifiedBy; }
+    public Warehouse getWarehouse() { return warehouse; }
+    public void setWarehouse(Warehouse warehouse) { this.warehouse = warehouse; }
+    public Integer getPriorita() { return priorita; }
+    public void setPriorita(Integer priorita) { this.priorita = priorita; }
 }
 

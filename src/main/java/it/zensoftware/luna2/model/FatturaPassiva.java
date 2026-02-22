@@ -70,6 +70,9 @@ public class FatturaPassiva implements Serializable {
     
     @Column(name = "sdi_id_messaggio")
     private String sdiIdMessaggio; // ID del messaggio SDI
+
+    @Transient
+    private String codice; // tag <codice> presente nell'XML ricevuto (non persistito)
     
     @Column(name = "stato_ricezione")
     private String statoRicezione; // RICEVUTA, REGISTRATA, ARCHIVIATA, ecc.
@@ -162,6 +165,9 @@ public class FatturaPassiva implements Serializable {
     
     public String getSdiIdMessaggio() { return sdiIdMessaggio; }
     public void setSdiIdMessaggio(String sdiIdMessaggio) { this.sdiIdMessaggio = sdiIdMessaggio; }
+
+    public String getCodice() { return codice; }
+    public void setCodice(String codice) { this.codice = codice; }
     
     public String getStatoRicezione() { return statoRicezione; }
     public void setStatoRicezione(String statoRicezione) { this.statoRicezione = statoRicezione; }

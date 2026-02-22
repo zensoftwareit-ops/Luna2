@@ -23,6 +23,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
@@ -425,6 +426,99 @@ public class FatturaXMLService {
             return sb.toString().trim();
         } catch (Exception e) {
             return "";
+        }
+    }
+
+    /**
+     * Parsa un XML FatturaPA e crea un oggetto Fattura (per import)
+     * @param xmlString XML FatturaPA da parsare
+     * @return Fattura entity popolata con i dati dall'XML
+     */
+    public Fattura parseFatturaXML(String xmlString) throws Exception {
+        try {
+            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+            factory.setNamespaceAware(true);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            DocumentBuilder builder = factory.newDocumentBuilder();
+            Document doc = builder.parse(new java.io.ByteArrayInputStream(xmlString.getBytes("UTF-8")));
+
+            Fattura fattura = new Fattura();
+            fattura.setTipoFattura(Fattura.TipoFattura.REALE);
+
+            // Estrai numero e data fattura da DatiGeneraliDocumento
+            org.w3c.dom.NodeList numeroNodes = doc.getElementsByTagName("Numero");
+            if (numeroNodes.getLength() > 0) {
+                fattura.setNumero(numeroNodes.item(0).getTextContent());
+            }
+
+            org.w3c.dom.NodeList dataNodes = doc.getElementsByTagName("Data");
+            if (dataNodes.getLength() > 0) {
+                String dataStr = dataNodes.item(0).getTextContent();
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+                fattura.setDataFattura(sdf.parse(dataStr));
+                fattura.setAnno(Integer.parseInt(dataStr.substring(0, 4)));
+            }
+
+            // Estrai ImportoTotaleDocumento
+            org.w3c.dom.NodeList totaleNodes = doc.getElementsByTagName("ImportoTotaleDocumento");
+            if (totaleNodes.getLength() > 0) {
+                fattura.setTotale(new BigDecimal(totaleNodes.item(0).getTextContent()));
+            }
+
+            // Estrai imponibile e IVA da DatiRiepilogo
+            org.w3c.dom.NodeList imponibileNodes = doc.getElementsByTagName("ImponibileImporto");
+            if (imponibileNodes.getLength() > 0) {
+                fattura.setImponibile(new BigDecimal(imponibileNodes.item(0).getTextContent()));
+            }
+
+            org.w3c.dom.NodeList impostaNodes = doc.getElementsByTagName("Imposta");
+            if (impostaNodes.getLength() > 0) {
+                fattura.setIva(new BigDecimal(impostaNodes.item(0).getTextContent()));
+            }
+
+            // Estrai righe da DettaglioLinee
+            List<FatturaRiga> righe = new ArrayList<>();
+            org.w3c.dom.NodeList dettaglioLineeNodes = doc.getElementsByTagName("DettaglioLinee");
+            for (int i = 0; i < dettaglioLineeNodes.getLength(); i++) {
+                org.w3c.dom.Element dettaglio = (org.w3c.dom.Element) dettaglioLineeNodes.item(i);
+                FatturaRiga riga = new FatturaRiga();
+
+                org.w3c.dom.NodeList descNodes = dettaglio.getElementsByTagName("Descrizione");
+                if (descNodes.getLength() > 0) {
+                    riga.setDescrizione(descNodes.item(0).getTextContent());
+                }
+
+                org.w3c.dom.NodeList qtaNodes = dettaglio.getElementsByTagName("Quantita");
+                if (qtaNodes.getLength() > 0) {
+                    riga.setQuantita(new BigDecimal(qtaNodes.item(0).getTextContent()));
+                }
+
+                org.w3c.dom.NodeList prezzoNodes = dettaglio.getElementsByTagName("PrezzoUnitario");
+                if (prezzoNodes.getLength() > 0) {
+                    riga.setPrezzoUnitario(new BigDecimal(prezzoNodes.item(0).getTextContent()));
+                }
+
+                org.w3c.dom.NodeList totaleRigaNodes = dettaglio.getElementsByTagName("PrezzoTotale");
+                if (totaleRigaNodes.getLength() > 0) {
+                    riga.setTotaleRiga(new BigDecimal(totaleRigaNodes.item(0).getTextContent()));
+                }
+
+                org.w3c.dom.NodeList aliquotaNodes = dettaglio.getElementsByTagName("AliquotaIVA");
+                if (aliquotaNodes.getLength() > 0) {
+                    riga.setIvaPercentuale(new BigDecimal(aliquotaNodes.item(0).getTextContent()));
+                }
+
+                riga.setFattura(fattura);
+                righe.add(riga);
+            }
+            fattura.setRighe(righe);
+
+            logger.info("XML FatturaPA parsato con successo: " + fattura.getNumero());
+            return fattura;
+        } catch (Exception e) {
+            logger.error("Errore nel parsing XML FatturaPA", e);
+            throw new RuntimeException("Errore nel parsing XML: " + e.getMessage(), e);
         }
     }
 

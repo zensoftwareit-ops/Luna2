@@ -205,6 +205,10 @@ public class PreventivoRiga implements Serializable {
         return totaleRiga;
     }
 
+    public BigDecimal getImportoTotale() {
+        return totaleRiga; // Alias per compatibilità
+    }
+
     public void setTotaleRiga(BigDecimal totaleRiga) {
         this.totaleRiga = totaleRiga;
     }
