@@ -250,6 +250,109 @@
                         </div>
                     </div>
 
+                    <!-- Advanced Analytics Widgets -->
+                    <div class="row mb-4">
+                        <!-- Activity Feed Widget -->
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-white">
+                                    <h5 class="mb-0"><i class="bi bi-lightning me-2"></i>Attività Recenti</h5>
+                                </div>
+                                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                                    <s:iterator value="attivitaRecenti">
+                                        <div class="activity-item">
+                                            <div class="d-flex align-items-start">
+                                                <div class="flex-shrink-0">
+                                                    <div class="stat-icon" style="width: 36px; height: 36px; font-size: 16px; background-color: rgba(<s:if test='colore == "success"'>34,197,94</s:if><s:elseif test='colore == "info"'>13,202,240</s:elseif><s:elseif test='colore == "primary"'>13,110,253</s:elseif><s:else>108,117,125</s:else>, 0.1); color: <s:property value='colore'/>;">
+                                                        <i class="bi bi-<s:property value='icona'/>"></i>
+                                                    </div>
+                                                </div>
+                                                <div class="flex-grow-1 ms-2 min-width-0">
+                                                    <h6 class="mb-1 text-truncate"><s:property value="titolo"/></h6>
+                                                    <p class="mb-1 small text-muted"><s:property value="descrizione"/></p>
+                                                    <small class="text-muted"><i class="bi bi-clock"></i> <s:property value="ora"/></small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </s:iterator>
+                                    <s:if test="attivitaRecenti == null || attivitaRecenti.size() == 0">
+                                        <div class="text-center text-muted py-5">
+                                            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                            <p>Nessuna attività</p>
+                                        </div>
+                                    </s:if>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Warehouse Alerts Widget -->
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-white">
+                                    <h5 class="mb-0"><i class="bi bi-exclamation-triangle me-2"></i>Alert Magazzino</h5>
+                                </div>
+                                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                                    <s:iterator value="alertMagazzino">
+                                        <div class="p-3 border-bottom">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <h6 class="mb-1"><s:property value="prodotto"/></h6>
+                                                <span class="badge bg-<s:if test='priorita == "CRITICA"'>danger</s:if><s:elseif test='priorita == "ALTA"'>warning</s:elseif><s:else>info</s:else>"><s:property value="priorita"/></span>
+                                            </div>
+                                            <small class="text-muted d-block mb-2">Cod. <s:property value="codice"/></small>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-<s:if test='priorita == "CRITICA"'>danger</s:if><s:elseif test='priorita == "ALTA"'>warning</s:elseif><s:else>info</s:else>" 
+                                                     style="width: <s:property value='percentuale'/>%">
+                                                    <small><s:property value="percentuale"/>%</small>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-between mt-2">
+                                                <small class="text-muted">Disponibile: <strong><s:property value="disponibile"/></strong></small>
+                                                <small class="text-muted">Min: <s:property value="minimo"/></small>
+                                            </div>
+                                        </div>
+                                    </s:iterator>
+                                    <s:if test="alertMagazzino == null || alertMagazzino.size() == 0">
+                                        <div class="text-center text-muted py-5">
+                                            <i class="bi bi-check-circle fs-2 d-block mb-2 text-success"></i>
+                                            <p>Nessun alert</p>
+                                        </div>
+                                    </s:if>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tasks & Deadlines Widget -->
+                        <div class="col-lg-4 mb-3">
+                            <div class="card h-100">
+                                <div class="card-header bg-white">
+                                    <h5 class="mb-0"><i class="bi bi-calendar-check me-2"></i>Task in Scadenza</h5>
+                                </div>
+                                <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                                    <s:iterator value="taskScadenza">
+                                        <div class="p-3 border-bottom">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    <h6 class="mb-1"><s:property value="titolo"/></h6>
+                                                    <small class="text-muted"><i class="bi bi-tag"></i> <s:property value="tipo"/></small>
+                                                </div>
+                                                <span class="badge bg-<s:if test='priorita == "ALTA"'>danger</s:if><s:elseif test='priorita == "MEDIA"'>warning</s:elseif><s:else>info</s:else>"><s:property value="priorita"/></span>
+                                            </div>
+                                            <div class="alert alert-sm alert-<s:if test='priorita == "ALTA"'>danger</s:if><s:elseif test='priorita == "MEDIA"'>warning</s:elseif><s:else>info</s:else> py-1 px-2 mb-0" style="font-size: 12px;">
+                                                <i class="bi bi-alarm"></i> Scadenza: <strong><s:property value="scadenza"/></strong>
+                                            </div>
+                                        </div>
+                                    </s:iterator>
+                                    <s:if test="taskScadenza == null || taskScadenza.size() == 0">
+                                        <div class="text-center text-muted py-5">
+                                            <i class="bi bi-check2-square fs-2 d-block mb-2 text-success"></i>
+                                            <p>Nessun task in scadenza</p>
+                                        </div>
+                                    </s:if>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Tables Row -->
                     <div class="row">
                         <div class="col-lg-6 mb-3">

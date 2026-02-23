@@ -85,6 +85,9 @@
             </s:if>
 
             <form action="<s:url action='preventivi-save' namespace='/app/documenti'/>" method="post" id="preventivoForm">
+                <!-- CSRF Protection Token -->
+                <s:token/>
+                
                 <s:hidden name="preventivo.id"/>
                 <s:hidden name="preventivo.numero"/>
                 <s:hidden name="preventivo.anno"/>

@@ -50,6 +50,9 @@
 
             <!-- Form -->
             <form action="<s:url action='save' namespace='/app/lead'/>" method="post">
+                <!-- CSRF Protection Token -->
+                <s:token/>
+                
                 <s:if test="lead.id != null">
                     <input type="hidden" name="lead.id" value="<s:property value='lead.id'/>">
                 </s:if>
