@@ -18,6 +18,8 @@ import it.zensoftware.luna2.model.Commessa;
 import it.zensoftware.luna2.model.ModuleSetting;
 import it.zensoftware.luna2.service.EmailService;
 import it.zensoftware.luna2.service.CommesseService;
+import it.zensoftware.luna2.service.notification.EventPublisher;
+import it.zensoftware.luna2.service.notification.event.NotificationEventFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.struts2.ServletActionContext;
@@ -32,6 +34,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -797,6 +800,24 @@ public class PreventiviAction extends ActionSupport {
             String userAgent = ServletActionContext.getRequest().getHeader("User-Agent");
             emailService.trackPixelOpen(trackingId, userAgent);
 
+            TrackingEmail tracking = trackingEmailDAO.findByTrackingId(trackingId);
+            if (tracking != null && tracking.getPreventivo() != null) {
+                Preventivo trackedPreventivo = tracking.getPreventivo();
+                String ownerUserId = resolveOwnerUserId(trackedPreventivo);
+                if (ownerUserId != null) {
+                    EventPublisher.getInstance().publishEvent(
+                            NotificationEventFactory.preventivoAperto(
+                                    ownerUserId,
+                                    trackedPreventivo.getNumero(),
+                                    trackedPreventivo.getCliente() != null
+                                            ? trackedPreventivo.getCliente().getRagioneSociale()
+                                            : "Cliente",
+                                    LocalDateTime.now()
+                            )
+                    );
+                }
+            }
+
             // Return 1x1 transparent GIF
             byte[] gifBytes = {
                 0x47, 0x49, 0x46, 0x38, (byte) 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, (byte) 0x80,
@@ -839,6 +860,20 @@ public class PreventiviAction extends ActionSupport {
             // Traccia il download
             String userAgent = ServletActionContext.getRequest().getHeader("User-Agent");
             emailService.trackDownload(trackingId, userAgent);
+
+                String ownerUserId = resolveOwnerUserId(preventivo);
+                if (ownerUserId != null) {
+                EventPublisher.getInstance().publishEvent(
+                    NotificationEventFactory.preventivoLetto(
+                        ownerUserId,
+                        preventivo.getNumero(),
+                        preventivo.getCliente() != null
+                            ? preventivo.getCliente().getRagioneSociale()
+                            : "Cliente",
+                        30
+                    )
+                );
+                }
 
             // Determina il tipo di layout
             String layoutType = tipo != null ? tipo : "tecnico";
@@ -984,6 +1019,17 @@ public class PreventiviAction extends ActionSupport {
     private User getCurrentUser() {
         Map<String, Object> session = com.opensymphony.xwork2.ActionContext.getContext().getSession();
         return (User) session.get("currentUser");
+    }
+
+    private String resolveOwnerUserId(Preventivo trackedPreventivo) {
+        if (trackedPreventivo.getCreatedBy() != null) {
+            return String.valueOf(trackedPreventivo.getCreatedBy().getId());
+        }
+        if (trackedPreventivo.getModifiedBy() != null) {
+            return String.valueOf(trackedPreventivo.getModifiedBy().getId());
+        }
+        User currentUser = getCurrentUser();
+        return currentUser != null ? String.valueOf(currentUser.getId()) : null;
     }
 
     // Getters and Setters

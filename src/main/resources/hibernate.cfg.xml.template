@@ -57,5 +57,9 @@
         <mapping class="it.zensoftware.luna2.model.Nota"/>
         <mapping class="it.zensoftware.luna2.model.Scadenza"/>
         <mapping class="it.zensoftware.luna2.model.Tag"/>
+        <mapping class="it.zensoftware.luna2.model.NotificationPreference"/>
+        <mapping class="it.zensoftware.luna2.model.NotificationHistory"/>
+        <mapping class="it.zensoftware.luna2.model.CalendarAccount"/>
+        <mapping class="it.zensoftware.luna2.model.CalendarEvent"/>
     </session-factory>
 </hibernate-configuration>

@@ -83,6 +83,56 @@
         </action>
     </package>
 
+    <!-- Settings Package -->
+    <package name="settings" extends="luna2-default" namespace="/app/settings">
+        <action name="notifications" class="it.zensoftware.luna2.action.NotificationSettingsAction" method="view">
+            <result name="success">/WEB-INF/jsp/settings/notifications.jsp</result>
+        </action>
+
+        <action name="notifications-save" class="it.zensoftware.luna2.action.NotificationSettingsAction" method="save">
+            <result name="success" type="redirectAction">notifications</result>
+            <result name="error">/WEB-INF/jsp/settings/notifications.jsp</result>
+        </action>
+    </package>
+
+    <!-- Calendar Package -->
+    <package name="calendar" extends="luna2-default" namespace="/app/calendar">
+        <action name="calendar" class="it.zensoftware.luna2.action.CalendarAction" method="list">
+            <result name="success">/WEB-INF/jsp/calendar/index.jsp</result>
+        </action>
+
+        <action name="calendar-sync" class="it.zensoftware.luna2.action.CalendarAction" method="sync">
+            <result name="success" type="redirectAction">calendar</result>
+            <result name="error" type="redirectAction">calendar</result>
+        </action>
+
+        <action name="calendar-connect-google" class="it.zensoftware.luna2.action.CalendarAction" method="connectGoogle">
+            <result name="success">/WEB-INF/jsp/calendar/index.jsp</result>
+            <result name="error">/WEB-INF/jsp/calendar/index.jsp</result>
+        </action>
+
+        <action name="calendar-google-callback" class="it.zensoftware.luna2.action.CalendarAction" method="googleCallback">
+            <result name="success">/WEB-INF/jsp/calendar/index.jsp</result>
+            <result name="error">/WEB-INF/jsp/calendar/index.jsp</result>
+        </action>
+
+        <action name="calendar-connect-icloud" class="it.zensoftware.luna2.action.CalendarAction" method="connectIcloud">
+            <result name="success">/WEB-INF/jsp/calendar/index.jsp</result>
+            <result name="error">/WEB-INF/jsp/calendar/index.jsp</result>
+        </action>
+
+        <action name="calendar-icloud-form" class="it.zensoftware.luna2.action.CalendarAction" method="icloudForm">
+            <result name="success">/WEB-INF/jsp/calendar/icloud-form.jsp</result>
+            <result name="login">/WEB-INF/jsp/login.jsp</result>
+        </action>
+
+        <action name="calendar-icloud-test" class="it.zensoftware.luna2.action.CalendarAction" method="testIcloudConnection">
+            <result name="success">/WEB-INF/jsp/calendar/icloud-form.jsp</result>
+            <result name="error">/WEB-INF/jsp/calendar/icloud-form.jsp</result>
+            <result name="login">/WEB-INF/jsp/login.jsp</result>
+        </action>
+    </package>
+
     <!-- Clienti Package -->
     <package name="clienti" extends="luna2-default" namespace="/app/clienti">
         <action name="list" class="it.zensoftware.luna2.action.ClientiAction" method="list">

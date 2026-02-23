@@ -1,9 +1,13 @@
 package it.zensoftware.luna2.service;
 
-import it.zensoftware.luna2.model.Fattura;
-import it.zensoftware.luna2.model.SdiNotifica;
 import it.zensoftware.luna2.dao.FatturaDAO;
 import it.zensoftware.luna2.dao.SdiNotificaDAO;
+import it.zensoftware.luna2.dao.UserDAO;
+import it.zensoftware.luna2.model.Fattura;
+import it.zensoftware.luna2.model.SdiNotifica;
+import it.zensoftware.luna2.model.User;
+import it.zensoftware.luna2.service.notification.EventPublisher;
+import it.zensoftware.luna2.service.notification.event.NotificationEventFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -71,6 +75,18 @@ public class SdiNotificheService {
                             // Aggiorna lo stato della fattura
                             fattura.setSdiStato(response.stato);
                             fatturaDAO.update(fattura);
+
+                                String userId = resolveUserId(fattura);
+                                if (userId != null) {
+                                EventPublisher.getInstance().publishEvent(
+                                    NotificationEventFactory.notificaSdi(
+                                        userId,
+                                        response.stato,
+                                        response.descrizioneErrore,
+                                        fattura.getNumero()
+                                    )
+                                );
+                                }
                             
                             successo++;
                             logger.info("Notifica recuperata per fattura " + fattura.getNumero() + ": " + response.stato);
@@ -206,6 +222,15 @@ public class SdiNotificheService {
     private String getPropertyValue(String key, String defaultValue) {
         String value = companyProps.getProperty(key);
         return value != null ? value : defaultValue;
+    }
+
+    private String resolveUserId(Fattura fattura) {
+        if (fattura.getCreatedBy() != null) {
+            return String.valueOf(fattura.getCreatedBy().getId());
+        }
+
+        User admin = new UserDAO().findByUsername("admin");
+        return admin != null ? String.valueOf(admin.getId()) : null;
     }
     
     /**

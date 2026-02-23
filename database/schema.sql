@@ -587,6 +587,79 @@ CREATE TABLE numerazioni (
     UNIQUE KEY uk_tipo_anno (tipo_documento, anno)
 ) ENGINE=InnoDB;
 
+-- Notification Preferences Table
+CREATE TABLE notification_preferences (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL UNIQUE,
+    email_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    push_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    sms_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    digest_frequency ENUM('IMMEDIATE', 'HOURLY', 'DAILY', 'WEEKLY', 'NEVER') NOT NULL DEFAULT 'IMMEDIATE',
+    enabled_event_types TEXT,
+    quiet_start_time VARCHAR(5) NOT NULL DEFAULT '22:00',
+    quiet_end_time VARCHAR(5) NOT NULL DEFAULT '08:00',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_notification_user (user_id)
+) ENGINE=InnoDB;
+
+-- Notification History Table
+CREATE TABLE notification_history (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL,
+    event_type VARCHAR(50) NOT NULL,
+    channel ENUM('EMAIL', 'PUSH', 'SMS', 'SLACK', 'DATABASE') NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    message TEXT,
+    status ENUM('SENT', 'FAILED', 'BOUNCED', 'DELIVERED', 'READ', 'CLICKED') NOT NULL DEFAULT 'SENT',
+    error_message TEXT,
+    sent_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    read_at DATETIME,
+    clicked_at DATETIME,
+    INDEX idx_notification_history_user (user_id),
+    INDEX idx_notification_history_event (event_type),
+    INDEX idx_notification_history_sent (sent_at)
+) ENGINE=InnoDB;
+
+-- Calendar Accounts Table
+CREATE TABLE calendar_accounts (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL,
+    provider ENUM('GOOGLE', 'ICLOUD') NOT NULL,
+    access_token TEXT,
+    refresh_token TEXT,
+    caldav_url VARCHAR(512),
+    calendar_id VARCHAR(255),
+    time_zone VARCHAR(64) NOT NULL DEFAULT 'Europe/Rome',
+    sync_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    last_sync_at DATETIME,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_calendar_account_user_provider (user_id, provider),
+    INDEX idx_calendar_account_user (user_id)
+) ENGINE=InnoDB;
+
+-- Calendar Events Table
+CREATE TABLE calendar_events (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(50) NOT NULL,
+    provider ENUM('GOOGLE', 'ICLOUD') NOT NULL,
+    external_event_id VARCHAR(255),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    location VARCHAR(255),
+    start_time DATETIME NOT NULL,
+    end_time DATETIME NOT NULL,
+    source_type ENUM('REMINDER', 'TASK', 'MEETING') NOT NULL,
+    source_id BIGINT NOT NULL,
+    status ENUM('ACTIVE', 'DELETED') NOT NULL DEFAULT 'ACTIVE',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_calendar_event_user (user_id),
+    INDEX idx_calendar_event_provider (provider),
+    INDEX idx_calendar_event_source (source_type, source_id)
+) ENGINE=InnoDB;
+
 -- Insert default admin user (password: admin123)
 INSERT INTO users (username, password, email, nome, cognome, ruolo, attivo)
 VALUES ('admin', '$2a$10$7PJKF5IXtYt5LVLnBd/XB.b3lZ9.kUlp9p5oFJZHx9qSrKVJ3KjNi', 'admin@luna2.local', 'Admin', 'Luna2', 'ADMIN', TRUE);

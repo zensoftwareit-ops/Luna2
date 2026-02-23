@@ -130,11 +130,26 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- WebSocket API -->
+        <dependency>
+            <groupId>javax.websocket</groupId>
+            <artifactId>javax.websocket-api</artifactId>
+            <version>1.1</version>
+            <scope>provided</scope>
+        </dependency>
+
         <!-- JSTL -->
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>jstl</artifactId>
             <version>1.2</version>
+        </dependency>
+
+        <!-- Freemarker for email templates -->
+        <dependency>
+            <groupId>org.freemarker</groupId>
+            <artifactId>freemarker</artifactId>
+            <version>2.3.32</version>
         </dependency>
 
         <!-- Apache Commons Lang -->
@@ -252,6 +267,24 @@
             <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
+
+        <!-- CalDAV Client (risky: usa HTTP nativo) -->
+        <!-- sardine non disponibile su Maven Central, usiamo HTTP nativo -->
+
+        <!-- iCalendar parsing -->
+        <dependency>
+            <groupId>org.mnode.ical4j</groupId>
+            <artifactId>ical4j</artifactId>
+            <version>3.2.12</version>
+        </dependency>
+
+        <!-- Password Encryption (Jasypt) -->
+        <dependency>
+            <groupId>org.jasypt</groupId>
+            <artifactId>jasypt</artifactId>
+            <version>1.9.3</version>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -274,6 +307,8 @@
                 <version>3.3.2</version>
                 <configuration>
                     <failOnMissingWebXml>false</failOnMissingWebXml>
+                    <attachClasses>true</attachClasses>
+                    <classesClassifier>classes</classesClassifier>
                 </configuration>
             </plugin>
 

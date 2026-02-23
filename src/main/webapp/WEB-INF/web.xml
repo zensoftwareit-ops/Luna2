@@ -30,6 +30,18 @@
         <url-pattern>/*</url-pattern>
     </filter-mapping>
 
+    <!-- Notifications SSE Servlet -->
+    <servlet>
+        <servlet-name>notificationsSse</servlet-name>
+        <servlet-class>it.zensoftware.luna2.service.notification.NotificationsSseServlet</servlet-class>
+        <async-supported>true</async-supported>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>notificationsSse</servlet-name>
+        <url-pattern>/api/notifications/stream/*</url-pattern>
+    </servlet-mapping>
+
     <!-- Welcome File List -->
     <welcome-file-list>
         <welcome-file>index.jsp</welcome-file>

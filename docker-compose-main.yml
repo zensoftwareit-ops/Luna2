@@ -1,0 +1,68 @@
+# Main Docker Compose - Nginx Gateway per Multi-Tenant System
+# Questo file contiene solo Nginx, che funge da reverse proxy per tutte le istanze cliente
+# I clienti vengono aggiunti tramite manage-domains-multitenant.sh
+
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-gateway
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Nginx configs per clienti
+      - ./docker/nginx/multi-tenant:/etc/nginx/conf.d/sites:ro
+      # Nginx principale
+      - ./docker/nginx/nginx-main.conf:/etc/nginx/nginx.conf:ro
+      # Let's Encrypt certs
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Certbot webroot per ACME challenge
+      - ./certbot-webroot:/var/www/certbot:ro
+      # Logs
+      - ./logs/nginx:/var/log/nginx
+    networks:
+      - proxy-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      service: proxy-gateway
+      version: "1.0"
+    depends_on:
+      - portainer
+
+  # Portainer (opzionale) - Gestione Docker UI
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    ports:
+      - "9000:9000"
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/portainer:/data
+    networks:
+      - proxy-network
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      service: docker-management
+    environment:
+      DOMAINS: "portainer.localhost"
+
+networks:
+  proxy-network:
+    driver: bridge
+    name: proxy-network
+
+volumes:
+  certbot-webroot:

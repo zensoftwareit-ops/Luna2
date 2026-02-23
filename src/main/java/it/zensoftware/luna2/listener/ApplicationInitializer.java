@@ -2,6 +2,7 @@ package it.zensoftware.luna2.listener;
 
 import it.zensoftware.luna2.model.ModuleSetting;
 import it.zensoftware.luna2.model.User;
+import it.zensoftware.luna2.service.notification.NotificationSystemBootstrap;
 import it.zensoftware.luna2.util.HibernateUtil;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -90,6 +91,8 @@ public class ApplicationInitializer implements ServletContextListener {
         } catch (Exception e) {
             logger.error("Failed to initialize application", e);
         }
+
+        NotificationSystemBootstrap.initialize();
     }
 
     @Override

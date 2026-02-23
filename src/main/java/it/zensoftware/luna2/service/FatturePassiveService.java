@@ -1,9 +1,13 @@
 package it.zensoftware.luna2.service;
 
-import it.zensoftware.luna2.model.FatturaPassiva;
-import it.zensoftware.luna2.model.Fornitore;
 import it.zensoftware.luna2.dao.FatturaPassivaDAO;
 import it.zensoftware.luna2.dao.FornitoreDAO;
+import it.zensoftware.luna2.dao.UserDAO;
+import it.zensoftware.luna2.model.FatturaPassiva;
+import it.zensoftware.luna2.model.Fornitore;
+import it.zensoftware.luna2.model.User;
+import it.zensoftware.luna2.service.notification.EventPublisher;
+import it.zensoftware.luna2.service.notification.event.NotificationEventFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.w3c.dom.Document;
@@ -84,6 +88,18 @@ public class FatturePassiveService {
                         logger.info("Fattura passiva ricevuta: " + fattura.getNumero() + " da " + fattura.getFornitoreNome());
 
                         notificaFatturaRicevutaSafe(fattura);
+
+                        String userId = resolveDefaultUserId();
+                        if (userId != null) {
+                            EventPublisher.getInstance().publishEvent(
+                                    NotificationEventFactory.fatturaArrivata(
+                                            userId,
+                                            fattura.getNumero(),
+                                            fattura.getFornitoreNome(),
+                                            fattura.getTotale()
+                                    )
+                            );
+                        }
                     }
                     processate++;
                 } catch (Exception e) {
@@ -326,6 +342,11 @@ public class FatturePassiveService {
     private String getPropertyValue(String key, String defaultValue) {
         String value = companyProps.getProperty(key);
         return value != null ? value : defaultValue;
+    }
+
+    private String resolveDefaultUserId() {
+        User admin = new UserDAO().findByUsername("admin");
+        return admin != null ? String.valueOf(admin.getId()) : null;
     }
 
     private void notificaFatturaRicevutaSafe(FatturaPassiva fattura) {

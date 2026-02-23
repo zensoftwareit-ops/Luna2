@@ -1,5 +1,6 @@
 package it.zensoftware.luna2.service.notification;
 
+import it.zensoftware.luna2.service.notification.event.NotificationEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -111,6 +112,14 @@ public class PushNotificationService {
                 logger.error("Errore invio notifica push", e);
             }
         }
+    }
+
+    /**
+     * Invia una notifica push senza esporre la classe PushNotification.
+     */
+    public void sendNotificationToUser(String userId, String title, String message, NotificationEvent.Priority priority) {
+        PushNotification notification = new PushNotification(userId, title, message, priority.name());
+        sendNotificationToUser(userId, notification);
     }
     
     /**

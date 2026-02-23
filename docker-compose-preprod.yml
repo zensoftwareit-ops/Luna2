@@ -1,0 +1,209 @@
+version: '3.8'
+
+# Luna2 Production Deployment with Server Management Panel
+# 
+# Services:
+#   - mysql: Database (MySQL 8.0)
+#   - luna2-api: REST API (OpenJDK 11)
+#   - nginx: Reverse proxy with multi-domain support
+#   - portainer: Docker management UI (optional, disabled by default)
+#
+# Usage:
+#   docker-compose -f docker-compose-preprod.yml up -d
+#   docker-compose -f docker-compose-preprod.yml logs -f luna2-api
+
+services:
+
+  # ========================================================================
+  # MySQL Database
+  # ========================================================================
+  mysql:
+    image: mysql:8.0
+    container_name: luna2-mysql
+    restart: unless-stopped
+    
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${DB_NAME:-luna2}
+      MYSQL_USER: ${DB_USER:-luna2_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-luna2_password}
+      TZ: ${TZ:-Europe/Rome}
+    
+    ports:
+      - "3306:3306"
+    
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/luna2-complete-schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./logs/mysql:/var/log/mysql
+    
+    networks:
+      - luna2-network
+    
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USER:-luna2_user}", "-p${DB_PASSWORD:-luna2_password}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --max_connections=1000
+      --innodb_buffer_pool_size=256M
+
+  # ========================================================================
+  # Luna2 REST API
+  # ========================================================================
+  luna2-api:
+    build:
+      context: ./luna2-api
+      dockerfile: Dockerfile
+    container_name: luna2-api
+    restart: unless-stopped
+    
+    depends_on:
+      mysql:
+        condition: service_healthy
+    
+    environment:
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/${DB_NAME:-luna2}?useSSL=false&serverTimezone=${TZ:-Europe/Rome}&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-luna2_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-luna2_password}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      
+      # Hibernate Configuration
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQL8Dialect
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      
+      # JWT Configuration
+      JWT_SECRET: ${JWT_SECRET:-ChangeThisSecretInProduction}
+      JWT_EXP_MINUTES: ${JWT_EXP_MINUTES:-1440}
+      JWT_ISSUER: luna2-api
+      
+      # Calendar Configuration
+      CALENDAR_ENCRYPTION_SECRET: ${JWT_SECRET:-ChangeThisSecretInProduction}
+      CALENDAR_SYNC_INTERVAL_MINUTES: 30
+      DASHBOARD_POLL_INTERVAL_MS: 5000
+      
+      # Mail Configuration (optional)
+      MAIL_SMTP_HOST: ${MAIL_SMTP_HOST:-}
+      MAIL_SMTP_PORT: ${MAIL_SMTP_PORT:-587}
+      MAIL_SMTP_USERNAME: ${MAIL_SMTP_USERNAME:-}
+      MAIL_SMTP_PASSWORD: ${MAIL_SMTP_PASSWORD:-}
+      
+      # Logging
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_IT_ZENSOFTWARE_LUNA2_API: DEBUG
+      
+      # Spring Profiles
+      SPRING_PROFILES_ACTIVE: production
+      JAVA_OPTS: "-Xms256m -Xmx1024m -Djava.security.egd=file:/dev/./urandom"
+      TZ: ${TZ:-Europe/Rome}
+    
+    volumes:
+      - ./logs/api:/var/log/luna2
+      - ./config:/config
+    
+    networks:
+      - luna2-network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    image: luna2-api:latest
+
+  # ========================================================================
+  # Nginx Reverse Proxy with Multi-domain Support
+  # ========================================================================
+  nginx:
+    image: nginx:latest
+    container_name: luna2-nginx
+    restart: unless-stopped
+    
+    depends_on:
+      luna2-api:
+        condition: service_healthy
+    
+    ports:
+      - "80:80"
+      - "443:443"
+    
+    volumes:
+      # Main configuration with multi-host support
+      - ./docker/nginx/nginx-multihost.conf:/etc/nginx/nginx.conf:ro
+      
+      # Individual vhost configurations (one per domain)
+      - ./docker/nginx/vhosts:/etc/nginx/vhosts:ro
+      
+      # SSL certificates (Let's Encrypt + self-signed)
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+      - ./docker/nginx/ssl:/etc/nginx/ssl:ro
+      
+      # Logs
+      - ./logs/nginx:/var/log/nginx
+    
+    networks:
+      - luna2-network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ========================================================================
+  # Portainer (Docker Management UI)
+  # Optional: Uncomment to enable web-based Docker management
+  # 
+  # Access: http://your-server:9000
+  # Default: admin / 12345678 (change immediately!)
+  # 
+  # To enable:
+  #   1. Uncomment the entire portainer service below
+  #   2. Run: docker-compose -f docker-compose-preprod.yml up -d portainer
+  #   3. Access via browser: http://server-ip:9000
+  # ========================================================================
+  # portainer:
+  #   image: portainer/portainer-ce:latest
+  #   container_name: luna2-portainer
+  #   
+  #   ports:
+  #     - "9000:9000"
+  #     - "8000:8000"
+  #   
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - portainer_data:/data
+  #   
+  #   networks:
+  #     - luna2-network
+  #   
+  #   restart: unless-stopped
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  luna2-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  mysql_data:
+    driver: local
+  portainer_data:
+    driver: local

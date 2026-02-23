@@ -9,8 +9,11 @@ import it.zensoftware.luna2.dto.OrdineTrackingDTO;
 import it.zensoftware.luna2.model.Ordine;
 import it.zensoftware.luna2.model.OrdineRiga;
 import it.zensoftware.luna2.model.Cliente;
+import it.zensoftware.luna2.model.User;
 import it.zensoftware.luna2.model.TrackingEmail;
 import it.zensoftware.luna2.service.EmailService;
+import it.zensoftware.luna2.service.notification.EventPublisher;
+import it.zensoftware.luna2.service.notification.event.NotificationEventFactory;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.struts2.ServletActionContext;
@@ -29,6 +32,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Properties;
 
 public class OrdiniAction extends ActionSupport {
@@ -120,9 +124,30 @@ public class OrdiniAction extends ActionSupport {
                 return ERROR;
             }
 
+            User currentUser = getCurrentUser();
+
             if (ordine.getId() == null) {
+                if (currentUser != null) {
+                    ordine.setCreatedBy(currentUser);
+                }
                 ordineDAO.save(ordine);
+
+                if (currentUser != null) {
+                    EventPublisher.getInstance().publishEvent(
+                            NotificationEventFactory.ordineConfermato(
+                                    String.valueOf(currentUser.getId()),
+                                    ordine.getNumero(),
+                                    ordine.getCliente() != null
+                                            ? ordine.getCliente().getRagioneSociale()
+                                            : "Cliente",
+                                    ordine.getTotale()
+                            )
+                    );
+                }
             } else {
+                if (currentUser != null) {
+                    ordine.setModifiedBy(currentUser);
+                }
                 ordineDAO.update(ordine);
             }
 
@@ -421,6 +446,11 @@ public class OrdiniAction extends ActionSupport {
         com.itextpdf.text.Font font = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, BaseColor.WHITE);
         cell.setPhrase(new Phrase(label, font));
         table.addCell(cell);
+    }
+
+    private User getCurrentUser() {
+        Map<String, Object> session = com.opensymphony.xwork2.ActionContext.getContext().getSession();
+        return (User) session.get("currentUser");
     }
 
     // Getters and Setters

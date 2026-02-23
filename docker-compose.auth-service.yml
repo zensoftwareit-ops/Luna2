@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  luna2-auth-service:
+    image: openjdk:11-jre-slim
+    container_name: luna2-auth-service
+    volumes:
+      - ./auth-service/target/luna2-auth-service-1.0.0.jar:/app/app.jar
+      - ./auth-service/logs:/app/logs
+    environment:
+      OAUTH_GOOGLE_STATE_SECRET: "${OAUTH_GOOGLE_STATE_SECRET:-Wmc3ik2d7J1nvCqH4ToQjTzKBphr5LaQ+PYwPpXLicU=}"
+      OAUTH_GOOGLE_STATE_TTL_SECONDS: "${OAUTH_GOOGLE_STATE_TTL_SECONDS:-900}"
+      LOGGING_LEVEL_IT_ZENSOFTWARE: "${LOG_LEVEL:-INFO}"
+    ports:
+      - "8080:8080"
+    command: >
+      java -jar /app/app.jar
+      --oauth.google.state.secret=${OAUTH_GOOGLE_STATE_SECRET}
+      --oauth.google.state.ttl.seconds=${OAUTH_GOOGLE_STATE_TTL_SECONDS}
+      --logging.level.it.zensoftware.luna2.authservice=${LOG_LEVEL}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - luna2-network
+
+  luna2-nginx:
+    image: nginx:alpine
+    container_name: luna2-auth-proxy
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - luna2-auth-service
+    restart: unless-stopped
+    networks:
+      - luna2-network
+
+networks:
+  luna2-network:
+    driver: bridge

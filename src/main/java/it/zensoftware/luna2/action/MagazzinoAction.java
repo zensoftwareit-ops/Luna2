@@ -9,6 +9,8 @@ import it.zensoftware.luna2.model.Magazzino;
 import it.zensoftware.luna2.model.MovimentoMagazzino;
 import it.zensoftware.luna2.model.Prodotto;
 import it.zensoftware.luna2.model.User;
+import it.zensoftware.luna2.service.notification.EventPublisher;
+import it.zensoftware.luna2.service.notification.event.NotificationEventFactory;
 import it.zensoftware.luna2.util.BarcodeGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -198,6 +200,18 @@ public class MagazzinoAction extends ActionSupport {
             
             addActionMessage("Carico registrato con successo");
             logger.info("Carico registrato: Prodotto {} - Quantità: {}", prodotto.getCodice(), quantita);
+
+                if (user != null) {
+                EventPublisher.getInstance().publishEvent(
+                    NotificationEventFactory.merceInMagazzino(
+                        String.valueOf(user.getId()),
+                        prodotto.getCodice(),
+                        prodotto.getNome(),
+                        quantita != null ? quantita.intValue() : 0,
+                        prodotto.getFornitore() != null ? prodotto.getFornitore().getRagioneSociale() : "N/D"
+                    )
+                );
+                }
             
             return SUCCESS;
             

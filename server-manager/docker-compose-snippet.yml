@@ -1,0 +1,42 @@
+# Docker Compose per includere Luna2 Server Manager
+# 
+# Aggiungi questa sezione al docker-compose-preprod.yml se vuoi far girare
+# il manager come container Docker
+
+  # ========================================================================
+  # Luna2 Server Manager (Web UI)
+  # ========================================================================
+  # server-manager:
+  #   build:
+  #     context: ./server-manager
+  #     dockerfile: Dockerfile
+  #   container_name: luna2-manager
+  #   
+  #   ports:
+  #     - "8888:8888"
+  #   
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #     - ./:/luna2:ro
+  #     - /etc/letsencrypt:/etc/letsencrypt:ro
+  #   
+  #   environment:
+  #     NODE_ENV: production
+  #     PORT: 8888
+  #   
+  #   networks:
+  #     - luna2-network
+  #   
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8888/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 20s
+  #   
+  #   restart: unless-stopped
+  #   
+  #   depends_on:
+  #     - nginx
+
+# La sezione deve essere aggiunta dopo il servizio luna2-api, dentro la sezione services
