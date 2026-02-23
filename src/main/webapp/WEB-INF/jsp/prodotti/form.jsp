@@ -46,6 +46,9 @@
             <div class="card">
                 <div class="card-body">
                     <s:form action="save" namespace="/app/prodotti" method="post" theme="simple" cssClass="needs-validation">
+                        <!-- CSRF Protection Token -->
+                        <s:token/>
+                        
                         <s:hidden name="prodotto.id"/>
                         
                         <!-- Informazioni Base -->

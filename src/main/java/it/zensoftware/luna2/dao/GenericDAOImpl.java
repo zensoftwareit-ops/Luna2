@@ -1,6 +1,7 @@
 package it.zensoftware.luna2.dao;
 
 import it.zensoftware.luna2.util.HibernateUtil;
+import it.zensoftware.luna2.util.ValidationUtil;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.query.Query;
@@ -12,6 +13,7 @@ import java.util.List;
 
 /**
  * Generic DAO implementation with common CRUD operations
+ * Features input validation to prevent HQL injection and other attacks
  */
 public class GenericDAOImpl<T, ID extends Serializable> implements GenericDAO<T, ID> {
     
@@ -102,10 +104,27 @@ public class GenericDAOImpl<T, ID extends Serializable> implements GenericDAO<T,
     @Override
     public List<T> findByProperty(String propertyName, Object value) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            // SECURITY: Validate property name against whitelist to prevent HQL injection
+            ValidationUtil.validatePropertyName(persistentClass, propertyName);
+            
             String hql = "FROM " + persistentClass.getName() + " WHERE " + propertyName + " = :value";
             Query<T> query = session.createQuery(hql, persistentClass);
             query.setParameter("value", value);
-            return query.list();
+            
+            List<T> results = query.list();
+            
+            // Log validation success for audit trail
+            ValidationUtil.logValidationEvent("PROPERTY_SEARCH", persistentClass.getSimpleName(), 
+                                             true, "propertyName=" + propertyName);
+            
+            logger.debug("Found " + results.size() + " entities with property: " + propertyName);
+            return results;
+        } catch (SecurityException e) {
+            // Property name validation failed
+            logger.error("Security violation: Invalid property name: " + propertyName, e);
+            ValidationUtil.logValidationEvent("PROPERTY_SEARCH", persistentClass.getSimpleName(), 
+                                             false, "Invalid property: " + propertyName);
+            throw new RuntimeException("Invalid search property", e);
         } catch (Exception e) {
             logger.error("Error finding by property", e);
             throw new RuntimeException("Error finding by property", e);

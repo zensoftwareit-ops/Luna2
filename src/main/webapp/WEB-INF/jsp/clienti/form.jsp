@@ -35,6 +35,9 @@
             <div class="card">
                 <div class="card-body">
                     <s:form action="save" method="post" theme="simple" cssClass="needs-validation" novalidate="true">
+                        <!-- CSRF Protection Token -->
+                        <s:token/>
+                        
                         <s:hidden name="cliente.id"/>
                         
                         <h5 class="card-title mb-3">Informazioni Generali</h5>
