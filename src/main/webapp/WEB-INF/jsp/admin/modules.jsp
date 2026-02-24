@@ -28,6 +28,7 @@
             <div class="card">
                 <div class="card-body">
                     <form method="post" action="<s:url action='moduli-save' namespace='/app/admin'/>">
+                        <s:token/>
                         <div class="form-check form-switch mb-3">
                             <s:checkbox name="coreEnabled" cssClass="form-check-input"/>
                             <label class="form-check-label">Core (Anagrafiche, Preventivi, Fatture, Ordini, Prodotti)</label>
@@ -39,6 +40,10 @@
                         <div class="form-check form-switch mb-3">
                             <s:checkbox name="crmEnabled" cssClass="form-check-input"/>
                             <label class="form-check-label">CRM</label>
+                        </div>
+                        <div class="form-check form-switch mb-3 ms-4">
+                            <s:checkbox name="crmBrokerAutoEnabled" cssClass="form-check-input"/>
+                            <label class="form-check-label">CRM - Broker Auto</label>
                         </div>
                         <div class="form-check form-switch mb-3">
                             <s:checkbox name="produzioneEnabled" cssClass="form-check-input"/>

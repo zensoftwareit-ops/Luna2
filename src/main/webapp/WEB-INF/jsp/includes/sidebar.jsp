@@ -77,10 +77,17 @@
                 </s:if>
                 <s:if test="#session.enabledModules['CRM']">
                     <li class="nav-item">
-                        <a class="nav-link" href="<s:url action='list' namespace='/app/leads'/>">
+                        <a class="nav-link" href="<s:url action='list' namespace='/app/lead'/>">
                             <i class="bi bi-graph-up-arrow me-2"></i>CRM / Lead
                         </a>
                     </li>
+                    <s:if test="#session.enabledModules['CRM_BROKER_AUTO']">
+                        <li class="nav-item">
+                            <a class="nav-link" href="<s:url action='list' namespace='/app/lead'/>">
+                                <i class="bi bi-car-front me-2"></i>CRM Broker Auto
+                            </a>
+                        </li>
+                    </s:if>
                 </s:if>
                 <s:if test="#session.enabledModules['CORE']">
                     <li class="nav-item">

@@ -19,6 +19,7 @@ public class ModuleSettingsAction extends ActionSupport {
     private boolean coreEnabled;
     private boolean magazzinoEnabled;
     private boolean crmEnabled;
+    private boolean crmBrokerAutoEnabled;
     private boolean produzioneEnabled;
     private boolean aiEnabled;
 
@@ -37,6 +38,7 @@ public class ModuleSettingsAction extends ActionSupport {
         updateModule("CORE", "Core", coreEnabled, "Anagrafiche, documenti, prodotti, report");
         updateModule("MAGAZZINO", "Magazzino", magazzinoEnabled, "Giacenze e movimentazioni");
         updateModule("CRM", "CRM", crmEnabled, "Lead e pipeline");
+        updateModule("CRM_BROKER_AUTO", "CRM Broker Auto", crmBrokerAutoEnabled, "Broker noleggio auto");
         updateModule("PRODUZIONE", "Produzione/Commesse", produzioneEnabled, "Commesse e avanzamento");
         updateModule("AI", "Modulo AI", aiEnabled, "Funzioni AI e automazioni");
 
@@ -64,6 +66,7 @@ public class ModuleSettingsAction extends ActionSupport {
         coreEnabled = isEnabled("CORE", true);
         magazzinoEnabled = isEnabled("MAGAZZINO", true);
         crmEnabled = isEnabled("CRM", true);
+        crmBrokerAutoEnabled = isEnabled("CRM_BROKER_AUTO", false);
         produzioneEnabled = isEnabled("PRODUZIONE", false);
         aiEnabled = isEnabled("AI", false);
     }
@@ -104,6 +107,14 @@ public class ModuleSettingsAction extends ActionSupport {
 
     public void setCrmEnabled(boolean crmEnabled) {
         this.crmEnabled = crmEnabled;
+    }
+
+    public boolean isCrmBrokerAutoEnabled() {
+        return crmBrokerAutoEnabled;
+    }
+
+    public void setCrmBrokerAutoEnabled(boolean crmBrokerAutoEnabled) {
+        this.crmBrokerAutoEnabled = crmBrokerAutoEnabled;
     }
 
     public boolean isProduzioneEnabled() {

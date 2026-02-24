@@ -52,25 +52,12 @@
         <session-timeout>30</session-timeout>
         <cookie-config>
             <http-only>true</http-only>
-            <secure>true</secure>
+            <secure>false</secure>
         </cookie-config>
         <tracking-mode>COOKIE</tracking-mode>
     </session-config>
     
-    <!-- HTTPS Enforcement: Force all traffic to HTTPS -->
-    <security-constraint>
-        <web-resource-collection>
-            <web-resource-name>Entire Application</web-resource-name>
-            <url-pattern>/*</url-pattern>
-            <http-method>GET</http-method>
-            <http-method>POST</http-method>
-            <http-method>PUT</http-method>
-            <http-method>DELETE</http-method>
-        </web-resource-collection>
-        <user-data-constraint>
-            <transport-guarantee>CONFIDENTIAL</transport-guarantee>
-        </user-data-constraint>
-    </security-constraint>
+    <!-- HTTPS Enforcement removed for local HTTP testing -->
 
     <!-- Error Pages -->
     <error-page>

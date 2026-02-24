@@ -28,7 +28,7 @@
                 <interceptor-ref name="authentication"/>
                 <interceptor-ref name="moduleAccess"/>
                 <interceptor-ref name="token">
-                    <param name="excludeMethods">execute,list,view,find,search,dashboard,index</param>
+                    <param name="excludeMethods">execute,list,view,find,search,dashboard,index,create,edit,pipeline,export</param>
                 </interceptor-ref>
                 <interceptor-ref name="defaultStack"/>
             </interceptor-stack>
@@ -44,6 +44,7 @@
             </result>
             <result name="forbidden">/WEB-INF/jsp/error/forbidden.jsp</result>
             <result name="moduleDisabled">/WEB-INF/jsp/error/module-disabled.jsp</result>
+            <result name="invalid.token">/WEB-INF/jsp/error/error.jsp</result>
             <result name="error">/WEB-INF/jsp/error/error.jsp</result>
         </global-results>
 
@@ -837,6 +838,16 @@
         </action>
     </package>
 
+    <!-- Lead/CRM Alias Package (compat for /app/leads) -->
+    <package name="lead-alias" extends="luna2-default" namespace="/app/leads">
+        <action name="list">
+            <result name="success" type="redirectAction">
+                <param name="actionName">list</param>
+                <param name="namespace">/app/lead</param>
+            </result>
+        </action>
+    </package>
+
     <!-- Report Package -->
     <package name="report" extends="luna2-default" namespace="/app/report">
         <action name="vendite" class="it.zensoftware.luna2.action.ReportAction" method="vendite">
@@ -1034,6 +1045,7 @@
 
         <action name="moduli-save" class="it.zensoftware.luna2.action.ModuleSettingsAction" method="save">
             <result name="success">/WEB-INF/jsp/admin/modules.jsp</result>
+            <result name="invalid.token">/WEB-INF/jsp/admin/modules.jsp</result>
             <result name="forbidden">/WEB-INF/jsp/error/forbidden.jsp</result>
         </action>
     </package>
@@ -1043,7 +1055,7 @@
 
 
     <!-- CRM Lead Management Package (Phase 1) -->
-    <package name="crm-lead" extends="luna2-default" namespace="/app/crm/leads">
+    <package name="crm-lead" extends="json-default,luna2-default" namespace="/app/crm/leads">
         <!-- LIST_LEAD - List all leads with filters -->
         <action name="list" class="it.zensoftware.luna2.action.LeadAction" method="list">
             <result name="success">/WEB-INF/jsp/crm/lead/list.jsp</result>
@@ -1115,7 +1127,7 @@
     </package>
 
     <!-- CRM Activity Management Package (Phase 1) -->
-    <package name="crm-activity" extends="luna2-default" namespace="/app/crm/activities">
+    <package name="crm-activity" extends="json-default,luna2-default" namespace="/app/crm/activities">
         <!-- LIST_ACTIVITY - List activities for a lead -->
         <action name="listByLead" class="it.zensoftware.luna2.action.ActivityAction" method="listByLead">
             <result name="success" type="json">

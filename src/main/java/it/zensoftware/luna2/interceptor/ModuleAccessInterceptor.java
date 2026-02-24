@@ -64,6 +64,9 @@ public class ModuleAccessInterceptor extends AbstractInterceptor {
         if (namespace.startsWith("/app/lead") || namespace.startsWith("/app/crm")) {
             return "CRM";
         }
+        if (namespace.startsWith("/app/noleggio")) {
+            return "CRM_BROKER_AUTO";
+        }
         if (namespace.startsWith("/app/produzione") || namespace.startsWith("/app/commesse")) {
             return "PRODUZIONE";
         }

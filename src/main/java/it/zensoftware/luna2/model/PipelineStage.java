@@ -42,7 +42,10 @@ public class PipelineStage implements Serializable {
     @Column(name = "data_modifica")
     private Date dataModifica;
 
-    @OneToMany(mappedBy = "pipelineStage", cascade = CascadeType.ALL, orphanRemoval = false)
+    // TODO: Lead pipelineStage mapping needs to be reviewed - commented out for now
+    // @OneToMany(mappedBy = "pipelineStage", cascade = CascadeType.ALL, orphanRemoval = false)
+    // private List<Lead> leads = new ArrayList<>();
+    @Transient
     private List<Lead> leads = new ArrayList<>();
 
     // Constructors

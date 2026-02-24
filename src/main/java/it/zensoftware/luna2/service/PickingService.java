@@ -56,7 +56,8 @@ public class PickingService {
         PickingList pickingList = new PickingList();
         pickingList.setNumero(generaNumeroPicking());
         pickingList.setOrdine(ordine);
-        pickingList.setWarehouse(ordine.getWarehouse());
+        // TODO: Warehouse mapping to be implemented - commented out
+        // pickingList.setWarehouse(ordine.getWarehouse());
         if (warehouseId != null) {
             it.zensoftware.luna2.model.Warehouse warehouse = new it.zensoftware.luna2.model.Warehouse();
             warehouse.setId(warehouseId);

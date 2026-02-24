@@ -53,6 +53,7 @@ public class LeadAction extends ActionSupport {
     
     public String list() {
         try {
+            initializeDaos();
             if (statoFiltro != null && !statoFiltro.isEmpty()) {
                 leads = leadDAO.findByStato(Lead.Stato.valueOf(statoFiltro));
             } else {
@@ -74,6 +75,7 @@ public class LeadAction extends ActionSupport {
 
     public String view() {
         try {
+            initializeDaos();
             if (id != null) {
                 lead = leadDAO.findById(id);
                 if (lead == null) {
@@ -97,6 +99,7 @@ public class LeadAction extends ActionSupport {
 
     public String edit() {
         try {
+            initializeDaos();
             if (id != null) {
                 lead = leadDAO.findById(id);
                 if (lead == null) {
@@ -114,6 +117,7 @@ public class LeadAction extends ActionSupport {
 
     public String save() {
         try {
+            initializeDaos();
             if (!validateLead()) {
                 return INPUT;
             }
@@ -144,6 +148,7 @@ public class LeadAction extends ActionSupport {
 
     public String delete() {
         try {
+            initializeDaos();
             if (id != null) {
                 Lead l = leadDAO.findById(id);
                 if (l != null) {
