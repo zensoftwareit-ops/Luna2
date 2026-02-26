@@ -7,74 +7,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ordini - Noleggio Auto</title>
+    <title>Ordini Noleggio - Luna2</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
-<div class="container-fluid mt-4">
-    <div class="row mb-4">
-        <div class="col-md-8">
-            <h1>Gestione Ordini - Noleggio Auto</h1>
-        </div>
-        <div class="col-md-4 text-end">
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ordineModal" onclick="newOrdine()">
-                <i class="bi bi-plus-circle"></i> Nuovo Ordine
-            </button>
-        </div>
-    </div>
+    <%@ include file="../WEB-INF/jsp/includes/sidebar.jsp" %>
 
-    <!-- Filtri -->
-    <div class="card mb-3">
-        <div class="card-body">
-            <form class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Stato</label>
-                    <select class="form-control" id="statusFiltro" onchange="loadOrdini()">
-                        <option value="">-- Tutti gli stati --</option>
-                        <option value="ORDINE_CREATO">Ordine Creato</option>
-                        <option value="IN_LAVORAZIONE">In Lavorazione</option>
-                        <option value="CONFERMATO">Confermato</option>
-                        <option value="CONSEGNATO">Consegnato</option>
-                    </select>
+    <div class="col-md-10 content-wrapper p-4">
+        <div class="container-fluid">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3"><i class="bi bi-truck me-2"></i>Gestione Ordini Noleggio</h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ordineModal" onclick="newOrdine()">
+                    <i class="bi bi-plus-circle me-1"></i>Nuovo Ordine
+                </button>
+            </div>
+
+            <!-- Filtri -->
+            <div class="card mb-3 shadow-sm">
+                <div class="card-body">
+                    <form class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Stato</label>
+                            <select class="form-select" id="statusFiltro" onchange="loadOrdini()">
+                                <option value="">— Tutti gli stati —</option>
+                                <option value="ORDINE_CREATO">Ordine Creato</option>
+                                <option value="IN_LAVORAZIONE">In Lavorazione</option>
+                                <option value="CONFERMATO">Confermato</option>
+                                <option value="CONSEGNATO">Consegnato</option>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Ricerca (Targa/Cliente)</label>
+                            <input type="text" class="form-control" id="searchTerm" placeholder="Ricerca...">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-success w-100" onclick="loadOrdini()">
+                                <i class="bi bi-search me-1"></i>Cerca
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <div class="col-md-5">
-                    <label class="form-label">Ricerca (Targa/Cliente)</label>
-                    <input type="text" class="form-control" id="searchTerm" placeholder="Ricerca...">
+            </div>
+
+            <!-- Avvisi Importanti -->
+            <div class="alert alert-danger alert-dismissible fade show" id="careCallAlert" style="display:none;" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>Care Call in Scadenza!</strong> <span id="careCallCount"></span> ordini richiedono una care call nei prossimi giorni.
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- Tabella Ordini -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Elenco Ordini</h5>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">&nbsp;</label>
-                    <button type="button" class="btn btn-success w-100" onclick="loadOrdini()">Cerca</button>
+                <div class="card-body">
+                    <table id="ordiniTable" class="table table-striped table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Numero</th>
+                                <th>Targa</th>
+                                <th>Cliente</th>
+                                <th>ETA Consegna</th>
+                                <th>Stato</th>
+                                <th>Care Call</th>
+                                <th class="text-end">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
-
-    <!-- Avvisi Importanti -->
-    <div class="alert alert-danger" id="careCallAlert" style="display:none;">
-        <strong>Care Call in Scadenza!</strong> <span id="careCallCount"></span> ordini richiedono unha care call nei prossimi giorni.
-    </div>
-
-    <!-- Tabella Ordini -->
-    <div class="card">
-        <div class="card-body">
-            <table id="ordiniTable" class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Numero Ordine</th>
-                        <th>Targa</th>
-                        <th>Cliente</th>
-                        <th>ETA Consegna</th>
-                        <th>Stato</th>
-                        <th>Care Call</th>
-                        <th>Azioni</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
-</div>
 
 <!-- Modal Ordine -->
 <div class="modal fade" id="ordineModal" tabindex="-1">

@@ -6,48 +6,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scadenzario - Manutenzione e Rinnovi</title>
+    <title>Scadenzario - Manutenzione e Rinnovi - Luna2</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
-<div class="container-fluid mt-4">
-    <h1>Scadenzario - Manutenzione e Rinnovi Contratti (Phase 5)</h1>
+    <%@ include file="../WEB-INF/jsp/includes/sidebar.jsp" %>
 
-    <!-- Bottone Automazione -->
-    <div class="mb-3">
-        <button class="btn btn-primary" onclick="runScheduleAutomation()">
-            <i class="bi bi-gear"></i> Esegui Automazione Scadenzario
-        </button>
-    </div>
+    <div class="col-md-10 content-wrapper p-4">
+        <div class="container-fluid">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3"><i class="bi bi-calendar-check me-2"></i>Scadenzario - Manutenzione e Rinnovi (Phase 5)</h1>
+                <button class="btn btn-primary" onclick="runScheduleAutomation()">
+                    <i class="bi bi-gear me-1"></i>Esegui Automazione
+                </button>
+            </div>
 
-    <!-- Summary Cards -->
-    <div class="row mb-3" id="summaryCards">
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h6>Rinnovi 4-6 mesi</h6>
-                    <h4 id="renewalsCount" class="text-danger">-</h4>
+            <!-- Summary Cards -->
+            <div class="row mb-4" id="summaryCards">
+                <div class="col-md-3">
+                    <div class="card border-danger">
+                        <div class="card-body text-center">
+                            <h6 class="card-title text-muted">Rinnovi (4-6 mesi)</h6>
+                            <h3 id="renewalsCount" class="text-danger">-</h3>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h6>Verifiche KM</h6>
-                    <h4 id="kmVerifCount" class="text-warning">-</h4>
+                <div class="col-md-3">
+                    <div class="card border-warning">
+                        <div class="card-body text-center">
+                            <h6 class="card-title text-muted">Verifiche KM</h6>
+                            <h3 id="kmVerifCount" class="text-warning">-</h3>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-2">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h6>Revisioni 30gg</h6>
-                    <h4 id="revisioniCount" class="text-info">-</h4>
+                <div class="col-md-3">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h6 class="card-title text-muted">Revisioni (30gg)</h6>
+                            <h3 id="revisioniCount" class="text-info">-</h3>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        <div class="col-md-2">
+                <div class="col-md-3">
             <div class="card text-center">
                 <div class="card-body">
                     <h6>Tagliandi 15gg</h6>

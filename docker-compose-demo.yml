@@ -1,0 +1,43 @@
+services:
+  luna2-mysql:
+    image: mysql:8.0
+    container_name: luna2-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: luna2
+      MYSQL_USER: luna2_user
+      MYSQL_PASSWORD: luna2_password
+      TZ: Europe/Rome
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  tomcat-demo:
+    image: tomcat:9.0
+    container_name: luna2-demo-tomcat
+    depends_on:
+      luna2-mysql:
+        condition: service_healthy
+    environment:
+      DB_HOST: luna2-mysql
+      DB_NAME: luna2
+      DB_USER: luna2
+      DB_PASSWORD: luna2pass
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./target/luna2.war:/usr/local/tomcat/webapps/ROOT.war
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mysql_data:

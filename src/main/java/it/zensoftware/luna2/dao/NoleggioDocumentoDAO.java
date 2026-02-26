@@ -27,7 +27,7 @@ public class NoleggioDocumentoDAO extends GenericDAOImpl<NoleggioDocumento, Long
     public List<NoleggioDocumento> findByLead(Long leadId) {
         try (Session session = getSession()) {
             Query<NoleggioDocumento> query = session.createQuery(
-                "FROM NoleggioDocumento WHERE lead.id = :leadId ORDER BY tipoDocumento ASC", 
+                "FROM NoleggioDocumento WHERE noleggioLeadId = :leadId ORDER BY tipoDocumento ASC",
                 NoleggioDocumento.class);
             query.setParameter("leadId", leadId);
             return query.list();
@@ -59,8 +59,8 @@ public class NoleggioDocumentoDAO extends GenericDAOImpl<NoleggioDocumento, Long
     public List<NoleggioDocumento> findMissingByLead(Long leadId) {
         try (Session session = getSession()) {
             Query<NoleggioDocumento> query = session.createQuery(
-                "FROM NoleggioDocumento WHERE lead.id = :leadId AND status IN (:statuses) " +
-                "ORDER BY dataRichiesta ASC", 
+                "FROM NoleggioDocumento WHERE noleggioLeadId = :leadId AND status IN (:statuses) " +
+                "ORDER BY dataRichiesta ASC",
                 NoleggioDocumento.class);
             query.setParameter("leadId", leadId);
             query.setParameterList("statuses", 
@@ -120,7 +120,7 @@ public class NoleggioDocumentoDAO extends GenericDAOImpl<NoleggioDocumento, Long
     public long countMissingByLead(Long leadId) {
         try (Session session = getSession()) {
             Query<Long> query = session.createQuery(
-                "SELECT COUNT(*) FROM NoleggioDocumento WHERE lead.id = :leadId " +
+                "SELECT COUNT(*) FROM NoleggioDocumento WHERE noleggioLeadId = :leadId " +
                 "AND status IN (:statuses)", Long.class);
             query.setParameter("leadId", leadId);
             query.setParameterList("statuses", 
@@ -138,7 +138,7 @@ public class NoleggioDocumentoDAO extends GenericDAOImpl<NoleggioDocumento, Long
     public boolean areAllDocumentsValidated(Long leadId) {
         try (Session session = getSession()) {
             Query<Long> query = session.createQuery(
-                "SELECT COUNT(*) FROM NoleggioDocumento WHERE lead.id = :leadId " +
+                "SELECT COUNT(*) FROM NoleggioDocumento WHERE noleggioLeadId = :leadId " +
                 "AND status != :status", Long.class);
             query.setParameter("leadId", leadId);
             query.setParameter("status", NoleggioDocumento.Status.VALIDATO);

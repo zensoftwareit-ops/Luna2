@@ -13,7 +13,7 @@ import java.util.Date;
  * @version 1.0
  */
 @Entity
-@Table(name = "noleggio_leads")
+@Table(name = "noleggio_lead")
 public class NoleggioLead implements Serializable {
 
     private static final long serialVersionUID = 1L;

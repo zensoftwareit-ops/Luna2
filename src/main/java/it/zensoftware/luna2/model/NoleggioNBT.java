@@ -662,6 +662,14 @@ public class NoleggioNBT implements Serializable {
         this.numeroPratica = numeroPratica;
     }
     
+    public Date getDataRichiesta() {
+        return dataRichiesta;
+    }
+    
+    public void setDataRichiesta(Date dataRichiesta) {
+        this.dataRichiesta = dataRichiesta;
+    }
+    
     public Status getStatus() {
         return status;
     }
@@ -718,5 +726,109 @@ public class NoleggioNBT implements Serializable {
     
     public void setUpdatedAt(Date updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getNomeCliente() {
+        return nomeCliente;
+    }
+
+    public void setNomeCliente(String nomeCliente) {
+        this.nomeCliente = nomeCliente;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getTelefono() {
+        return telefono;
+    }
+
+    public void setTelefono(String telefono) {
+        this.telefono = telefono;
+    }
+
+    public Date getPreventivoValidoFino() {
+        return preventivoValidoFino;
+    }
+
+    public void setPreventivoValidoFino(Date preventivoValidoFino) {
+        this.preventivoValidoFino = preventivoValidoFino;
+    }
+
+    public String getTargaAssegnata() {
+        return targaAssegnata;
+    }
+
+    public void setTargaAssegnata(String targaAssegnata) {
+        this.targaAssegnata = targaAssegnata;
+    }
+
+    public String getMarcaPreferita() {
+        return marcaPreferita;
+    }
+
+    public void setMarcaPreferita(String marcaPreferita) {
+        this.marcaPreferita = marcaPreferita;
+    }
+
+    public String getModelloPreferito() {
+        return modelloPreferito;
+    }
+
+    public void setModelloPreferito(String modelloPreferito) {
+        this.modelloPreferito = modelloPreferito;
+    }
+
+    public TipologiaNoleggio getTipologiaNoleggio() {
+        return tipologiaNoleggio;
+    }
+
+    public void setTipologiaNoleggio(TipologiaNoleggio tipologiaNoleggio) {
+        this.tipologiaNoleggio = tipologiaNoleggio;
+    }
+
+    public CategoriaVeicolo getCategoriaRichiesta() {
+        return categoriaRichiesta;
+    }
+
+    public void setCategoriaRichiesta(CategoriaVeicolo categoriaRichiesta) {
+        this.categoriaRichiesta = categoriaRichiesta;
+    }
+
+    public String getLuogoRitiro() {
+        return luogoRitiro;
+    }
+
+    public void setLuogoRitiro(String luogoRitiro) {
+        this.luogoRitiro = luogoRitiro;
+    }
+
+    public String getLuogoRiconsegna() {
+        return luogoRiconsegna;
+    }
+
+    public void setLuogoRiconsegna(String luogoRiconsegna) {
+        this.luogoRiconsegna = luogoRiconsegna;
+    }
+
+    public Boolean getAlertFollowup24hInviato() {
+        return alertFollowup24hInviato;
+    }
+
+    public void setAlertFollowup24hInviato(Boolean alertFollowup24hInviato) {
+        this.alertFollowup24hInviato = alertFollowup24hInviato;
+    }
+
+    public Boolean getAlertRestituzioneInviato() {
+        return alertRestituzioneInviato;
+    }
+
+    public void setAlertRestituzioneInviato(Boolean alertRestituzioneInviato) {
+        this.alertRestituzioneInviato = alertRestituzioneInviato;
     }
 }

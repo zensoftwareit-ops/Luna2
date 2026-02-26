@@ -83,8 +83,28 @@
                     </li>
                     <s:if test="#session.enabledModules['CRM_BROKER_AUTO']">
                         <li class="nav-item">
-                            <a class="nav-link" href="<s:url action='list' namespace='/app/lead'/>">
+                            <a class="nav-link" href="<s:url action='lead' namespace='/app/noleggio'/>">
                                 <i class="bi bi-car-front me-2"></i>CRM Broker Auto
+                            </a>
+                        </li>
+                        <li class="nav-item ms-3">
+                            <a class="nav-link" href="<s:url action='ordine' namespace='/app/noleggio'/>">
+                                <i class="bi bi-truck me-2"></i>Ordini Noleggio
+                            </a>
+                        </li>
+                        <li class="nav-item ms-3">
+                            <a class="nav-link" href="<s:url action='ticket' namespace='/app/noleggio'/>">
+                                <i class="bi bi-life-preserver me-2"></i>Ticket Assistenza
+                            </a>
+                        </li>
+                        <li class="nav-item ms-3">
+                            <a class="nav-link" href="<s:url action='scadenzario' namespace='/app/noleggio'/>">
+                                <i class="bi bi-calendar-check me-2"></i>Scadenzario
+                            </a>
+                        </li>
+                        <li class="nav-item ms-3">
+                            <a class="nav-link" href="<s:url action='nbt' namespace='/app/noleggio'/>">
+                                <i class="bi bi-clock-history me-2"></i>NBT Breve Termine
                             </a>
                         </li>
                     </s:if>

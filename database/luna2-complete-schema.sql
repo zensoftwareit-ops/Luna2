@@ -226,7 +226,7 @@ CREATE TABLE pipeline_stage (
     INDEX idx_sequenza (sequenza)
 );
 
-CREATE TABLE lead (
+CREATE TABLE `lead` (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     origine ENUM('FIERA', 'CAMPAGNA', 'PASSAPAROLA', 'WEBSITE', 'EMAIL', 'TELEFONO', 'ALTRO') NOT NULL,
     stato ENUM('NUOVO', 'CONTATTATO', 'QUALIFICATO', 'PREVENTIVO', 'NEGOZIAZIONE', 'VINTO', 'PERSO') NOT NULL DEFAULT 'NUOVO',
@@ -270,7 +270,7 @@ CREATE TABLE lead_tag (
     lead_id BIGINT NOT NULL,
     tag_id BIGINT NOT NULL,
     PRIMARY KEY (lead_id, tag_id),
-    FOREIGN KEY (lead_id) REFERENCES lead(id) ON DELETE CASCADE,
+    FOREIGN KEY (lead_id) REFERENCES `lead`(id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES tag(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -286,7 +286,7 @@ CREATE TABLE activity (
     data_prossima_attivita DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (lead_id) REFERENCES lead(id),
+    FOREIGN KEY (lead_id) REFERENCES `lead`(id),
     FOREIGN KEY (utente_id) REFERENCES users(id),
     INDEX idx_lead_id (lead_id),
     INDEX idx_utente_id (utente_id),
@@ -307,7 +307,7 @@ CREATE TABLE task (
     note TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (lead_id) REFERENCES lead(id),
+    FOREIGN KEY (lead_id) REFERENCES `lead`(id),
     FOREIGN KEY (assegnato_a) REFERENCES users(id),
     FOREIGN KEY (creato_da) REFERENCES users(id),
     INDEX idx_lead_id (lead_id),
@@ -325,7 +325,7 @@ CREATE TABLE storia_lead (
     motivo TEXT,
     data_cambio DATETIME NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (lead_id) REFERENCES lead(id),
+    FOREIGN KEY (lead_id) REFERENCES `lead`(id),
     FOREIGN KEY (utente_id) REFERENCES users(id),
     INDEX idx_lead_id (lead_id),
     INDEX idx_data_cambio (data_cambio)
@@ -345,7 +345,7 @@ CREATE TABLE reminder (
     letto BOOLEAN DEFAULT FALSE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (lead_id) REFERENCES lead(id),
+    FOREIGN KEY (lead_id) REFERENCES `lead`(id),
     FOREIGN KEY (utente_id) REFERENCES users(id),
     FOREIGN KEY (activity_id) REFERENCES activity(id),
     FOREIGN KEY (task_id) REFERENCES task(id),
@@ -392,7 +392,7 @@ CREATE TABLE preventivi (
     INDEX idx_stato (stato),
     INDEX idx_data (data_preventivo),
     FOREIGN KEY (cliente_id) REFERENCES clienti(id),
-    FOREIGN KEY (lead_id) REFERENCES lead(id),
+    FOREIGN KEY (lead_id) REFERENCES `lead`(id),
     FOREIGN KEY (created_by) REFERENCES users(id),
     FOREIGN KEY (modified_by) REFERENCES users(id)
 ) ENGINE=InnoDB;
@@ -773,10 +773,10 @@ CREATE TABLE calendar_events (
 -- DATA INITIALIZATION
 -- ============================================================
 
--- Insert default admin user (password: Admin@123456)
+-- Insert default admin user (password: admin123)
 -- Generated with BCrypt ($2a$10$ = 10 rounds)
 INSERT INTO users (username, password, email, nome, cognome, ruolo, attivo)
-VALUES ('admin', '$2a$10$7PJKF5IXtYt5LVLnBd/XB.b3lZ9.kUlp9p5oFJZHx9qSrKVJ3KjNi', 'admin@luna2.local', 'Admin', 'Luna2', 'ADMIN', TRUE);
+VALUES ('admin', '$2a$10$Dt/TJ065SLL2PaboT7ZdcuO0ugvG1uAxSM8SVfts9zdR0C7eUtbrC', 'admin@luna2.local', 'Admin', 'Luna2', 'ADMIN', TRUE);
 
 -- Insert test user (password: User@123456)
 INSERT INTO users (username, password, email, nome, cognome, ruolo, attivo)
@@ -832,7 +832,7 @@ SELECT
     COUNT(DISTINCT l.id) as count_leads,
     AVG(l.probabilita_chiusura) as avg_probability,
     SUM(l.budget_stimato) as total_value
-FROM lead l
+FROM `lead` l
 LEFT JOIN pipeline_stage ps ON l.stato = ps.nome
 GROUP BY ps.nome, ps.colore, ps.sequenza
 ORDER BY ps.sequenza;

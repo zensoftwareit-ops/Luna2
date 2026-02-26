@@ -9,7 +9,7 @@ import java.util.*;
  * Entity class for Lead
  */
 @Entity
-@Table(name = "lead")
+@Table(name = "`lead`")
 public class Lead implements Serializable {
     
     private static final long serialVersionUID = 1L;

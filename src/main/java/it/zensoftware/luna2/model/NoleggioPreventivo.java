@@ -105,6 +105,10 @@ public class NoleggioPreventivo implements Serializable {
     @Column(name = "data_risposta")
     private Date dataRisposta;
 
+    @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "ultimo_followup")
+    private Date ultimoFollowup;
+
     @Temporal(TemporalType.DATE)
     @Column(name = "scadenza_validita")
     private Date scadenzaValidita;
@@ -396,6 +400,14 @@ public class NoleggioPreventivo implements Serializable {
 
     public void setDataRisposta(Date dataRisposta) {
         this.dataRisposta = dataRisposta;
+    }
+
+    public Date getUltimoFollowup() {
+        return ultimoFollowup;
+    }
+
+    public void setUltimoFollowup(Date ultimoFollowup) {
+        this.ultimoFollowup = ultimoFollowup;
     }
 
     public Date getScadenzaValidita() {

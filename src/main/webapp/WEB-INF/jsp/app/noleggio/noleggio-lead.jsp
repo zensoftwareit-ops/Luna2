@@ -12,7 +12,7 @@
     <link href="https://cdn.jsdelivr.net/npm/datatables.net-bs5@1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
-<%@ include file="/WEB-INF/jsp/includes/sidebar.jsp" %>
+<%@ include file="../../includes/sidebar.jsp" %>
 
 <div class="col-md-10 content-wrapper p-4">
     <div class="container-fluid">
@@ -118,9 +118,6 @@
             </div>
         </div>
     </div>
-        </div>
-    </div>
-</div>
 </div>
 
 <!-- Create Lead Modal -->
@@ -184,6 +181,10 @@
             </form>
         </div>
     </div>
+</div>
+        </div>
+    </div>
+</div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.0/dist/jquery.min.js"></script>

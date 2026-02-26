@@ -6,78 +6,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticket - Post-Vendita</title>
+    <title>Ticket Assistenza - Noleggio - Luna2</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
 </head>
 <body>
-<div class="container-fluid mt-4">
-    <h1>Gestione Ticket - Post-Vendita (Phase 4)</h1>
+    <%@ include file="../WEB-INF/jsp/includes/sidebar.jsp" %>
 
-    <!-- Avvisi Critici -->
-    <div class="alert alert-danger" id="antiBounceAlert" style="display:none;">
-        <strong>Anti-Rimbalzo Attivi!</strong> <span id="antiBounceCount"></span> ticket hanno finestra di 48-72h
-    </div>
-    <div class="alert alert-warning" id="slaAlert" style="display:none;">
-        <strong>SLA Ecceduti!</strong> <span id="slaCount"></span> ticket hanno SLA scaduto
-    </div>
+    <div class="col-md-10 content-wrapper p-4">
+        <div class="container-fluid">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3"><i class="bi bi-life-preserver me-2"></i>Gestione Ticket - Post-Vendita (Phase 4)</h1>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#ticketModal" onclick="newTicket()">
+                    <i class="bi bi-plus-circle me-1"></i>Nuovo Ticket
+                </button>
+            </div>
 
-    <!-- Filtri -->
-    <div class="card mb-3">
-        <div class="card-body">
-            <form class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label">Stato</label>
-                    <select class="form-control" id="statusFiltro" onchange="loadTickets()">
-                        <option value="">Tutti</option>
-                        <option value="APERTO">Aperto</option>
-                        <option value="IN_LAVORAZIONE">In Lavorazione</option>
-                        <option value="RISOLTO">Risolto</option>
-                        <option value="CHIUSO">Chiuso</option>
-                    </select>
+            <!-- Avvisi Critici -->
+            <div class="alert alert-danger alert-dismissible fade show" id="antiBounceAlert" style="display:none;" role="alert">
+                <i class="bi bi-exclamation-octagon-fill me-2"></i>
+                <strong>Anti-Rimbalzo Attivi!</strong> <span id="antiBounceCount"></span> ticket hanno finestra di 48-72h
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <div class="alert alert-warning alert-dismissible fade show" id="slaAlert" style="display:none;" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>SLA Ecceduti!</strong> <span id="slaCount"></span> ticket hanno SLA scaduto
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- Filtri -->
+            <div class="card mb-3 shadow-sm">
+                <div class="card-body">
+                    <form class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Stato</label>
+                            <select class="form-select" id="statusFiltro" onchange="loadTickets()">
+                                <option value="">Tutti</option>
+                                <option value="APERTO">Aperto</option>
+                                <option value="IN_LAVORAZIONE">In Lavorazione</option>
+                                <option value="RISOLTO">Risolto</option>
+                                <option value="CHIUSO">Chiuso</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Priorità</label>
+                            <select class="form-select" id="prioritaFiltro" onchange="loadTickets()">
+                                <option value="">Tutte</option>
+                                <option value="BASSA">Bassa</option>
+                                <option value="MEDIA">Media</option>
+                                <option value="ALTA">Alta</option>
+                                <option value="CRITICA">Critica</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Ricerca</label>
+                            <input type="text" class="form-control" id="searchTerm" placeholder="Numero ticket, oggetto...">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-success w-100" onclick="loadTickets()">
+                                <i class="bi bi-search me-1"></i>Cerca
+                            </button>
+                        </div>
+                    </form>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">Priorità</label>
-                    <select class="form-control" id="prioritaFiltro" onchange="loadTickets()">
-                        <option value="">Tutte</option>
-                        <option value="BASSA">Bassa</option>
-                        <option value="MEDIA">Media</option>
-                        <option value="ALTA">Alta</option>
-                        <option value="CRITICA">Critica</option>
-                    </select>
+            </div>
+
+            <!-- Tabella Ticket -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="bi bi-list-ul me-2"></i>Elenco Ticket Assistenza</h5>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Ricerca</label>
-                    <input type="text" class="form-control" id="searchTerm" placeholder="Numero ticket, oggetto...">
+                <div class="card-body">
+                    <table id="ticketsTable" class="table table-striped table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Numero</th>
+                                <th>Oggetto</th>
+                                <th>Priorità</th>
+                                <th>Stato</th>
+                                <th>Assegnato</th>
+                                <th>Creazione</th>
+                                <th class="text-end">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
                 </div>
-                <div class="col-md-2">
-                    <label class="form-label">&nbsp;</label>
-                    <button type="button" class="btn btn-success w-100" onclick="loadTickets()">Cerca</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
-
-    <!-- Tabella Ticket -->
-    <div class="card">
-        <div class="card-body">
-            <table id="ticketsTable" class="table table-striped">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Numero Ticket</th>
-                        <th>Oggetto</th>
-                        <th>Priorità</th>
-                        <th>Stato</th>
-                        <th>Assegnato a</th>
-                        <th>Data Creazione</th>
-                        <th>Azioni</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-    </div>
-</div>
 
 <!-- Modal Ticket -->
 <div class="modal fade" id="ticketModal" tabindex="-1">
@@ -110,6 +130,8 @@ $(document).ready(function() {
     loadTickets();
     checkAlerts();
 });
+
+let currentTicketId = null;
 
 function loadTickets() {
     $.ajax({
@@ -175,6 +197,7 @@ function checkAlerts() {
 }
 
 function viewTicket(id) {
+    currentTicketId = id;
     $.ajax({
         url: '<s:url action="noleggioTicketAction_view" />',
         type: 'GET',
@@ -200,11 +223,11 @@ function viewTicket(id) {
 
 function reopenTicket() {
     let motivo = prompt('Motivo riapertura:');
-    if (motivo) {
+    if (motivo && currentTicketId) {
         $.ajax({
             url: '<s:url action="noleggioTicketAction_reopen" />',
             type: 'POST',
-            data: { motivo: motivo },
+            data: { id: currentTicketId, motivo: motivo },
             success: function() {
                 alert('Ticket riaperto');
                 loadTickets();
@@ -216,11 +239,11 @@ function reopenTicket() {
 
 function closeTicket() {
     let soluzione = prompt('Soluzione adottata:');
-    if (soluzione) {
+    if (soluzione && currentTicketId) {
         $.ajax({
             url: '<s:url action="noleggioTicketAction_close" />',
             type: 'POST',
-            data: { soluzioneAdottata: soluzione },
+            data: { id: currentTicketId, soluzioneAdottata: soluzione },
             success: function() {
                 alert('Ticket chiuso');
                 loadTickets();
@@ -231,11 +254,11 @@ function closeTicket() {
 
 function escalateTicket() {
     let motivo = prompt('Motivo escalation:');
-    if (motivo) {
+    if (motivo && currentTicketId) {
         $.ajax({
             url: '<s:url action="noleggioTicketAction_escalate" />',
             type: 'POST',
-            data: { motivo: motivo },
+            data: { id: currentTicketId, motivo: motivo },
             success: function() {
                 alert('Ticket escalato');
                 loadTickets();

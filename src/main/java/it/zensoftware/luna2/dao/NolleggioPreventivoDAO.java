@@ -27,7 +27,7 @@ public class NolleggioPreventivoDAO extends GenericDAOImpl<NoleggioPreventivo, L
     public List<NoleggioPreventivo> findByLead(Long leadId) {
         try (Session session = getSession()) {
             Query<NoleggioPreventivo> query = session.createQuery(
-                "FROM NoleggioPreventivo WHERE lead.id = :leadId ORDER BY numeroVersione DESC, createdAt DESC", 
+                "FROM NoleggioPreventivo WHERE noleggioLeadId = :leadId ORDER BY versione DESC, dataElaborazione DESC",
                 NoleggioPreventivo.class);
             query.setParameter("leadId", leadId);
             return query.list();
@@ -43,7 +43,7 @@ public class NolleggioPreventivoDAO extends GenericDAOImpl<NoleggioPreventivo, L
     public List<NoleggioPreventivo> findByStatus(NoleggioPreventivo.Status status) {
         try (Session session = getSession()) {
             Query<NoleggioPreventivo> query = session.createQuery(
-                "FROM NoleggioPreventivo WHERE status = :status ORDER BY dataCreazione DESC", 
+                "FROM NoleggioPreventivo WHERE status = :status ORDER BY dataElaborazione DESC",
                 NoleggioPreventivo.class);
             query.setParameter("status", status);
             return query.list();
@@ -63,7 +63,7 @@ public class NolleggioPreventivoDAO extends GenericDAOImpl<NoleggioPreventivo, L
             
             Query<NoleggioPreventivo> query = session.createQuery(
                 "FROM NoleggioPreventivo WHERE status = :status AND dataInvio <= :twoDaysAgo " +
-                "AND ultimoFollowup IS NULL ORDER BY dataInvio ASC", 
+                "AND ultimoFollowup IS NULL ORDER BY dataInvio ASC",
                 NoleggioPreventivo.class);
             query.setParameter("status", NoleggioPreventivo.Status.INVIATO);
             query.setParameter("twoDaysAgo", twoDaysAgo);
@@ -80,7 +80,7 @@ public class NolleggioPreventivoDAO extends GenericDAOImpl<NoleggioPreventivo, L
     public NoleggioPreventivo findLatestVersionByLead(Long leadId) {
         try (Session session = getSession()) {
             Query<NoleggioPreventivo> query = session.createQuery(
-                "FROM NoleggioPreventivo WHERE lead.id = :leadId ORDER BY numeroVersione DESC", 
+                "FROM NoleggioPreventivo WHERE noleggioLeadId = :leadId ORDER BY versione DESC",
                 NoleggioPreventivo.class);
             query.setParameter("leadId", leadId);
             query.setMaxResults(1);

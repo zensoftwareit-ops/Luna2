@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS noleggio_valutazione (
     
     -- Financial Assessment
     fatturato_annuale DECIMAL(15,2),
-    utile_netto ANNUALE DECIMAL(15,2),
+    utile_netto_annuale DECIMAL(15,2),
     rating_solvibilita ENUM('ECCELLENTE', 'BUONO', 'ACCETTABILE', 'INSUFFICIENTE') NOT NULL DEFAULT 'BUONO',
     
     -- Risk Evaluation
@@ -282,7 +282,7 @@ CREATE TABLE IF NOT EXISTS noleggio_ticket (
     INDEX idx_operatore_assegnato_id (operatore_assegnato_id),
     INDEX idx_data_creazione (data_creazione),
     INDEX idx_flag_anti_rimbalzo (flag_anti_rimbalzo),
-    FOREIGN KEY (contratto_id) REFERENCES noleggio_contratto(id),
+    -- FOREIGN KEY (contratto_id) REFERENCES noleggio_contratto(id), -- Rimosso per evitare dipendenza circolare
     FOREIGN KEY (ordine_id) REFERENCES noleggio_ordine(id),
     FOREIGN KEY (operatore_assegnato_id) REFERENCES users(id),
     FOREIGN KEY (utente_creazione_id) REFERENCES users(id)
@@ -454,15 +454,15 @@ CREATE TABLE IF NOT EXISTS noleggio_nbt (
 
 -- ============== MODULE ACTIVATION ==============
 
--- Insert module settings for broker noleggio activation
-INSERT INTO module_settings (module_name, enabled, description, created_by, data_creazione)
+-- Ensure Broker Auto module is enabled
+INSERT INTO module_settings (code, name, description, enabled, updated_at)
 VALUES 
-    ('NOLEGGIO_AUTO', TRUE, 'Broker Rental Car Management - 5 Phases + NBT', 1, CURRENT_TIMESTAMP),
-    ('NOLEGGIO_AUTOMATION', TRUE, 'Automation Engine - Hourly cron jobs', 1, CURRENT_TIMESTAMP),
-    ('NOLEGGIO_CALENDAR_SYNC', TRUE, 'Calendar Integration - Google Calendar + iCloud', 1, CURRENT_TIMESTAMP),
-    ('NOLEGGIO_NOTIFICATIONS', TRUE, 'Push Notifications - WebSocket/SSE real-time alerts', 1, CURRENT_TIMESTAMP),
-    ('NOLEGGIO_ANTI_BOUNCE', TRUE, 'Anti-Bounce Detection - 48-72h window protection', 1, CURRENT_TIMESTAMP)
-ON DUPLICATE KEY UPDATE enabled=VALUES(enabled);
+    ('CRM_BROKER_AUTO', 'CRM Broker Auto', 'Broker Rental Car Management - 5 Phases + NBT', TRUE, CURRENT_TIMESTAMP)
+ON DUPLICATE KEY UPDATE
+    name = VALUES(name),
+    description = VALUES(description),
+    enabled = VALUES(enabled),
+    updated_at = CURRENT_TIMESTAMP;
 
 -- ============== INDEXES FOR AUTOMATION QUERIES ==============
 

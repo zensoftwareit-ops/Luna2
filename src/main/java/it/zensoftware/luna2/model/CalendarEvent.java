@@ -57,7 +57,15 @@ public class CalendarEvent {
     private LocalDateTime updatedAt = LocalDateTime.now();
 
     public enum SourceType {
-        REMINDER, TASK, MEETING
+        REMINDER,
+        TASK,
+        MEETING,
+        NOLEGGIO_RINNOVO,
+        NOLEGGIO_VERIFICA_KM,
+        NOLEGGIO_REVISIONE,
+        NOLEGGIO_TAGLIANDO,
+        NOLEGGIO_PATENTE,
+        NOLEGGIO_ASSICURAZIONE
     }
 
     public enum Status {

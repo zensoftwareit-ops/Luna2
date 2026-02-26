@@ -662,7 +662,7 @@ CREATE TABLE calendar_events (
 
 -- Insert default admin user (password: admin123)
 INSERT INTO users (username, password, email, nome, cognome, ruolo, attivo)
-VALUES ('admin', '$2a$10$7PJKF5IXtYt5LVLnBd/XB.b3lZ9.kUlp9p5oFJZHx9qSrKVJ3KjNi', 'admin@luna2.local', 'Admin', 'Luna2', 'ADMIN', TRUE);
+VALUES ('admin', '$2a$10$Dt/TJ065SLL2PaboT7ZdcuO0ugvG1uAxSM8SVfts9zdR0C7eUtbrC', 'admin@luna2.local', 'Admin', 'Luna2', 'ADMIN', TRUE);
 
 -- Insert default configuration
 INSERT INTO azienda (ragione_sociale, partita_iva, email)

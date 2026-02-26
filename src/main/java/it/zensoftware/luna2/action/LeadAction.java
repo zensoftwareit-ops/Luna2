@@ -4,6 +4,7 @@ import com.opensymphony.xwork2.ActionSupport;
 import it.zensoftware.luna2.dao.*;
 import it.zensoftware.luna2.model.*;
 import it.zensoftware.luna2.service.LeadService;
+import it.zensoftware.luna2.util.HibernateUtil;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.struts2.ServletActionContext;
@@ -344,7 +345,10 @@ public class LeadAction extends ActionSupport {
         if (leadDAO == null) {
             leadDAO = new LeadDAO();
         }
-        if (leadService == null && sessionFactory != null) {
+        if (sessionFactory == null) {
+            sessionFactory = HibernateUtil.getSessionFactory();
+        }
+        if (leadService == null) {
             leadService = new LeadService(sessionFactory);
         }
     }

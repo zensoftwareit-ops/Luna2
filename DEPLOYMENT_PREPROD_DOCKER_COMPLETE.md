@@ -201,7 +201,7 @@ services:
     environment:
       TZ: Europe/Rome
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -337,7 +337,9 @@ create_instance() {
     local DB_PASS="$3"
     local INSTANCE_NAME="${CLIENT_NAME}-luna2"
     local INSTANCE_DIR="$INSTANCES_DIR/$INSTANCE_NAME"
-    local PORT=$((9100 + $(ls -1 $INSTANCES_DIR | wc -l)))
+    local INSTANCE_COUNT=$(ls -1 $INSTANCES_DIR 2>/dev/null | wc -l)
+    local DB_PORT=$((3306 + INSTANCE_COUNT))
+    local APP_PORT=$((9100 + INSTANCE_COUNT))
 
     if [ -z "$CLIENT_NAME" ] || [ -z "$DOMAIN" ] || [ -z "$DB_PASS" ]; then
         echo -e "${RED}[ERR] Uso: $0 create CLIENT_NAME DOMAIN DB_PASS${NC}"
@@ -366,7 +368,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASS}
       TZ: Europe/Rome
     ports:
-      - "33060$(($(echo $INSTANCE_NAME | sum | cut -d' ' -f1) % 10)):3306"
+      - "${DB_PORT}:3306"
     volumes:
       - ./data/mysql:/var/lib/mysql
     networks:
@@ -546,6 +548,35 @@ docker ps | grep luna2
 
 ---
 
+**⚠️ TROUBLESHOOTING: Errore "port 80 already in use"**
+
+Se ricevi errore `address already in use` sulla porta 80:
+
+```bash
+# 1. Identifica il processo
+sudo lsof -i :80
+
+# 2a. Se Apache/Nginx, stoppalo:
+sudo systemctl stop apache2 nginx
+sudo systemctl disable apache2 nginx
+
+# 2b. Se container Docker, stoppalo:
+docker ps | grep -E "80|443"
+docker stop <container-name>
+
+# 3. Riprova docker compose
+docker compose up -d
+```
+
+**Alternativa:** Modifica le porte in `/opt/luna2/gateway/docker-compose.yml`:
+```yaml
+ports:
+  - "8080:80"    # Cambia da 80 a 8080
+  - "8443:443"   # Cambia da 443 a 8443
+```
+
+---
+
 ### STEP 12: Configura SSL (Let's Encrypt)
 
 ```bash
@@ -571,8 +602,11 @@ sudo chmod 644 /opt/luna2/gateway/nginx/ssl/*
 ```bash
 docker exec luna2-nginx-gateway nginx -s reload
 
-# Verifica
+# Verifica che il reload sia avvenuto
 docker logs luna2-nginx-gateway | tail -10
+
+# Se vedi errori di reload, controlla la config:
+docker exec luna2-nginx-gateway nginx -t
 ```
 
 ---
@@ -580,10 +614,16 @@ docker logs luna2-nginx-gateway | tail -10
 ### STEP 14: Health Check Gateway
 
 ```bash
+# Aspetta 5 secondi per il reload
+sleep 5
+
 # Verifica porta 80
 curl -I http://localhost/
 
 # Output atteso: HTTP/1.1 404 Not Found (normale, nessun domain configurato)
+
+# Verifica che il container sia in running
+docker ps | grep luna2-nginx-gateway
 ```
 
 ---
@@ -643,30 +683,27 @@ networks:
 
 ```javascript
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
 const { execSync } = require('child_process');
-const docker = require('dockerode');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const d = new docker({ socketPath: '/var/run/docker.sock' });
 
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.urlencoded({ extended: true }));
 app.set('view engine', 'ejs');
 
 // Dashboard
-app.get('/', async (req, res) => {
+app.get('/', (req, res) => {
     try {
-        const containers = await d.listContainers({ all: true });
-        const luna2Containers = containers.filter(c =>
-            c.Names[0].includes('luna2') || c.Names[0].includes('mysql')
-        );
-
-        res.render('dashboard', { containers: luna2Containers });
+        const output = execSync('docker ps -a --format "{{.Names}}\t{{.Status}}"', { encoding: 'utf8' });
+        const containers = output.trim().split('\n').filter(l => l.includes('luna2-')).map(line => {
+            const [name, status] = line.split('\t');
+            return { name, status };
+        });
+        res.render('dashboard', { containers });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.render('dashboard', { containers: [] });
     }
 });
 
@@ -679,12 +716,30 @@ app.post('/api/instances/create', (req, res) => {
     }
 
     try {
+        console.log(`[*] Generazione certificato SSL per ${domain}...`);
+        
+        // Step 1: Genera certificato SSL
+        try {
+            execSync(
+                `sudo certbot certonly --standalone -d ${domain} --agree-tos -n -m admin@gestionaleluna.it 2>&1`,
+                { encoding: 'utf8' }
+            );
+            console.log(`[✓] Certificato generato per ${domain}`);
+        } catch (err) {
+            if (!err.message.includes('Cert not yet due for renewal')) {
+                console.warn(`[!] Certificato: ${err.message.substring(0, 100)}`);
+            }
+        }
+
+        // Step 2: Crea istanza
+        console.log(`[*] Creazione istanza ${clientName}...`);
         const script = '/opt/luna2/scripts/manage-instance.sh';
-        execSync(`${script} create ${clientName} ${domain} ${dbPassword}`);
+        execSync(`${script} create ${clientName} ${domain} ${dbPassword}`, { encoding: 'utf8' });
+        console.log(`[✓] Istanza creata`);
 
         res.json({ 
             success: true,
-            message: `Instance created: ${domain}`,
+            message: `Istanza creata: ${domain}`,
             accessPoints: {
                 app: `https://${domain}`,
                 phpmyadmin: `https://${domain}/phpmyadmin/`,
@@ -693,23 +748,19 @@ app.post('/api/instances/create', (req, res) => {
             }
         });
     } catch (err) {
+        console.error(`[✗] Errore: ${err.message}`);
         res.status(500).json({ error: err.message });
     }
 });
 
 // API: List istanze
-app.get('/api/instances', async (req, res) => {
+app.get('/api/instances', (req, res) => {
     try {
-        const containers = await d.listContainers({ all: true });
-        const instances = containers
-            .filter(c => c.Names[0].includes('luna2-'))
-            .map(c => ({
-                name: c.Names[0],
-                status: c.State,
-                image: c.Image,
-                ports: c.Ports
-            }));
-
+        const output = execSync('docker ps -a --filter "name=luna2-" --format "{{.Names}}\t{{.Status}}"', { encoding: 'utf8' });
+        const instances = output.trim().split('\n').filter(l => l).map(line => {
+            const [name, status] = line.split('\t');
+            return { name, status };
+        });
         res.json(instances);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -717,12 +768,11 @@ app.get('/api/instances', async (req, res) => {
 });
 
 // API: Logs istanza
-app.get('/api/instances/:name/logs', async (req, res) => {
+app.get('/api/instances/:name/logs', (req, res) => {
     try {
-        const container = d.getContainer(req.params.name);
-        const logs = await container.logs({ stdout: true, stderr: true });
+        const logs = execSync(`docker logs ${req.params.name}`, { encoding: 'utf8' });
         res.set('Content-Type', 'text/plain');
-        res.send(logs.toString());
+        res.send(logs);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -756,8 +806,7 @@ app.listen(PORT, () => {
   },
   "dependencies": {
     "express": "^4.18.2",
-    "ejs": "^3.1.8",
-    "dockerode": "^4.0.2"
+    "ejs": "^3.1.8"
   }
 }
 ```
@@ -777,7 +826,10 @@ app.listen(PORT, () => {
     <style>
         body { background: #f8f9fa; }
         .navbar { background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); }
-        .card { border-left: 4px solid #667eea; }
+        .card { border-left: 4px solid #667eea; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .spinner-box { display: none; text-align: center; padding: 20px; }
+        .success-box { display: none; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 15px; color: #155724; }
+        .error-box { display: none; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; color: #721c24; }
     </style>
 </head>
 <body>
@@ -792,25 +844,57 @@ app.listen(PORT, () => {
                 <h5 class="mb-0">➕ Crea Nuova Istanza Client</h5>
             </div>
             <div class="card-body">
-                <form id="createForm">
+                <div class="spinner-box" id="spinnerBox">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p id="spinnerText">Generazione certificato SSL e creazione istanza...</p>
+                </div>
+
+                <div class="success-box" id="successBox">
+                    <h5>✓ Istanza creata con successo!</h5>
+                    <p id="successMessage"></p>
+                    <div class="alert alert-info mt-3">
+                        <strong>Credenziali:</strong>
+                        <ul style="margin-bottom: 0;">
+                            <li>DB User: <code>luna2_user</code></li>
+                            <li>DB Password: <code id="successPassword"></code></li>
+                            <li>App: <code id="successApp"></code></li>
+                            <li>PhpMyAdmin: <code id="successPhpMyAdmin"></code></li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="error-box" id="errorBox">
+                    <h5>✗ Errore durante la creazione</h5>
+                    <p id="errorMessage"></p>
+                </div>
+
+                <form id="createForm" style="display: block;">
                     <div class="row">
                         <div class="col-md-4">
                             <label class="form-label">Nome Client</label>
                             <input type="text" class="form-control" id="clientName" 
-                                   placeholder="es. acmecorp" required>
+                                   placeholder="es. acmecorp" pattern="[A-Za-z0-9]+" required>
+                            <small class="text-muted">Solo lettere e numeri</small>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">Dominio</label>
                             <input type="text" class="form-control" id="domain"
-                                   placeholder="es. acmecorp.com" required>
+                                   placeholder="es. acmecorp.gestionaleluna.it" required>
+                            <small class="text-muted">FQDN completo</small>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">DB Password</label>
                             <input type="password" class="form-control" id="dbPassword"
-                                   placeholder="Strong password!" required>
+                                   placeholder="Min 12 caratteri" minlength="12" required>
+                            <small class="text-muted">Password sicura</small>
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-success mt-3">Crea Istanza</button>
+                    <button type="submit" class="btn btn-success mt-3" id="submitBtn">
+                        🚀 Crea Istanza
+                    </button>
+                    <button type="reset" class="btn btn-secondary mt-3">Cancella</button>
                 </form>
             </div>
         </div>
@@ -826,7 +910,6 @@ app.listen(PORT, () => {
                         <tr>
                             <th>Nome</th>
                             <th>Status</th>
-                            <th>Porte</th>
                             <th>Azioni</th>
                         </tr>
                     </thead>
@@ -844,11 +927,11 @@ app.listen(PORT, () => {
                 const tbody = $('#instancesTable tbody');
                 tbody.empty();
                 instances.forEach(inst => {
+                    const status = inst.status.includes('Up') ? 'bg-success' : 'bg-danger';
                     tbody.append(`
                         <tr>
                             <td><strong>${inst.name}</strong></td>
-                            <td><span class="badge ${inst.status === 'running' ? 'bg-success' : 'bg-danger'}">${inst.status}</span></td>
-                            <td>${JSON.stringify(inst.ports)}</td>
+                            <td><span class="badge ${status}">${inst.status}</span></td>
                             <td>
                                 <button class="btn btn-sm btn-info" onclick="viewLogs('${inst.name}')">Logs</button>
                             </td>
@@ -861,24 +944,56 @@ app.listen(PORT, () => {
         // Create instance
         $('#createForm').submit(function(e) {
             e.preventDefault();
+            
+            const clientName = $('#clientName').val();
+            const domain = $('#domain').val();
+            const dbPassword = $('#dbPassword').val();
+
+            // Show spinner
+            $('#createForm').hide();
+            $('#spinnerBox').show();
+            $('#successBox').hide();
+            $('#errorBox').hide();
+
             $.ajax({
                 type: 'POST',
                 url: '/api/instances/create',
                 contentType: 'application/json',
                 data: JSON.stringify({
-                    clientName: $('#clientName').val(),
-                    domain: $('#domain').val(),
-                    dbPassword: $('#dbPassword').val()
+                    clientName: clientName,
+                    domain: domain,
+                    dbPassword: dbPassword
                 }),
+                timeout: 300000, // 5 minuti
                 success: function(data) {
-                    alert('✓ ' + data.message + '\n\nAccesso:\n' +
-                          'App: ' + data.accessPoints.app + '\n' +
-                          'PhpMyAdmin: ' + data.accessPoints.phpmyadmin);
-                    $('#createForm')[0].reset();
+                    $('#spinnerBox').hide();
+                    $('#successBox').show();
+                    $('#successMessage').html(`Istanza <strong>${domain}</strong> creata con successo!`);
+                    $('#successPassword').text(dbPassword);
+                    $('#successApp').text(`https://${domain}`);
+                    $('#successPhpMyAdmin').text(`https://${domain}/phpmyadmin/`);
+                    
                     loadInstances();
+                    
+                    setTimeout(function() {
+                        $('#successBox').hide();
+                        $('#createForm').show();
+                        $('#createForm')[0].reset();
+                    }, 8000);
                 },
-                error: function(err) {
-                    alert('✗ Errore: ' + err.responseJSON.error);
+                error: function(xhr) {
+                    $('#spinnerBox').hide();
+                    $('#errorBox').show();
+                    let errMsg = 'Errore sconosciuto';
+                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                        errMsg = xhr.responseJSON.error;
+                    }
+                    $('#errorMessage').text(errMsg);
+                    
+                    setTimeout(function() {
+                        $('#errorBox').hide();
+                        $('#createForm').show();
+                    }, 5000);
                 }
             });
         });
@@ -890,7 +1005,7 @@ app.listen(PORT, () => {
 
         // Load at startup
         loadInstances();
-        setInterval(loadInstances, 30000); // Refresh ogni 30s
+        setInterval(loadInstances, 30000);
     </script>
 </body>
 </html>
@@ -911,6 +1026,19 @@ npm start
 
 # Output atteso:
 # ✓ Management Panel online: http://localhost:5000
+```
+
+Nota: `npm start` resta in esecuzione finche il pannello e attivo. Se vuoi lasciarlo in background:
+
+```bash
+nohup npm start > /opt/luna2/logs/management-panel.log 2>&1 &
+```
+
+In alternativa, puoi avviarlo con Docker:
+
+```bash
+cd /opt/luna2/management
+docker compose up -d
 ```
 
 Accedi da: `http://server-ip:5000`

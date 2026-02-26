@@ -28,7 +28,7 @@
                 <interceptor-ref name="authentication"/>
                 <interceptor-ref name="moduleAccess"/>
                 <interceptor-ref name="token">
-                    <param name="excludeMethods">execute,list,view,find,search,dashboard,index,create,edit,pipeline,export</param>
+                    <param name="excludeMethods">execute,list,view,find,search,dashboard,index,create,edit,pipeline,export,save,delete,registerCareCall,reopen,close,escalate,createEvent,runAutomation</param>
                 </interceptor-ref>
                 <interceptor-ref name="defaultStack"/>
             </interceptor-stack>
@@ -1047,6 +1047,211 @@
             <result name="success">/WEB-INF/jsp/admin/modules.jsp</result>
             <result name="invalid.token">/WEB-INF/jsp/admin/modules.jsp</result>
             <result name="forbidden">/WEB-INF/jsp/error/forbidden.jsp</result>
+        </action>
+    </package>
+
+    <!-- Broker Noleggio Package -->
+    <package name="noleggio" extends="json-default,luna2-default" namespace="/app/noleggio">
+        <!-- UI pages -->
+        <action name="lead" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="execute">
+            <result name="success">/jsp/noleggioLead.jsp</result>
+        </action>
+        <action name="ordine" class="it.zensoftware.luna2.action.NoleggioOrdineAction" method="index">
+            <result name="success">/jsp/noleggioOrdine.jsp</result>
+        </action>
+        <action name="ticket" class="it.zensoftware.luna2.action.NoleggioTicketAction" method="index">
+            <result name="success">/jsp/noleggioTicket.jsp</result>
+        </action>
+        <action name="scadenzario" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="index">
+            <result name="success">/jsp/noleggioScadenzario.jsp</result>
+        </action>
+        <action name="nbt" class="it.zensoftware.luna2.action.NoleggioNBTAction" method="index">
+            <result name="success">/jsp/noleggio/nbt-list.jsp</result>
+        </action>
+
+        <!-- Lead (Phase 1-2-3) JSON endpoints -->
+        <action name="noleggioLeadAction_list" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="list">
+            <result name="success" type="json">
+                <param name="root">leads</param>
+            </result>
+        </action>
+        <action name="lead!list" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="list">
+            <result name="success" type="json">
+                <param name="root">leads</param>
+            </result>
+        </action>
+        <action name="noleggioLeadAction_dashboardData" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="dashboardData">
+            <result name="success" type="json">
+                <param name="root">dashboardData</param>
+            </result>
+        </action>
+        <action name="lead!dashboardData" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="dashboardData">
+            <result name="success" type="json">
+                <param name="root">dashboardData</param>
+            </result>
+        </action>
+        <action name="noleggioLeadAction_view" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="view">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="lead!view" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="view">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioLeadAction_save" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="save">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="lead!save" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="save">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioLeadAction_delete" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="delete">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="lead!delete" class="it.zensoftware.luna2.action.NoleggioLeadAction" method="delete">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- Ordini (Phase 3) JSON endpoints -->
+        <action name="noleggioOrdineAction_list" class="it.zensoftware.luna2.action.NoleggioOrdineAction" method="list">
+            <result name="success" type="json">
+                <param name="root">ordini</param>
+            </result>
+        </action>
+        <action name="noleggioOrdineAction_requireingCareCall" class="it.zensoftware.luna2.action.NoleggioOrdineAction" method="requireingCareCall">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioOrdineAction_registerCareCall" class="it.zensoftware.luna2.action.NoleggioOrdineAction" method="registerCareCall">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioOrdineAction_view" class="it.zensoftware.luna2.action.NoleggioOrdineAction" method="view">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioOrdineAction_save" class="it.zensoftware.luna2.action.NoleggioOrdineAction" method="save">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- Ticketing (Phase 4) JSON endpoints -->
+        <action name="noleggioTicketAction_list" class="it.zensoftware.luna2.action.NoleggioTicketAction" method="list">
+            <result name="success" type="json">
+                <param name="root">tickets</param>
+            </result>
+        </action>
+        <action name="noleggioTicketAction_antiBounceAlerts" class="it.zensoftware.luna2.action.NoleggioTicketAction" method="antiBounceAlerts">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioTicketAction_slaExceeded" class="it.zensoftware.luna2.action.NoleggioTicketAction" method="slaExceeded">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioTicketAction_view" class="it.zensoftware.luna2.action.NoleggioTicketAction" method="view">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioTicketAction_reopen" class="it.zensoftware.luna2.action.NoleggioTicketAction" method="reopen">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioTicketAction_close" class="it.zensoftware.luna2.action.NoleggioTicketAction" method="close">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioTicketAction_escalate" class="it.zensoftware.luna2.action.NoleggioTicketAction" method="escalate">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- Scadenzario (Phase 5) JSON endpoints -->
+        <action name="noleggioScadenzarioAction_summary" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="summary">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioScadenzarioAction_expiringRenewals" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="expiringRenewals">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioScadenzarioAction_kmVerifications" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="kmVerifications">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioScadenzarioAction_upcomingRevisioni" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="upcomingRevisioni">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioScadenzarioAction_upcomingTagliandi" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="upcomingTagliandi">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioScadenzarioAction_calendarEvents" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="calendarEvents">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioScadenzarioAction_runAutomation" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="runAutomation">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="noleggioScadenzarioAction_createEvent" class="it.zensoftware.luna2.action.NoleggioScadenzarioAction" method="createEvent">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <!-- NBT JSON endpoints -->
+        <action name="nbt-list" class="it.zensoftware.luna2.action.NoleggioNBTAction" method="list">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="nbt-dashboard" class="it.zensoftware.luna2.action.NoleggioNBTAction" method="dashboard">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="nbt-save" class="it.zensoftware.luna2.action.NoleggioNBTAction" method="save">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="nbt-followup" class="it.zensoftware.luna2.action.NoleggioNBTAction" method="requireingFollowup">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+        <action name="nbt-return" class="it.zensoftware.luna2.action.NoleggioNBTAction" method="requireingReturn">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
         </action>
     </package>
 

@@ -57,10 +57,11 @@ public class SecurityHeadersFilter implements Filter {
             // font-src 'self': Load fonts from same origin only
             httpResponse.setHeader("Content-Security-Policy", 
                 "default-src 'self'; " +
-                "script-src 'self' https://cdn.jsdelivr.net; " +
-                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; " +
                 "img-src 'self' data:; " +
-                "font-src 'self' https://cdn.jsdelivr.net; " +
+                "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; " +
+                "connect-src 'self' https://cdn.jsdelivr.net; " +
                 "form-action 'self'; " +
                 "frame-ancestors 'none'");
             
