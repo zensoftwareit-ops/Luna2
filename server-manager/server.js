@@ -28,6 +28,7 @@ const SCRIPT_PATH     = path.join(WORKSPACE, 'manage-domains-multitenant.sh');
 const LETSENCRYPT_DIR = process.env.LETSENCRYPT_DIR || '/etc/letsencrypt/live';
 const ADMIN_USER      = process.env.ADMIN_USER      || 'admin';
 const ADMIN_PASS      = process.env.ADMIN_PASS      || 'Luna2Admin!';
+const GITHUB_TOKEN    = process.env.GITHUB_TOKEN    || '';
 const TOKEN_TTL_MS    = 24 * 60 * 60 * 1000;
 
 // ──────────────────────────────────────────────────────────────
@@ -82,9 +83,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ──────────────────────────────────────────────────────────────
 const log = (level, msg) => console.log(`[${new Date().toISOString()}] [${level}] ${msg}`);
 
-const exec$ = async (cmd) => {
+const exec$ = async (cmd, env = null) => {
     try {
-        const { stdout, stderr } = await execAsync(cmd, { timeout: 120000 });
+        const options = { timeout: 120000 };
+        if (env) options.env = env;
+        const { stdout, stderr } = await execAsync(cmd, options);
         return { success: true, stdout, stderr };
     } catch (e) {
         return { success: false, error: e.message, stdout: e.stdout || '', stderr: e.stderr || '' };
@@ -371,9 +374,23 @@ app.post('/api/system/update', async (req, res) => {
     
     const steps = [];
     
-    // 1. Git pull
+    // 1. Git pull (con autenticazione se GITHUB_TOKEN presente)
     steps.push({ step: 'git-pull', status: 'running' });
-    const pullR = await exec$(`cd "${WORKSPACE}" && git pull origin main`);
+    
+    let gitCmd = 'git pull origin main';
+    let gitEnv = { ...process.env };
+    
+    // Se c'è GITHUB_TOKEN, configuriamo git per usarlo
+    if (GITHUB_TOKEN) {
+        // Usa GIT_ASKPASS per passare il token in modo sicuro
+        const askPassScript = path.join(WORKSPACE, '.git-askpass.sh');
+        fs.writeFileSync(askPassScript, `#!/bin/bash\necho "${GITHUB_TOKEN}"`, { mode: 0o755 });
+        gitEnv.GIT_ASKPASS = askPassScript;
+        gitEnv.GIT_USERNAME = 'oauth2';
+        log('DEBUG', 'Git pull using GITHUB_TOKEN authentication');
+    }
+    
+    const pullR = await exec$(`cd "${WORKSPACE}" && ${gitCmd}`, gitEnv);
     if (!pullR.success) {
         steps[0].status = 'failed';
         steps[0].error = pullR.error;

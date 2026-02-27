@@ -464,22 +464,100 @@ ls -lh node_modules/ | head
 nano .env
 ```
 
-**File `.env` per Server Manager:**
+**File `.env` per Server Manager (user luna2):**
 ```env
 PORT=8888
 ADMIN_USER=admin
 ADMIN_PASS=Luna2Admin!ChangeMe
 WORKSPACE_DIR=/home/luna2/Luna2
 LETSENCRYPT_DIR=/etc/letsencrypt/live
+
+# GitHub Authentication (per git pull automatico)
+GITHUB_TOKEN=ghp_YourPersonalAccessToken123456789
+# Oppure lascia vuoto se usi SSH key già configurata
 ```
 
-**⚠️ CAMBIA `ADMIN_PASS` con password forte!**
+**File `.env` per Server Manager (se usi root):**
+```env
+PORT=8888
+ADMIN_USER=admin
+ADMIN_PASS=Luna2Admin!ChangeMe
+WORKSPACE_DIR=/root/Luna2
+LETSENCRYPT_DIR=/etc/letsencrypt/live
+
+# GitHub Authentication
+GITHUB_TOKEN=ghp_YourPersonalAccessToken123456789
+```
+
+**⚠️ CAMBIA questi valori:**
+- `ADMIN_PASS` → Password forte per login pannello
+- `WORKSPACE_DIR` → Path corretto (`/home/luna2/Luna2` o `/root/Luna2`)
+- `GITHUB_TOKEN` → Token GitHub (se repository privato)
 
 **📝 Cosa controlla questo file:**
 - `PORT`: Porta del pannello web (default 8888)
 - `ADMIN_USER`/`ADMIN_PASS`: Credenziali di login al pannello
-- `WORKSPACE_DIR`: Path dove si trova Luna2
-- `LETSENCRYPT_DIR`: Directory certificati SSL (per gestione automatica)
+- `WORKSPACE_DIR`: Path dove si trova Luna2 (/home/luna2 o /root)
+- `LETSENCRYPT_DIR`: Directory certificati SSL
+- `GITHUB_TOKEN`: Token per git pull automatico (necessario se repo privato)
+
+### 5.2.1 Configurazione GitHub Access (Importante!)
+
+Il Server Manager esegue `git pull` per aggiornare il codice. Serve autenticazione se il repository è **privato**.
+
+#### Opzione A: GitHub Personal Access Token (Consigliato)
+
+**1. Genera token su GitHub:**
+- Vai a: https://github.com/settings/tokens
+- Click **Generate new token (classic)**
+- Nome: `Luna2 Server Manager`
+- Scopes: ✅ `repo` (full control)
+- Copia il token generato: `ghp_xxxxxxxxxxxxxxxxxxxx`
+
+**2. Aggiungi al .env:**
+```env
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+
+**3. Configura Git per usare token:**
+```bash
+cd ~/Luna2
+
+# Modifica remote URL per usare token
+git remote set-url origin https://${GITHUB_TOKEN}@github.com/zensoftwareit-ops/Luna2.git
+
+# Verifica (non mostra token per sicurezza)
+git remote -v
+```
+
+#### Opzione B: SSH Key (se già configurata)
+
+Se hai già una SSH key configurata con GitHub:
+
+```bash
+# Verifica connessione SSH
+ssh -T git@github.com
+
+# Output atteso: "Hi username! You've successfully authenticated..."
+```
+
+Se funziona, **lascia vuoto** `GITHUB_TOKEN` nel .env:
+```env
+# GITHUB_TOKEN=    (commentato o vuoto)
+```
+
+E assicurati che il remote sia SSH:
+```bash
+cd ~/Luna2
+git remote set-url origin git@github.com:zensoftwareit-ops/Luna2.git
+```
+
+#### Repository Pubblico?
+
+Se il repository è **pubblico**, non serve autenticazione. Lascia vuoto `GITHUB_TOKEN`:
+```env
+# GITHUB_TOKEN=    (non necessario per repo pubblici)
+```
 
 ### 5.3 Test Server Manager (Dev Mode)
 
@@ -511,7 +589,7 @@ Per avere il Server Manager sempre attivo, lo configuriamo come servizio:
 sudo nano /etc/systemd/system/luna2-manager.service
 ```
 
-**Contenuto file:**
+**Contenuto file (per user luna2):**
 ```ini
 [Unit]
 Description=Luna2 Server Manager
@@ -526,6 +604,8 @@ Environment="PORT=8888"
 Environment="ADMIN_USER=admin"
 Environment="ADMIN_PASS=Luna2Admin!ChangeMe"
 Environment="WORKSPACE_DIR=/home/luna2/Luna2"
+Environment="LETSENCRYPT_DIR=/etc/letsencrypt/live"
+Environment="GITHUB_TOKEN=ghp_YourTokenHere"
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=10
@@ -534,12 +614,37 @@ RestartSec=10
 WantedBy=multi-user.target
 ```
 
-**⚠️ Se stai usando root invece di user luna2:**
-- Cambia `User=luna2` → `User=root`
-- Cambia `WorkingDirectory=/home/luna2/Luna2/server-manager` → `WorkingDirectory=/root/Luna2/server-manager`
-- Cambia `WORKSPACE_DIR=/home/luna2/Luna2` → `WORKSPACE_DIR=/root/Luna2`
+**Contenuto file (per root):**
+```ini
+[Unit]
+Description=Luna2 Server Manager
+After=network.target
 
-**⚠️ Aggiorna `ADMIN_PASS` con la tua password!**
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/Luna2/server-manager
+Environment="NODE_ENV=production"
+Environment="PORT=8888"
+Environment="ADMIN_USER=admin"
+Environment="ADMIN_PASS=Luna2Admin!ChangeMe"
+Environment="WORKSPACE_DIR=/root/Luna2"
+Environment="LETSENCRYPT_DIR=/etc/letsencrypt/live"
+Environment="GITHUB_TOKEN=ghp_YourTokenHere"
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**⚠️ Personalizza questi valori:**
+- `User` → `luna2` o `root` (a seconda della tua scelta in Fase 1.3)
+- `WorkingDirectory` → `/home/luna2/Luna2/server-manager` o `/root/Luna2/server-manager`
+- `ADMIN_PASS` → Password forte per login pannello
+- `WORKSPACE_DIR` → `/home/luna2/Luna2` o `/root/Luna2`
+- `GITHUB_TOKEN` → Token GitHub (lascia vuoto se usi SSH o repo pubblico)
 
 ```bash
 # Ricarica systemd
