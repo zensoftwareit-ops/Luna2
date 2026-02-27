@@ -460,6 +460,9 @@ ls -lh node_modules/ | head
 **⚠️ QUESTO FILE .ENV È DIVERSO:** È per il Server Manager (pannello di gestione), non per le istanze cliente!
 
 ```bash
+# Assicurati di essere nella directory server-manager
+cd ~/Luna2/server-manager
+
 # Crea file .env per server-manager
 nano .env
 ```
@@ -562,6 +565,9 @@ Se il repository è **pubblico**, non serve autenticazione. Lascia vuoto `GITHUB
 ### 5.3 Test Server Manager (Dev Mode)
 
 ```bash
+# Assicurati di essere nella directory server-manager
+cd ~/Luna2/server-manager
+
 # Avvia in modalità development
 npm start
 ```
@@ -571,6 +577,15 @@ npm start
 [2026-02-27T10:35:22.456Z] [INFO] Luna2 Server Manager v2.0 – porta 8888
 [2026-02-27T10:35:22.457Z] [INFO] UI: http://localhost:8888
 [2026-02-27T10:35:22.457Z] [INFO] Credenziali: admin / [ADMIN_PASS env var]
+```
+
+**⚠️ ATTENZIONE:** `npm start` deve essere eseguito dalla directory `server-manager`, NON dalla root di Luna2!
+
+**Se ottieni errore "ENOENT: no such file or directory, open 'package.json'":**
+```bash
+# Sei nella directory sbagliata! Vai in server-manager:
+cd ~/Luna2/server-manager
+npm start
 ```
 
 **Test accesso:**
@@ -1036,6 +1051,25 @@ sudo journalctl -u luna2-manager --no-pager -n 50
 ```bash
 sudo ufw status
 sudo ufw allow 8888/tcp
+```
+
+### Problema: "npm error ENOENT: no such file or directory, package.json"
+
+**Causa:** Stai eseguendo `npm` dalla directory sbagliata.
+
+**Soluzione:**
+```bash
+# Il package.json è in server-manager, non nella root
+cd ~/Luna2/server-manager
+npm start
+# oppure
+npm install
+```
+
+**Verifica che sei nella directory corretta:**
+```bash
+pwd  # Deve essere /home/luna2/Luna2/server-manager (o /root/Luna2/server-manager)
+ls -la package.json  # Deve esistere questo file
 ```
 
 ### Problema: "Out of memory"
