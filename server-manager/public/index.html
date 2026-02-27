@@ -5,325 +5,168 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Luna2 Server Manager</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 20px;
             color: #333;
         }
-
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-
-        header {
-            background: white;
-            border-radius: 10px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        h1 {
-            font-size: 2.5em;
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            color: #666;
-            font-size: 1em;
-        }
-
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .card {
-            background: white;
-            border-radius: 10px;
-            padding: 25px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-        }
-
-        .card h2 {
-            color: #667eea;
-            font-size: 1.5em;
-            margin-bottom: 20px;
+        /* ====== LOGIN PAGE ====== */
+        #login-page {
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
         }
-
-        .card-icon {
-            font-size: 1.5em;
+        .login-card {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-
-        /* Status Card */
-        .status-item {
+        .login-card h1 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 2em;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        input[type="text"], input[type="password"], input[type="file"], select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102,126,234,0.1);
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .btn:hover { background: #5568d3; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.85em;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: #667eea;
+            color: white;
+        }
+        .btn-small:hover { background: #5568d3; }
+        .btn-small.danger { background: #dc3545; }
+        .btn-small.danger:hover { background: #c82333; }
+        .btn-small.success { background: #28a745; }
+        .btn-small.success:hover { background: #218838; }
+        .btn-small.warning { background: #ffc107; color: #333; }
+        .btn-small.warning:hover { background: #e0a800; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #5a6268; }
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .alert.show { display: block; }
+        .alert.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        /* ====== DASHBOARD ====== */
+        #dashboard-page { display: none; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; }
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+        header h1 { color: #667eea; font-size: 2em; }
+        .header-actions { display: flex; gap: 10px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover { transform: translateY(-3px); box-shadow: 0 8px 30px rgba(0,0,0,0.15); }
+        .card h2 { color: #667eea; margin-bottom: 20px; font-size: 1.4em; display: flex; align-items: center; gap: 10px; }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
             padding: 10px 0;
             border-bottom: 1px solid #eee;
         }
-
-        .status-item:last-child {
-            border-bottom: none;
+        .stat-item:last-child { border-bottom: none; }
+        .stat-label { color: #666; font-weight: 500; }
+        .stat-value { font-weight: bold; color: #667eea; }
+        /* ====== INSTANCES TABLE ====== */
+        .table-wrapper { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
         }
-
-        .status-label {
-            color: #666;
-            font-weight: 500;
-        }
-
-        .status-value {
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        .status-ok {
-            color: #28a745;
-        }
-
-        .status-error {
-            color: #dc3545;
-        }
-
-        /* Domains Section */
-        .domain-list {
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .domain-item {
+        thead {
             background: #f8f9fa;
-            border-left: 4px solid #667eea;
+        }
+        th, td {
             padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            text-align: left;
+            border-bottom: 1px solid #eee;
         }
-
-        .domain-info {
-            flex: 1;
+        th {
+            font-weight: 600;
+            color: #555;
         }
-
-        .domain-name {
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 3px;
-        }
-
-        .domain-ssl {
-            font-size: 0.85em;
-            color: #666;
-        }
-
-        .ssl-badge {
+        .status-badge {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 3px;
-            font-size: 0.75em;
-            font-weight: bold;
-            margin-right: 5px;
-        }
-
-        .ssl-ok {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .ssl-missing {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .domain-actions {
-            display: flex;
-            gap: 5px;
-        }
-
-        .btn-small {
             padding: 4px 10px;
+            border-radius: 12px;
             font-size: 0.85em;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            background: #667eea;
-            color: white;
-            transition: background 0.2s;
+            font-weight: 600;
         }
-
-        .btn-small:hover {
-            background: #5568d3;
-        }
-
-        .btn-small.danger {
-            background: #dc3545;
-        }
-
-        .btn-small.danger:hover {
-            background: #c82333;
-        }
-
-        /* Forms */
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-weight: 500;
-        }
-
-        input[type="text"],
-        input[type="password"],
-        select {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 1em;
-            transition: border-color 0.2s;
-        }
-
-        input[type="text"]:focus,
-        input[type="password"]:focus,
-        select:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin: 10px 0;
-        }
-
-        input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-
-        /* Buttons */
-        .btn {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 500;
-            transition: background 0.2s;
-            width: 100%;
-        }
-
-        .btn:hover {
-            background: #5568d3;
-        }
-
-        .btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .btn-secondary {
-            background: #6c757d;
-        }
-
-        .btn-secondary:hover {
-            background: #5a6268;
-        }
-
-        .btn-danger {
-            background: #dc3545;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        .btn-success {
-            background: #28a745;
-        }
-
-        .btn-success:hover {
-            background: #218838;
-        }
-
-        /* Messages */
-        .message {
-            padding: 12px;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            display: none;
-        }
-
-        .message.show {
-            display: block;
-        }
-
-        .success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-
-        /* Loading */
-        .spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Modal */
+        .status-running { background: #d4edda; color: #155724; }
+        .status-exited { background: #f8d7da; color: #721c24; }
+        .status-absent { background: #e2e3e5; color: #383d41; }
+        .ssl-ok { background: #d4edda; color: #155724; }
+        .ssl-warn { background: #fff3cd; color: #856404; }
+        .ssl-missing { background: #f8d7da; color: #721c24; }
+        .actions { display: flex; gap: 5px; flex-wrap: wrap; }
+        /* ====== MODAL ====== */
         .modal {
             display: none;
             position: fixed;
@@ -332,36 +175,27 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.4);
-        }
-
-        .modal.show {
-            display: flex;
+            background: rgba(0,0,0,0.5);
             align-items: center;
             justify-content: center;
         }
-
+        .modal.show { display: flex; }
         .modal-content {
-            background-color: white;
+            background: white;
+            border-radius: 15px;
             padding: 30px;
-            border-radius: 10px;
-            max-width: 500px;
+            max-width: 600px;
             width: 90%;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-
         .modal-header {
             display: flex;
             justify-content: space-between;
-            align-items: center;
             margin-bottom: 20px;
         }
-
-        .modal-header h2 {
-            color: #667eea;
-            margin: 0;
-        }
-
+        .modal-header h2 { color: #667eea; margin: 0; }
         .close-btn {
             background: none;
             border: none;
@@ -369,489 +203,615 @@
             cursor: pointer;
             color: #999;
         }
-
-        .close-btn:hover {
-            color: #333;
-        }
-
-        .button-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-top: 20px;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2em;
-            }
-
-            .grid {
-                grid-template-columns: 1fr;
-            }
-
-            .button-group {
-                grid-template-columns: 1fr;
-            }
-
-            .domain-item {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 10px;
-            }
-
-            .domain-actions {
-                width: 100%;
-            }
-
-            .btn-small {
-                flex: 1;
-            }
-        }
-
-        /* Code Block */
-        .code-block {
+        .close-btn:hover { color: #333; }
+        .button-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px; }
+        pre {
             background: #f8f9fa;
             border: 1px solid #ddd;
             border-radius: 5px;
-            padding: 12px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.9em;
+            padding: 15px;
             overflow-x: auto;
-            margin: 10px 0;
-            color: #333;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .progress-step {
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+        .progress-step.success { background: #d4edda; color: #155724; }
+        .progress-step.failed { background: #f8d7da; color: #721c24; }
+        .progress-step.running { background: #d1ecf1; color: #0c5460; }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+            .button-group { grid-template-columns: 1fr; }
+            header { flex-direction: column; gap: 15px; }
+            .header-actions { width: 100%; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <header>
-            <h1>🖥️ Luna2 Server Manager</h1>
-            <p class="subtitle">Gestisci Nginx, certificati SSL e proxy</p>
-        </header>
-
-        <!-- Messages -->
-        <div id="message" class="message"></div>
-
-        <!-- Status & Stats -->
-        <div class="grid">
-            <div class="card">
-                <h2><span class="card-icon">📊</span>Stato Sistema</h2>
-                <div class="status-item">
-                    <span class="status-label">Nginx</span>
-                    <span class="status-value" id="nginx-status">Caricamento...</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Domini Configurati</span>
-                    <span class="status-value" id="domain-count">0</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Uso Disco</span>
-                    <span class="status-value" id="disk-usage">--</span>
-                </div>
-                <div class="status-item">
-                    <span class="status-label">Memoria Disponibile</span>
-                    <span class="status-value" id="memory-available">--</span>
-                </div>
-                <button class="btn btn-secondary" style="margin-top: 15px;" onclick="refreshStatus()">
-                    🔄 Aggiorna
-                </button>
+    <!-- ============================================================ -->
+    <!-- LOGIN PAGE -->
+    <!-- ============================================================ -->
+    <div id="login-page">
+        <div class="login-card">
+            <h1>🖥️ Luna2 Manager</h1>
+            <div id="login-alert" class="alert"></div>
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" autocomplete="username" />
             </div>
-
-            <!-- Domain Management -->
-            <div class="card">
-                <h2><span class="card-icon">➕</span>Nuovo Dominio</h2>
-                <div class="form-group">
-                    <label for="domain-name">Nome Dominio</label>
-                    <input type="text" id="domain-name" placeholder="example.com" />
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="generate-ssl" checked />
-                    <label for="generate-ssl">Genera certificato SSL Let's Encrypt</label>
-                </div>
-                <button class="btn" onclick="addDomain()">
-                    ➕ Aggiungi Dominio
-                </button>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" autocomplete="current-password" />
             </div>
+            <button class="btn" onclick="login()">Login</button>
         </div>
+    </div>
 
-        <!-- Domains List -->
-        <div class="card">
-            <h2><span class="card-icon">🌐</span>Domini Configurati</h2>
-            <div id="domain-list-container" class="domain-list">
-                <p style="color: #999;">Caricamento...</p>
-            </div>
-            <div style="margin-top: 15px; display: flex; gap: 10px;">
-                <button class="btn btn-success" onclick="renewAllSSL()">
-                    🔐 Rinnova Tutti i Certificati
-                </button>
-                <button class="btn btn-secondary" onclick="reloadNginx()">
-                    🔄 Ricarica Nginx
-                </button>
-            </div>
-        </div>
-
-        <!-- Tools -->
-        <div class="grid">
-            <div class="card">
-                <h2><span class="card-icon">🔧</span>Strumenti</h2>
-                <button class="btn btn-secondary" style="margin-bottom: 10px;" onclick="testNginx()">
-                    🧪 Testa Configurazione Nginx
-                </button>
-                <button class="btn btn-secondary" onclick="refreshDomains()">
-                    🔄 Aggiorna Lista Domini
-                </button>
-            </div>
-
-            <div class="card">
-                <h2><span class="card-icon">📋</span>Informazioni</h2>
-                <div class="code-block">
-                    <strong>API Base:</strong><br>
-                    /api/domains<br>
-                    /api/ssl/renew<br>
-                    /api/nginx/reload
+    <!-- ============================================================ -->
+    <!-- DASHBOARD PAGE -->
+    <!-- ============================================================ -->
+    <div id="dashboard-page">
+        <div class="container">
+            <header>
+                <h1>🖥️ Luna2 Server Manager</h1>
+                <div class="header-actions">
+                    <button class="btn-small success" onclick="openModal('update-modal')">⬆️ Update da GitHub</button>
+                    <button class="btn-small" onclick="refreshAll()">🔄 Refresh</button>
+                    <button class="btn-small danger" onclick="logout()">Esci</button>
                 </div>
-                <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                    Questa UI gestisce domini, certificati SSL e proxy Nginx verso Luna2 API.
-                </p>
+            </header>
+
+            <div id="dash-alert" class="alert"></div>
+
+            <!-- STATS -->
+            <div class="grid">
+                <div class="card">
+                    <h2>📊 Sistema</h2>
+                    <div class="stat-item">
+                        <span class="stat-label">Istanze Attive</span>
+                        <span class="stat-value" id="stat-instances">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Container in Esecuzione</span>
+                        <span class="stat-value" id="stat-containers">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Disco</span>
+                        <span class="stat-value" id="stat-disk">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Memoria</span>
+                        <span class="stat-value" id="stat-memory">-</span>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2>➕ Nuova Istanza</h2>
+                    <div class="form-group">
+                        <label for="new-domain">Dominio</label>
+                        <input type="text" id="new-domain" placeholder="example.com" />
+                    </div>
+                    <div class="form-group">
+                        <label for="new-customer">Nome Cliente</label>
+                        <input type="text" id="new-customer" placeholder="Nome Cliente" />
+                    </div>
+                    <button class="btn" onclick="createInstance()">Crea Istanza</button>
+                </div>
+            </div>
+
+            <!-- INSTANCES TABLE -->
+            <div class="card">
+                <h2>🌐 Istanze</h2>
+                <div class="table-wrapper">
+                    <table id="instances-table">
+                        <thead>
+                            <tr>
+                                <th>Dominio</th>
+                                <th>Cliente</th>
+                                <th>App</th>
+                                <th>MySQL</th>
+                                <th>SSL</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="instances-tbody">
+                            <tr><td colspan="6" style="text-align:center; padding: 30px;">Caricamento...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Test Domain Modal -->
-    <div id="testModal" class="modal">
+    <!-- ============================================================ -->
+    <!-- MODALS -->
+    <!-- ============================================================ -->
+
+    <!-- SSL Modal -->
+    <div id="ssl-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Testa Dominio</h2>
-                <button class="close-btn" onclick="closeModal('testModal')">&times;</button>
+                <h2>🔐 Gestione SSL</h2>
+                <button class="close-btn" onclick="closeModal('ssl-modal')">&times;</button>
+            </div>
+            <div id="ssl-domain-name" style="margin-bottom: 20px; font-weight: bold; color: #667eea;"></div>
+            <div id="ssl-info" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;"></div>
+            
+            <h3 style="margin: 20px 0 10px; color: #555;">Rinnova Let's Encrypt</h3>
+            <button class="btn btn-small success" onclick="renewSSL()" style="width: 100%;">🔄 Rinnova Certificato LE</button>
+
+            <h3 style="margin: 20px 0 10px; color: #555;">Carica Certificato Custom</h3>
+            <div class="form-group">
+                <label>Certificato (fullchain.pem o .crt)</label>
+                <input type="file" id="ssl-cert-file" accept=".pem,.crt" />
             </div>
             <div class="form-group">
-                <label for="test-domain">Nome Dominio</label>
-                <input type="text" id="test-domain" placeholder="example.com" />
+                <label>Chiave Privata (privkey.pem o .key)</label>
+                <input type="file" id="ssl-key-file" accept=".pem,.key" />
             </div>
-            <div id="test-result" class="message"></div>
             <div class="button-group">
-                <button class="btn" onclick="runDomainTest()">🧪 Testa</button>
-                <button class="btn btn-secondary" onclick="closeModal('testModal')">Chiudi</button>
+                <button class="btn" onclick="uploadCustomSSL()">📤 Carica Certificato</button>
+                <button class="btn btn-secondary" onclick="closeModal('ssl-modal')">Chiudi</button>
             </div>
+            <div id="ssl-result" class="alert" style="margin-top: 15px;"></div>
         </div>
     </div>
 
-    <!-- SSL Renew Modal -->
-    <div id="sslModal" class="modal">
+    <!-- Deploy Modal -->
+    <div id="deploy-modal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Rinnova Certificato SSL</h2>
-                <button class="close-btn" onclick="closeModal('sslModal')">&times;</button>
+                <h2>🚀 Deploy Update</h2>
+                <button class="close-btn" onclick="closeModal('deploy-modal')">&times;</button>
             </div>
-            <div class="form-group">
-                <label for="ssl-domain">Nome Dominio</label>
-                <input type="text" id="ssl-domain" placeholder="example.com" />
-            </div>
-            <div id="ssl-result" class="message"></div>
+            <div id="deploy-domain-name" style="margin-bottom: 20px; font-weight: bold; color: #667eea;"></div>
+            <p style="margin-bottom: 20px; color: #666;">
+                Questo comando copia il nuovo WAR e riavvia l'istanza. I dati del database saranno preservati.
+            </p>
             <div class="button-group">
-                <button class="btn btn-success" onclick="renewDomainSSL()">🔐 Rinnova</button>
-                <button class="btn btn-secondary" onclick="closeModal('sslModal')">Chiudi</button>
+                <button class="btn success" onclick="deployInstance()">🚀 Deploy Ora</button>
+                <button class="btn btn-secondary" onclick="closeModal('deploy-modal')">Annulla</button>
             </div>
+            <div id="deploy-result" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <!-- Logs Modal -->
+    <div id="logs-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📋 Log Container</h2>
+                <button class="close-btn" onclick="closeModal('logs-modal')">&times;</button>
+            </div>
+            <pre id="logs-content" style="white-space: pre-wrap;">Caricamento...</pre>
+            <button class="btn btn-secondary" style="margin-top: 15px;" onclick="closeModal('logs-modal')">Chiudi</button>
+        </div>
+    </div>
+
+    <!-- Update System Modal -->
+    <div id="update-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⬆️ Update da GitHub</h2>
+                <button class="close-btn" onclick="closeModal('update-modal')">&times;</button>
+            </div>
+            <p style="margin-bottom: 20px; color: #666;">
+                Questo comando esegue:<br>
+                1. <b>git pull origin main</b><br>
+                2. <b>mvn clean package</b><br><br>
+                Dopo il build, potrai fare deploy alle istanze.
+            </p>
+            <button class="btn success" onclick="updateSystem()" style="margin-bottom: 15px;">⬆️ Esegui Update</button>
+            <div id="update-result"></div>
+            <hr style="margin: 20px 0;">
+            <h3 style="color: #667eea; margin-bottom: 10px;">Deploy a Tutte le Istanze</h3>
+            <p style="margin-bottom: 15px; color: #666; font-size: 0.9em;">
+                Dopo l'update, puoi distribuire il nuovo WAR a tutte le istanze in un solo comando.
+            </p>
+            <button class="btn warning" onclick="deployAll()">🚀 Deploy a Tutte le Istanze</button>
+            <div id="deploy-all-result" style="margin-top: 15px;"></div>
         </div>
     </div>
 
     <script>
-        const API_BASE = '/api';
+        const API = '/api';
+        let token = localStorage.getItem('luna2-token') || null;
+        let currentSSLDomain = null;
+        let currentDeployDomain = null;
 
-        // ====================================================================
-        // Utility Functions
-        // ====================================================================
-
-        function showMessage(message, type = 'info') {
-            const el = document.getElementById('message');
+        // ====== UTILITY ======
+        function showAlert(containerId, message, type = 'info') {
+            const el = document.getElementById(containerId);
             el.textContent = message;
-            el.className = `message show ${type}`;
+            el.className = `alert show ${type}`;
             setTimeout(() => el.classList.remove('show'), 5000);
         }
 
-        function openModal(id) {
-            document.getElementById(id).classList.add('show');
+        function openModal(id) { document.getElementById(id).classList.add('show'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        async function apiCall(endpoint, method = 'GET', body = null, isFormData = false) {
+            const headers = { 'Authorization': `Bearer ${token}` };
+            if (!isFormData) headers['Content-Type'] = 'application/json';
+            
+            const opts = { method, headers };
+            if (body && !isFormData) opts.body = JSON.stringify(body);
+            if (body && isFormData) opts.body = body;
+
+            const resp = await fetch(API + endpoint, opts);
+            if (resp.status === 401) {
+                logout();
+                throw new Error('Non autorizzato');
+            }
+            return await resp.json();
         }
 
-        function closeModal(id) {
-            document.getElementById(id).classList.remove('show');
-        }
-
-        async function apiCall(endpoint, method = 'GET', body = null) {
+        // ====== AUTH ======
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
             try {
-                const options = {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                };
-                if (body) options.body = JSON.stringify(body);
+                const data = await fetch(API + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                }).then(r => r.json());
 
-                const response = await fetch(API_BASE + endpoint, options);
-                const data = await response.json();
-
-                if (!response.ok && !data.success) {
-                    throw new Error(data.error || 'Request failed');
-                }
-
-                return data;
-            } catch (error) {
-                showMessage('❌ ' + error.message, 'error');
-                throw error;
-            }
-        }
-
-        // ====================================================================
-        // Status & Stats
-        // ====================================================================
-
-        async function refreshStatus() {
-            try {
-                const data = await apiCall('/status');
-                
-                // Update Nginx status
-                const nginxEl = document.getElementById('nginx-status');
-                if (data.nginx === 'OK') {
-                    nginxEl.textContent = '✓ Online';
-                    nginxEl.className = 'status-value status-ok';
-                } else {
-                    nginxEl.textContent = '✗ Offline';
-                    nginxEl.className = 'status-value status-error';
-                }
-
-                // Update domain count
-                document.getElementById('domain-count').textContent = data.domains;
-
-                // Update stats
-                document.getElementById('disk-usage').textContent = data.systemStats.disk.usage || '--';
-                document.getElementById('memory-available').textContent = data.systemStats.memory.available || '--';
-
-                showMessage('✓ Stato aggiornato', 'success');
-            } catch (error) {
-                // Status already shown in apiCall
-            }
-        }
-
-        // ====================================================================
-        // Domain Management
-        // ====================================================================
-
-        async function refreshDomains() {
-            try {
-                const data = await apiCall('/domains');
-                const container = document.getElementById('domain-list-container');
-
-                if (data.count === 0) {
-                    container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">Nessun dominio configurato</p>';
-                    return;
-                }
-
-                container.innerHTML = data.domains.map(domain => `
-                    <div class="domain-item">
-                        <div class="domain-info">
-                            <div class="domain-name">${domain.name}</div>
-                            <div class="domain-ssl">
-                                <span class="ssl-badge ${domain.hasSSL ? 'ssl-ok' : 'ssl-missing'}">
-                                    ${domain.hasSSL ? '✓ SSL' : '✗ No SSL'}
-                                </span>
-                                ${domain.sslExpiry ? `Scade: ${domain.sslExpiry}` : ''}
-                            </div>
-                        </div>
-                        <div class="domain-actions">
-                            <button class="btn-small" onclick="openTestModal('${domain.name}')">🧪 Test</button>
-                            <button class="btn-small" onclick="openSSLModal('${domain.name}')">🔐 SSL</button>
-                            <button class="btn-small danger" onclick="deleteDomain('${domain.name}')">🗑️ Rimuovi</button>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (error) {
-                // Error already shown
-            }
-        }
-
-        async function addDomain() {
-            const domainInput = document.getElementById('domain-name');
-            const generateSSL = document.getElementById('generate-ssl').checked;
-            const domain = domainInput.value.trim();
-
-            if (!domain) {
-                showMessage('❌ Inserisci un nome di dominio', 'error');
-                return;
-            }
-
-            try {
-                const data = await apiCall('/domains', 'POST', {
-                    domain: domain,
-                    generateSSL: generateSSL
-                });
-
-                showMessage(`✓ Dominio ${domain} aggiunto con successo!`, 'success');
-                domainInput.value = '';
-                await refreshDomains();
-                await refreshStatus();
-            } catch (error) {
-                // Error already shown
-            }
-        }
-
-        async function deleteDomain(domain) {
-            if (!confirm(`Sei sicuro di voler rimuovere ${domain}?`)) {
-                return;
-            }
-
-            try {
-                const data = await apiCall(`/domains/${domain}`, 'DELETE');
-                showMessage(`✓ Dominio ${domain} rimosso`, 'success');
-                await refreshDomains();
-                await refreshStatus();
-            } catch (error) {
-                // Error already shown
-            }
-        }
-
-        // ====================================================================
-        // SSL Management
-        // ====================================================================
-
-        function openSSLModal(domain) {
-            document.getElementById('ssl-domain').value = domain;
-            document.getElementById('ssl-result').innerHTML = '';
-            openModal('sslModal');
-        }
-
-        async function renewDomainSSL() {
-            const domain = document.getElementById('ssl-domain').value.trim();
-
-            if (!domain) {
-                showMessage('❌ Inserisci un nome di dominio', 'error');
-                return;
-            }
-
-            try {
-                const data = await apiCall(`/domains/${domain}/ssl`, 'POST');
-                document.getElementById('ssl-result').innerHTML = 
-                    `<div class="message show success">Certificato generato per ${domain}</div>`;
-                setTimeout(() => {
-                    closeModal('sslModal');
-                    refreshDomains();
-                }, 2000);
-            } catch (error) {
-                // Error already shown
-            }
-        }
-
-        async function renewAllSSL() {
-            if (!confirm('Rinnovare tutti i certificati SSL?')) {
-                return;
-            }
-
-            try {
-                const data = await apiCall('/ssl/renew', 'POST');
-                showMessage('✓ Rinnovo certificati completato', 'success');
-                await refreshDomains();
-            } catch (error) {
-                // Error already shown
-            }
-        }
-
-        // ====================================================================
-        // Domain Testing
-        // ====================================================================
-
-        function openTestModal(domain) {
-            document.getElementById('test-domain').value = domain;
-            document.getElementById('test-result').innerHTML = '';
-            openModal('testModal');
-        }
-
-        async function runDomainTest() {
-            const domain = document.getElementById('test-domain').value.trim();
-
-            if (!domain) {
-                showMessage('❌ Inserisci un nome di dominio', 'error');
-                return;
-            }
-
-            try {
-                const data = await apiCall(`/domains/${domain}/test`, 'POST');
-                const resultEl = document.getElementById('test-result');
-                
                 if (data.success) {
-                    resultEl.innerHTML = `
-                        <div class="message show success">
-                            <strong>✓ Test superato</strong><br>
-                            ${data.output.replace(/\n/g, '<br>')}
-                        </div>
-                    `;
+                    token = data.token;
+                    localStorage.setItem('luna2-token', token);
+                    document.getElementById('login-page').style.display = 'none';
+                    document.getElementById('dashboard-page').style.display = 'block';
+                    refreshAll();
                 } else {
-                    resultEl.innerHTML = `
-                        <div class="message show error">
-                            <strong>✗ Errore test</strong><br>
-                            ${data.error}
-                        </div>
-                    `;
+                    showAlert('login-alert', data.error, 'error');
                 }
-            } catch (error) {
-                // Error already shown
+            } catch (e) {
+                showAlert('login-alert', 'Errore di connessione', 'error');
             }
         }
 
-        // ====================================================================
-        // Nginx Management
-        // ====================================================================
-
-        async function reloadNginx() {
-            if (!confirm('Ricaricare la configurazione Nginx?')) {
-                return;
-            }
-
-            try {
-                const data = await apiCall('/nginx/reload', 'POST');
-                showMessage('✓ Nginx ricaricato', 'success');
-                await refreshStatus();
-            } catch (error) {
-                // Error already shown
-            }
+        async function logout() {
+            await apiCall('/auth/logout', 'POST').catch(() => {});
+            token = null;
+            localStorage.removeItem('luna2-token');
+            location.reload();
         }
 
-        async function testNginx() {
-            try {
-                const data = await apiCall('/nginx/test', 'POST');
-                
-                if (data.success) {
-                    showMessage('✓ Configurazione Nginx valida', 'success');
-                } else {
-                    showMessage('❌ Errore configurazione Nginx: ' + data.message, 'error');
-                }
-            } catch (error) {
-                // Error already shown
-            }
-        }
-
-        // ====================================================================
-        // Initialization
-        // ====================================================================
-
-        window.addEventListener('load', () => {
-            refreshStatus();
-            refreshDomains();
-
-            // Auto-refresh status every 30 seconds
-            setInterval(refreshStatus, 30000);
+        document.getElementById('password').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
         });
 
-        // Close modal on outside click
-        window.onclick = function(event) {
-            ['testModal', 'sslModal'].forEach(id => {
-                const modal = document.getElementById(id);
-                if (event.target === modal) {
-                    modal.classList.remove('show');
-                }
-            });
+        // ====== DASHBOARD ======
+        async function refreshAll() {
+            await Promise.all([refreshStats(), refreshInstances()]);
         }
+
+        async function refreshStats() {
+            try {
+                const data = await apiCall('/system/status');
+                document.getElementById('stat-instances').textContent = data.instances;
+                document.getElementById('stat-containers').textContent = data.containersRunning;
+                document.getElementById('stat-disk').textContent = data.disk;
+                document.getElementById('stat-memory').textContent = data.memory;
+            } catch (e) {}
+        }
+
+        async function refreshInstances() {
+            try {
+                const data = await apiCall('/instances');
+                const tbody = document.getElementById('instances-tbody');
+                if (data.instances.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color: #999;">Nessuna istanza</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = data.instances.map(inst => {
+                    const appSt = inst.containers.app.status;
+                    const mysqlSt = inst.containers.mysql.status;
+                    const ssl = inst.ssl;
+                    
+                    let sslBadge = '<span class="status-badge ssl-missing">❌ No SSL</span>';
+                    if (ssl.exists) {
+                        if (ssl.daysLeft !== null && ssl.daysLeft < 30) {
+                            sslBadge = `<span class="status-badge ssl-warn">⚠️ ${ssl.daysLeft}gg</span>`;
+                        } else {
+                            sslBadge = `<span class="status-badge ssl-ok">✓ SSL OK${ssl.daysLeft ? ' ('+ssl.daysLeft+'gg)' : ''}</span>`;
+                        }
+                    }
+
+                    const enabledBtn = inst.enabled
+                        ? `<button class="btn-small warning" onclick="disableInstance('${inst.domain}')">⏸️ Disabilita</button>`
+                        : `<button class="btn-small success" onclick="enableInstance('${inst.domain}')">▶️ Abilita</button>`;
+
+                    return `
+                        <tr>
+                            <td><b>${inst.domain}</b></td>
+                            <td>${inst.customer}</td>
+                            <td><span class="status-badge status-${appSt}">${appSt}</span></td>
+                            <td><span class="status-badge status-${mysqlSt}">${mysqlSt}</span></td>
+                            <td>${sslBadge}</td>
+                            <td>
+                                <div class="actions">
+                                    <button class="btn-small" onclick="showLogs('${inst.domain}', 'luna2')">📋 Log</button>
+                                    <button class="btn-small" onclick="openSSLModal('${inst.domain}')">🔐 SSL</button>
+                                    <button class="btn-small success" onclick="openDeployModal('${inst.domain}')">🚀 Deploy</button>
+                                    ${enabledBtn}
+                                    <button class="btn-small danger" onclick="deleteInstance('${inst.domain}')">🗑️ Rimuovi</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                showAlert('dash-alert', 'Errore caricamento istanze', 'error');
+            }
+        }
+
+        async function createInstance() {
+            const domain = document.getElementById('new-domain').value.trim();
+            const customer = document.getElementById('new-customer').value.trim();
+            if (!domain || !customer) {
+                showAlert('dash-alert', 'Compila tutti i campi', 'error');
+                return;
+            }
+            try {
+                const data = await apiCall('/instances', 'POST', { domain, customer_name: customer });
+                showAlert('dash-alert', data.message, 'success');
+                document.getElementById('new-domain').value = '';
+                document.getElementById('new-customer').value = '';
+                setTimeout(refreshAll, 3000);
+            } catch (e) {
+                showAlert('dash-alert', 'Errore creazione istanza', 'error');
+            }
+        }
+
+        async function enableInstance(domain) {
+            if (!confirm(`Abilitare istanza ${domain}?`)) return;
+            try {
+                await apiCall(`/instances/${domain}/enable`, 'POST');
+                showAlert('dash-alert', `Istanza ${domain} abilitata`, 'success');
+                refreshInstances();
+            } catch (e) {
+                showAlert('dash-alert', 'Errore', 'error');
+            }
+        }
+
+        async function disableInstance(domain) {
+            if (!confirm(`Disabilitare istanza ${domain}? I container verranno fermati.`)) return;
+            try {
+                await apiCall(`/instances/${domain}/disable`, 'POST');
+                showAlert('dash-alert', `Istanza ${domain} disabilitata`, 'success');
+                refreshInstances();
+            } catch (e) {
+                showAlert('dash-alert', 'Errore', 'error');
+            }
+        }
+
+        async function deleteInstance(domain) {
+            if (!confirm(`ATTENZIONE: Rimuovere definitivamente ${domain}? I dati del DB verranno PERSI!`)) return;
+            if (!confirm(`Sei ASSOLUTAMENTE sicuro di voler eliminare ${domain}?`)) return;
+            try {
+                await apiCall(`/instances/${domain}`, 'DELETE');
+                showAlert('dash-alert', `Istanza ${domain} rimossa`, 'info');
+                refreshAll();
+            } catch (e) {
+                showAlert('dash-alert', 'Errore rimozione', 'error');
+            }
+        }
+
+        // ====== SSL ======
+        async function openSSLModal(domain) {
+            currentSSLDomain = domain;
+            document.getElementById('ssl-domain-name').textContent = `Dominio: ${domain}`;
+            document.getElementById('ssl-info').innerHTML = '<p>Caricamento info SSL...</p>';
+            document.getElementById('ssl-result').className = 'alert';
+            openModal('ssl-modal');
+
+            try {
+                const data = await apiCall(`/instances/${domain}/ssl`);
+                const ssl = data.ssl;
+                let html = '';
+                if (ssl.exists) {
+                    html = `
+                        <b>Certificato installato:</b><br>
+                        Scadenza: ${ssl.expiry || 'N/D'}<br>
+                        Giorni rimanenti: ${ssl.daysLeft !== null ? ssl.daysLeft : 'N/D'}<br>
+                        Issuer: ${ssl.issuer || 'N/D'}
+                    `;
+                } else {
+                    html = '<b>Nessun certificato SSL installato</b>';
+                }
+                document.getElementById('ssl-info').innerHTML = html;
+            } catch (e) {
+                document.getElementById('ssl-info').innerHTML = '<p style="color: #dc3545;">Errore caricamento info SSL</p>';
+            }
+        }
+
+        async function renewSSL() {
+            if (!currentSSLDomain) return;
+            const resultEl = document.getElementById('ssl-result');
+            resultEl.textContent = 'Rinnovo in corso...';
+            resultEl.className = 'alert show info';
+            try {
+                const data = await apiCall(`/instances/${currentSSLDomain}/ssl/renew`, 'POST');
+                resultEl.textContent = data.message;
+                resultEl.className = 'alert show success';
+                setTimeout(() => {
+                    closeModal('ssl-modal');
+                    refreshInstances();
+                }, 2000);
+            } catch (e) {
+                resultEl.textContent = 'Errore rinnovo certificato';
+                resultEl.className = 'alert show error';
+            }
+        }
+
+        async function uploadCustomSSL() {
+            if (!currentSSLDomain) return;
+            const certFile = document.getElementById('ssl-cert-file').files[0];
+            const keyFile  = document.getElementById('ssl-key-file').files[0];
+
+            if (!certFile || !keyFile) {
+                const resultEl = document.getElementById('ssl-result');
+                resultEl.textContent = 'Seleziona entrambi i file (certificato e chiave)';
+                resultEl.className = 'alert show error';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('cert', certFile);
+            formData.append('key',  keyFile);
+
+            const resultEl = document.getElementById('ssl-result');
+            resultEl.textContent = 'Upload in corso...';
+            resultEl.className = 'alert show info';
+
+            try {
+                const data = await apiCall(`/instances/${currentSSLDomain}/ssl/custom`, 'POST', formData, true);
+                resultEl.textContent = data.message;
+                resultEl.className = 'alert show success';
+                setTimeout(() => {
+                    closeModal('ssl-modal');
+                    refreshInstances();
+                }, 2000);
+            } catch (e) {
+                resultEl.textContent = 'Errore upload certificato';
+                resultEl.className = 'alert show error';
+            }
+        }
+
+        // ====== DEPLOY ======
+        async function openDeployModal(domain) {
+            currentDeployDomain = domain;
+            document.getElementById('deploy-domain-name').textContent = `Deploy Update a: ${domain}`;
+            document.getElementById('deploy-result').innerHTML = '';
+            openModal('deploy-modal');
+        }
+
+        async function deployInstance() {
+            if (!currentDeployDomain) return;
+            const resultEl = document.getElementById('deploy-result');
+            resultEl.innerHTML = '<div class="progress-step running">⏳ Deploy in corso...</div>';
+
+            try {
+                const data = await apiCall(`/instances/${currentDeployDomain}/deploy`, 'POST');
+                let html = '';
+                if (data.steps) {
+                    html = data.steps.map(s => 
+                        `<div class="progress-step ${s.status}">${s.step}: ${s.status}</div>`
+                    ).join('');
+                }
+                html += `<div class="alert show success" style="margin-top: 15px;">${data.message}</div>`;
+                resultEl.innerHTML = html;
+                setTimeout(() => {
+                    closeModal('deploy-modal');
+                    refreshInstances();
+                }, 3000);
+            } catch (e) {
+                resultEl.innerHTML = '<div class="alert show error">Errore deploy</div>';
+            }
+        }
+
+        // ====== UPDATE SYSTEM ======
+        async function updateSystem() {
+            const resultEl = document.getElementById('update-result');
+            resultEl.innerHTML = '<div class="progress-step running">⏳ Update in corso (git pull + mvn build)...</div>';
+
+            try {
+                const data = await apiCall('/system/update', 'POST');
+                let html = '';
+                if (data.steps) {
+                    html = data.steps.map(s => 
+                        `<div class="progress-step ${s.status}">${s.step}: ${s.status}${s.output ? '<br>' + s.output.substring(0, 200) : ''}</div>`
+                    ).join('');
+                }
+                html += `<div class="alert show success" style="margin-top: 15px;">${data.message}</div>`;
+                resultEl.innerHTML = html;
+            } catch (e) {
+                resultEl.innerHTML = '<div class="alert show error">Errore update sistema</div>';
+            }
+        }
+
+        async function deployAll() {
+            if (!confirm('Distribuire l\'update a TUTTE le istanze? I container verranno riavviati.')) return;
+            const resultEl = document.getElementById('deploy-all-result');
+            resultEl.innerHTML = '<div class="progress-step running">🚀 Deploy su tutte le istanze in corso...</div>';
+
+            try {
+                const data = await apiCall('/system/deploy-all', 'POST');
+                let html = `<div class="alert show ${data.success ? 'success' : 'error'}">
+                    ${data.message}<br>
+                    Totale: ${data.total} | OK: ${data.succeeded} | Falliti: ${data.failed}
+                </div>`;
+                
+                if (data.results) {
+                    html += '<h4 style="margin-top: 15px;">Dettagli:</h4>';
+                    html += data.results.map(r => {
+                        const badge = r.success ? '✓' : '✗';
+                        return `<div class="progress-step ${r.success ? 'success' : 'failed'}">${badge} ${r.domain}</div>`;
+                    }).join('');
+                }
+                resultEl.innerHTML = html;
+                setTimeout(refreshInstances, 3000);
+            } catch (e) {
+                resultEl.innerHTML = '<div class="alert show error">Errore deploy globale</div>';
+            }
+        }
+
+        // ====== LOGS ======
+        async function showLogs(domain, container) {
+            openModal('logs-modal');
+            document.getElementById('logs-content').textContent = 'Caricamento log...';
+            try {
+                const data = await apiCall(`/instances/${domain}/logs/${container}?lines=300`);
+                document.getElementById('logs-content').textContent = data.logs || 'Nessun log disponibile';
+            } catch (e) {
+                document.getElementById('logs-content').textContent = 'Errore caricamento log';
+            }
+        }
+
+        // ====== INIT ======
+        window.addEventListener('load', async () => {
+            if (!token) return;
+            try {
+                const check = await apiCall('/auth/check');
+                if (check.authenticated) {
+                    document.getElementById('login-page').style.display = 'none';
+                    document.getElementById('dashboard-page').style.display = 'block';
+                    refreshAll();
+                    setInterval(refreshStats, 30000);
+                } else {
+                    logout();
+                }
+            } catch (e) {
+                logout();
+            }
+        });
+
+        window.onclick = (e) => {
+            ['ssl-modal', 'deploy-modal', 'logs-modal', 'update-modal'].forEach(id => {
+                const modal = document.getElementById(id);
+                if (e.target === modal) closeModal(id);
+            });
+        };
     </script>
 </body>
 </html>
