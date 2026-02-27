@@ -6,19 +6,35 @@ Hai scelto **Ubuntu 22 LTS**! Ecco come procedere **passo-passo** da zero fino a
 
 ## 📚 Quale Documento Leggere?
 
+### � **SETUP MULTI-TENANT CON PANNELLO DI GESTIONE? (NUOVO!)**
+Leggi: **[UBUNTU_SERVER_COMPLETE_SETUP.md](UBUNTU_SERVER_COMPLETE_SETUP.md)**
+- Setup completo server Ubuntu da zero
+- Installazione Docker, Node.js, Maven, Git
+- Installazione **Server Manager v2.0** (pannello gestione web)
+- Configurazione firewall e sicurezza
+- **60-90 minuti totali**
+- **CONSIGLIATO per nuovi server multi-tenant**
+
+Poi leggi: **[SERVER_MANAGER_USER_GUIDE.md](SERVER_MANAGER_USER_GUIDE.md)**
+- Guida completa uso **Pannello di Gestione**
+- Creare istanze per clienti (step-by-step)
+- Gestione SSL (Let's Encrypt + custom)
+- Update e deploy da GitHub
+- Monitoring e logs
+
 ### 🏃 **FRETTA? (5 min)**
 Leggi: **[QUICK_DEPLOY_UBUNTU.md](QUICK_DEPLOY_UBUNTU.md)**
 - 3 step essenziali
 - ~30 minuti totali
 - Perfetto per chi sa cosa fa
 
-### 📖 **PRIMO DEPLOYMENT? (seguire step-by-step)**
+### 📖 **PRIMO DEPLOYMENT SINGOLA ISTANZA? (seguire step-by-step)**
 Leggi: **[DEPLOYMENT_UBUNTU_22_LTS.md](DEPLOYMENT_UBUNTU_22_LTS.md)**
 - 20 step dettagliati
 - Spiegazione per ogni comando
 - Cosa aspettarsi ad ogni step
 - Troubleshooting integrato
-- **SUGGERITO per la PRIMA VOLTA**
+- **SUGGERITO per deployment singolo (non multi-tenant)**
 
 ### 📊 **VISUAL LEARNER? (capire architecture)**
 Leggi: **[DEPLOYMENT_FLOW_DIAGRAM.md](DEPLOYMENT_FLOW_DIAGRAM.md)**

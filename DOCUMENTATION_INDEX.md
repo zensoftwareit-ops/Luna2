@@ -1,6 +1,57 @@
 # 📚 LUNA2 - INDICE DOCUMENTAZIONE COMPLETA
 
-## 🎯 AVVISO IMPORTANTE
+## � NUOVO: GUIDE OPERATIVE MULTI-TENANT (v2.0)
+
+**Luna2 v2.0** include ora il **Server Manager** - un pannello di gestione web per amministrare istanze multi-tenant!
+
+### 🖥️ **Setup Server Ubuntu Completo** (NUOVO!)
+**File**: [UBUNTU_SERVER_COMPLETE_SETUP.md](UBUNTU_SERVER_COMPLETE_SETUP.md)
+
+**Cosa troverai**:
+- ✅ Setup server Ubuntu da zero (22.04/24.04 LTS)
+- ✅ Installazione Docker, Node.js, Maven, Git
+- ✅ Installazione **Server Manager v2.0** (pannello web gestione)
+- ✅ Configurazione firewall, sicurezza, SSL
+- ✅ Setup produzione con systemd services
+- ✅ Backup automatico e monitoring
+
+**Ideal per**: System Administrators, DevOps che configurano nuovo server  
+**Tempo**: 60-90 minuti  
+**Use Case**: Primo setup server multi-tenant
+
+### 🎛️ **Guida Utente Server Manager** (NUOVO!)
+**File**: [SERVER_MANAGER_USER_GUIDE.md](SERVER_MANAGER_USER_GUIDE.md)
+
+**Cosa troverai**:
+- ✅ Login e dashboard overview
+- ✅ **Creare nuove istanze** per clienti (step-by-step)
+- ✅ Gestione SSL (Let's Encrypt + custom certificates)
+- ✅ **Update da GitHub** + Deploy automatico
+- ✅ Monitoring containers, logs, risorse
+- ✅ Enable/disable/remove istanze
+- ✅ Troubleshooting completo
+
+**Ideal per**: Amministratori, Operations, Support Team  
+**Tempo**: 30-45 minuti  
+**Use Case**: Gestione quotidiana istanze clienti
+
+### 🚀 **Workflow Update/Deploy Dettagliato**
+**File**: [SERVER_MANAGER_UPDATE_DEPLOY_GUIDE.md](SERVER_MANAGER_UPDATE_DEPLOY_GUIDE.md)
+
+**Cosa troverai**:
+- ✅ Pull codice da GitHub + build Maven
+- ✅ Database migrations (idempotent SQL)
+- ✅ Deploy singola istanza o globale
+- ✅ Zero data loss garantito
+- ✅ API examples, troubleshooting, rollback
+
+**Ideal per**: DevOps, Technical Leaders  
+**Tempo**: 20-30 minuti  
+**Use Case**: Deploy aggiornamenti software
+
+---
+
+## 🎯 DOCUMENTI BUSINESS & ASSESSMENT
 
 Hai ricevuto una **valutazione professionale completa** della situazione del software Luna2. I 4 documenti qui elencati forniscono:
 
