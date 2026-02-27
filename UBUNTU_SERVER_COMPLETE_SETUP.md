@@ -105,7 +105,14 @@ apt install -y curl wget git nano vim htop net-tools
 
 **Tempo stimato:** 5-10 minuti
 
-### 1.3 Crea User Non-Root (Consigliato)
+### 1.3 Scegli Modalità Operativa
+
+Puoi lavorare in due modi:
+
+#### Opzione A: User Non-Root (Consigliato per Produzione)
+
+**Vantaggi:** Maggiore sicurezza, isolamento processi  
+**Svantaggi:** Devi usare `sudo` per operazioni privilegiate
 
 ```bash
 # Crea user 'luna2'
@@ -114,16 +121,31 @@ adduser luna2
 # Aggiungi a gruppo sudo
 usermod -aG sudo luna2
 
-# Aggiungi a gruppo docker (lo creeremo dopo)
-usermod -aG docker luna2
-
 # Switch a nuovo user
 su - luna2
 ```
 
-**Da ora in poi, tutti i comandi vanno eseguiti come user `luna2`.**
-
+**Da ora in poi, tutti i comandi vanno eseguiti come user `luna2`.**  
 Se serve sudo, usa: `sudo comando`
+
+**⚠️ NOTA:** L'utente verrà aggiunto al gruppo `docker` dopo l'installazione nella Fase 2.
+
+#### Opzione B: Resta come Root (Setup Veloce)
+
+**Vantaggi:** Nessun bisogno di `sudo`, comandi più diretti  
+**Svantaggi:** Meno sicuro, non raccomandato per produzione
+
+```bash
+# Resta logged come root
+# Non creare user separato
+```
+
+**Da ora in poi, esegui tutti i comandi come `root`.**  
+**Rimuovi `sudo` da tutti i comandi nelle fasi successive.**
+
+---
+
+**💡 Scelta consigliata:** Opzione A per server di produzione, Opzione B solo per test rapidi.
 
 ---
 
@@ -174,8 +196,11 @@ Docker Compose version v2.23.0
 
 ### 2.3 Configura Docker (Non-Root Access)
 
+**⚠️ Questo step è necessario SOLO se hai scelto Opzione A (user non-root) nella Fase 1.3**  
+**Se stai usando root, salta direttamente al test `docker run hello-world`**
+
 ```bash
-# Aggiungi user corrente al gruppo docker
+# Aggiungi user corrente al gruppo docker (creato durante installazione)
 sudo usermod -aG docker $USER
 
 # Applica cambio gruppo (re-login)
@@ -186,6 +211,12 @@ docker run hello-world
 ```
 
 **Se vedi "Hello from Docker!" → ✅ Docker funziona**
+
+**Se stai usando root:**
+```bash
+# Test docker come root (non serve configurazione gruppo)
+docker run hello-world
+```
 
 ### 2.4 Configura Docker per Produzione
 
@@ -322,6 +353,10 @@ cd Luna2
 # Verifica branch
 git branch
 ```
+
+**📝 NOTA:** 
+- Se usi **user luna2**: repo sarà in `/home/luna2/Luna2`
+- Se usi **root**: repo sarà in `/root/Luna2`
 
 ### 4.2 Configura Environment Variables
 
@@ -475,6 +510,11 @@ RestartSec=10
 [Install]
 WantedBy=multi-user.target
 ```
+
+**⚠️ Se stai usando root invece di user luna2:**
+- Cambia `User=luna2` → `User=root`
+- Cambia `WorkingDirectory=/home/luna2/Luna2/server-manager` → `WorkingDirectory=/root/Luna2/server-manager`
+- Cambia `WORKSPACE_DIR=/home/luna2/Luna2` → `WORKSPACE_DIR=/root/Luna2`
 
 **⚠️ Aggiorna `ADMIN_PASS` con la tua password!**
 
