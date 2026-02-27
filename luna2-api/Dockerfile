@@ -1,4 +1,4 @@
-FROM openjdk:11-jre-slim
+FROM openjdk:17-slim
 
 # Set labels
 LABEL maintainer="Luna2 Development Team"
