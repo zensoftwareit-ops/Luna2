@@ -237,11 +237,118 @@ app.post('/api/instances/:domain/disable', async (req, res) => {
 
 app.delete('/api/instances/:domain', async (req, res) => {
     const { domain } = req.params;
-    log('API', `Rimuovi istanza: ${domain}`);
-    for (const c of [`luna2-${domain}`, `phpmyadmin-${domain}`, `mysql-${domain}`])
-        await exec$(`docker stop ${c} 2>/dev/null || true && docker rm ${c} 2>/dev/null || true`);
-    const r = await exec$(`cd "${WORKSPACE}" && echo "y" | bash "${SCRIPT_PATH}" remove "${domain}" 2>&1 || true`);
-    res.json({ success: true, message: `Istanza ${domain} rimossa`, output: r.stdout });
+    const { deleteData } = req.body || {};
+    
+    log('API', `Elimina istanza completa: ${domain}`);
+    
+    try {
+        const errors = [];
+        const steps = [];
+        
+        // Step 1: Stop and remove containers
+        steps.push({ step: 'stop-containers', status: 'running' });
+        for (const c of [`luna2-${domain}`, `phpmyadmin-${domain}`, `mysql-${domain}`]) {
+            const stopR = await exec$(`docker stop ${c} 2>/dev/null || true`);
+            const rmR = await exec$(`docker rm ${c} 2>/dev/null || true`);
+            if (!stopR.success || !rmR.success) {
+                errors.push(`Container ${c}: ${stopR.error || rmR.error}`);
+            }
+        }
+        steps[steps.length - 1].status = 'success';
+        steps[steps.length - 1].output = 'Container stopped and removed';
+        
+        // Step 2: Remove docker-compose file
+        steps.push({ step: 'remove-docker-compose', status: 'running' });
+        const dockerFile = path.join(WORKSPACE, `docker-compose-customer-${domain}.yml`);
+        if (fs.existsSync(dockerFile)) {
+            try {
+                fs.unlinkSync(dockerFile);
+                steps[steps.length - 1].status = 'success';
+                steps[steps.length - 1].output = `Removed ${dockerFile}`;
+            } catch (e) {
+                errors.push(`Failed to remove docker-compose: ${e.message}`);
+                steps[steps.length - 1].status = 'failed';
+            }
+        } else {
+            steps[steps.length - 1].status = 'success';
+            steps[steps.length - 1].output = 'docker-compose file not found (already removed)';
+        }
+        
+        // Step 3: Remove nginx config
+        steps.push({ step: 'remove-nginx-config', status: 'running' });
+        const nginxFile = `${SCRIPT_PATH.replace('/manage-domains-multitenant.sh', '')}/docker/nginx/multi-tenant/${domain}.conf`;
+        if (fs.existsSync(nginxFile)) {
+            try {
+                fs.unlinkSync(nginxFile);
+                steps[steps.length - 1].status = 'success';
+                steps[steps.length - 1].output = `Removed ${nginxFile}`;
+            } catch (e) {
+                errors.push(`Failed to remove nginx config: ${e.message}`);
+                steps[steps.length - 1].status = 'failed';
+            }
+        } else {
+            steps[steps.length - 1].status = 'success';
+            steps[steps.length - 1].output = 'Nginx config not found (already removed)';
+        }
+        
+        // Step 4: Update domains-config.txt
+        steps.push({ step: 'update-domains-config', status: 'running' });
+        try {
+            if (fs.existsSync(DOMAINS_CONFIG)) {
+                const content = fs.readFileSync(DOMAINS_CONFIG, 'utf8');
+                const lines = content.split('\n').filter(line => !line.startsWith(domain + '|'));
+                fs.writeFileSync(DOMAINS_CONFIG, lines.join('\n'));
+                steps[steps.length - 1].status = 'success';
+                steps[steps.length - 1].output = 'Updated domains-config.txt';
+            } else {
+                steps[steps.length - 1].status = 'success';
+                steps[steps.length - 1].output = 'domains-config.txt not found';
+            }
+        } catch (e) {
+            errors.push(`Failed to update domains-config: ${e.message}`);
+            steps[steps.length - 1].status = 'failed';
+        }
+        
+        // Step 5: Reload nginx
+        steps.push({ step: 'reload-nginx', status: 'running' });
+        const reloadR = await exec$(`nginx -t 2>&1 && systemctl reload nginx 2>&1 || true`);
+        steps[steps.length - 1].status = 'success';
+        steps[steps.length - 1].output = reloadR.stdout || 'Nginx reloaded';
+        
+        // Step 6: Optionally remove data
+        if (deleteData === true) {
+            steps.push({ step: 'remove-data', status: 'running' });
+            try {
+                for (const dataDir of [`data/mysql-${domain}`, `data/phpmyadmin-${domain}`, `logs/luna2-${domain}`]) {
+                    const fullPath = path.join(WORKSPACE, dataDir);
+                    if (fs.existsSync(fullPath)) {
+                        exec$(`rm -rf "${fullPath}" 2>/dev/null`);
+                    }
+                }
+                steps[steps.length - 1].status = 'success';
+                steps[steps.length - 1].output = 'Data directories removed';
+            } catch (e) {
+                steps[steps.length - 1].status = 'failed';
+                steps[steps.length - 1].output = `Warning: ${e.message}`;
+            }
+        }
+        
+        res.json({
+            success: errors.length === 0,
+            message: errors.length === 0 
+                ? `Istanza ${domain} eliminata completamente` 
+                : `Istanza ${domain} eliminata con avvertimenti`,
+            steps,
+            errors: errors.length > 0 ? errors : undefined
+        });
+        
+    } catch (error) {
+        log('ERROR', `Delete instance failed: ${error.message}`);
+        res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
 });
 
 // ──────────────────────────────────────────────────────────────
