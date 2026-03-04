@@ -38,8 +38,8 @@ services:
   # Luna2 Application per questo cliente
   luna2-%%DOMAIN%%:
     build:
-      context: ./luna2-api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: luna2-api/Dockerfile
     container_name: luna2-%%DOMAIN%%
     environment:
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql-%%DOMAIN%%:3306/luna2?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true

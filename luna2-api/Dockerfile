@@ -17,11 +17,11 @@ RUN mkdir -p /var/log/luna2 && \
 # Remove default webapps to reduce image size
 RUN rm -rf /usr/local/tomcat/webapps/*
 
-# Copy the compiled WAR from parent directory
-COPY ../target/luna2.war /usr/local/tomcat/webapps/ROOT.war
+# Copy the compiled WAR from root directory (when built with context: . from docker-compose)
+COPY target/luna2.war /usr/local/tomcat/webapps/ROOT.war
 
 # Copy Tomcat configuration (if exists)
-COPY server.xml /usr/local/tomcat/conf/server.xml 2>/dev/null || true
+COPY luna2-api/server.xml /usr/local/tomcat/conf/server.xml 2>/dev/null || true
 
 # Expose port
 EXPOSE 8080
