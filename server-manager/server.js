@@ -28,6 +28,7 @@ const SCRIPT_PATH     = path.join(WORKSPACE, 'manage-domains-multitenant.sh');
 const LETSENCRYPT_DIR = process.env.LETSENCRYPT_DIR || '/etc/letsencrypt/live';
 const ADMIN_USER      = process.env.ADMIN_USER      || 'admin';
 const ADMIN_PASS      = process.env.ADMIN_PASS      || 'Luna2Admin!';
+const GIT_USERNAME    = process.env.GIT_USERNAME    || 'oauth2';
 const GITHUB_TOKEN    = process.env.GITHUB_TOKEN    || '';
 const TOKEN_TTL_MS    = 24 * 60 * 60 * 1000;
 
@@ -511,8 +512,8 @@ app.post('/api/system/update', async (req, res) => {
         const askPassScript = path.join(WORKSPACE, '.git-askpass.sh');
         fs.writeFileSync(askPassScript, `#!/bin/bash\necho "${GITHUB_TOKEN}"`, { mode: 0o755 });
         gitEnv.GIT_ASKPASS = askPassScript;
-        gitEnv.GIT_USERNAME = 'oauth2';
-        log('DEBUG', 'Git pull using GITHUB_TOKEN authentication');
+        gitEnv.GIT_USERNAME = GIT_USERNAME;
+        log('DEBUG', `Git pull using authentication (username: ${GIT_USERNAME})`);
     }
     
     const pullR = await exec$(`cd "${WORKSPACE}" && ${gitCmd}`, gitEnv);
