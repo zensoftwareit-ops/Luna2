@@ -540,7 +540,45 @@ async function deployInstance() {
 
 async function updateSystem() {
     const resultEl = document.getElementById('update-result');
-    resultEl.innerHTML = '<div class="progress-step running">⏳ Update in corso...</div>';
+    resultEl.innerHTML = '<div class="progress-step running">⏳ Aggiornamento in corso (Pull + Build + Backup + Migrate + Deploy)...</div>';
+    
+    try {
+        const response = await apiCall('/system/safe-update', 'POST', {});
+        
+        if (response.success) {
+            resultEl.innerHTML = `
+                <div class="progress-step success">✅ Aggiornamento completato con successo!</div>
+                <div style="margin-top: 15px; padding: 10px; background: #f0fdf4; border-radius: 6px; font-size: 0.9em;">
+                    <strong>Dettagli update:</strong>
+                    ${response.steps.map((step, i) => {
+                        if (step.step === 'git-pull') {
+                            return `<div style="margin-top: 8px;">✓ Git Pull: ${step.output}</div>`;
+                        } else if (step.step === 'maven-build') {
+                            return `<div style="margin-top: 8px;">✓ Maven Build: ${step.output}</div>`;
+                        } else if (step.step === 'migrations-detected') {
+                            return `<div style="margin-top: 8px;">✓ Migrazioni trovate: ${step.count}</div>`;
+                        } else if (step.step === 'backup-all-databases') {
+                            return `<div style="margin-top: 8px;">✓ Backup database: ${step.backups.filter(b => b.success).length}/${step.backups.length} istanze</div>`;
+                        } else if (step.step === 'deploy-all') {
+                            return `<div style="margin-top: 8px;">✓ Deploy: ${step.instances.filter(i => i.success).length}/${step.instances.length} istanze aggiornate</div>`;
+                        }
+                        return '';
+                    }).join('')}
+                </div>
+            `;
+            refreshAll();
+        } else {
+            resultEl.innerHTML = `
+                <div class="progress-step failed">❌ Errore: ${response.error}</div>
+                <div style="margin-top: 10px; padding: 10px; background: #fee2e2; border-radius: 6px; color: #7f1d1d; font-size: 0.9em;">
+                    Controlla i backup (cartella /backups) per rollback manuale.<br>
+                    I database sono stati ripristinati automaticamente.
+                </div>
+            `;
+        }
+    } catch (e) {
+        resultEl.innerHTML = `<div class="progress-step failed">❌ Errore connessione: ${e.message}</div>`;
+    }
 }
 
 document.getElementById('password').addEventListener('keypress', (e) => {
