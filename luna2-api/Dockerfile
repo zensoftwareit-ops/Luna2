@@ -1,4 +1,4 @@
-FROM openjdk:17-slim
+FROM amazoncorretto:17
 
 # Set labels
 LABEL maintainer="Luna2 Development Team"
@@ -6,9 +6,9 @@ LABEL version="1.0.0"
 LABEL description="Luna2 REST API - Production-Ready"
 
 # Install curl for healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN yum update -y && yum install -y \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && yum clean all
 
 # Create app user
 RUN useradd -m -u 1000 luna2 && \
