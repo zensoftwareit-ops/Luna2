@@ -214,6 +214,24 @@ app.post('/api/instances', async (req, res) => {
     if (!domain || !customer_name)
         return res.status(400).json({ success: false, error: 'Campi domain e customer_name obbligatori' });
     log('API', `Crea istanza: ${domain} / ${customer_name}`);
+    
+    // Controlla se il WAR esiste, se no compilalo
+    const warPath = path.join(WORKSPACE, 'target/luna2.war');
+    if (!fs.existsSync(warPath)) {
+        log('API', 'WAR non trovato, compilo...');
+        const buildR = await exec$(`cd "${WORKSPACE}" && mvn clean package -DskipTests`);
+        if (!buildR.success) {
+            log('API', `Maven build fallito: ${buildR.error}`);
+            return res.status(400).json({
+                success: false,
+                error: 'Maven build fallito. Controlla i log.',
+                buildError: buildR.error
+            });
+        }
+        log('API', 'WAR compilato con successo');
+    }
+    
+    // Ora crea l'istanza (docker-compose + container)
     const r = await exec$(`cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" add "${domain}" "${customer_name}"`);
     if (!r.success) return res.status(400).json({ success: false, error: r.error, output: r.stderr });
     res.json({ success: true, message: `Istanza ${domain} creata`, output: r.stdout });
