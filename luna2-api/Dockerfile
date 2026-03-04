@@ -1,42 +1,31 @@
-FROM amazoncorretto:17
+FROM tomcat:9-jre17
 
 # Set labels
 LABEL maintainer="Luna2 Development Team"
 LABEL version="1.0.0"
-LABEL description="Luna2 REST API - Production-Ready"
+LABEL description="Luna2 WAR Application - Production-Ready"
 
 # Install curl for healthcheck
-RUN yum update -y && yum install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
-    && yum clean all
+    && rm -rf /var/lib/apt/lists/*
 
-# Create app user
-RUN useradd -m -u 1000 luna2 && \
-    mkdir -p /var/log/luna2 && \
-    chown -R luna2:luna2 /var/log/luna2
+# Create luna2 log directory
+RUN mkdir -p /var/log/luna2 && \
+    chmod 755 /var/log/luna2
 
-# Set working directory
-WORKDIR /app
+# Remove default webapps to reduce image size
+RUN rm -rf /usr/local/tomcat/webapps/*
 
-# Copy built application
-COPY target/luna2-api-1.0.0.jar luna2-api.jar
-COPY src/main/resources/application.properties /config/application.properties
+# Copy the compiled WAR from parent directory
+COPY ../target/luna2.war /usr/local/tomcat/webapps/ROOT.war
 
-# Create symbolic link for logs
-RUN ln -s /var/log/luna2 /app/logs
-
-# Set ownership
-RUN chown -R luna2:luna2 /app
-
-# Switch to non-root user
-USER luna2
+# Copy Tomcat configuration (if exists)
+COPY server.xml /usr/local/tomcat/conf/server.xml 2>/dev/null || true
 
 # Expose port
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8080/api/v1/health || exit 1
-
-# Run application
-ENTRYPOINT ["java", "-Djava.security.egd=file:/dev/./urandom", "-jar", "luna2-api.jar"]
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/ || exit 1
