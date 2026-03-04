@@ -9,6 +9,17 @@ CREATE DATABASE luna2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE luna2;
 
 -- ============================================================
+-- SCHEMA MIGRATIONS - Track database version migrations
+-- ============================================================
+
+CREATE TABLE schema_migrations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    migration VARCHAR(255) NOT NULL UNIQUE,
+    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_migration (migration)
+) ENGINE=InnoDB;
+
+-- ============================================================
 -- USERS & AUTHENTICATION
 -- ============================================================
 
