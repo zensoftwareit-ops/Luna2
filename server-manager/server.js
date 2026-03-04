@@ -493,27 +493,75 @@ app.post('/api/system/nginx/test', async (req, res) => {
 // ──────────────────────────────────────────────────────────────
 // UPDATE & DEPLOY
 // ──────────────────────────────────────────────────────────────
+// SAFE UPDATES & MIGRATIONS
+// ──────────────────────────────────────────────────────────────
 
-// POST /api/system/update - Pull da GitHub + build nuovo WAR
-app.post('/api/system/update', async (req, res) => {
-    log('API', 'UPDATE: Pull da GitHub + rebuild WAR');
+// Helper: Backup database per istanza
+async function backupDatabase(domain, dbUser, dbPass) {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupName = `luna2-${domain}-backup-${timestamp}.sql`;
+    const backupPath = path.join(WORKSPACE, 'backups', backupName);
+    
+    // Crea cartella backups se non esiste
+    const backupsDir = path.join(WORKSPACE, 'backups');
+    if (!fs.existsSync(backupsDir)) fs.mkdirSync(backupsDir, { recursive: true });
+    
+    const cmd = `docker exec mysql-${domain} mysqldump -u${dbUser} -p${dbPass} luna2 > "${backupPath}"`;
+    const r = await exec$(cmd);
+    
+    return {
+        success: r.success,
+        backupPath: r.success ? backupPath : null,
+        error: r.error
+    };
+}
+
+// Helper: Restore database da backup
+async function restoreDatabase(domain, dbUser, dbPass, backupPath) {
+    if (!fs.existsSync(backupPath)) {
+        return { success: false, error: `Backup non trovato: ${backupPath}` };
+    }
+    
+    const cmd = `cat "${backupPath}" | docker exec -i mysql-${domain} mysql -u${dbUser} -p${dbPass} luna2`;
+    const r = await exec$(cmd);
+    return { success: r.success, error: r.error };
+}
+
+// Helper: Leggi migrazioni applicate
+async function getAppliedMigrations(domain) {
+    const cmd = `docker exec mysql-${domain} mysql -uluna2_user -pluna2pass luna2 -e "SELECT migration FROM schema_migrations ORDER BY applied_at" 2>/dev/null || echo ""`;
+    const r = await exec$(cmd);
+    if (!r.success) return [];
+    
+    return r.stdout
+        .split('\n')
+        .filter(line => line.trim() && !line.includes('migration'))
+        .map(line => line.trim());
+}
+
+// Helper: Registra migrazione applicata
+async function recordMigration(domain, migrationName) {
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const cmd = `docker exec mysql-${domain} mysql -uluna2_user -pluna2pass luna2 -e "INSERT INTO schema_migrations (migration, applied_at) VALUES ('${migrationName}', '${now}')" 2>/dev/null || true`;
+    await exec$(cmd);
+}
+
+// POST /api/system/safe-update - Pull + Build + Backup ALL + Deploy ALL con migrazioni
+app.post('/api/system/safe-update', async (req, res) => {
+    log('API', 'SAFE-UPDATE: Pull + Build + Backup + Migrate + Deploy');
     
     const steps = [];
     
-    // 1. Git pull (con autenticazione se GITHUB_TOKEN presente)
+    // 1. Git pull
     steps.push({ step: 'git-pull', status: 'running' });
-    
     let gitCmd = 'git pull origin main';
     let gitEnv = { ...process.env };
     
-    // Se c'è GITHUB_TOKEN, configuriamo git per usarlo
     if (GITHUB_TOKEN) {
-        // Usa GIT_ASKPASS per passare il token in modo sicuro
         const askPassScript = path.join(WORKSPACE, '.git-askpass.sh');
         fs.writeFileSync(askPassScript, `#!/bin/bash\necho "${GITHUB_TOKEN}"`, { mode: 0o755 });
         gitEnv.GIT_ASKPASS = askPassScript;
         gitEnv.GIT_USERNAME = GIT_USERNAME;
-        log('DEBUG', `Git pull using authentication (username: ${GIT_USERNAME})`);
     }
     
     const pullR = await exec$(`cd "${WORKSPACE}" && ${gitCmd}`, gitEnv);
@@ -534,16 +582,114 @@ app.post('/api/system/update', async (req, res) => {
         return res.status(400).json({ success: false, steps, error: 'Maven build fallito' });
     }
     steps[1].status = 'success';
-    steps[1].output = 'WAR generato con successo';
+    steps[1].output = 'WAR compilato';
     
     const warPath = path.join(WORKSPACE, 'target/luna2.war');
-    const warExists = fs.existsSync(warPath);
+    if (!fs.existsSync(warPath)) {
+        return res.status(400).json({ success: false, steps, error: 'WAR non trovato dopo build' });
+    }
+    
+    // 3. Rileva migrazioni disponibili
+    const migrationDir = path.join(WORKSPACE, 'database/migrations');
+    let availableMigrations = [];
+    if (fs.existsSync(migrationDir)) {
+        availableMigrations = fs.readdirSync(migrationDir)
+            .filter(f => f.endsWith('.sql') && f[0].match(/\d/))
+            .sort();
+    }
+    
+    steps.push({ step: 'migrations-detected', status: 'success', count: availableMigrations.length });
+    
+    // 4. Backup di tutte le istanze
+    steps.push({ step: 'backup-all-databases', status: 'running', backups: [] });
+    const domains = await parseDomainConfig();
+    const backups = {}; // { domain: backupPath }
+    
+    for (const d of domains) {
+        const backupResult = await backupDatabase(d.domain, 'luna2_user', 'luna2pass');
+        steps[steps.length - 1].backups.push({
+            domain: d.domain,
+            success: backupResult.success,
+            path: backupResult.backupPath
+        });
+        if (backupResult.success) {
+            backups[d.domain] = backupResult.backupPath;
+        }
+    }
+    steps[steps.length - 1].status = 'success';
+    
+    // 5. Deploy a tutte le istanze (con migrazioni)
+    steps.push({ step: 'deploy-all', status: 'running', instances: [] });
+    
+    for (const d of domains) {
+        const instStep = { domain: d.domain, substeps: [] };
+        
+        // 5a. Applica migrazioni
+        const appliedMigs = await getAppliedMigrations(d.domain);
+        const newMigs = availableMigrations.filter(m => !appliedMigs.includes(m.replace('.sql', '')));
+        
+        for (const migFile of newMigs) {
+            const migPath = path.join(migrationDir, migFile);
+            const migContent = fs.readFileSync(migPath, 'utf8');
+            const migName = migFile.replace('.sql', '');
+            
+            const migCmd = `docker exec mysql-${d.domain} mysql -uluna2_user -pluna2pass luna2 -e "${migContent.replace(/"/g, '\\"')}" 2>&1`;
+            const migR = await exec$(migCmd);
+            
+            instStep.substeps.push({
+                migration: migName,
+                success: migR.success,
+                error: migR.success ? null : migR.error
+            });
+            
+            if (migR.success) {
+                await recordMigration(d.domain, migName);
+            } else {
+                // ROLLBACK: restore dal backup
+                if (backups[d.domain]) {
+                    log('API', `ROLLBACK: Ripristino ${d.domain} da backup`);
+                    const restoreR = await restoreDatabase(d.domain, 'luna2_user', 'luna2pass', backups[d.domain]);
+                    instStep.substeps.push({
+                        action: 'rollback',
+                        success: restoreR.success,
+                        error: restoreR.error
+                    });
+                    instStep.success = false;
+                    steps[steps.length - 1].instances.push(instStep);
+                    continue;
+                }
+            }
+        }
+        
+        // 5b. Deploya WAR (solo se migrazioni ok)
+        if (instStep.substeps.every(s => s.success)) {
+            const cpR = await exec$(`docker cp "${warPath}" luna2-${d.domain}:/usr/local/tomcat/webapps/luna2.war`);
+            instStep.substeps.push({ action: 'copy-war', success: cpR.success, error: cpR.error });
+            
+            if (cpR.success) {
+                const restartR = await exec$(`docker restart luna2-${d.domain}`);
+                instStep.substeps.push({ action: 'restart', success: restartR.success, error: restartR.error });
+                instStep.success = restartR.success;
+            } else {
+                instStep.success = false;
+            }
+        } else {
+            instStep.success = false;
+        }
+        
+        steps[steps.length - 1].instances.push(instStep);
+    }
+    steps[steps.length - 1].status = 'success';
+    
+    const allSuccess = steps[steps.length - 1].instances.every(i => i.success);
     
     res.json({
-        success: true,
-        message: 'Update completato. Ora puoi fare deploy alle istanze.',
+        success: allSuccess,
+        message: allSuccess
+            ? 'Update distributo a tutte le istanze con successo'
+            : 'Update completato con errori - controlla backup',
         steps,
-        warPath: warExists ? warPath : null
+        backupLocations: backups
     });
 });
 
