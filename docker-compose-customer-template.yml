@@ -2,8 +2,6 @@
 # Template per cliente: sostituire %%DOMAIN%% e %%CUSTOMER_NAME%% con valori reali
 # Esempio: docker-compose -f docker-compose-customer-acme.com.yml up -d
 
-version: '3.8'
-
 services:
   # Database MySQL per questo cliente
   mysql-%%DOMAIN%%:

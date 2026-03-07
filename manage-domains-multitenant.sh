@@ -165,6 +165,7 @@ generate_docker_compose() {
     sed -i "s|%%MYSQL_USER_PASSWORD%%|${MYSQL_USER_PASSWORD}|g" "$output_file"
     sed -i "s|%%OAUTH_GOOGLE_CLIENT_ID%%|${OAUTH_GOOGLE_CLIENT_ID:-PLACEHOLDER}|g" "$output_file"
     sed -i "s|%%OAUTH_GOOGLE_CLIENT_SECRET%%|${OAUTH_GOOGLE_CLIENT_SECRET:-PLACEHOLDER}|g" "$output_file"
+    sed -i '/^version:[[:space:]]*/d' "$output_file"
     
     log_success "Docker Compose generato: $output_file"
 }
@@ -181,8 +182,14 @@ start_customer() {
     fi
     
     log_info "Avviando container per $domain..."
-    
-    docker-compose -f "$compose_file" up -d 2>&1 | tail -20
+
+    local up_output
+    if ! up_output=$(docker-compose -f "$compose_file" up -d 2>&1); then
+        echo "$up_output" | tail -20
+        log_error "Avvio container fallito per $domain"
+        return 1
+    fi
+    echo "$up_output" | tail -20
     
     # Aspetta che i container siano healthy
     sleep 5
