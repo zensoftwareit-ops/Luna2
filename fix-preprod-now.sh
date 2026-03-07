@@ -1,0 +1,246 @@
+#!/bin/bash
+set -e
+
+# Script di fix immediato per preprod
+# Risolve: Welcome to nginx + SSL generation hang
+
+echo "=================================================="
+echo "FIX IMMEDIATO PREPROD - Luna2"
+echo "=================================================="
+echo ""
+
+# 1. DIAGNOSTICA STATO ATTUALE
+echo "📋 FASE 1: Diagnostica stato attuale"
+echo "--------------------------------------------------"
+
+echo "→ Controllando quale nginx è attivo..."
+if docker ps | grep -q luna2-nginx; then
+    NGINX_MODE="container"
+    NGINX_NAME=$(docker ps --format '{{.Names}}' | grep nginx)
+    echo "✓ Nginx in modalità CONTAINER: $NGINX_NAME"
+elif systemctl is-active --quiet nginx 2>/dev/null; then
+    NGINX_MODE="host"
+    echo "✓ Nginx in modalità HOST (systemd)"
+else
+    echo "✗ ERRORE: Nessun nginx trovato!"
+    exit 1
+fi
+
+echo ""
+echo "→ Controllando directory certbot-webroot..."
+if [ -d "./certbot-webroot/.well-known/acme-challenge" ]; then
+    echo "✓ Directory ACME challenge presente"
+else
+    echo "⚠ Directory ACME challenge non presente - verrà creata"
+fi
+
+echo ""
+echo "→ Controllando configurazioni dominio..."
+DOMAIN="${1:-4upemke9qv6ov6-app.gestionaleluna.it}"
+echo "  Dominio test: $DOMAIN"
+
+if [ -f "docker/nginx/multi-tenant/${DOMAIN}.conf" ]; then
+    echo "✓ Config in multi-tenant presente"
+    grep -q "ssl_certificate" "docker/nginx/multi-tenant/${DOMAIN}.conf" && echo "  → Modalità: HTTPS" || echo "  → Modalità: HTTP"
+else
+    echo "⚠ Config non presente in multi-tenant"
+fi
+
+if [ "$NGINX_MODE" = "host" ]; then
+    if [ -f "/etc/nginx/conf.d/${DOMAIN}.conf" ]; then
+        echo "✓ Config in /etc/nginx/conf.d presente"
+    else
+        echo "✗ Config NON presente in /etc/nginx/conf.d (PROBLEMA!)"
+    fi
+fi
+
+echo ""
+echo ""
+
+# 2. PULL CODICE AGGIORNATO
+echo "📥 FASE 2: Aggiornamento codice da repository"
+echo "--------------------------------------------------"
+git fetch origin main
+git reset --hard origin/main
+echo "✓ Codice aggiornato a latest commit"
+
+echo ""
+echo ""
+
+# 3. RESTART PANNELLO GESTIONE
+echo "🔄 FASE 3: Restart server-manager"
+echo "--------------------------------------------------"
+
+if systemctl is-active --quiet luna2-server-manager 2>/dev/null; then
+    echo "→ Riavvio via systemd..."
+    systemctl restart luna2-server-manager
+    sleep 2
+    systemctl status luna2-server-manager --no-pager | head -5
+    echo "✓ Pannello riavviato via systemd"
+elif [ -f "server-manager/server-manager.pid" ]; then
+    echo "→ Riavvio processo manuale..."
+    PID=$(cat server-manager/server-manager.pid)
+    kill $PID 2>/dev/null || true
+    sleep 1
+    cd server-manager
+    nohup node server.js > /dev/null 2>&1 &
+    echo $! > server-manager.pid
+    cd ..
+    echo "✓ Pannello riavviato manualmente"
+else
+    echo "⚠ Pannello non trovato - potrebbe essere già spento"
+fi
+
+echo ""
+echo ""
+
+# 4. PREPARAZIONE ENVIRONMENT NGINX
+echo "🔧 FASE 4: Preparazione environment nginx"
+echo "--------------------------------------------------"
+
+# Crea directory ACME challenge
+mkdir -p certbot-webroot/.well-known/acme-challenge
+chmod -R 755 certbot-webroot
+echo "test-acme-challenge" > certbot-webroot/.well-known/acme-challenge/test.txt
+
+# Se modalità host, crea symlink
+if [ "$NGINX_MODE" = "host" ]; then
+    echo "→ Modalità HOST: creo symlink per ACME challenge..."
+    mkdir -p /var/www/certbot/.well-known
+    ln -sfn "$(pwd)/certbot-webroot/.well-known/acme-challenge" /var/www/certbot/.well-known/acme-challenge
+    echo "✓ Symlink creato: /var/www/certbot → $(pwd)/certbot-webroot"
+    
+    # Verifica directory multi-tenant
+    mkdir -p docker/nginx/multi-tenant
+    mkdir -p docker/nginx/vhosts
+fi
+
+echo "✓ Environment preparato"
+
+echo ""
+echo ""
+
+# 5. RIGENERAZIONE CONFIGURAZIONE DOMINIO
+echo "🌐 FASE 5: Rigenerazione configurazione dominio $DOMAIN"
+echo "--------------------------------------------------"
+
+# Forza rigenerazione in modalità HTTP (senza SSL)
+echo "→ Generazione config HTTP-only per $DOMAIN..."
+
+# Usa lo script aggiornato
+bash manage-domains-multitenant.sh prepare-nginx
+
+# Rigenera il dominio in modalità HTTP
+if docker ps --format '{{.Names}}' | grep -q "luna2-preprod-"; then
+    # Cerca container dell'istanza
+    INSTANCE_NAME=$(echo "$DOMAIN" | sed 's/\.gestionaleluna\.it$//')
+    CONTAINER=$(docker ps --format '{{.Names}}' | grep "luna2-preprod-$INSTANCE_NAME" | head -1)
+    
+    if [ -n "$CONTAINER" ]; then
+        echo "  Container trovato: $CONTAINER"
+        PORT=$(docker port "$CONTAINER" 8080 | cut -d: -f2)
+        echo "  Porta backend: $PORT"
+        
+        # Genera config HTTP con script aggiornato
+        bash manage-domains-multitenant.sh update "$DOMAIN" "$CONTAINER" "$PORT" http
+        
+        echo "✓ Configurazione HTTP generata"
+    else
+        echo "⚠ Container per $INSTANCE_NAME non trovato - skippo rigenerazione"
+    fi
+else
+    echo "⚠ Nessun container preprod trovato"
+fi
+
+echo ""
+echo ""
+
+# 6. RELOAD NGINX
+echo "♻️  FASE 6: Reload nginx"
+echo "--------------------------------------------------"
+
+if [ "$NGINX_MODE" = "container" ]; then
+    echo "→ Reload container nginx..."
+    docker exec "$NGINX_NAME" nginx -t
+    docker exec "$NGINX_NAME" nginx -s reload
+    echo "✓ Nginx container reloaded"
+elif [ "$NGINX_MODE" = "host" ]; then
+    echo "→ Reload host nginx..."
+    nginx -t
+    systemctl reload nginx
+    echo "✓ Nginx host reloaded"
+fi
+
+echo ""
+echo ""
+
+# 7. TEST ACME CHALLENGE
+echo "🧪 FASE 7: Test ACME challenge"
+echo "--------------------------------------------------"
+
+sleep 2
+echo "→ Testing http://$DOMAIN/.well-known/acme-challenge/test.txt"
+RESPONSE=$(curl -sL -w "%{http_code}" "http://$DOMAIN/.well-known/acme-challenge/test.txt" -o /tmp/acme-test.txt 2>&1 || echo "000")
+
+if [ "$RESPONSE" = "200" ]; then
+    CONTENT=$(cat /tmp/acme-test.txt)
+    if [ "$CONTENT" = "test-acme-challenge" ]; then
+        echo "✅ ACME challenge FUNZIONANTE!"
+    else
+        echo "⚠️  ACME challenge risponde ma contenuto errato: $CONTENT"
+    fi
+else
+    echo "❌ ACME challenge NON funzionante (HTTP $RESPONSE)"
+    echo "   Questo impedirà la generazione SSL"
+fi
+
+echo ""
+echo ""
+
+# 8. TEST DOMINIO
+echo "🌍 FASE 8: Test accesso dominio"
+echo "--------------------------------------------------"
+
+echo "→ Testing http://$DOMAIN/"
+RESPONSE=$(curl -sL -w "%{http_code}" "http://$DOMAIN/" -o /tmp/domain-test.txt 2>&1 || echo "000")
+
+if [ "$RESPONSE" = "200" ]; then
+    if grep -qi "welcome to nginx" /tmp/domain-test.txt; then
+        echo "❌ PROBLEMA: Ancora 'Welcome to nginx'"
+        echo "   Possibili cause:"
+        echo "   - Configurazione non caricata correttamente"
+        echo "   - Nginx cache"
+        echo "   - Container backend non raggiungibile"
+    else
+        echo "✅ Dominio risponde correttamente (non è più Welcome to nginx)"
+    fi
+else
+    echo "⚠️  Dominio non risponde (HTTP $RESPONSE)"
+fi
+
+echo ""
+echo ""
+
+# 9. SUMMARY E NEXT STEPS
+echo "=================================================="
+echo "SUMMARY"
+echo "=================================================="
+echo ""
+echo "Nginx Mode: $NGINX_MODE"
+echo "Domain: $DOMAIN"
+echo ""
+echo "NEXT STEPS:"
+echo ""
+echo "1. Verifica che il dominio non mostri più 'Welcome to nginx':"
+echo "   curl http://$DOMAIN/"
+echo ""
+echo "2. Se il test ACME è OK, genera il certificato SSL:"
+echo "   bash manage-domains-multitenant.sh ssl $DOMAIN"
+echo ""
+echo "3. Oppure usa il pannello web per generare SSL"
+echo ""
+echo "4. Se ci sono ancora problemi, controlla i log:"
+echo "   journalctl -u nginx -n 50"
+echo "   docker logs $NGINX_NAME (se container)"
+echo ""
+echo "=================================================="
