@@ -144,6 +144,8 @@ services:
       
       # SSL certificates (Let's Encrypt + self-signed)
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      # Certbot webroot per ACME challenge
+      - ./certbot-webroot:/var/www/certbot:ro
       - ./docker/nginx/certs:/etc/nginx/certs:ro
       - ./docker/nginx/ssl:/etc/nginx/ssl:ro
       

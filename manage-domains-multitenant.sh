@@ -14,6 +14,7 @@ TEMPLATE_COMPOSE="${SCRIPT_DIR}/docker-compose-customer-template.yml"
 NGINX_CONFIG_DIR="${SCRIPT_DIR}/docker/nginx/multi-tenant"
 NGINX_VHOST_DIR="${SCRIPT_DIR}/docker/nginx/vhosts"
 MAIN_COMPOSE="${SCRIPT_DIR}/docker-compose-main.yml"
+CERTBOT_WEBROOT="${SCRIPT_DIR}/certbot-webroot"
 
 # Variabili di default
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-Luna2Root@2024}"
@@ -237,7 +238,7 @@ generate_nginx_config() {
     
     mkdir -p "$NGINX_CONFIG_DIR"
     mkdir -p "$NGINX_VHOST_DIR"
-    mkdir -p /var/www/certbot
+    mkdir -p "$CERTBOT_WEBROOT"
     
     local nginx_file="${NGINX_CONFIG_DIR}/${domain}.conf"
     local nginx_vhost_file="${NGINX_VHOST_DIR}/${domain}.conf"
@@ -476,6 +477,8 @@ request_ssl() {
     local config=$(find_domain_config "$domain")
     local app_port=$(echo "$config" | cut -d'|' -f4)
     local pma_port=$(echo "$config" | cut -d'|' -f5)
+
+    mkdir -p "$CERTBOT_WEBROOT"
     
     if [ ! -d "/etc/letsencrypt/live/${domain}" ]; then
         # Assicurati che la config HTTP-only sia attiva per ACME challenge
@@ -492,7 +495,7 @@ request_ssl() {
                 --agree-tos \
                 --email admin@${domain} \
                 --webroot \
-                --webroot-path=/var/www/certbot \
+                --webroot-path="${CERTBOT_WEBROOT}" \
                 --keep-until-expiring \
                 -d "${domain}" 2>&1); then
                 echo "$certbot_output" | tail -30
@@ -506,7 +509,7 @@ request_ssl() {
                 --agree-tos \
                 --email admin@${domain} \
                 --webroot \
-                --webroot-path=/var/www/certbot \
+                --webroot-path="${CERTBOT_WEBROOT}" \
                 --keep-until-expiring \
                 -d "${domain}" \
                 -d "www.${domain}" >/dev/null 2>&1; then
@@ -556,6 +559,27 @@ renew_ssl() {
     else
         log_error "Certbot non disponibile"
     fi
+}
+
+# Rigenera tutte le configurazioni Nginx da domains-config e ricarica
+cmd_sync_nginx() {
+    log_info "Sincronizzando configurazioni Nginx per tutte le istanze..."
+
+    [ ! -f "$DOMAINS_CONFIG" ] && {
+        log_warn "Nessun file domains-config trovato"
+        return 0
+    }
+
+    while IFS='|' read -r domain customer mysql_port app_port pma_port created status; do
+        [[ "$domain" =~ ^#.*$ ]] && continue
+        [ -z "$domain" ] && continue
+        [ "$status" = "disabled" ] && continue
+
+        generate_nginx_config "$domain" "$app_port" "$pma_port" "auto"
+    done < "$DOMAINS_CONFIG"
+
+    reload_nginx
+    log_success "Sincronizzazione Nginx completata"
 }
 
 #################################################################################################
@@ -946,6 +970,10 @@ COMANDI:
     • Container status
     • Disk usage
 
+    sync-nginx
+        Rigenera tutte le config Nginx da domains-config
+        e ricarica il gateway (utile dopo update/migrazioni)
+
   help
     Mostra questo messaggio
 
@@ -1025,6 +1053,9 @@ main() {
             ;;
         status)
             cmd_status "${2:-}"
+            ;;
+        sync-nginx|sync)
+            cmd_sync_nginx
             ;;
         help|--help|-h)
             show_help
