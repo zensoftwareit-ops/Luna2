@@ -227,30 +227,116 @@ stop_customer() {
 #################################################################################################
 
 # Genera configurazione Nginx multi-tenant
+# Supporta due modalità: http-only (iniziale, senza cert) e ssl (dopo certbot)
 generate_nginx_config() {
     local domain=$1
     local app_port=$2
     local pma_port=$3
+    local mode=${4:-auto}   # auto | http | ssl
     
     mkdir -p "$NGINX_CONFIG_DIR"
+    mkdir -p /var/www/certbot
     
     local nginx_file="${NGINX_CONFIG_DIR}/${domain}.conf"
     
-    log_info "Generando Nginx config per $domain..."
+    # Auto-detect: se il certificato esiste usa ssl, altrimenti http
+    if [ "$mode" = "auto" ]; then
+        if [ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]; then
+            mode="ssl"
+        else
+            mode="http"
+        fi
+    fi
     
+    log_info "Generando Nginx config per $domain (mode: $mode)..."
+    
+    # Upstream (comune a entrambe le modalità)
     cat > "$nginx_file" << EOF
 # Nginx Configuration per cliente: $domain
 # Generated: $(date)
+# Mode: $mode
 
 # Upstream per Luna2 Application
 upstream luna2_${domain//./\_} {
-    server localhost:${app_port};
+    server 127.0.0.1:${app_port};
 }
 
 # Upstream per PhpMyAdmin
 upstream phpmyadmin_${domain//./\_} {
-    server localhost:${pma_port};
+    server 127.0.0.1:${pma_port};
 }
+EOF
+
+    if [ "$mode" = "http" ]; then
+        # ── HTTP-ONLY: reverse proxy funzionante + supporto ACME challenge ──
+        cat >> "$nginx_file" << 'HTTPEOF'
+
+# HTTP - Luna2 Application (no SSL yet)
+server {
+    listen 80;
+HTTPEOF
+        cat >> "$nginx_file" << EOF
+    server_name ${domain} www.${domain};
+EOF
+        cat >> "$nginx_file" << 'HTTPEOF'
+
+    # ACME challenge per certbot
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        allow all;
+    }
+
+    # Proxy Luna2
+    location / {
+HTTPEOF
+        cat >> "$nginx_file" << EOF
+        proxy_pass http://luna2_${domain//./\_};
+EOF
+        cat >> "$nginx_file" << 'HTTPEOF'
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 600s;
+        proxy_connect_timeout 600s;
+    }
+}
+
+# HTTP - PhpMyAdmin Subdomain (no SSL yet)
+server {
+    listen 80;
+HTTPEOF
+        cat >> "$nginx_file" << EOF
+    server_name phpmyadmin.${domain} pma.${domain};
+EOF
+        cat >> "$nginx_file" << 'HTTPEOF'
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+        allow all;
+    }
+
+    location / {
+HTTPEOF
+        cat >> "$nginx_file" << EOF
+        proxy_pass http://phpmyadmin_${domain//./\_};
+EOF
+        cat >> "$nginx_file" << 'HTTPEOF'
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+HTTPEOF
+
+    else
+        # ── FULL SSL: redirect HTTP→HTTPS + HTTPS reverse proxy ──
+        cat >> "$nginx_file" << EOF
 
 # HTTP -> HTTPS redirect
 server {
@@ -258,6 +344,7 @@ server {
     server_name ${domain} www.${domain};
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
+        allow all;
     }
     location / {
         return 301 https://\$server_name\$request_uri;
@@ -284,9 +371,6 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-
-    # Rate Limiting
-    limit_req zone=general burst=100 nodelay;
 
     # Proxy Luna2
     location / {
@@ -315,18 +399,11 @@ server {
     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256;
     ssl_prefer_server_ciphers on;
 
-    # Security Headers (stricter per admin interface)
+    # Security Headers
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
     add_header X-Frame-Options "DENY" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
-
-    # Basic Auth per PhpMyAdmin (optional, può essere abilitato)
-    # auth_basic "PhpMyAdmin Access";
-    # auth_basic_user_file /etc/nginx/.htpasswd-${domain};
-
-    # Rate Limiting stricter
-    limit_req zone=general burst=20 nodelay;
 
     # Proxy PhpMyAdmin
     location / {
@@ -339,7 +416,7 @@ server {
     }
 }
 
-# Redirect www -> non-www (optional)
+# Redirect www -> non-www
 server {
     listen 443 ssl http2;
     server_name www.${domain};
@@ -348,7 +425,16 @@ server {
     return 301 https://${domain}\$request_uri;
 }
 EOF
-    log_success "Nginx config generata: $nginx_file"
+    fi
+    
+    # Auto-link nella directory di nginx conf.d se esiste
+    if [ -d "/etc/nginx/conf.d" ]; then
+        ln -sf "$(realpath "$nginx_file")" "/etc/nginx/conf.d/${domain}.conf" 2>/dev/null || true
+    elif [ -d "/etc/nginx/sites-enabled" ]; then
+        ln -sf "$(realpath "$nginx_file")" "/etc/nginx/sites-enabled/${domain}.conf" 2>/dev/null || true
+    fi
+    
+    log_success "Nginx config generata ($mode): $nginx_file"
 }
 
 # Ricarica Nginx
@@ -377,7 +463,19 @@ request_ssl() {
     
     log_info "Richiedendo certificato SSL per $domain..."
     
+    # Recupera la porta app per rigenerare la config nginx dopo il cert
+    local config=$(find_domain_config "$domain")
+    local app_port=$(echo "$config" | cut -d'|' -f4)
+    local pma_port=$(echo "$config" | cut -d'|' -f5)
+    
     if [ ! -d "/etc/letsencrypt/live/${domain}" ]; then
+        # Assicurati che la config HTTP-only sia attiva per ACME challenge
+        if [ -n "$app_port" ] && [ -n "$pma_port" ]; then
+            generate_nginx_config "$domain" "$app_port" "$pma_port" "http"
+            reload_nginx
+            sleep 2
+        fi
+        
         if command -v certbot &> /dev/null; then
             certbot certonly \
                 --non-interactive \
@@ -387,15 +485,33 @@ request_ssl() {
                 --webroot-path=/var/www/certbot \
                 -d "${domain}" \
                 -d "www.${domain}" \
-                -d "phpmyadmin.${domain}" \
                 2>&1 | tail -20
             
-            log_success "Certificato ottenuto per $domain"
+            if [ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]; then
+                log_success "Certificato ottenuto per $domain"
+                
+                # Rigenera config nginx con SSL abilitato
+                if [ -n "$app_port" ] && [ -n "$pma_port" ]; then
+                    generate_nginx_config "$domain" "$app_port" "$pma_port" "ssl"
+                    reload_nginx
+                    log_success "Nginx aggiornato con HTTPS per $domain"
+                fi
+            else
+                log_error "Certificato NON ottenuto per $domain"
+                return 1
+            fi
         else
             log_warn "Certbot non disponibile - installare per SSL automatico"
+            log_info "  sudo apt install -y certbot"
+            return 1
         fi
     else
         log_warn "Certificato già esiste per $domain"
+        # Rigenera config nginx con SSL se non era già in modo ssl
+        if [ -n "$app_port" ] && [ -n "$pma_port" ]; then
+            generate_nginx_config "$domain" "$app_port" "$pma_port" "ssl"
+            reload_nginx
+        fi
     fi
 }
 

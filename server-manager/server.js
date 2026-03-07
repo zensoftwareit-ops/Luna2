@@ -401,13 +401,22 @@ app.get('/api/instances/:domain/ssl', async (req, res) => {
     res.json({ success: true, ssl: await getSSLInfo(req.params.domain) });
 });
 
-// Rinnovo Let's Encrypt
+// Rinnovo / Ottenimento Let's Encrypt
 app.post('/api/instances/:domain/ssl/renew', async (req, res) => {
     const { domain } = req.params;
-    log('API', `Rinnovo LE: ${domain}`);
-    const r = await exec$(`cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" renew "${domain}"`);
+    log('API', `SSL cert: ${domain}`);
+    
+    // Controlla se il certificato esiste già
+    const certPath = path.join(LETSENCRYPT_DIR, domain, 'fullchain.pem');
+    const certExists = fs.existsSync(certPath);
+    
+    // Se non esiste, usa "ssl" (ottieni nuovo cert); se esiste, usa "renew"
+    const action = certExists ? 'renew' : 'ssl';
+    log('API', `SSL action: ${action} per ${domain}`);
+    
+    const r = await exec$(`cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" ${action} "${domain}"`);
     if (!r.success) return res.status(400).json({ success: false, error: r.error, output: r.stderr });
-    res.json({ success: true, message: `Certificato rinnovato per ${domain}`, output: r.stdout });
+    res.json({ success: true, message: `Certificato ${certExists ? 'rinnovato' : 'ottenuto'} per ${domain}`, output: r.stdout });
 });
 
 // Upload certificato custom (cert = fullchain/cert PEM, key = private key PEM)
