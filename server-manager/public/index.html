@@ -385,6 +385,21 @@
     </div>
 </div>
 
+<!-- Instance Created Modal -->
+<div id="instance-created-modal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h2 style="color: #10b981;"><i class="fas fa-check-circle"></i> Istanza Creata!</h2>
+            <button class="close-btn" onclick="closeModal('instance-created-modal')">&times;</button>
+        </div>
+        <div id="instance-created-body" style="font-size: 0.95em;"></div>
+        <div style="margin-top: 20px; text-align: right;">
+            <button class="btn-small" onclick="copyInstanceInfo()" style="margin-right: 8px;"><i class="fas fa-copy"></i> Copia Tutto</button>
+            <button class="btn-small success" onclick="closeModal('instance-created-modal')">Chiudi</button>
+        </div>
+    </div>
+</div>
+
 <script src="/old-api-calls.js"></script>
 <script>
 const API = '/api';
@@ -497,13 +512,84 @@ async function createInstance() {
     if (!domain || !customer) { showAlert('dash-alert', 'Compila tutti i campi', 'error'); return; }
     try {
         const data = await apiCall('/instances', 'POST', { domain, customer_name: customer });
-        showAlert('dash-alert', data.message, 'success');
         document.getElementById('new-domain').value = '';
         document.getElementById('new-customer').value = '';
+        
+        if (data.success && data.instanceDetails) {
+            showInstanceCreatedModal(domain, customer, data.instanceDetails);
+        } else {
+            showAlert('dash-alert', data.message, 'success');
+        }
         setTimeout(refreshAll, 2000);
     } catch (e) {
         showAlert('dash-alert', 'Errore', 'error');
     }
+}
+
+function showInstanceCreatedModal(domain, customer, info) {
+    const serverIp = window.location.hostname;
+    const body = document.getElementById('instance-created-body');
+    body.innerHTML = `
+        <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <strong style="font-size: 1.1em;">Istanza per <span style="color: #059669;">${customer}</span> creata con successo!</strong>
+        </div>
+
+        <h3 style="margin: 16px 0 8px; color: #1e40af;"><i class="fas fa-globe"></i> Accesso Applicazione</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600; width: 40%;">URL (HTTP)</td><td style="padding: 6px 12px;"><a href="${info.appUrl}" target="_blank">${info.appUrl}</a></td></tr>
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600;">URL (HTTPS)</td><td style="padding: 6px 12px;"><a href="${info.appUrlHttps}" target="_blank">${info.appUrlHttps}</a> <small style="color: #94a3b8;">(dopo SSL)</small></td></tr>
+        </table>
+
+        <h3 style="margin: 16px 0 8px; color: #1e40af;"><i class="fas fa-user-shield"></i> Super User (Login Applicazione)</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600; width: 40%;">Username</td><td style="padding: 6px 12px;"><code>${info.superUser.username}</code></td></tr>
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600;">Password</td><td style="padding: 6px 12px;"><code>${info.superUser.password}</code></td></tr>
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600;">Ruolo</td><td style="padding: 6px 12px;"><span style="background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 4px; font-size: 0.85em;">${info.superUser.role}</span></td></tr>
+        </table>
+
+        <h3 style="margin: 16px 0 8px; color: #1e40af;"><i class="fas fa-database"></i> PhpMyAdmin</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px;">
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600; width: 40%;">URL PhpMyAdmin</td><td style="padding: 6px 12px;"><a href="http://${serverIp}:${info.pmaPort}" target="_blank">http://${serverIp}:${info.pmaPort}</a></td></tr>
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600;">Server MySQL</td><td style="padding: 6px 12px;"><code>${info.mysql.host}</code></td></tr>
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600;">Database</td><td style="padding: 6px 12px;"><code>${info.mysql.database}</code></td></tr>
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600;">Utente Root</td><td style="padding: 6px 12px;"><code>${info.mysql.rootUser}</code> / <code>${info.mysql.rootPassword}</code></td></tr>
+            <tr><td style="padding: 6px 12px; background: #f8fafc; font-weight: 600;">Utente App</td><td style="padding: 6px 12px;"><code>${info.mysql.appUser}</code> / <code>${info.mysql.appPassword}</code></td></tr>
+        </table>
+
+        <h3 style="margin: 16px 0 8px; color: #1e40af;"><i class="fas fa-directions"></i> Dominio Personalizzato (CNAME)</h3>
+        <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 14px; font-size: 0.9em;">
+            <p style="margin: 0 0 8px;">Per usare un <strong>dominio personalizzato</strong> (es. <code>app.tuodominio.it</code>) che punti a questa istanza:</p>
+            <ol style="margin: 0; padding-left: 20px; line-height: 1.8;">
+                <li>Accedi al pannello DNS del dominio personalizzato</li>
+                <li>Crea un record <strong>CNAME</strong>:
+                    <div style="background: #1e293b; color: #e2e8f0; padding: 8px 12px; border-radius: 6px; margin: 6px 0; font-family: monospace; font-size: 0.95em;">
+                        <span style="color: #94a3b8;">Nome:</span> app &nbsp;&nbsp; <span style="color: #94a3b8;">Tipo:</span> CNAME &nbsp;&nbsp; <span style="color: #94a3b8;">Valore:</span> <strong>${domain}</strong>
+                    </div>
+                </li>
+                <li>Attendi la propagazione DNS (5-30 min)</li>
+                <li>Torna qui e configura il certificato SSL per il nuovo dominio</li>
+            </ol>
+            <p style="margin: 8px 0 0; color: #92400e;"><i class="fas fa-info-circle"></i> <strong>Nota:</strong> Il record CNAME funziona solo per sottodomini (es. <code>app.tuodominio.it</code>), non per il dominio root. Per il dominio root usa un record <strong>A</strong> che punta a <code>${serverIp}</code>.</p>
+        </div>
+    `;
+    openModal('instance-created-modal');
+}
+
+function copyInstanceInfo() {
+    const body = document.getElementById('instance-created-body');
+    const text = body.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        showAlert('dash-alert', 'Info copiate negli appunti!', 'success');
+    }).catch(() => {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showAlert('dash-alert', 'Info copiate!', 'success');
+    });
 }
 
 async function deleteInstance(domain) {

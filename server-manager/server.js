@@ -235,7 +235,55 @@ app.post('/api/instances', async (req, res) => {
     // Ora crea l'istanza (docker-compose + container)
     const r = await exec$(`cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" add "${domain}" "${customer_name}"`);
     if (!r.success) return res.status(400).json({ success: false, error: r.error, output: r.stderr });
-    res.json({ success: true, message: `Istanza ${domain} creata`, output: r.stdout });
+    
+    // Recupera porte allocate dalla config
+    const configFile = path.join(WORKSPACE, 'domains-config.txt');
+    let instanceInfo = {};
+    try {
+        const configContent = fs.readFileSync(configFile, 'utf8');
+        const line = configContent.split('\n').find(l => l.startsWith(domain + '|'));
+        if (line) {
+            const p = line.split('|');
+            instanceInfo = {
+                domain: p[0],
+                customer: p[1],
+                mysqlPort: p[2],
+                appPort: p[3],
+                pmaPort: p[4]
+            };
+        }
+    } catch (e) { /* ignore */ }
+    
+    // Credenziali di default (come da schema SQL e docker-compose)
+    const mysqlRootPass = process.env.MYSQL_ROOT_PASSWORD || 'Luna2Root@2024';
+    const mysqlUserPass = process.env.MYSQL_USER_PASSWORD || 'Luna2User@2024';
+    
+    res.json({
+        success: true,
+        message: `Istanza ${domain} creata`,
+        output: r.stdout,
+        instanceDetails: {
+            appUrl: `http://${domain}`,
+            appUrlHttps: `https://${domain}`,
+            pmaUrl: `http://phpmyadmin.${domain}`,
+            pmaUrlDirect: instanceInfo.pmaPort ? `http://<IP-SERVER>:${instanceInfo.pmaPort}` : null,
+            appPort: instanceInfo.appPort || null,
+            pmaPort: instanceInfo.pmaPort || null,
+            superUser: {
+                username: 'admin',
+                password: 'admin123',
+                role: 'ADMIN'
+            },
+            mysql: {
+                host: `mysql-${domain}`,
+                database: 'luna2',
+                rootUser: 'root',
+                rootPassword: mysqlRootPass,
+                appUser: 'luna2_user',
+                appPassword: mysqlUserPass
+            }
+        }
+    });
 });
 
 app.post('/api/instances/:domain/enable', async (req, res) => {
