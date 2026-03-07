@@ -12,6 +12,7 @@ WORKSPACE_DIR="${SCRIPT_DIR}"
 DOMAINS_CONFIG="${SCRIPT_DIR}/domains-config.txt"
 TEMPLATE_COMPOSE="${SCRIPT_DIR}/docker-compose-customer-template.yml"
 NGINX_CONFIG_DIR="${SCRIPT_DIR}/docker/nginx/multi-tenant"
+NGINX_VHOST_DIR="${SCRIPT_DIR}/docker/nginx/vhosts"
 MAIN_COMPOSE="${SCRIPT_DIR}/docker-compose-main.yml"
 
 # Variabili di default
@@ -235,9 +236,11 @@ generate_nginx_config() {
     local mode=${4:-auto}   # auto | http | ssl
     
     mkdir -p "$NGINX_CONFIG_DIR"
+    mkdir -p "$NGINX_VHOST_DIR"
     mkdir -p /var/www/certbot
     
     local nginx_file="${NGINX_CONFIG_DIR}/${domain}.conf"
+    local nginx_vhost_file="${NGINX_VHOST_DIR}/${domain}.conf"
     
     # Auto-detect: se il certificato esiste usa ssl, altrimenti http
     if [ "$mode" = "auto" ]; then
@@ -427,29 +430,35 @@ server {
 EOF
     fi
     
-    # Auto-link nella directory di nginx conf.d se esiste
-    if [ -d "/etc/nginx/conf.d" ]; then
-        ln -sf "$(realpath "$nginx_file")" "/etc/nginx/conf.d/${domain}.conf" 2>/dev/null || true
-    elif [ -d "/etc/nginx/sites-enabled" ]; then
-        ln -sf "$(realpath "$nginx_file")" "/etc/nginx/sites-enabled/${domain}.conf" 2>/dev/null || true
-    fi
+    # Replica config anche in docker/nginx/vhosts (usato in preprod)
+    cp -f "$nginx_file" "$nginx_vhost_file"
     
     log_success "Nginx config generata ($mode): $nginx_file"
+    log_success "Nginx vhost aggiornata: $nginx_vhost_file"
 }
 
 # Ricarica Nginx
 reload_nginx() {
     log_info "Ricaricando Nginx..."
-    
-    if docker ps --format "{{.Names}}" | grep -q "^nginx"; then
-        docker exec nginx nginx -s reload
-        log_success "Nginx ricaricato"
-    else
-        if command -v nginx &> /dev/null; then
-            sudo nginx -s reload 2>/dev/null || {
-                log_warn "Nginx non in esecuzione, saltato reload"
-            }
+
+    local nginx_container
+    nginx_container=$(docker ps --format "{{.Names}}" | grep -E '(^|-)nginx$|nginx' | head -n1)
+
+    if [ -n "$nginx_container" ]; then
+        if docker exec "$nginx_container" nginx -t >/dev/null 2>&1; then
+            docker exec "$nginx_container" nginx -s reload >/dev/null 2>&1 || true
+            log_success "Nginx ricaricato (container: $nginx_container)"
+        else
+            log_error "Configurazione Nginx non valida nel container: $nginx_container"
+            docker exec "$nginx_container" nginx -t 2>&1 | tail -20
+            return 1
         fi
+    elif command -v nginx &> /dev/null; then
+        sudo nginx -t >/dev/null 2>&1 && sudo nginx -s reload >/dev/null 2>&1 || {
+            log_warn "Nginx host non in esecuzione o config non valida, reload saltato"
+        }
+    else
+        log_warn "Nessun Nginx trovato (container/host)"
     fi
 }
 
@@ -477,15 +486,34 @@ request_ssl() {
         fi
         
         if command -v certbot &> /dev/null; then
-            certbot certonly \
+            local certbot_output
+            if ! certbot_output=$(timeout 180 certbot certonly \
                 --non-interactive \
                 --agree-tos \
                 --email admin@${domain} \
                 --webroot \
                 --webroot-path=/var/www/certbot \
+                --keep-until-expiring \
+                -d "${domain}" 2>&1); then
+                echo "$certbot_output" | tail -30
+                log_error "Certbot fallito o timeout per ${domain}"
+                return 1
+            fi
+
+            # Tentativo opzionale per www (non bloccante)
+            if timeout 90 certbot certonly \
+                --non-interactive \
+                --agree-tos \
+                --email admin@${domain} \
+                --webroot \
+                --webroot-path=/var/www/certbot \
+                --keep-until-expiring \
                 -d "${domain}" \
-                -d "www.${domain}" \
-                2>&1 | tail -20
+                -d "www.${domain}" >/dev/null 2>&1; then
+                log_info "SAN www.${domain} aggiunto al certificato"
+            else
+                log_warn "www.${domain} non configurato DNS: certificato emesso solo per ${domain}"
+            fi
             
             if [ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]; then
                 log_success "Certificato ottenuto per $domain"
@@ -633,6 +661,7 @@ cmd_remove() {
     
     # Rimuovi nginx config
     rm -f "${NGINX_CONFIG_DIR}/${domain}.conf"
+    rm -f "${NGINX_VHOST_DIR}/${domain}.conf"
     
     # Rimuovi dalla configurazione
     sed -i "/^${domain}|/d" "$DOMAINS_CONFIG"

@@ -84,9 +84,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 // ──────────────────────────────────────────────────────────────
 const log = (level, msg) => console.log(`[${new Date().toISOString()}] [${level}] ${msg}`);
 
-const exec$ = async (cmd, env = null) => {
+const exec$ = async (cmd, env = null, timeoutMs = 120000) => {
     try {
-        const options = { timeout: 120000 };
+        const options = { timeout: timeoutMs };
         if (env) options.env = env;
         const { stdout, stderr } = await execAsync(cmd, options);
         return { success: true, stdout, stderr };
@@ -462,8 +462,8 @@ app.post('/api/instances/:domain/ssl/renew', async (req, res) => {
     const action = certExists ? 'renew' : 'ssl';
     log('API', `SSL action: ${action} per ${domain}`);
     
-    const r = await exec$(`cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" ${action} "${domain}"`);
-    if (!r.success) return res.status(400).json({ success: false, error: r.error, output: r.stderr });
+    const r = await exec$(`cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" ${action} "${domain}"`, null, 360000);
+    if (!r.success) return res.status(400).json({ success: false, error: r.error, output: r.stderr || r.stdout });
     res.json({ success: true, message: `Certificato ${certExists ? 'rinnovato' : 'ottenuto'} per ${domain}`, output: r.stdout });
 });
 
