@@ -47,6 +47,57 @@ log_warn() {
     echo -e "\033[33m[WARN]\033[0m $1"
 }
 
+# Rileva modalità nginx attiva: host/container/none
+detect_nginx_mode() {
+    local nginx_container
+    nginx_container=$(docker ps --format "{{.Names}}" | grep -E '(^|-)nginx$|nginx' | head -n1)
+
+    if [ -n "$nginx_container" ]; then
+        echo "container:$nginx_container"
+        return
+    fi
+
+    if command -v systemctl &>/dev/null && systemctl is-active --quiet nginx; then
+        echo "host"
+        return
+    fi
+
+    echo "none"
+}
+
+# Prepara webroot ACME per host nginx e/o container nginx
+prepare_acme_webroot() {
+    mkdir -p "$CERTBOT_WEBROOT/.well-known/acme-challenge"
+
+    local mode
+    mode=$(detect_nginx_mode)
+
+    if [[ "$mode" == host ]]; then
+        sudo mkdir -p /var/www
+        # Allinea il path usato dai vhost (root /var/www/certbot)
+        sudo ln -sfn "$CERTBOT_WEBROOT" /var/www/certbot
+    fi
+}
+
+# Sincronizza conf dominio anche su nginx host (conf.d/sites-enabled)
+sync_nginx_host_links() {
+    local domain=$1
+    local source_conf="${NGINX_CONFIG_DIR}/${domain}.conf"
+
+    # Se nginx host non è disponibile, salta silenziosamente
+    if ! command -v nginx &>/dev/null; then
+        return 0
+    fi
+
+    if [ -d "/etc/nginx/conf.d" ]; then
+        sudo ln -sfn "$source_conf" "/etc/nginx/conf.d/${domain}.conf"
+    fi
+
+    if [ -d "/etc/nginx/sites-enabled" ]; then
+        sudo ln -sfn "$source_conf" "/etc/nginx/sites-enabled/${domain}.conf"
+    fi
+}
+
 # Verifica prerequisiti
 check_requirements() {
     log_info "Verificando requisiti..."
@@ -69,6 +120,8 @@ check_requirements() {
         log_error "Template file non trovato: $TEMPLATE_COMPOSE"
         exit 1
     fi
+
+    prepare_acme_webroot
     
     log_success "Tutti i requisiti OK"
 }
@@ -433,6 +486,7 @@ EOF
     
     # Replica config anche in docker/nginx/vhosts (usato in preprod)
     cp -f "$nginx_file" "$nginx_vhost_file"
+    sync_nginx_host_links "$domain"
     
     log_success "Nginx config generata ($mode): $nginx_file"
     log_success "Nginx vhost aggiornata: $nginx_vhost_file"
@@ -442,10 +496,11 @@ EOF
 reload_nginx() {
     log_info "Ricaricando Nginx..."
 
-    local nginx_container
-    nginx_container=$(docker ps --format "{{.Names}}" | grep -E '(^|-)nginx$|nginx' | head -n1)
+    local mode
+    mode=$(detect_nginx_mode)
 
-    if [ -n "$nginx_container" ]; then
+    if [[ "$mode" == container:* ]]; then
+        local nginx_container="${mode#container:}"
         if docker exec "$nginx_container" nginx -t >/dev/null 2>&1; then
             docker exec "$nginx_container" nginx -s reload >/dev/null 2>&1 || true
             log_success "Nginx ricaricato (container: $nginx_container)"
@@ -454,13 +509,36 @@ reload_nginx() {
             docker exec "$nginx_container" nginx -t 2>&1 | tail -20
             return 1
         fi
-    elif command -v nginx &> /dev/null; then
-        sudo nginx -t >/dev/null 2>&1 && sudo nginx -s reload >/dev/null 2>&1 || {
+    elif [[ "$mode" == host ]]; then
+        sudo nginx -t >/dev/null 2>&1 && sudo systemctl reload nginx >/dev/null 2>&1 || {
             log_warn "Nginx host non in esecuzione o config non valida, reload saltato"
         }
     else
         log_warn "Nessun Nginx trovato (container/host)"
     fi
+}
+
+# Verifica che ACME challenge sia effettivamente servita dal dominio
+check_acme_challenge_served() {
+    local domain=$1
+    local token_file="$CERTBOT_WEBROOT/.well-known/acme-challenge/luna2-acme-test.txt"
+
+    mkdir -p "$(dirname "$token_file")"
+    echo "acme-ok" > "$token_file"
+
+    local status
+    local body
+    status=$(curl -s -o /tmp/luna2-acme-test.out -w "%{http_code}" "http://${domain}/.well-known/acme-challenge/luna2-acme-test.txt" || true)
+    body=$(cat /tmp/luna2-acme-test.out 2>/dev/null || true)
+
+    if [ "$status" = "200" ] && [ "$body" = "acme-ok" ]; then
+        log_success "ACME challenge raggiungibile su http://${domain}/.well-known/acme-challenge/..."
+        return 0
+    fi
+
+    log_error "ACME challenge NON raggiungibile (HTTP ${status:-N/A})"
+    log_info "Verifica DNS A record e configurazione nginx per ${domain}"
+    return 1
 }
 
 #################################################################################################
@@ -479,6 +557,7 @@ request_ssl() {
     local pma_port=$(echo "$config" | cut -d'|' -f5)
 
     mkdir -p "$CERTBOT_WEBROOT"
+    prepare_acme_webroot
     
     if [ ! -d "/etc/letsencrypt/live/${domain}" ]; then
         # Assicurati che la config HTTP-only sia attiva per ACME challenge
@@ -487,6 +566,9 @@ request_ssl() {
             reload_nginx
             sleep 2
         fi
+
+        # Fail-fast se challenge non è servita (evita timeout lunghi di certbot)
+        check_acme_challenge_served "$domain" || return 1
         
         if command -v certbot &> /dev/null; then
             local certbot_output
@@ -580,6 +662,13 @@ cmd_sync_nginx() {
 
     reload_nginx
     log_success "Sincronizzazione Nginx completata"
+}
+
+# Prepara ambiente nginx/acme in modo esplicito
+cmd_prepare_nginx() {
+    log_info "Preparando ambiente Nginx + ACME webroot..."
+    prepare_acme_webroot
+    cmd_sync_nginx
 }
 
 #################################################################################################
@@ -970,6 +1059,10 @@ COMANDI:
     • Container status
     • Disk usage
 
+    prepare-nginx
+        Prepara webroot ACME e sincronizza config Nginx
+        sia per nginx host che per nginx container
+
     sync-nginx
         Rigenera tutte le config Nginx da domains-config
         e ricarica il gateway (utile dopo update/migrazioni)
@@ -1053,6 +1146,9 @@ main() {
             ;;
         status)
             cmd_status "${2:-}"
+            ;;
+        prepare-nginx|prepare)
+            cmd_prepare_nginx
             ;;
         sync-nginx|sync)
             cmd_sync_nginx
