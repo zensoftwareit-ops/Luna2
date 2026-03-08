@@ -341,22 +341,36 @@ app.delete('/api/instances/:domain', async (req, res) => {
             steps[steps.length - 1].output = 'docker-compose file not found (already removed)';
         }
         
-        // Step 3: Remove nginx config
+        // Step 3: Remove nginx config (+ host symlinks)
         steps.push({ step: 'remove-nginx-config', status: 'running' });
         const nginxFile = `${SCRIPT_PATH.replace('/manage-domains-multitenant.sh', '')}/docker/nginx/multi-tenant/${domain}.conf`;
+        const nginxVhostFile = `${SCRIPT_PATH.replace('/manage-domains-multitenant.sh', '')}/docker/nginx/vhosts/${domain}.conf`;
+        const outputs = [];
+        
         if (fs.existsSync(nginxFile)) {
             try {
                 fs.unlinkSync(nginxFile);
-                steps[steps.length - 1].status = 'success';
-                steps[steps.length - 1].output = `Removed ${nginxFile}`;
+                outputs.push(`Removed ${nginxFile}`);
             } catch (e) {
                 errors.push(`Failed to remove nginx config: ${e.message}`);
-                steps[steps.length - 1].status = 'failed';
             }
-        } else {
-            steps[steps.length - 1].status = 'success';
-            steps[steps.length - 1].output = 'Nginx config not found (already removed)';
         }
+        
+        if (fs.existsSync(nginxVhostFile)) {
+            try {
+                fs.unlinkSync(nginxVhostFile);
+                outputs.push(`Removed ${nginxVhostFile}`);
+            } catch (e) {
+                errors.push(`Failed to remove nginx vhost: ${e.message}`);
+            }
+        }
+        
+        // Remove host nginx symlinks (critical for preprod)
+        await exec$(`sudo rm -f /etc/nginx/conf.d/${domain}.conf /etc/nginx/sites-enabled/${domain}.conf 2>/dev/null || true`);
+        outputs.push('Removed host nginx symlinks');
+        
+        steps[steps.length - 1].status = 'success';
+        steps[steps.length - 1].output = outputs.join('; ');
         
         // Step 4: Update domains-config.txt
         steps.push({ step: 'update-domains-config', status: 'running' });
