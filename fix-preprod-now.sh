@@ -162,6 +162,9 @@ if [ "$NGINX_MODE" = "host" ]; then
     if [ -L "/var/www/certbot" ]; then
         rm -f /var/www/certbot
     fi
+    if [ -L "/var/www/certbot/.well-known/acme-challenge" ]; then
+        rm -f /var/www/certbot/.well-known/acme-challenge
+    fi
     mkdir -p /var/www/certbot/.well-known/acme-challenge
     chmod 755 /var/www/certbot /var/www/certbot/.well-known /var/www/certbot/.well-known/acme-challenge
     echo "test-acme-challenge" > /var/www/certbot/.well-known/acme-challenge/test.txt

@@ -90,6 +90,10 @@ prepare_acme_webroot() {
         if [ -L "$CERTBOT_WEBROOT_HOST" ]; then
             sudo rm -f "$CERTBOT_WEBROOT_HOST"
         fi
+        # Cleanup migrazione: rimuove symlink legacy su sottopath challenge
+        if [ -L "$CERTBOT_WEBROOT_HOST/.well-known/acme-challenge" ]; then
+            sudo rm -f "$CERTBOT_WEBROOT_HOST/.well-known/acme-challenge"
+        fi
         sudo mkdir -p "$CERTBOT_WEBROOT_HOST/.well-known/acme-challenge"
         sudo chmod 755 "$CERTBOT_WEBROOT_HOST" "$CERTBOT_WEBROOT_HOST/.well-known" "$CERTBOT_WEBROOT_HOST/.well-known/acme-challenge"
     fi
