@@ -274,17 +274,21 @@ else
 fi
 
 echo ""
-echo "→ Testing API health endpoint https://$DOMAIN/api/v1/health"
-API_RESPONSE=$(curl -skL -w "%{http_code}" "https://$DOMAIN/api/v1/health" -o /tmp/domain-health-test.txt 2>&1 || echo "000")
+echo "→ Testing HTTPS UI root https://$DOMAIN/"
+HTTPS_RESPONSE=$(curl -skL -w "%{http_code}" "https://$DOMAIN/" -o /tmp/domain-https-root.txt 2>&1 || echo "000")
 
-if [ "$API_RESPONSE" = "200" ] && grep -qi '"status"[[:space:]]*:[[:space:]]*"UP"' /tmp/domain-health-test.txt; then
-    echo "✅ API health OK (status=UP)"
-elif [ "$API_RESPONSE" = "200" ]; then
-    echo "⚠️  API risponde 200 ma payload health inatteso"
-    head -c 300 /tmp/domain-health-test.txt || true
-    echo ""
+if [ "$HTTPS_RESPONSE" = "200" ] || [ "$HTTPS_RESPONSE" = "301" ] || [ "$HTTPS_RESPONSE" = "302" ]; then
+    echo "✅ HTTPS root raggiungibile (HTTP $HTTPS_RESPONSE)"
+elif [ "$HTTPS_RESPONSE" = "404" ]; then
+    echo "⚠️  HTTPS root risponde 404 - controllo fallback /luna2/ ..."
+    LUNA2_RESPONSE=$(curl -skL -w "%{http_code}" "https://$DOMAIN/luna2/" -o /tmp/domain-https-luna2.txt 2>&1 || echo "000")
+    if [ "$LUNA2_RESPONSE" = "200" ]; then
+        echo "⚠️  UI disponibile su /luna2/ (WAR deployato come luna2.war, non ROOT.war)"
+    else
+        echo "❌ HTTPS UI non raggiungibile anche su /luna2/ (HTTP $LUNA2_RESPONSE)"
+    fi
 else
-    echo "❌ API health non raggiungibile (HTTP $API_RESPONSE)"
+    echo "❌ HTTPS root non raggiungibile (HTTP $HTTPS_RESPONSE)"
 fi
 
 echo ""

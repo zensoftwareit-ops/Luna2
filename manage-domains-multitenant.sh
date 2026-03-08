@@ -430,11 +430,7 @@ EOF
         allow all;
     }
 
-    # Proxy Luna2
-    location / {
-HTTPEOF
-        cat >> "$nginx_file" << EOF
-        proxy_pass http://luna2_${domain//./\_};
+    # Proxy Luna2 UI/Application
 EOF
         cat >> "$nginx_file" << 'HTTPEOF'
         proxy_http_version 1.1;
@@ -516,11 +512,7 @@ server {
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
-    # Proxy Luna2
-    location = / {
-        return 302 /api/v1/info;
-    }
-
+    # Proxy Luna2 UI/Application
     location = / {
         return 302 /api/v1/info;
     }

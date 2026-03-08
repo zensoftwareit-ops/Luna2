@@ -720,7 +720,11 @@ app.post('/api/system/safe-update', async (req, res) => {
         
         // 5b. Deploya WAR (solo se migrazioni ok)
         if (instStep.substeps.every(s => s.success)) {
-            const cpR = await exec$(`docker cp "${warPath}" luna2-${d.domain}:/usr/local/tomcat/webapps/luna2.war`);
+            // Deploy come ROOT.war per servire la UI in '/'
+            const cpR = await exec$(`docker cp "${warPath}" luna2-${d.domain}:/usr/local/tomcat/webapps/ROOT.war`);
+            if (cpR.success) {
+                await exec$(`docker exec luna2-${d.domain} sh -lc 'rm -rf /usr/local/tomcat/webapps/luna2 /usr/local/tomcat/webapps/luna2.war'`);
+            }
             instStep.substeps.push({ action: 'copy-war', success: cpR.success, error: cpR.error });
             
             if (cpR.success) {
@@ -793,7 +797,10 @@ app.post('/api/instances/:domain/deploy', async (req, res) => {
     
     // 2. Copia nuovo WAR nel container
     steps.push({ step: 'copy-war', status: 'running' });
-    const cpR = await exec$(`docker cp "${warPath}" luna2-${domain}:/usr/local/tomcat/webapps/luna2.war`);
+    const cpR = await exec$(`docker cp "${warPath}" luna2-${domain}:/usr/local/tomcat/webapps/ROOT.war`);
+    if (cpR.success) {
+        await exec$(`docker exec luna2-${domain} sh -lc 'rm -rf /usr/local/tomcat/webapps/luna2 /usr/local/tomcat/webapps/luna2.war'`);
+    }
     if (!cpR.success) {
         steps[steps.length - 1].status = 'failed';
         steps[steps.length - 1].error = cpR.error;
@@ -836,7 +843,10 @@ app.post('/api/system/deploy-all', async (req, res) => {
         const r = { domain: d.domain, steps: [] };
         
         // 1. Copia WAR
-        const cpR = await exec$(`docker cp "${warPath}" luna2-${d.domain}:/usr/local/tomcat/webapps/luna2.war 2>&1`);
+        const cpR = await exec$(`docker cp "${warPath}" luna2-${d.domain}:/usr/local/tomcat/webapps/ROOT.war 2>&1`);
+        if (cpR.success) {
+            await exec$(`docker exec luna2-${d.domain} sh -lc 'rm -rf /usr/local/tomcat/webapps/luna2 /usr/local/tomcat/webapps/luna2.war'`);
+        }
         r.steps.push({ step: 'copy-war', success: cpR.success, output: cpR.stdout.trim() || cpR.stderr.trim() });
         
         // 2. Riavvia
