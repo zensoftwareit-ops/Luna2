@@ -83,18 +83,40 @@ prepare_acme_webroot() {
 sync_nginx_host_links() {
     local domain=$1
     local source_conf="${NGINX_CONFIG_DIR}/${domain}.conf"
+    local include_mode="unknown"
 
     # Se nginx host non è disponibile, salta silenziosamente
     if ! command -v nginx &>/dev/null; then
         return 0
     fi
 
-    if [ -d "/etc/nginx/conf.d" ]; then
+    # Rileva quali cartelle vengono incluse dal nginx host per evitare
+    # doppi include dello stesso file (errore: duplicate upstream).
+    if sudo nginx -T >/tmp/luna2-nginx-host-t.out 2>/dev/null; then
+        local has_conf_d="0"
+        local has_sites_enabled="0"
+
+        grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/conf\.d/\*\.conf;' /tmp/luna2-nginx-host-t.out && has_conf_d="1"
+        grep -qE '^[[:space:]]*include[[:space:]]+/etc/nginx/sites-enabled/\*;' /tmp/luna2-nginx-host-t.out && has_sites_enabled="1"
+
+        if [ "$has_conf_d" = "1" ] && [ "$has_sites_enabled" = "1" ]; then
+            include_mode="both"
+        elif [ "$has_conf_d" = "1" ]; then
+            include_mode="confd"
+        elif [ "$has_sites_enabled" = "1" ]; then
+            include_mode="sites"
+        fi
+    fi
+
+    if [ -d "/etc/nginx/conf.d" ] && { [ "$include_mode" = "confd" ] || [ "$include_mode" = "both" ] || [ "$include_mode" = "unknown" ]; }; then
         sudo ln -sfn "$source_conf" "/etc/nginx/conf.d/${domain}.conf"
     fi
 
-    if [ -d "/etc/nginx/sites-enabled" ]; then
+    if [ -d "/etc/nginx/sites-enabled" ] && [ "$include_mode" = "sites" ]; then
         sudo ln -sfn "$source_conf" "/etc/nginx/sites-enabled/${domain}.conf"
+    elif [ -L "/etc/nginx/sites-enabled/${domain}.conf" ] || [ -f "/etc/nginx/sites-enabled/${domain}.conf" ]; then
+        # Se vengono inclusi entrambi i path, manteniamo solo conf.d.
+        sudo rm -f "/etc/nginx/sites-enabled/${domain}.conf"
     fi
 }
 
@@ -775,6 +797,7 @@ cmd_remove() {
     # Rimuovi nginx config
     rm -f "${NGINX_CONFIG_DIR}/${domain}.conf"
     rm -f "${NGINX_VHOST_DIR}/${domain}.conf"
+    sudo rm -f "/etc/nginx/conf.d/${domain}.conf" "/etc/nginx/sites-enabled/${domain}.conf"
     
     # Rimuovi dalla configurazione
     sed -i "/^${domain}|/d" "$DOMAINS_CONFIG"

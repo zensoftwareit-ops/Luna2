@@ -57,6 +57,19 @@ fi
 echo ""
 echo ""
 
+# Cleanup preventivo: evita doppio include stessa vhost in conf.d e sites-enabled
+cleanup_duplicate_host_vhost() {
+    local domain="$1"
+
+    [ "$NGINX_MODE" != "host" ] && return 0
+
+    if [ -e "/etc/nginx/conf.d/${domain}.conf" ] && [ -e "/etc/nginx/sites-enabled/${domain}.conf" ]; then
+        echo "→ Trovata duplicazione vhost in conf.d + sites-enabled, mantengo solo conf.d..."
+        rm -f "/etc/nginx/sites-enabled/${domain}.conf"
+        echo "✓ Duplicazione rimossa"
+    fi
+}
+
 # 2. PULL CODICE AGGIORNATO
 echo "📥 FASE 2: Aggiornamento codice da repository"
 echo "--------------------------------------------------"
@@ -130,27 +143,8 @@ echo "→ Generazione config HTTP-only per $DOMAIN..."
 # Usa lo script aggiornato
 bash manage-domains-multitenant.sh prepare-nginx
 
-# Rigenera il dominio in modalità HTTP
-if docker ps --format '{{.Names}}' | grep -q "luna2-preprod-"; then
-    # Cerca container dell'istanza
-    INSTANCE_NAME=$(echo "$DOMAIN" | sed 's/\.gestionaleluna\.it$//')
-    CONTAINER=$(docker ps --format '{{.Names}}' | grep "luna2-preprod-$INSTANCE_NAME" | head -1)
-    
-    if [ -n "$CONTAINER" ]; then
-        echo "  Container trovato: $CONTAINER"
-        PORT=$(docker port "$CONTAINER" 8080 | cut -d: -f2)
-        echo "  Porta backend: $PORT"
-        
-        # Genera config HTTP con script aggiornato
-        bash manage-domains-multitenant.sh update "$DOMAIN" "$CONTAINER" "$PORT" http
-        
-        echo "✓ Configurazione HTTP generata"
-    else
-        echo "⚠ Container per $INSTANCE_NAME non trovato - skippo rigenerazione"
-    fi
-else
-    echo "⚠ Nessun container preprod trovato"
-fi
+# In host mode rimuove eventuale duplicazione conf.d/sites-enabled per il dominio
+cleanup_duplicate_host_vhost "$DOMAIN"
 
 echo ""
 echo ""
@@ -166,7 +160,11 @@ if [ "$NGINX_MODE" = "container" ]; then
     echo "✓ Nginx container reloaded"
 elif [ "$NGINX_MODE" = "host" ]; then
     echo "→ Reload host nginx..."
-    nginx -t
+    nginx -t || {
+        echo "⚠ nginx -t fallito, provo cleanup duplicati e ritento..."
+        cleanup_duplicate_host_vhost "$DOMAIN"
+        nginx -t
+    }
     systemctl reload nginx
     echo "✓ Nginx host reloaded"
 fi
