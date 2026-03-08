@@ -70,6 +70,46 @@ cleanup_duplicate_host_vhost() {
     fi
 }
 
+# Corregge server_names_hash_* in /etc/nginx/nginx.conf quando ci sono molti vhost
+tune_nginx_server_names_hash() {
+    local nginx_conf="/etc/nginx/nginx.conf"
+
+    [ ! -f "$nginx_conf" ] && {
+        echo "✗ nginx.conf non trovato: $nginx_conf"
+        return 1
+    }
+
+    if grep -qE '^[[:space:]]*server_names_hash_bucket_size[[:space:]]+' "$nginx_conf"; then
+        sed -i -E 's|^[[:space:]]*server_names_hash_bucket_size[[:space:]]+[^;]+;|    server_names_hash_bucket_size 128;|' "$nginx_conf"
+    else
+        awk '
+            {
+                print
+                if (!done && $0 ~ /^[[:space:]]*http[[:space:]]*\{[[:space:]]*$/) {
+                    print "    server_names_hash_bucket_size 128;"
+                    done=1
+                }
+            }
+        ' "$nginx_conf" > "${nginx_conf}.tmp" && mv "${nginx_conf}.tmp" "$nginx_conf"
+    fi
+
+    if grep -qE '^[[:space:]]*server_names_hash_max_size[[:space:]]+' "$nginx_conf"; then
+        sed -i -E 's|^[[:space:]]*server_names_hash_max_size[[:space:]]+[^;]+;|    server_names_hash_max_size 4096;|' "$nginx_conf"
+    else
+        awk '
+            {
+                print
+                if (!done && $0 ~ /^[[:space:]]*http[[:space:]]*\{[[:space:]]*$/) {
+                    print "    server_names_hash_max_size 4096;"
+                    done=1
+                }
+            }
+        ' "$nginx_conf" > "${nginx_conf}.tmp" && mv "${nginx_conf}.tmp" "$nginx_conf"
+    fi
+
+    echo "✓ Applicato tuning server_names_hash (bucket=128, max=4096)"
+}
+
 # 2. PULL CODICE AGGIORNATO
 echo "📥 FASE 2: Aggiornamento codice da repository"
 echo "--------------------------------------------------"
@@ -163,7 +203,11 @@ elif [ "$NGINX_MODE" = "host" ]; then
     nginx -t || {
         echo "⚠ nginx -t fallito, provo cleanup duplicati e ritento..."
         cleanup_duplicate_host_vhost "$DOMAIN"
-        nginx -t
+        if ! nginx -t; then
+            echo "⚠ Ancora fallito: provo tuning server_names_hash..."
+            tune_nginx_server_names_hash
+            nginx -t
+        fi
     }
     systemctl reload nginx
     echo "✓ Nginx host reloaded"

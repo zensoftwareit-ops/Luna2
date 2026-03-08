@@ -120,6 +120,51 @@ sync_nginx_host_links() {
     fi
 }
 
+# Corregge automaticamente il limite hash dei server_name in nginx host
+tune_nginx_server_names_hash() {
+    local nginx_conf="/etc/nginx/nginx.conf"
+
+    [ ! -f "$nginx_conf" ] && {
+        log_error "nginx.conf non trovato: $nginx_conf"
+        return 1
+    }
+
+    # Imposta/aggiorna bucket_size
+    if sudo grep -qE '^[[:space:]]*server_names_hash_bucket_size[[:space:]]+' "$nginx_conf"; then
+        sudo sed -i -E 's|^[[:space:]]*server_names_hash_bucket_size[[:space:]]+[^;]+;|    server_names_hash_bucket_size 128;|' "$nginx_conf"
+    else
+        sudo awk '
+            {
+                print
+                if (!done && $0 ~ /^[[:space:]]*http[[:space:]]*\{[[:space:]]*$/) {
+                    print "    server_names_hash_bucket_size 128;"
+                    done=1
+                }
+            }
+        ' "$nginx_conf" | sudo tee "${nginx_conf}.tmp" >/dev/null
+        sudo mv "${nginx_conf}.tmp" "$nginx_conf"
+    fi
+
+    # Imposta/aggiorna max_size
+    if sudo grep -qE '^[[:space:]]*server_names_hash_max_size[[:space:]]+' "$nginx_conf"; then
+        sudo sed -i -E 's|^[[:space:]]*server_names_hash_max_size[[:space:]]+[^;]+;|    server_names_hash_max_size 4096;|' "$nginx_conf"
+    else
+        sudo awk '
+            {
+                print
+                if (!done && $0 ~ /^[[:space:]]*http[[:space:]]*\{[[:space:]]*$/) {
+                    print "    server_names_hash_max_size 4096;"
+                    done=1
+                }
+            }
+        ' "$nginx_conf" | sudo tee "${nginx_conf}.tmp" >/dev/null
+        sudo mv "${nginx_conf}.tmp" "$nginx_conf"
+    fi
+
+    log_warn "Applicata tuning nginx: server_names_hash_bucket_size=128, server_names_hash_max_size=4096"
+    return 0
+}
+
 # Verifica prerequisiti
 check_requirements() {
     log_info "Verificando requisiti..."
@@ -532,9 +577,29 @@ reload_nginx() {
             return 1
         fi
     elif [[ "$mode" == host ]]; then
-        sudo nginx -t >/dev/null 2>&1 && sudo systemctl reload nginx >/dev/null 2>&1 || {
-            log_warn "Nginx host non in esecuzione o config non valida, reload saltato"
-        }
+        local test_output
+        if ! test_output=$(sudo nginx -t 2>&1); then
+            if echo "$test_output" | grep -q "server_names_hash_bucket_size"; then
+                log_warn "Nginx richiede tuning server_names_hash, provo auto-fix..."
+                tune_nginx_server_names_hash || return 1
+                if ! test_output=$(sudo nginx -t 2>&1); then
+                    log_error "Config Nginx host ancora non valida dopo tuning"
+                    echo "$test_output" | tail -20
+                    return 1
+                fi
+            else
+                log_warn "Nginx host non in esecuzione o config non valida, reload saltato"
+                echo "$test_output" | tail -20
+                return 1
+            fi
+        fi
+
+        if sudo systemctl reload nginx >/dev/null 2>&1; then
+            log_success "Nginx ricaricato (host)"
+        else
+            log_error "Reload nginx host fallito"
+            return 1
+        fi
     else
         log_warn "Nessun Nginx trovato (container/host)"
     fi
