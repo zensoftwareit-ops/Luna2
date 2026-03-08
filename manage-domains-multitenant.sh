@@ -491,14 +491,14 @@ server {
         allow all;
     }
     location / {
-        return 301 https://\$server_name\$request_uri;
+        return 301 https://${domain}\$request_uri;
     }
 }
 
 # HTTPS - Luna2 Application
 server {
     listen 443 ssl http2;
-    server_name ${domain} www.${domain};
+    server_name ${domain};
 
     ssl_certificate /etc/letsencrypt/live/${domain}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${domain}/privkey.pem;
