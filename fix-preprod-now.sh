@@ -274,6 +274,20 @@ else
 fi
 
 echo ""
+echo "→ Testing API health endpoint https://$DOMAIN/api/v1/health"
+API_RESPONSE=$(curl -skL -w "%{http_code}" "https://$DOMAIN/api/v1/health" -o /tmp/domain-health-test.txt 2>&1 || echo "000")
+
+if [ "$API_RESPONSE" = "200" ] && grep -qi '"status"[[:space:]]*:[[:space:]]*"UP"' /tmp/domain-health-test.txt; then
+    echo "✅ API health OK (status=UP)"
+elif [ "$API_RESPONSE" = "200" ]; then
+    echo "⚠️  API risponde 200 ma payload health inatteso"
+    head -c 300 /tmp/domain-health-test.txt || true
+    echo ""
+else
+    echo "❌ API health non raggiungibile (HTTP $API_RESPONSE)"
+fi
+
+echo ""
 echo ""
 
 # 9. SUMMARY E NEXT STEPS

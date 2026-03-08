@@ -517,6 +517,14 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
 
     # Proxy Luna2
+    location = / {
+        return 302 /api/v1/info;
+    }
+
+    location = / {
+        return 302 /api/v1/info;
+    }
+
     location / {
         proxy_pass http://luna2_${domain//./\_};
         proxy_http_version 1.1;
