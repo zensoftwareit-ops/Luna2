@@ -15,6 +15,7 @@ NGINX_CONFIG_DIR="${SCRIPT_DIR}/docker/nginx/multi-tenant"
 NGINX_VHOST_DIR="${SCRIPT_DIR}/docker/nginx/vhosts"
 MAIN_COMPOSE="${SCRIPT_DIR}/docker-compose-main.yml"
 CERTBOT_WEBROOT="${SCRIPT_DIR}/certbot-webroot"
+CERTBOT_WEBROOT_HOST="/var/www/certbot"
 
 # Variabili di default
 MYSQL_ROOT_PASSWORD="${MYSQL_ROOT_PASSWORD:-Luna2Root@2024}"
@@ -65,6 +66,18 @@ detect_nginx_mode() {
     echo "none"
 }
 
+# Restituisce il webroot corretto per ACME in base alla modalita nginx
+get_certbot_webroot() {
+    local mode
+    mode=$(detect_nginx_mode)
+
+    if [[ "$mode" == host ]]; then
+        echo "$CERTBOT_WEBROOT_HOST"
+    else
+        echo "$CERTBOT_WEBROOT"
+    fi
+}
+
 # Prepara webroot ACME per host nginx e/o container nginx
 prepare_acme_webroot() {
     mkdir -p "$CERTBOT_WEBROOT/.well-known/acme-challenge"
@@ -73,9 +86,12 @@ prepare_acme_webroot() {
     mode=$(detect_nginx_mode)
 
     if [[ "$mode" == host ]]; then
-        sudo mkdir -p /var/www
-        # Allinea il path usato dai vhost (root /var/www/certbot)
-        sudo ln -sfn "$CERTBOT_WEBROOT" /var/www/certbot
+        # Su host nginx non usare path sotto /root: www-data non puo traversare /root.
+        if [ -L "$CERTBOT_WEBROOT_HOST" ]; then
+            sudo rm -f "$CERTBOT_WEBROOT_HOST"
+        fi
+        sudo mkdir -p "$CERTBOT_WEBROOT_HOST/.well-known/acme-challenge"
+        sudo chmod 755 "$CERTBOT_WEBROOT_HOST" "$CERTBOT_WEBROOT_HOST/.well-known" "$CERTBOT_WEBROOT_HOST/.well-known/acme-challenge"
     fi
 }
 
@@ -608,10 +624,18 @@ reload_nginx() {
 # Verifica che ACME challenge sia effettivamente servita dal dominio
 check_acme_challenge_served() {
     local domain=$1
-    local token_file="$CERTBOT_WEBROOT/.well-known/acme-challenge/luna2-acme-test.txt"
+    local webroot
+    webroot=$(get_certbot_webroot)
+    local token_file="$webroot/.well-known/acme-challenge/luna2-acme-test.txt"
 
-    mkdir -p "$(dirname "$token_file")"
-    echo "acme-ok" > "$token_file"
+    if [ "$webroot" = "$CERTBOT_WEBROOT_HOST" ]; then
+        sudo mkdir -p "$(dirname "$token_file")"
+        echo "acme-ok" | sudo tee "$token_file" >/dev/null
+        sudo chmod 644 "$token_file"
+    else
+        mkdir -p "$(dirname "$token_file")"
+        echo "acme-ok" > "$token_file"
+    fi
 
     local status
     local body
@@ -643,7 +667,15 @@ request_ssl() {
     local app_port=$(echo "$config" | cut -d'|' -f4)
     local pma_port=$(echo "$config" | cut -d'|' -f5)
 
-    mkdir -p "$CERTBOT_WEBROOT"
+    local certbot_webroot
+    certbot_webroot=$(get_certbot_webroot)
+
+    if [ "$certbot_webroot" = "$CERTBOT_WEBROOT_HOST" ]; then
+        sudo mkdir -p "$certbot_webroot/.well-known/acme-challenge"
+    else
+        mkdir -p "$certbot_webroot/.well-known/acme-challenge"
+    fi
+
     prepare_acme_webroot
     
     if [ ! -d "/etc/letsencrypt/live/${domain}" ]; then
@@ -664,7 +696,7 @@ request_ssl() {
                 --agree-tos \
                 --email admin@${domain} \
                 --webroot \
-                --webroot-path="${CERTBOT_WEBROOT}" \
+                --webroot-path="${certbot_webroot}" \
                 --keep-until-expiring \
                 -d "${domain}" 2>&1); then
                 echo "$certbot_output" | tail -30
@@ -678,7 +710,7 @@ request_ssl() {
                 --agree-tos \
                 --email admin@${domain} \
                 --webroot \
-                --webroot-path="${CERTBOT_WEBROOT}" \
+                --webroot-path="${certbot_webroot}" \
                 --keep-until-expiring \
                 -d "${domain}" \
                 -d "www.${domain}" >/dev/null 2>&1; then

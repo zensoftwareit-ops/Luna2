@@ -158,10 +158,15 @@ echo "test-acme-challenge" > certbot-webroot/.well-known/acme-challenge/test.txt
 
 # Se modalità host, crea symlink
 if [ "$NGINX_MODE" = "host" ]; then
-    echo "→ Modalità HOST: creo symlink per ACME challenge..."
-    mkdir -p /var/www/certbot/.well-known
-    ln -sfn "$(pwd)/certbot-webroot/.well-known/acme-challenge" /var/www/certbot/.well-known/acme-challenge
-    echo "✓ Symlink creato: /var/www/certbot → $(pwd)/certbot-webroot"
+    echo "→ Modalità HOST: preparo /var/www/certbot (senza symlink su /root)..."
+    if [ -L "/var/www/certbot" ]; then
+        rm -f /var/www/certbot
+    fi
+    mkdir -p /var/www/certbot/.well-known/acme-challenge
+    chmod 755 /var/www/certbot /var/www/certbot/.well-known /var/www/certbot/.well-known/acme-challenge
+    echo "test-acme-challenge" > /var/www/certbot/.well-known/acme-challenge/test.txt
+    chmod 644 /var/www/certbot/.well-known/acme-challenge/test.txt
+    echo "✓ Webroot ACME pronto: /var/www/certbot"
     
     # Verifica directory multi-tenant
     mkdir -p docker/nginx/multi-tenant
@@ -234,6 +239,11 @@ if [ "$RESPONSE" = "200" ]; then
 else
     echo "❌ ACME challenge NON funzionante (HTTP $RESPONSE)"
     echo "   Questo impedirà la generazione SSL"
+    if [ "$NGINX_MODE" = "host" ]; then
+        echo "   Debug rapido host webroot:"
+        ls -ld /var/www/certbot /var/www/certbot/.well-known /var/www/certbot/.well-known/acme-challenge 2>/dev/null || true
+        ls -l /var/www/certbot/.well-known/acme-challenge/test.txt 2>/dev/null || true
+    fi
 fi
 
 echo ""
