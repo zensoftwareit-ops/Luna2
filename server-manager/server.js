@@ -370,6 +370,65 @@ app.get('/api/tasks/:taskId/status', (req, res) => {
     });
 });
 
+// ──────────────────────────────────────────────────────────────
+// SERVER MAINTENANCE  –  cleanup, status, etc
+// ──────────────────────────────────────────────────────────────
+
+app.post('/api/server/cleanup', async (req, res) => {
+    const { dryRun } = req.body || {};
+    
+    log('API', `Avvio pulizia server (dry_run: ${dryRun ? 'SÌ' : 'NO'})`);
+    
+    try {
+        const cleanupScript = path.join(WORKSPACE, 'cleanup-server.sh');
+        if (!fs.existsSync(cleanupScript)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Script cleanup non trovato'
+            });
+        }
+        
+        // Esegui con OUTPUT_JSON=true per ricevere risultati strutturati
+        const cmd = `OUTPUT_JSON=true bash "${cleanupScript}" ${dryRun ? '--dry-run' : ''}`;
+        const r = await exec$(cmd, null, 300000);  // 5 min timeout
+        
+        let cleanupResults = {};
+        try {
+            // Estrai l'ultimo oggetto JSON dall'output
+            const lines = r.stdout.split('\n').reverse();
+            for (const line of lines) {
+                if (line.trim().startsWith('{')) {
+                    cleanupResults = JSON.parse(line);
+                    break;
+                }
+            }
+        } catch (e) {
+            log('API', `JSON parse error (cleanup output non strutturato): ${e.message}`);
+            cleanupResults = { 
+                dry_run: dryRun,
+                results: [],
+                raw_output: r.stdout,
+                error: 'JSON parsing fallito'
+            };
+        }
+        
+        res.json({
+            success: r.success,
+            dry_run: dryRun,
+            cleanup: cleanupResults,
+            message: r.success ? 'Pulizia completata' : 'Errore durante la pulizia'
+        });
+        
+    } catch (e) {
+        log('API', `Errore cleanup: ${e.message}`);
+        res.status(500).json({ 
+            success: false, 
+            error: e.message,
+            message: 'Errore durante l\'esecuzione della pulizia'
+        });
+    }
+});
+
 app.post('/api/instances/:domain/enable', async (req, res) => {
     const { domain } = req.params;
     log('API', `Abilita: ${domain}`);

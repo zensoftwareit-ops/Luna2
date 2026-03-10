@@ -307,6 +307,7 @@
             </div>
             <div class="topbar-right">
                 <button class="btn-small success" onclick="openModal('update-modal')"><i class="fas fa-cloud-download-alt"></i> Update</button>
+                <button class="btn-small" style="background: #f59e0b;" onclick="cleanupServer()"><i class="fas fa-broom"></i> Pulisci</button>
                 <button class="btn-small primary" onclick="refreshAll()"><i class="fas fa-sync-alt"></i> Refresh</button>
             </div>
         </div>
@@ -411,6 +412,19 @@
         <div id="deploy-domain-name" style="margin-bottom: 20px; font-weight: bold;"></div>
         <button class="btn-small success" onclick="deployInstance()" style="width: 100%; padding: 10px;">Deploy Ora</button>
         <div id="deploy-result" style="margin-top: 15px;"></div>
+    </div>
+</div>
+
+<!-- Cleanup Results Modal -->
+<div id="cleanup-results-modal" class="modal">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-broom"></i> Risultati Pulizia Server</h2>
+            <button class="close-btn" onclick="closeModal('cleanup-results-modal')">&times;</button>
+        </div>
+        <div id="cleanup-results-body">
+            <!-- Dinamicamente riempito da JS -->
+        </div>
     </div>
 </div>
 
@@ -771,6 +785,107 @@ async function updateSystem() {
         }
     } catch (e) {
         resultEl.innerHTML = `<div class="progress-step failed">❌ Errore connessione: ${e.message}</div>`;
+    }
+}
+
+async function cleanupServer() {
+    openModal('cleanup-results-modal');
+    const body = document.getElementById('cleanup-results-body');
+    body.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="spinner"></div><p style="margin-top: 20px; color: #666;">Scansione server in corso...</p></div>';
+    
+    try {
+        const response = await apiCall('/server/cleanup', 'POST', { dryRun: false });
+        
+        if (!response.success) {
+            body.innerHTML = `
+                <div class="progress-step failed">❌ Errore durante la pulizia: ${response.message}</div>
+            `;
+            return;
+        }
+        
+        const cleanup = response.cleanup;
+        const results = cleanup.results || [];
+        const summary = cleanup.summary || {};
+        
+        let html = `
+            <div style="background: #f0fdf4; border: 1px solid #a7f3d0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <strong>✅ Pulizia Completata</strong>
+                <div style="font-size: 0.9em; margin-top: 8px; color: #065f46;">
+                    Puliti: <strong>${summary.success || 0}</strong> | 
+                    Errori: <strong style="color: #dc2626;">${summary.errors || 0}</strong> | 
+                    Avvisi: <strong>${summary.warnings || 0}</strong> | 
+                    Totale elementi: <strong>${summary.total || 0}</strong>
+                </div>
+            </div>
+        `;
+        
+        if (results.length === 0) {
+            html += '<div style="padding: 20px; text-align: center; color: #6b7280;"><i class="fas fa-check-circle" style="font-size: 2em; color: #10b981;"></i><p style="margin-top: 10px;">✨ Nessun problema trovato - Server pulito!</p></div>';
+        } else {
+            html += '<div style="max-height: 400px; overflow-y: auto;">';
+            
+            // Raggruppa per tipo
+            const byType = {};
+            results.forEach(r => {
+                if (!byType[r.type]) byType[r.type] = [];
+                byType[r.type].push(r);
+            });
+            
+            Object.entries(byType).forEach(([type, items]) => {
+                let icon = '📦';
+                let title = type;
+                if (type === 'orphaned_container') { icon = '🐳'; title = 'Container Orfani'; }
+                else if (type === 'orphaned_nginx') { icon = '⚙️'; title = 'Config Nginx Orfane'; }
+                else if (type === 'orphaned_cert') { icon = '🔐'; title = 'Certificati Orfani'; }
+                else if (type === 'nginx_validation') { icon = '✅'; title = 'Validazione Nginx'; }
+                else if (type === 'nginx_reload') { icon = '🔄'; title = 'Ricaricamento Nginx'; }
+                
+                html += `<div style="margin-bottom: 15px;"><h3 style="color: #1f2937; margin-bottom: 10px;">${icon} ${title}</h3>`;
+                
+                items.forEach(item => {
+                    let statusIcon = '⚠️';
+                    let bgColor = '#fef3c7';
+                    let borderColor = '#f59e0b';
+                    
+                    if (item.status === 'success' || item.status === 'cleaned') {
+                        statusIcon = '✓';
+                        bgColor = '#d1fae5';
+                        borderColor = '#10b981';
+                    } else if (item.status === 'error') {
+                        statusIcon = '✗';
+                        bgColor = '#fee2e2';
+                        borderColor = '#ef4444';
+                    }
+                    
+                    html += `
+                        <div style="background: ${bgColor}; border-left: 3px solid ${borderColor}; padding: 10px 12px; margin-bottom: 8px; border-radius: 4px;">
+                            <div style="display: flex; gap: 8px; align-items: start;">
+                                <span style="font-weight: bold; flex-shrink: 0;">${statusIcon}</span>
+                                <div style="flex: 1;">
+                                    <strong>${item.name}</strong>
+                                    <div style="font-size: 0.85em; margin-top: 3px; opacity: 0.8;">${item.message}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+            });
+            
+            html += '</div>';
+        }
+        
+        html += `
+            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #e5e7eb;">
+                <button class="btn-small primary" onclick="closeModal('cleanup-results-modal'); refreshAll();" style="width: 100%;">Chiudi</button>
+            </div>
+        `;
+        
+        body.innerHTML = html;
+        
+    } catch (e) {
+        body.innerHTML = `<div class="progress-step failed">❌ Errore: ${e.message}</div>`;
     }
 }
 
