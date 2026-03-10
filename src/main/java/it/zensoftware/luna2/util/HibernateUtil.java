@@ -17,12 +17,64 @@ public class HibernateUtil {
     private static final Logger logger = LogManager.getLogger(HibernateUtil.class);
     private static SessionFactory sessionFactory;
 
+    private static String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.trim().isEmpty()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private static void applyDbOverride(StandardServiceRegistryBuilder registryBuilder) {
+        String dbUrl = firstNonBlank(
+                System.getenv("DB_URL"),
+                System.getenv("SPRING_DATASOURCE_URL")
+        );
+        String dbUser = firstNonBlank(
+                System.getenv("DB_USER"),
+                System.getenv("SPRING_DATASOURCE_USERNAME")
+        );
+        String dbPassword = firstNonBlank(
+                System.getenv("DB_PASSWORD"),
+                System.getenv("SPRING_DATASOURCE_PASSWORD")
+        );
+        String dbDriver = firstNonBlank(
+                System.getenv("DB_DRIVER"),
+                System.getenv("SPRING_DATASOURCE_DRIVER_CLASS_NAME")
+        );
+
+        if (dbUrl != null) {
+            registryBuilder.applySetting("hibernate.connection.url", dbUrl);
+            logger.info("Hibernate DB URL override applied from environment");
+        }
+        if (dbUser != null) {
+            registryBuilder.applySetting("hibernate.connection.username", dbUser);
+            logger.info("Hibernate DB username override applied from environment");
+        }
+        if (dbPassword != null) {
+            registryBuilder.applySetting("hibernate.connection.password", dbPassword);
+            logger.info("Hibernate DB password override applied from environment");
+        }
+        if (dbDriver != null) {
+            registryBuilder.applySetting("hibernate.connection.driver_class", dbDriver);
+            logger.info("Hibernate DB driver override applied from environment");
+        }
+    }
+
     static {
         try {
             // Load configuration from hibernate.cfg.xml
-            StandardServiceRegistry registry = new StandardServiceRegistryBuilder()
-                    .configure("hibernate.cfg.xml")
-                    .build();
+            StandardServiceRegistryBuilder registryBuilder = new StandardServiceRegistryBuilder()
+                    .configure("hibernate.cfg.xml");
+
+            // Allow per-instance DB wiring from container env variables.
+            applyDbOverride(registryBuilder);
+
+            StandardServiceRegistry registry = registryBuilder.build();
             
             logger.info("StandardServiceRegistry created from hibernate.cfg.xml");
 
