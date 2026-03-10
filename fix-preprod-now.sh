@@ -124,11 +124,11 @@ echo ""
 echo "🔄 FASE 3: Restart server-manager"
 echo "--------------------------------------------------"
 
-if systemctl is-active --quiet luna2-server-manager 2>/dev/null; then
+if systemctl is-active --quiet luna2-manager 2>/dev/null; then
     echo "→ Riavvio via systemd..."
-    systemctl restart luna2-server-manager
+    systemctl restart luna2-manager
     sleep 2
-    systemctl status luna2-server-manager --no-pager | head -5
+    systemctl status luna2-manager --no-pager | head -5
     echo "✓ Pannello riavviato via systemd"
 elif [ -f "server-manager/server-manager.pid" ]; then
     echo "→ Riavvio processo manuale..."
