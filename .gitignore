@@ -38,3 +38,8 @@ src/main/resources/hibernate.cfg.xml
 src/main/resources/database.properties
 uploads/
 temp/
+
+# Node.js
+node_modules/
+package-lock.json
+server-manager/node_modules/
