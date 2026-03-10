@@ -218,7 +218,11 @@ app.post('/api/instances', async (req, res) => {
     
     // Build sempre il WAR per evitare deploy con artifact stale.
     log('API', 'Compilazione WAR aggiornata per nuova istanza...');
-    const buildR = await exec$(`cd "${WORKSPACE}" && mvn clean package -DskipTests`);
+    const buildR = await exec$(
+        `cd "${WORKSPACE}" && mvn clean package -DskipTests`,
+        null,
+        900000
+    );
     if (!buildR.success) {
         log('API', `Maven build fallito: ${buildR.error}`);
         return res.status(400).json({
@@ -230,7 +234,11 @@ app.post('/api/instances', async (req, res) => {
     log('API', 'WAR compilato con successo');
     
     // Ora crea l'istanza (docker-compose + container)
-    const r = await exec$(`cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" add "${domain}" "${customer_name}"`);
+    const r = await exec$(
+        `cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" add "${domain}" "${customer_name}"`,
+        null,
+        300000
+    );
     if (!r.success) return res.status(400).json({ success: false, error: r.error, output: r.stderr });
     
     // Recupera porte allocate dalla config
