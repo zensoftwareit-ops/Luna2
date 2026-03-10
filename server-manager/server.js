@@ -216,28 +216,13 @@ app.post('/api/instances', async (req, res) => {
         return res.status(400).json({ success: false, error: 'Campi domain e customer_name obbligatori' });
     log('API', `Crea istanza: ${domain} / ${customer_name}`);
     
-    // Build sempre il WAR per evitare deploy con artifact stale.
-    log('API', 'Compilazione WAR aggiornata per nuova istanza...');
-    const buildR = await exec$(
-        `cd "${WORKSPACE}" && mvn clean package -DskipTests`,
-        null,
-        900000
-    );
-    if (!buildR.success) {
-        log('API', `Maven build fallito: ${buildR.error}`);
-        return res.status(400).json({
-            success: false,
-            error: 'Maven build fallito. Controlla i log.',
-            buildError: buildR.error
-        });
-    }
-    log('API', 'WAR compilato con successo');
-    
-    // Ora crea l'istanza (docker-compose + container)
+    // Delega tutto (build WAR + provisionng) allo script di gestione
+    // che ha accesso corretto al filesystem e sa gestire i timeout
+    log('API', 'Inizio creazione istanza (build + provisioning)...');
     const r = await exec$(
         `cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" add "${domain}" "${customer_name}"`,
         null,
-        300000
+        900000
     );
     if (!r.success) return res.status(400).json({ success: false, error: r.error, output: r.stderr });
     

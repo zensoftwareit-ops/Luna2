@@ -814,6 +814,18 @@ cmd_add() {
     
     log_info "Aggiungendo nuovo cliente: $domain ($customer_name)"
     
+    # Assicura che il WAR sia compilato e aggiornato
+    log_info "Compilazione WAR (questo può prendere alcuni minuti)..."
+    if ! mvn -q -DskipTests clean package -f "${SCRIPT_DIR}/pom.xml" 2>&1 | tail -20; then
+        log_error "Maven build fallito. Controlla i log."
+        exit 1
+    fi
+    if [ ! -f "${SCRIPT_DIR}/target/luna2.war" ]; then
+        log_error "WAR non trovato dopo build. Build fallito?"
+        exit 1
+    fi
+    log_success "WAR compilato con successo"
+    
     # Alloca porte
     local ports=$(allocate_ports "$domain")
     local mysql_port=$(echo "$ports" | cut -d'|' -f1)
