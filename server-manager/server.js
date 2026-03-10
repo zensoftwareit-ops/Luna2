@@ -37,6 +37,45 @@ const TOKEN_TTL_MS    = 24 * 60 * 60 * 1000;
 // ──────────────────────────────────────────────────────────────
 const sessionStore = new Map();
 
+// ──────────────────────────────────────────────────────────────
+// TASK STORE  –  track async task status (instance creation, SSL, etc)
+// ──────────────────────────────────────────────────────────────
+const taskStore = new Map();
+
+function createTask(type, domain) {
+    const taskId = crypto.randomBytes(16).toString('hex');
+    const task = {
+        id: taskId,
+        type,
+        domain,
+        status: 'running',  // running | completed | failed
+        progress: 'Inizializzazione...',
+        result: null,
+        error: null,
+        createdAt: Date.now(),
+        expiresAt: Date.now() + (60 * 60 * 1000)  // 1 hour
+    };
+    taskStore.set(taskId, task);
+    return taskId;
+}
+
+function getTask(taskId) {
+    const task = taskStore.get(taskId);
+    if (!task) return null;
+    // Auto-cleanup scaduti
+    if (task.expiresAt && Date.now() > task.expiresAt) {
+        taskStore.delete(taskId);
+        return null;
+    }
+    return task;
+}
+
+function updateTask(taskId, updates) {
+    const task = getTask(taskId);
+    if (task) Object.assign(task, updates);
+    return task;
+}
+
 function generateToken()  { return crypto.randomBytes(32).toString('hex'); }
 
 function createSession(user) {
@@ -214,65 +253,120 @@ app.post('/api/instances', async (req, res) => {
     const { domain, customer_name } = req.body;
     if (!domain || !customer_name)
         return res.status(400).json({ success: false, error: 'Campi domain e customer_name obbligatori' });
-    log('API', `Crea istanza: ${domain} / ${customer_name}`);
     
-    // Delega tutto (build WAR + provisionng) allo script di gestione
-    // che ha accesso corretto al filesystem e sa gestire i timeout
-    log('API', 'Inizio creazione istanza (build + provisioning)...');
-    const r = await exec$(
-        `cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" add "${domain}" "${customer_name}"`,
-        null,
-        900000
-    );
-    if (!r.success) return res.status(400).json({ success: false, error: r.error, output: r.stderr });
+    // Crea task e ritorna subito
+    const taskId = createTask('instance-create', domain);
+    log('API', `Crea istanza: ${domain} / ${customer_name} (task: ${taskId})`);
     
-    // Recupera porte allocate dalla config
-    const configFile = path.join(WORKSPACE, 'domains-config.txt');
-    let instanceInfo = {};
-    try {
-        const configContent = fs.readFileSync(configFile, 'utf8');
-        const line = configContent.split('\n').find(l => l.startsWith(domain + '|'));
-        if (line) {
-            const p = line.split('|');
-            instanceInfo = {
-                domain: p[0],
-                customer: p[1],
-                mysqlPort: p[2],
-                appPort: p[3],
-                pmaPort: p[4]
-            };
-        }
-    } catch (e) { /* ignore */ }
+    // Ritorna subito al client con task ID e loader
+    res.json({ 
+        success: true, 
+        message: 'Creazione istanza avviata',
+        taskId,
+        statusUrl: `/api/tasks/${taskId}/status`
+    });
     
-    // Credenziali di default (come da schema SQL e docker-compose)
-    const mysqlRootPass = process.env.MYSQL_ROOT_PASSWORD || 'Luna2Root@2024';
-    const mysqlUserPass = process.env.MYSQL_USER_PASSWORD || 'Luna2User@2024';
-    
-    res.json({
-        success: true,
-        message: `Istanza ${domain} creata`,
-        output: r.stdout,
-        instanceDetails: {
-            appUrl: `http://${domain}`,
-            appUrlHttps: `https://${domain}`,
-            pmaUrl: `http://phpmyadmin.${domain}`,
-            pmaUrlDirect: instanceInfo.pmaPort ? `http://<IP-SERVER>:${instanceInfo.pmaPort}` : null,
-            appPort: instanceInfo.appPort || null,
-            pmaPort: instanceInfo.pmaPort || null,
-            superUser: {
-                username: 'admin',
-                password: 'admin123',
-                role: 'ADMIN'
-            },
-            mysql: {
-                host: `mysql-${domain}`,
-                database: 'luna2',
-                rootUser: 'root',
-                rootPassword: mysqlRootPass,
-                appUser: 'luna2_user',
-                appPassword: mysqlUserPass
+    // Esegui in background (non aspettare)
+    (async () => {
+        try {
+            updateTask(taskId, { progress: 'Compilazione WAR (questo può prendere 2-5 minuti)...' });
+            
+            // Delega tutto (build WAR + provisioning) allo script di gestione
+            const r = await exec$(
+                `cd "${WORKSPACE}" && bash "${SCRIPT_PATH}" add "${domain}" "${customer_name}"`,
+                null,
+                900000
+            );
+            
+            if (!r.success) {
+                updateTask(taskId, { 
+                    status: 'failed',
+                    error: r.error || 'Creazione fallita',
+                    progress: 'Errore durante la creazione'
+                });
+                log('API', `Creazione istanza fallita: ${r.error}`);
+                return;
             }
+            
+            // Recupera porte allocate dalla config
+            const configFile = path.join(WORKSPACE, 'domains-config.txt');
+            let instanceInfo = {};
+            try {
+                const configContent = fs.readFileSync(configFile, 'utf8');
+                const line = configContent.split('\n').find(l => l.startsWith(domain + '|'));
+                if (line) {
+                    const p = line.split('|');
+                    instanceInfo = {
+                        domain: p[0],
+                        customer: p[1],
+                        mysqlPort: p[2],
+                        appPort: p[3],
+                        pmaPort: p[4]
+                    };
+                }
+            } catch (e) { /* ignore */ }
+            
+            // Credenziali di default
+            const mysqlRootPass = process.env.MYSQL_ROOT_PASSWORD || 'Luna2Root@2024';
+            const mysqlUserPass = process.env.MYSQL_USER_PASSWORD || 'Luna2User@2024';
+            
+            const result = {
+                domain,
+                customer: customer_name,
+                appUrl: `http://${domain}`,
+                appUrlHttps: `https://${domain}`,
+                pmaUrl: `http://phpmyadmin.${domain}`,
+                pmaUrlDirect: instanceInfo.pmaPort ? `http://<IP-SERVER>:${instanceInfo.pmaPort}` : null,
+                appPort: instanceInfo.appPort || null,
+                pmaPort: instanceInfo.pmaPort || null,
+                superUser: {
+                    username: 'admin',
+                    password: 'admin123',
+                    role: 'ADMIN'
+                },
+                mysql: {
+                    host: `mysql-${domain}`,
+                    database: 'luna2',
+                    rootUser: 'root',
+                    rootPassword: mysqlRootPass,
+                    appUser: 'luna2_user',
+                    appPassword: mysqlUserPass
+                }
+            };
+            
+            updateTask(taskId, { 
+                status: 'completed',
+                progress: 'Istanza creata con successo!',
+                result
+            });
+            log('API', `Istanza creata: ${domain}`);
+        } catch (e) {
+            updateTask(taskId, { 
+                status: 'failed',
+                error: e.message,
+                progress: 'Errore inatteso'
+            });
+            log('API', `Errore creazione istanza: ${e.message}`);
         }
+    })();
+});
+
+// Polling endpoint per status task
+app.get('/api/tasks/:taskId/status', (req, res) => {
+    const { taskId } = req.params;
+    const task = getTask(taskId);
+    
+    if (!task) {
+        return res.status(404).json({ success: false, error: 'Task non trovato o scaduto' });
+    }
+    
+    res.json({ 
+        success: true,
+        taskId: task.id,
+        status: task.status,
+        progress: task.progress,
+        result: task.result,
+        error: task.error
     });
 });
 

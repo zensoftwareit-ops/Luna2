@@ -225,6 +225,35 @@
         .progress-step.success { background: #d1fae5; color: #065f46; border-color: #10b981; }
         .progress-step.failed { background: #fee2e2; color: #7f1d1d; border-color: #ef4444; }
         .progress-step.running { background: #dbeafe; color: #0c4a6e; border-color: #0ea5e9; }
+        
+        /* Loader Spinner */
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .task-loader {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 40px;
+            text-align: center;
+        }
+        .task-loader-progress {
+            font-size: 1.1em;
+            color: #374151;
+            font-weight: 500;
+            min-height: 24px;
+        }
+        
         @media (max-width: 768px) {
             .sidebar { width: 100%; height: auto; position: static; border-bottom: 1px solid #374151; }
             .main-content { margin-left: 0; }
@@ -386,6 +415,19 @@
 </div>
 
 <!-- Instance Created Modal -->
+<div id="task-loading-modal" class="modal">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-hourglass-start"></i> Creazione in Corso</h2>
+            <button class="close-btn" onclick="closeModal('task-loading-modal')" style="opacity: 0.3; cursor: not-allowed;">&times;</button>
+        </div>
+        <div class="task-loader">
+            <div class="spinner"></div>
+            <div class="task-loader-progress" id="task-progress">Inizializzazione...</div>
+        </div>
+    </div>
+</div>
+
 <div id="instance-created-modal" class="modal">
     <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
@@ -509,25 +551,90 @@ async function refreshAll() {
 async function createInstance() {
     const domain = document.getElementById('new-domain').value.trim();
     const customer = document.getElementById('new-customer').value.trim();
-    if (!domain || !customer) { showAlert('dash-alert', 'Compila tutti i campi', 'error'); return; }
+    if (!domain || !customer) { 
+        showAlert('dash-alert', 'Compila tutti i campi', 'error'); 
+        return; 
+    }
+    
     try {
+        // Sottometti la richiesta (torna subito con taskId)
         const data = await apiCall('/instances', 'POST', { domain, customer_name: customer });
+        
+        if (!data.success || !data.taskId) {
+            showAlert('dash-alert', data.message || 'Errore sconosciuto', 'error');
+            return;
+        }
+        
+        // Apri modal con loader
+        openModal('task-loading-modal');
         document.getElementById('new-domain').value = '';
         document.getElementById('new-customer').value = '';
         
-        if (data.success && data.instanceDetails) {
-            showInstanceCreatedModal(domain, customer, data.instanceDetails);
-        } else {
-            showAlert('dash-alert', data.message, 'success');
-        }
-        setTimeout(refreshAll, 2000);
+        // Inizia polling dello status
+        await pollTaskStatus(data.taskId);
+        
     } catch (e) {
-        showAlert('dash-alert', 'Errore', 'error');
+        showAlert('dash-alert', 'Errore: ' + e.message, 'error');
+        closeModal('task-loading-modal');
     }
 }
 
-function showInstanceCreatedModal(domain, customer, info) {
+async function pollTaskStatus(taskId) {
+    const maxAttempts = 900; // 30 min (2s per poll)
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+        try {
+            const response = await fetch(`/api/tasks/${taskId}/status`);
+            const data = await response.json();
+            
+            if (!data.success) {
+                showAlert('dash-alert', 'Errore caricamento status', 'error');
+                closeModal('task-loading-modal');
+                return;
+            }
+            
+            // Aggiorna progress UI
+            document.getElementById('task-progress').textContent = data.progress || 'In elaborazione...';
+            
+            // Task completato
+            if (data.status === 'completed') {
+                closeModal('task-loading-modal');
+                if (data.result) {
+                    showInstanceCreatedModal(data.result);
+                }
+                setTimeout(refreshAll, 1000);
+                return;
+            }
+            
+            // Task fallito
+            if (data.status === 'failed') {
+                closeModal('task-loading-modal');
+                showAlert('dash-alert', 'Creazione fallita: ' + (data.error || 'Errore sconosciuto'), 'error');
+                setTimeout(refreshAll, 1000);
+                return;
+            }
+            
+            // Task in corso, aspetta 2s e riprova
+            attempts++;
+            await new Promise(r => setTimeout(r, 2000));
+            
+        } catch (e) {
+            console.error('Poll error:', e);
+            attempts++;
+            await new Promise(r => setTimeout(r, 2000));
+        }
+    }
+    
+    // Timeout raggiunto
+    closeModal('task-loading-modal');
+    showAlert('dash-alert', 'Timeout: creazione non completata (controlla con refresh)', 'error');
+}
+
+function showInstanceCreatedModal(info) {
     const serverIp = window.location.hostname;
+    const domain = info.domain;
+    const customer = info.customer;
     const body = document.getElementById('instance-created-body');
     body.innerHTML = `
         <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
