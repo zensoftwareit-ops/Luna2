@@ -27,7 +27,7 @@ log_error() { echo -e "${RED}[✗]${NC} $1"; }
 
 # JSON output per il backend
 json_array() { echo "[]"; }
-json_add_item() { echo "$1" | jq -e . >/dev/null 2>&1 && echo "$1" || echo "[]"; }
+json_add_item() { echo "$1" | /usr/bin/jq -e . >/dev/null 2>&1 && echo "$1" || echo "[]"; }
 
 ################################################################################
 # RESULT COLLECTION
@@ -41,7 +41,7 @@ add_result() {
     local status=$3 # success | skipped | error
     local message=$4
     
-    local item=$(jq -n \
+    local item=$(/usr/bin/jq -n \
         --arg type "$type" \
         --arg name "$name" \
         --arg status "$status" \
@@ -70,7 +70,7 @@ cleanup_docker() {
     fi
     
     # Cercaall container Luna2
-    local containers=$(docker ps -a --filter "label=domain" --format "table {{.Names}}\t{{json .Labels}}" 2>/dev/null || true)
+    local containers=$(docker ps -a --no-headers --filter "label=domain" --format "table {{.Names}}\t{{json .Labels}}" 2>/dev/null || true)
     
     if [ -z "$containers" ]; then
         log_info "Nessun container Luna2 trovato"
@@ -81,7 +81,7 @@ cleanup_docker() {
         [ -z "$name" ] && continue
         
         # Estrai dominio da etichetta o da nome (luna2-DOMAIN, mysql-DOMAIN, ecc)
-        local domain=$(echo "$labels" | jq -r '.domain // empty' 2>/dev/null)
+        local domain=$(echo "$labels" | /usr/bin/jq -r '.domain // empty' 2>/dev/null)
         if [ -z "$domain" ]; then
             domain=$(echo "$name" | grep -oE '[a-zA-Z0-9][a-zA-Z0-9\-]+(\.+[a-zA-Z0-9][a-zA-Z0-9\-]*)*' | head -1 || true)
         fi
@@ -310,10 +310,10 @@ print_summary() {
         echo ""
         
         for item in "${CLEANUP_RESULTS[@]}"; do
-            local type=$(echo "$item" | jq -r '.type')
-            local name=$(echo "$item" | jq -r '.name')
-            local status=$(echo "$item" | jq -r '.status')
-            local message=$(echo "$item" | jq -r '.message')
+            local type=$(echo "$item" | /usr/bin/jq -r '.type')
+            local name=$(echo "$item" | /usr/bin/jq -r '.name')
+            local status=$(echo "$item" | /usr/bin/jq -r '.status')
+            local message=$(echo "$item" | /usr/bin/jq -r '.message')
             
             case "$status" in
                 success|cleaned)
@@ -350,7 +350,7 @@ output_json() {
     
     result_array="${result_array}]"
     
-    jq -n \
+    /usr/bin/jq -n \
         --arg dryrun "$DRY_RUN" \
         --argjson results "$result_array" \
         '{dry_run: ($dryrun == "--dry-run"), results: $results, summary: {total: ($results | length), success: ([$results[] | select(.status == "success" or .status == "cleaned")] | length), errors: ([$results[] | select(.status == "error")] | length), warnings: ([$results[] | select(.status == "found" or .status == "skipped")] | length)}}'
