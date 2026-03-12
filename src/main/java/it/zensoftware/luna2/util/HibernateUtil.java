@@ -80,7 +80,7 @@ public class HibernateUtil {
         registryBuilder.applySetting("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
         registryBuilder.applySetting("hibernate.show_sql", "false");
         registryBuilder.applySetting("hibernate.format_sql", "false");
-        registryBuilder.applySetting("hibernate.hbm2ddl.auto", "validate");
+        registryBuilder.applySetting("hibernate.hbm2ddl.auto", "update");
         registryBuilder.applySetting("hibernate.current_session_context_class", "thread");
         registryBuilder.applySetting("hibernate.cache.use_second_level_cache", "false");
         registryBuilder.applySetting("hibernate.cache.use_query_cache", "false");
@@ -126,6 +126,22 @@ public class HibernateUtil {
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NotificationHistory.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.CalendarAccount.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.CalendarEvent.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.ProdottoComponente.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.ProdottoVariante.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.MovimentoMagazzino.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Activity.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Task.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.StoriaLead.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Reminder.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PipelineStage.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioLead.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioPreventivo.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioDocumento.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioValutazione.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioOrdine.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioTicket.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioContratto.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioNBT.class);
             
             logger.info("Annotated classes registered");
 

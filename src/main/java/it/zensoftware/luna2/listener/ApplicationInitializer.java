@@ -92,7 +92,11 @@ public class ApplicationInitializer implements ServletContextListener {
             logger.error("Failed to initialize application", e);
         }
 
-        NotificationSystemBootstrap.initialize();
+        try {
+            NotificationSystemBootstrap.initialize();
+        } catch (Throwable t) {
+            logger.error("Notification system bootstrap failed (non-fatal)", t);
+        }
     }
 
     @Override
