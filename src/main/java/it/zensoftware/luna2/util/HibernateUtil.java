@@ -72,15 +72,7 @@ public class HibernateUtil {
             logger.info("Hibernate config loaded from hibernate.cfg.xml");
             return registryBuilder;
         } catch (Exception primaryEx) {
-            logger.warn("hibernate.cfg.xml non trovato nel classpath, provo fallback su hibernate.cfg.xml.template");
-        }
-
-        try {
-            registryBuilder.configure("hibernate.cfg.xml.template");
-            logger.info("Hibernate config loaded from hibernate.cfg.xml.template");
-            return registryBuilder;
-        } catch (Exception templateEx) {
-            logger.warn("hibernate.cfg.xml.template non trovato, uso configurazione Hibernate di default con override env");
+            logger.warn("hibernate.cfg.xml non trovato nel classpath, uso configurazione Hibernate di default con override env");
         }
 
         // Fallback minimo: i valori reali DB arrivano da applyDbOverride() via env.
