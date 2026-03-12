@@ -5,7 +5,6 @@ import org.hibernate.boot.Metadata;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
-import org.hibernate.cfg.Configuration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -65,18 +64,48 @@ public class HibernateUtil {
         }
     }
 
+    private static StandardServiceRegistryBuilder buildRegistryBuilderWithFallback() {
+        StandardServiceRegistryBuilder registryBuilder = new StandardServiceRegistryBuilder();
+
+        try {
+            registryBuilder.configure("hibernate.cfg.xml");
+            logger.info("Hibernate config loaded from hibernate.cfg.xml");
+            return registryBuilder;
+        } catch (Exception primaryEx) {
+            logger.warn("hibernate.cfg.xml non trovato nel classpath, provo fallback su hibernate.cfg.xml.template");
+        }
+
+        try {
+            registryBuilder.configure("hibernate.cfg.xml.template");
+            logger.info("Hibernate config loaded from hibernate.cfg.xml.template");
+            return registryBuilder;
+        } catch (Exception templateEx) {
+            logger.warn("hibernate.cfg.xml.template non trovato, uso configurazione Hibernate di default con override env");
+        }
+
+        // Fallback minimo: i valori reali DB arrivano da applyDbOverride() via env.
+        registryBuilder.applySetting("hibernate.connection.driver_class", "com.mysql.cj.jdbc.Driver");
+        registryBuilder.applySetting("hibernate.dialect", "org.hibernate.dialect.MySQL8Dialect");
+        registryBuilder.applySetting("hibernate.show_sql", "false");
+        registryBuilder.applySetting("hibernate.format_sql", "false");
+        registryBuilder.applySetting("hibernate.hbm2ddl.auto", "validate");
+        registryBuilder.applySetting("hibernate.current_session_context_class", "thread");
+        registryBuilder.applySetting("hibernate.cache.use_second_level_cache", "false");
+        registryBuilder.applySetting("hibernate.cache.use_query_cache", "false");
+
+        return registryBuilder;
+    }
+
     static {
         try {
-            // Load configuration from hibernate.cfg.xml
-            StandardServiceRegistryBuilder registryBuilder = new StandardServiceRegistryBuilder()
-                    .configure("hibernate.cfg.xml");
+            StandardServiceRegistryBuilder registryBuilder = buildRegistryBuilderWithFallback();
 
             // Allow per-instance DB wiring from container env variables.
             applyDbOverride(registryBuilder);
 
             StandardServiceRegistry registry = registryBuilder.build();
             
-            logger.info("StandardServiceRegistry created from hibernate.cfg.xml");
+            logger.info("StandardServiceRegistry created");
 
             MetadataSources metadataSources = new MetadataSources(registry);
             
