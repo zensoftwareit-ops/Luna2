@@ -315,6 +315,7 @@ generate_docker_compose() {
 # Avvia container per cliente
 start_customer() {
     local domain=$1
+    local app_port=$2
     
     local compose_file="${SCRIPT_DIR}/docker-compose-customer-${domain}.yml"
     
@@ -333,19 +334,31 @@ start_customer() {
     fi
     echo "$up_output" | tail -20
     
-    # Aspetta che i container siano healthy
+    # Aspetta che i container siano avviati
     sleep 5
-    log_info "Aspettando health check..."
+    log_info "Aspettando avvio container..."
     for i in {1..30}; do
-        if docker-compose -f "$compose_file" ps | grep -q "healthy\|running"; then
-            log_success "Container $domain avviati e healthy"
+        if docker-compose -f "$compose_file" ps | grep -q "luna2-${domain}.*running\|luna2-${domain}.*healthy"; then
+            break
+        fi
+        sleep 2
+    done
+
+    # Readiness reale applicativa: login.action deve rispondere 200/302
+    log_info "Aspettando readiness applicativa su /login.action (porta ${app_port})..."
+    for i in {1..90}; do
+        local code
+        code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${app_port}/login.action" || echo "000")
+        if [ "$code" = "200" ] || [ "$code" = "302" ]; then
+            log_success "Applicazione pronta su /login.action (HTTP ${code})"
             return 0
         fi
         sleep 2
     done
-    
-    log_warn "Health check timeout - container potrebbero non essere pronti"
+
+    log_warn "Readiness timeout su /login.action - stato container:"
     docker-compose -f "$compose_file" ps
+    return 1
 }
 
 # Ferma container per cliente
@@ -858,7 +871,7 @@ cmd_add() {
     echo "$domain|$customer_name|$mysql_port|$app_port|$pma_port|$created|active" >> "$DOMAINS_CONFIG"
     
     # Avvia container
-    start_customer "$domain" || {
+    start_customer "$domain" "$app_port" || {
         log_error "Errore durante l'avvio dei container"
         exit 1
     }
