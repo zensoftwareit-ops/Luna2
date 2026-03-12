@@ -744,7 +744,7 @@ async function renewSSL() {
         if (response.success) {
             resultEl.textContent = `✅ ${response.message}`;
             resultEl.className = 'alert show success';
-            loadInstances();
+            refreshAll();
         } else {
             resultEl.textContent = `❌ Errore: ${response.error || 'Certificato non ottenuto'}`;
             resultEl.className = 'alert show error';
