@@ -724,15 +724,35 @@ async function deleteInstance(domain) {
     }
 }
 
+let currentSSLDomain = null;
+
 async function openSSLModal(domain) {
+    currentSSLDomain = domain;
     document.getElementById('ssl-domain-name').textContent = `Dominio: ${domain}`;
+    document.getElementById('ssl-result').textContent = '';
+    document.getElementById('ssl-result').className = 'alert';
     openModal('ssl-modal');
 }
 
 async function renewSSL() {
+    if (!currentSSLDomain) return;
     const resultEl = document.getElementById('ssl-result');
-    resultEl.textContent = '⏳ Rinnovo...';
+    resultEl.textContent = '⏳ Richiesta certificato SSL in corso (può richiedere fino a 2 minuti)...';
     resultEl.className = 'alert show success';
+    try {
+        const response = await apiCall(`/instances/${currentSSLDomain}/ssl/renew`, 'POST', {});
+        if (response.success) {
+            resultEl.textContent = `✅ ${response.message}`;
+            resultEl.className = 'alert show success';
+            loadInstances();
+        } else {
+            resultEl.textContent = `❌ Errore: ${response.error || 'Certificato non ottenuto'}`;
+            resultEl.className = 'alert show error';
+        }
+    } catch (e) {
+        resultEl.textContent = `❌ Errore di rete: ${e.message}`;
+        resultEl.className = 'alert show error';
+    }
 }
 
 async function openDeployModal(domain) {
