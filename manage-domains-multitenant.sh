@@ -430,6 +430,11 @@ EOF
         allow all;
     }
 
+    # Struts non espone una action sulla root: porta subito alla login
+    location = / {
+        return 302 /login.action;
+    }
+
     # Proxy Luna2 UI/Application
     location / {
 HTTPEOF
@@ -515,6 +520,11 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-XSS-Protection "1; mode=block" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # Struts non espone una action sulla root: porta subito alla login
+    location = / {
+        return 302 /login.action;
+    }
 
     # Proxy Luna2 UI/Application
     location / {
