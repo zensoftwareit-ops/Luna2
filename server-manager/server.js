@@ -760,49 +760,54 @@ async function recordMigration(domain, migrationName) {
     await exec$(cmd);
 }
 
-// POST /api/system/safe-update - Pull + Build + Backup ALL + Deploy ALL con migrazioni
-app.post('/api/system/safe-update', async (req, res) => {
-    log('API', 'SAFE-UPDATE: Pull + Build + Backup + Migrate + Deploy');
-    
+async function runSafeUpdateTask(taskId = null) {
     const steps = [];
-    
+
+    const setProgress = (msg) => {
+        if (taskId) {
+            updateTask(taskId, { progress: msg });
+        }
+    };
+
     // 1. Git pull
+    setProgress('Git pull in corso...');
     steps.push({ step: 'git-pull', status: 'running' });
     let gitCmd = 'git pull origin main';
     let gitEnv = { ...process.env };
-    
+
     if (GITHUB_TOKEN) {
         const askPassScript = path.join(WORKSPACE, '.git-askpass.sh');
         fs.writeFileSync(askPassScript, `#!/bin/bash\necho "${GITHUB_TOKEN}"`, { mode: 0o755 });
         gitEnv.GIT_ASKPASS = askPassScript;
         gitEnv.GIT_USERNAME = GIT_USERNAME;
     }
-    
-    const pullR = await exec$(`cd "${WORKSPACE}" && ${gitCmd}`, gitEnv);
+
+    const pullR = await exec$(`cd "${WORKSPACE}" && ${gitCmd}`, gitEnv, 300000);
     if (!pullR.success) {
         steps[0].status = 'failed';
         steps[0].error = pullR.error;
-        return res.status(400).json({ success: false, steps, error: 'Git pull fallito' });
+        return { success: false, steps, error: 'Git pull fallito' };
     }
     steps[0].status = 'success';
     steps[0].output = pullR.stdout.trim();
-    
+
     // 2. Maven build
+    setProgress('Build Maven in corso (puo richiedere alcuni minuti)...');
     steps.push({ step: 'maven-build', status: 'running' });
-    const buildR = await exec$(`cd "${WORKSPACE}" && mvn clean package -DskipTests`);
+    const buildR = await exec$(`cd "${WORKSPACE}" && mvn clean package -DskipTests`, null, 1200000);
     if (!buildR.success) {
         steps[1].status = 'failed';
         steps[1].error = buildR.error;
-        return res.status(400).json({ success: false, steps, error: 'Maven build fallito' });
+        return { success: false, steps, error: 'Maven build fallito' };
     }
     steps[1].status = 'success';
     steps[1].output = 'WAR compilato';
-    
+
     const warPath = path.join(WORKSPACE, 'target/luna2.war');
     if (!fs.existsSync(warPath)) {
-        return res.status(400).json({ success: false, steps, error: 'WAR non trovato dopo build' });
+        return { success: false, steps, error: 'WAR non trovato dopo build' };
     }
-    
+
     // 3. Rileva migrazioni disponibili
     const migrationDir = path.join(WORKSPACE, 'database/migrations');
     let availableMigrations = [];
@@ -811,14 +816,15 @@ app.post('/api/system/safe-update', async (req, res) => {
             .filter(f => f.endsWith('.sql') && f[0].match(/\d/))
             .sort();
     }
-    
+
     steps.push({ step: 'migrations-detected', status: 'success', count: availableMigrations.length });
-    
+
     // 4. Backup di tutte le istanze
+    setProgress('Backup database di tutte le istanze...');
     steps.push({ step: 'backup-all-databases', status: 'running', backups: [] });
     const domains = await parseDomainConfig();
     const backups = {}; // { domain: backupPath }
-    
+
     for (const d of domains) {
         const backupResult = await backupDatabase(d.domain, 'luna2_user', 'luna2pass');
         steps[steps.length - 1].backups.push({
@@ -831,35 +837,37 @@ app.post('/api/system/safe-update', async (req, res) => {
         }
     }
     steps[steps.length - 1].status = 'success';
-    
+
     // 5. Deploy a tutte le istanze (con migrazioni)
     steps.push({ step: 'deploy-all', status: 'running', instances: [] });
-    
+
     for (const d of domains) {
+        setProgress(`Deploy in corso su ${d.domain}...`);
         const instStep = { domain: d.domain, substeps: [] };
-        
+        let migrationFailed = false;
+
         // 5a. Applica migrazioni
         const appliedMigs = await getAppliedMigrations(d.domain);
         const newMigs = availableMigrations.filter(m => !appliedMigs.includes(m.replace('.sql', '')));
-        
+
         for (const migFile of newMigs) {
             const migPath = path.join(migrationDir, migFile);
             const migContent = fs.readFileSync(migPath, 'utf8');
             const migName = migFile.replace('.sql', '');
-            
+
             const migCmd = `docker exec mysql-${d.domain} mysql -uluna2_user -pluna2pass luna2 -e "${migContent.replace(/"/g, '\\"')}" 2>&1`;
             const migR = await exec$(migCmd);
-            
+
             instStep.substeps.push({
                 migration: migName,
                 success: migR.success,
                 error: migR.success ? null : migR.error
             });
-            
+
             if (migR.success) {
                 await recordMigration(d.domain, migName);
             } else {
-                // ROLLBACK: restore dal backup
+                migrationFailed = true;
                 if (backups[d.domain]) {
                     log('API', `ROLLBACK: Ripristino ${d.domain} da backup`);
                     const restoreR = await restoreDatabase(d.domain, 'luna2_user', 'luna2pass', backups[d.domain]);
@@ -868,22 +876,19 @@ app.post('/api/system/safe-update', async (req, res) => {
                         success: restoreR.success,
                         error: restoreR.error
                     });
-                    instStep.success = false;
-                    steps[steps.length - 1].instances.push(instStep);
-                    continue;
                 }
+                break;
             }
         }
-        
+
         // 5b. Deploya WAR (solo se migrazioni ok)
-        if (instStep.substeps.every(s => s.success)) {
-            // Deploy come ROOT.war per servire la UI in '/'
+        if (!migrationFailed && instStep.substeps.every(s => s.success)) {
             const cpR = await exec$(`docker cp "${warPath}" luna2-${d.domain}:/usr/local/tomcat/webapps/ROOT.war`);
             if (cpR.success) {
                 await exec$(`docker exec luna2-${d.domain} sh -lc 'rm -rf /usr/local/tomcat/webapps/luna2 /usr/local/tomcat/webapps/luna2.war'`);
             }
             instStep.substeps.push({ action: 'copy-war', success: cpR.success, error: cpR.error });
-            
+
             if (cpR.success) {
                 const restartR = await exec$(`docker restart luna2-${d.domain}`);
                 instStep.substeps.push({ action: 'restart', success: restartR.success, error: restartR.error });
@@ -894,21 +899,54 @@ app.post('/api/system/safe-update', async (req, res) => {
         } else {
             instStep.success = false;
         }
-        
+
         steps[steps.length - 1].instances.push(instStep);
     }
     steps[steps.length - 1].status = 'success';
-    
+
     const allSuccess = steps[steps.length - 1].instances.every(i => i.success);
-    
-    res.json({
+
+    return {
         success: allSuccess,
         message: allSuccess
             ? 'Update distributo a tutte le istanze con successo'
             : 'Update completato con errori - controlla backup',
         steps,
         backupLocations: backups
+    };
+}
+
+// POST /api/system/safe-update - avvia update asincrono con polling task
+app.post('/api/system/safe-update', async (req, res) => {
+    log('API', 'SAFE-UPDATE: Pull + Build + Backup + Migrate + Deploy');
+
+    const taskId = createTask('system-safe-update', 'all');
+    updateTask(taskId, { progress: 'Preparazione update...' });
+
+    res.json({
+        success: true,
+        message: 'Update avviato',
+        taskId,
+        statusUrl: `/api/tasks/${taskId}/status`
     });
+
+    (async () => {
+        try {
+            const result = await runSafeUpdateTask(taskId);
+            updateTask(taskId, {
+                status: result.success ? 'completed' : 'failed',
+                progress: result.success ? 'Update completato' : 'Update completato con errori',
+                result,
+                error: result.success ? null : result.error
+            });
+        } catch (e) {
+            updateTask(taskId, {
+                status: 'failed',
+                progress: 'Errore inatteso durante update',
+                error: e.message
+            });
+        }
+    })();
 });
 
 // POST /api/instances/:domain/deploy - Deploy update a singola istanza
