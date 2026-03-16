@@ -743,9 +743,46 @@ async function restoreDatabase(domain, dbUser, dbPass, backupPath) {
     return { success: r.success, error: r.error };
 }
 
+function unquoteEnvValue(value) {
+    if (!value) return value;
+    const trimmed = value.trim();
+    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+        return trimmed.slice(1, -1);
+    }
+    return trimmed;
+}
+
+function getDbCredentialsForDomain(domain) {
+    const composePath = path.join(WORKSPACE, `docker-compose-customer-${domain}.yml`);
+    let dbUser = DB_APP_USER;
+    let dbPass = DB_APP_PASS;
+
+    try {
+        if (fs.existsSync(composePath)) {
+            const content = fs.readFileSync(composePath, 'utf8');
+            const userMatch = content.match(/^\s*SPRING_DATASOURCE_USERNAME\s*:\s*(.+)$/m)
+                || content.match(/^\s*MYSQL_USER\s*:\s*(.+)$/m);
+            const passMatch = content.match(/^\s*SPRING_DATASOURCE_PASSWORD\s*:\s*(.+)$/m)
+                || content.match(/^\s*MYSQL_PASSWORD\s*:\s*(.+)$/m);
+
+            if (userMatch && userMatch[1]) {
+                dbUser = unquoteEnvValue(userMatch[1]);
+            }
+            if (passMatch && passMatch[1]) {
+                dbPass = unquoteEnvValue(passMatch[1]);
+            }
+        }
+    } catch (e) {
+        log('WARN', `Credenziali DB compose non leggibili per ${domain}: ${e.message}`);
+    }
+
+    return { dbUser, dbPass };
+}
+
 // Helper: Leggi migrazioni applicate
-async function getAppliedMigrations(domain) {
-    const cmd = `docker exec mysql-${domain} mysql -u${DB_APP_USER} -p${DB_APP_PASS} luna2 -e "SELECT migration FROM schema_migrations ORDER BY applied_at" 2>/dev/null || echo ""`;
+async function getAppliedMigrations(domain, dbUser, dbPass) {
+    const cmd = `docker exec mysql-${domain} mysql -u${dbUser} -p${dbPass} luna2 -e "SELECT migration FROM schema_migrations ORDER BY applied_at" 2>/dev/null || echo ""`;
     const r = await exec$(cmd);
     if (!r.success) return [];
     
@@ -756,9 +793,9 @@ async function getAppliedMigrations(domain) {
 }
 
 // Helper: Registra migrazione applicata
-async function recordMigration(domain, migrationName) {
+async function recordMigration(domain, migrationName, dbUser, dbPass) {
     const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const cmd = `docker exec mysql-${domain} mysql -u${DB_APP_USER} -p${DB_APP_PASS} luna2 -e "INSERT INTO schema_migrations (migration, applied_at) VALUES ('${migrationName}', '${now}')" 2>/dev/null || true`;
+    const cmd = `docker exec mysql-${domain} mysql -u${dbUser} -p${dbPass} luna2 -e "INSERT INTO schema_migrations (migration, applied_at) VALUES ('${migrationName}', '${now}')" 2>/dev/null || true`;
     await exec$(cmd);
 }
 
@@ -828,7 +865,8 @@ async function runSafeUpdateTask(taskId = null) {
     const backups = {}; // { domain: backupPath }
 
     for (const d of domains) {
-        const backupResult = await backupDatabase(d.domain, DB_APP_USER, DB_APP_PASS);
+        const creds = getDbCredentialsForDomain(d.domain);
+        const backupResult = await backupDatabase(d.domain, creds.dbUser, creds.dbPass);
         steps[steps.length - 1].backups.push({
             domain: d.domain,
             success: backupResult.success,
@@ -847,9 +885,10 @@ async function runSafeUpdateTask(taskId = null) {
         setProgress(`Deploy in corso su ${d.domain}...`);
         const instStep = { domain: d.domain, substeps: [] };
         let migrationFailed = false;
+        const creds = getDbCredentialsForDomain(d.domain);
 
         // 5a. Applica migrazioni
-        const appliedMigs = await getAppliedMigrations(d.domain);
+        const appliedMigs = await getAppliedMigrations(d.domain, creds.dbUser, creds.dbPass);
         const newMigs = availableMigrations.filter(m => !appliedMigs.includes(m.replace('.sql', '')));
 
         for (const migFile of newMigs) {
@@ -857,7 +896,7 @@ async function runSafeUpdateTask(taskId = null) {
             const migContent = fs.readFileSync(migPath, 'utf8');
             const migName = migFile.replace('.sql', '');
 
-            const migCmd = `docker exec mysql-${d.domain} mysql -u${DB_APP_USER} -p${DB_APP_PASS} luna2 -e "${migContent.replace(/"/g, '\\"')}" 2>&1`;
+            const migCmd = `docker exec mysql-${d.domain} mysql -u${creds.dbUser} -p${creds.dbPass} luna2 -e "${migContent.replace(/"/g, '\\"')}" 2>&1`;
             const migR = await exec$(migCmd);
 
             instStep.substeps.push({
@@ -867,12 +906,12 @@ async function runSafeUpdateTask(taskId = null) {
             });
 
             if (migR.success) {
-                await recordMigration(d.domain, migName);
+                await recordMigration(d.domain, migName, creds.dbUser, creds.dbPass);
             } else {
                 migrationFailed = true;
                 if (backups[d.domain]) {
                     log('API', `ROLLBACK: Ripristino ${d.domain} da backup`);
-                    const restoreR = await restoreDatabase(d.domain, DB_APP_USER, DB_APP_PASS, backups[d.domain]);
+                    const restoreR = await restoreDatabase(d.domain, creds.dbUser, creds.dbPass, backups[d.domain]);
                     instStep.substeps.push({
                         action: 'rollback',
                         success: restoreR.success,
@@ -990,7 +1029,8 @@ app.post('/api/instances/:domain/deploy', async (req, res) => {
             const domains = await parseDomainConfig();
             const inst = domains.find(d => d.domain === domain);
             if (inst) {
-                const mysqlCmd = `docker exec mysql-${domain} mysql -u${DB_APP_USER} -p${DB_APP_PASS} luna2 -e "${sqlContent.replace(/"/g, '\\"')}" 2>&1 || true`;
+                const creds = getDbCredentialsForDomain(domain);
+                const mysqlCmd = `docker exec mysql-${domain} mysql -u${creds.dbUser} -p${creds.dbPass} luna2 -e "${sqlContent.replace(/"/g, '\\"')}" 2>&1 || true`;
                 const migR = await exec$(mysqlCmd);
                 steps[0].output = (steps[0].output || '') + `\n${sqlFile}: ${migR.success ? 'OK' : 'WARN'}`;
             }
