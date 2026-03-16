@@ -792,6 +792,45 @@ async function getAppliedMigrations(domain, dbUser, dbPass) {
         .map(line => line.trim());
 }
 
+async function ensureSchemaMigrationsTable(domain, dbUser, dbPass) {
+    const checkCmd = `docker exec mysql-${domain} mysql -u${dbUser} -p${dbPass} luna2 -e "SHOW TABLES LIKE 'schema_migrations'" 2>/dev/null`;
+    const checkR = await exec$(checkCmd);
+    if (!checkR.success) {
+        return { success: false, exists: false, error: checkR.error || checkR.stderr };
+    }
+
+    const exists = checkR.stdout.includes('schema_migrations');
+    if (exists) {
+        return { success: true, exists: true, created: false };
+    }
+
+    const createCmd = `docker exec mysql-${domain} mysql -u${dbUser} -p${dbPass} luna2 -e "CREATE TABLE IF NOT EXISTS schema_migrations (migration VARCHAR(255) PRIMARY KEY, applied_at DATETIME NOT NULL)" 2>/dev/null`;
+    const createR = await exec$(createCmd);
+    if (!createR.success) {
+        return { success: false, exists: false, error: createR.error || createR.stderr };
+    }
+
+    return { success: true, exists: false, created: true };
+}
+
+async function baselineMigrations(domain, dbUser, dbPass, migrations) {
+    if (!migrations || migrations.length === 0) {
+        return { success: true, count: 0 };
+    }
+
+    const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    for (const migFile of migrations) {
+        const migName = migFile.replace('.sql', '');
+        const cmd = `docker exec mysql-${domain} mysql -u${dbUser} -p${dbPass} luna2 -e "INSERT IGNORE INTO schema_migrations (migration, applied_at) VALUES ('${migName}', '${now}')" 2>/dev/null`;
+        const r = await exec$(cmd);
+        if (!r.success) {
+            return { success: false, error: r.error || r.stderr, failedMigration: migName };
+        }
+    }
+
+    return { success: true, count: migrations.length };
+}
+
 // Helper: Registra migrazione applicata
 async function recordMigration(domain, migrationName, dbUser, dbPass) {
     const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -887,6 +926,33 @@ async function runSafeUpdateTask(taskId = null) {
         let migrationFailed = false;
         const creds = getDbCredentialsForDomain(d.domain);
 
+        const migTable = await ensureSchemaMigrationsTable(d.domain, creds.dbUser, creds.dbPass);
+        if (!migTable.success) {
+            instStep.substeps.push({
+                action: 'ensure-schema-migrations',
+                success: false,
+                error: migTable.error || 'Impossibile verificare/creare schema_migrations'
+            });
+            instStep.success = false;
+            steps[steps.length - 1].instances.push(instStep);
+            continue;
+        }
+
+        if (migTable.created) {
+            const baseline = await baselineMigrations(d.domain, creds.dbUser, creds.dbPass, availableMigrations);
+            instStep.substeps.push({
+                action: 'baseline-migrations',
+                success: baseline.success,
+                count: baseline.count || 0,
+                error: baseline.error || null
+            });
+            if (!baseline.success) {
+                instStep.success = false;
+                steps[steps.length - 1].instances.push(instStep);
+                continue;
+            }
+        }
+
         // 5a. Applica migrazioni
         const appliedMigs = await getAppliedMigrations(d.domain, creds.dbUser, creds.dbPass);
         const newMigs = availableMigrations.filter(m => !appliedMigs.includes(m.replace('.sql', '')));
@@ -949,7 +1015,11 @@ async function runSafeUpdateTask(taskId = null) {
     const allSuccess = deployInstances.every(i => i.success);
     const failedInstances = deployInstances.filter(i => !i.success);
     const errorSummary = failedInstances.length
-        ? `Istanze fallite: ${failedInstances.map(i => i.domain).join(', ')}`
+        ? `Istanze fallite: ${failedInstances.map(i => {
+            const failedStep = (i.substeps || []).find(s => s.success === false);
+            const reason = failedStep ? (failedStep.action || failedStep.migration || 'errore') : 'errore';
+            return `${i.domain} (${reason})`;
+        }).join(', ')}`
         : null;
 
     return {
