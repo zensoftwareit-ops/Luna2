@@ -417,4 +417,24 @@ public class FatturePassiveAction extends ActionSupport {
     public void setContentDisposition(String contentDisposition) {
         this.contentDisposition = contentDisposition;
     }
+
+    public long getNowMillis() {
+        return System.currentTimeMillis();
+    }
+
+    public FatturaPassiva.StatoPagamento getStatoDaPagare() {
+        return FatturaPassiva.StatoPagamento.DA_PAGARE;
+    }
+
+    public FatturaPassiva.StatoPagamento getStatoParzialmentePagata() {
+        return FatturaPassiva.StatoPagamento.PARZIALMENTE_PAGATA;
+    }
+
+    public FatturaPassiva.StatoPagamento getStatoPagata() {
+        return FatturaPassiva.StatoPagamento.PAGATA;
+    }
+
+    public FatturaPassiva.StatoPagamento getStatoScaduta() {
+        return FatturaPassiva.StatoPagamento.SCADUTA;
+    }
 }

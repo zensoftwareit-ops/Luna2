@@ -97,22 +97,22 @@
                                                 <td>
                                                     <s:if test="#fattura.dataScadenza != null">
                                                         <s:date name="#fattura.dataScadenza" format="dd/MM/yyyy"/>
-                                                        <s:if test="#fattura.dataScadenza.time < @java.lang.System@currentTimeMillis() && !#fattura.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@PAGATA)">
+                                                        <s:if test="#fattura.dataScadenza.time < nowMillis && #fattura.statoPagamento != statoPagata">
                                                             <br/><small class="badge bg-danger">SCADUTA</small>
                                                         </s:if>
                                                     </s:if>
                                                 </td>
                                                 <td>
-                                                    <s:if test="#fattura.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@DA_PAGARE)">
+                                                    <s:if test="#fattura.statoPagamento == statoDaPagare">
                                                         <span class="badge bg-warning text-dark">💰 Da Pagare</span>
                                                     </s:if>
-                                                    <s:elseif test="#fattura.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@PARZIALMENTE_PAGATA)">
+                                                    <s:elseif test="#fattura.statoPagamento == statoParzialmentePagata">
                                                         <span class="badge bg-info">⚠️ Parz. Pagata</span>
                                                     </s:elseif>
-                                                    <s:elseif test="#fattura.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@PAGATA)">
+                                                    <s:elseif test="#fattura.statoPagamento == statoPagata">
                                                         <span class="badge bg-success">✓ Pagata</span>
                                                     </s:elseif>
-                                                    <s:elseif test="#fattura.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@SCADUTA)">
+                                                    <s:elseif test="#fattura.statoPagamento == statoScaduta">
                                                         <span class="badge bg-danger">✗ Scaduta</span>
                                                     </s:elseif>
                                                 </td>
@@ -127,7 +127,7 @@
                                                            class="btn btn-outline-primary" title="Visualizza">
                                                             <i class="bi bi-eye"></i>
                                                         </a>
-                                                        <s:if test="!#fattura.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@PAGATA)">
+                                                        <s:if test="#fattura.statoPagamento != statoPagata">
                                                             <a href="<s:url action='fatture-passive-registra-pagamento' namespace='/app/documenti'><s:param name='id' value='#fattura.id'/></s:url>" 
                                                                class="btn btn-outline-success" title="Registra Pagamento"
                                                                onclick="return confirm('Registrare il pagamento di questa fattura?')">

@@ -120,7 +120,7 @@
                             <div class="col-md-3">
                                 <div class="mb-3">
                                     <label class="form-label">Stato</label>
-                                    <s:select name="preventivo.stato" cssClass="form-select" list="@it.zensoftware.luna2.model.Preventivo$Stato@values()" listKey="name()" listValue="name()"/>
+                                    <s:select name="preventivo.stato" cssClass="form-select" list="statiPreventivo" listKey="name()" listValue="name()"/>
                                 </div>
                             </div>
                         </div>

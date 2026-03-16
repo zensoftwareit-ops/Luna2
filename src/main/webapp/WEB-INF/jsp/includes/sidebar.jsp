@@ -167,7 +167,7 @@
                         </a>
                     </li>
                 </s:if>
-                <s:if test="#session.currentUser.username.toLowerCase() == 'admin'">
+                <s:if test="#session.currentUser != null && #session.currentUser.username != null && #session.currentUser.username.equalsIgnoreCase('admin')">
                     <li class="nav-item mt-3">
                         <a class="nav-link" href="<s:url action='moduli' namespace='/app/admin'/>">
                             <i class="bi bi-sliders me-2"></i>Moduli

@@ -1041,6 +1041,7 @@ public class PreventiviAction extends ActionSupport {
     public List<Prodotto> getProdotti() { return prodotti; }
     public List<PreventivoRiga> getRighe() { return righe; }
     public void setRighe(List<PreventivoRiga> righe) { this.righe = righe; }
+    public Preventivo.Stato[] getStatiPreventivo() { return Preventivo.Stato.values(); }
     public PreventivoRiga getRiga() { return riga; }
     public void setRiga(PreventivoRiga riga) { this.riga = riga; }
     public Long getId() { return id; }

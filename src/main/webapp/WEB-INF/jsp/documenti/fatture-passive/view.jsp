@@ -140,7 +140,7 @@
                                         <p class="data-field">
                                             <s:if test="fatturaPassiva.dataScadenza != null">
                                                 <s:date name="fatturaPassiva.dataScadenza" format="dd/MM/yyyy"/>
-                                                <s:if test="fatturaPassiva.dataScadenza.time < @java.lang.System@currentTimeMillis() && !fatturaPassiva.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@PAGATA)">
+                                                <s:if test="fatturaPassiva.dataScadenza.time < nowMillis && fatturaPassiva.statoPagamento != statoPagata">
                                                     <br/><small class="badge bg-danger">SCADUTA</small>
                                                 </s:if>
                                             </s:if>

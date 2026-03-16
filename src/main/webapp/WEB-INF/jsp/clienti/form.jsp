@@ -50,7 +50,7 @@
                             <div class="col-md-6">
                                 <label class="form-label">Tipo *</label>
                                 <s:select name="cliente.tipoAnagrafica" 
-                                         list="@it.zensoftware.luna2.model.Cliente$TipoAnagrafica@values()" 
+                                         list="tipiCliente" 
                                          cssClass="form-select" required="true"/>
                             </div>
                         </div>
