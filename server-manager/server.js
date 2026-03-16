@@ -31,6 +31,8 @@ const ADMIN_PASS      = process.env.ADMIN_PASS      || 'Luna2Admin!';
 const GIT_USERNAME    = process.env.GIT_USERNAME    || 'oauth2';
 const GITHUB_TOKEN    = process.env.GITHUB_TOKEN    || '';
 const TOKEN_TTL_MS    = 24 * 60 * 60 * 1000;
+const DB_APP_USER     = process.env.MYSQL_APP_USER  || 'luna2_user';
+const DB_APP_PASS     = process.env.MYSQL_USER_PASSWORD || 'Luna2User@2024';
 
 // ──────────────────────────────────────────────────────────────
 // AUTH  –  in-memory token store
@@ -743,7 +745,7 @@ async function restoreDatabase(domain, dbUser, dbPass, backupPath) {
 
 // Helper: Leggi migrazioni applicate
 async function getAppliedMigrations(domain) {
-    const cmd = `docker exec mysql-${domain} mysql -uluna2_user -pluna2pass luna2 -e "SELECT migration FROM schema_migrations ORDER BY applied_at" 2>/dev/null || echo ""`;
+    const cmd = `docker exec mysql-${domain} mysql -u${DB_APP_USER} -p${DB_APP_PASS} luna2 -e "SELECT migration FROM schema_migrations ORDER BY applied_at" 2>/dev/null || echo ""`;
     const r = await exec$(cmd);
     if (!r.success) return [];
     
@@ -756,7 +758,7 @@ async function getAppliedMigrations(domain) {
 // Helper: Registra migrazione applicata
 async function recordMigration(domain, migrationName) {
     const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
-    const cmd = `docker exec mysql-${domain} mysql -uluna2_user -pluna2pass luna2 -e "INSERT INTO schema_migrations (migration, applied_at) VALUES ('${migrationName}', '${now}')" 2>/dev/null || true`;
+    const cmd = `docker exec mysql-${domain} mysql -u${DB_APP_USER} -p${DB_APP_PASS} luna2 -e "INSERT INTO schema_migrations (migration, applied_at) VALUES ('${migrationName}', '${now}')" 2>/dev/null || true`;
     await exec$(cmd);
 }
 
@@ -826,7 +828,7 @@ async function runSafeUpdateTask(taskId = null) {
     const backups = {}; // { domain: backupPath }
 
     for (const d of domains) {
-        const backupResult = await backupDatabase(d.domain, 'luna2_user', 'luna2pass');
+        const backupResult = await backupDatabase(d.domain, DB_APP_USER, DB_APP_PASS);
         steps[steps.length - 1].backups.push({
             domain: d.domain,
             success: backupResult.success,
@@ -855,7 +857,7 @@ async function runSafeUpdateTask(taskId = null) {
             const migContent = fs.readFileSync(migPath, 'utf8');
             const migName = migFile.replace('.sql', '');
 
-            const migCmd = `docker exec mysql-${d.domain} mysql -uluna2_user -pluna2pass luna2 -e "${migContent.replace(/"/g, '\\"')}" 2>&1`;
+            const migCmd = `docker exec mysql-${d.domain} mysql -u${DB_APP_USER} -p${DB_APP_PASS} luna2 -e "${migContent.replace(/"/g, '\\"')}" 2>&1`;
             const migR = await exec$(migCmd);
 
             instStep.substeps.push({
@@ -870,7 +872,7 @@ async function runSafeUpdateTask(taskId = null) {
                 migrationFailed = true;
                 if (backups[d.domain]) {
                     log('API', `ROLLBACK: Ripristino ${d.domain} da backup`);
-                    const restoreR = await restoreDatabase(d.domain, 'luna2_user', 'luna2pass', backups[d.domain]);
+                    const restoreR = await restoreDatabase(d.domain, DB_APP_USER, DB_APP_PASS, backups[d.domain]);
                     instStep.substeps.push({
                         action: 'rollback',
                         success: restoreR.success,
@@ -904,13 +906,19 @@ async function runSafeUpdateTask(taskId = null) {
     }
     steps[steps.length - 1].status = 'success';
 
-    const allSuccess = steps[steps.length - 1].instances.every(i => i.success);
+    const deployInstances = steps[steps.length - 1].instances;
+    const allSuccess = deployInstances.every(i => i.success);
+    const failedInstances = deployInstances.filter(i => !i.success);
+    const errorSummary = failedInstances.length
+        ? `Istanze fallite: ${failedInstances.map(i => i.domain).join(', ')}`
+        : null;
 
     return {
         success: allSuccess,
         message: allSuccess
             ? 'Update distributo a tutte le istanze con successo'
             : 'Update completato con errori - controlla backup',
+        error: errorSummary,
         steps,
         backupLocations: backups
     };
@@ -982,7 +990,7 @@ app.post('/api/instances/:domain/deploy', async (req, res) => {
             const domains = await parseDomainConfig();
             const inst = domains.find(d => d.domain === domain);
             if (inst) {
-                const mysqlCmd = `docker exec mysql-${domain} mysql -uluna2 -pluna2pass luna2 -e "${sqlContent.replace(/"/g, '\\"')}" 2>&1 || true`;
+                const mysqlCmd = `docker exec mysql-${domain} mysql -u${DB_APP_USER} -p${DB_APP_PASS} luna2 -e "${sqlContent.replace(/"/g, '\\"')}" 2>&1 || true`;
                 const migR = await exec$(mysqlCmd);
                 steps[0].output = (steps[0].output || '') + `\n${sqlFile}: ${migR.success ? 'OK' : 'WARN'}`;
             }
