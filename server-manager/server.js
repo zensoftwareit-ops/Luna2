@@ -887,7 +887,11 @@ async function runSafeUpdateTask(taskId = null) {
     // 2. Maven build
     setProgress('Build Maven in corso (puo richiedere alcuni minuti)...');
     steps.push({ step: 'maven-build', status: 'running' });
-    const buildR = await exec$(`cd "${WORKSPACE}" && mvn clean package -DskipTests`, null, 1200000);
+    const buildR = await exec$(
+        `cd "${WORKSPACE}" && nice -n 10 mvn -q -ntp clean package -DskipTests`,
+        null,
+        1200000
+    );
     if (!buildR.success) {
         steps[1].status = 'failed';
         steps[1].error = buildR.error;
