@@ -743,6 +743,21 @@ async function restoreDatabase(domain, dbUser, dbPass, backupPath) {
     return { success: r.success, error: r.error };
 }
 
+async function waitForInstanceReady(domain, appPort, timeoutSeconds = 180) {
+    if (!appPort) {
+        return { success: false, error: 'appPort non disponibile per readiness check' };
+    }
+
+    const cmd = `for i in $(seq 1 ${timeoutSeconds}); do code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${appPort}/login.action" || true); if [ "$code" = "200" ] || [ "$code" = "302" ]; then echo "$code"; exit 0; fi; sleep 1; done; exit 1`;
+    const r = await exec$(cmd, null, (timeoutSeconds + 15) * 1000);
+
+    if (!r.success) {
+        return { success: false, error: 'Timeout readiness check su /login.action' };
+    }
+
+    return { success: true, httpCode: (r.stdout || '').trim() };
+}
+
 function unquoteEnvValue(value) {
     if (!value) return value;
     const trimmed = value.trim();
@@ -999,7 +1014,13 @@ async function runSafeUpdateTask(taskId = null) {
             if (cpR.success) {
                 const restartR = await exec$(`docker restart luna2-${d.domain}`);
                 instStep.substeps.push({ action: 'restart', success: restartR.success, error: restartR.error });
-                instStep.success = restartR.success;
+                if (restartR.success) {
+                    const readyR = await waitForInstanceReady(d.domain, d.appPort);
+                    instStep.substeps.push({ action: 'readiness', success: readyR.success, error: readyR.error || null, httpCode: readyR.httpCode || null });
+                    instStep.success = readyR.success;
+                } else {
+                    instStep.success = false;
+                }
             } else {
                 instStep.success = false;
             }
@@ -1129,6 +1150,19 @@ app.post('/api/instances/:domain/deploy', async (req, res) => {
         return res.status(400).json({ success: false, steps, error: 'Riavvio fallito' });
     }
     steps[steps.length - 1].status = 'success';
+
+    // 4. Verifica readiness endpoint
+    const domains = await parseDomainConfig();
+    const instCfg = domains.find(d => d.domain === domain);
+    steps.push({ step: 'readiness', status: 'running' });
+    const readyR = await waitForInstanceReady(domain, instCfg?.appPort);
+    if (!readyR.success) {
+        steps[steps.length - 1].status = 'failed';
+        steps[steps.length - 1].error = readyR.error;
+        return res.status(400).json({ success: false, steps, error: 'Istanza non pronta dopo restart' });
+    }
+    steps[steps.length - 1].status = 'success';
+    steps[steps.length - 1].httpCode = readyR.httpCode;
     
     res.json({
         success: true,
