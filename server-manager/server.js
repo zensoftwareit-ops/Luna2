@@ -891,7 +891,7 @@ async function runSafeUpdateTask(taskId = null) {
     let availableMigrations = [];
     if (fs.existsSync(migrationDir)) {
         availableMigrations = fs.readdirSync(migrationDir)
-            .filter(f => f.endsWith('.sql') && f[0].match(/\d/))
+            .filter(f => f.endsWith('.sql') && f[0].match(/\d/) && !/example/i.test(f))
             .sort();
     }
 
@@ -1088,7 +1088,7 @@ app.post('/api/instances/:domain/deploy', async (req, res) => {
         
         // Leggi tutte le migrazioni SQL
         const files = fs.readdirSync(migrationDir)
-            .filter(f => f.endsWith('.sql'))
+            .filter(f => f.endsWith('.sql') && !/example/i.test(f))
             .sort();
         
         for (const sqlFile of files) {
