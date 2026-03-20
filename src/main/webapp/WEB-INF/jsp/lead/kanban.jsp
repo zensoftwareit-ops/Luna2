@@ -180,7 +180,7 @@
                         <div class="card-body text-center">
                             <h6 class="text-muted mb-1">In Negoziazione</h6>
                             <h2 class="mb-0 text-warning">
-                                <s:property value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@NEGOZIAZIONE}.size()"/>
+                                <s:property value="leads.{? #this.stato.toString() == 'NEGOZIAZIONE'}.size()"/>
                             </h2>
                         </div>
                     </div>
@@ -190,8 +190,8 @@
                         <div class="card-body text-center">
                             <h6 class="text-muted mb-1">Tasso Conversione</h6>
                             <h2 class="mb-0 text-success">
-                                <s:if test="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@QUALIFICATO}.size() > 0">
-                                    <s:property value="(leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@VINTO}.size() * 100) / leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@QUALIFICATO}.size()"/>%
+                                <s:if test="leads.{? #this.stato.toString() == 'QUALIFICATO'}.size() > 0">
+                                    <s:property value="(leads.{? #this.stato.toString() == 'VINTO'}.size() * 100) / leads.{? #this.stato.toString() == 'QUALIFICATO'}.size()"/>%
                                 </s:if>
                                 <s:else>0%</s:else>
                             </h2>
@@ -216,10 +216,10 @@
                 <div class="pipeline-column col-nuovo" data-stato="NUOVO">
                     <div class="pipeline-header">
                         <h5><i class="bi bi-inbox me-2"></i>Nuovo</h5>
-                        <span class="pipeline-count"><s:property value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@NUOVO}.size()"/></span>
+                        <span class="pipeline-count"><s:property value="leads.{? #this.stato.toString() == 'NUOVO'}.size()"/></span>
                     </div>
                     <div class="drop-zone">
-                        <s:iterator value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@NUOVO}" var="lead">
+                        <s:iterator value="leads.{? #this.stato.toString() == 'NUOVO'}" var="lead">
                             <div class="lead-card" draggable="true" data-lead-id="<s:property value='#lead.id'/>" 
                                  onclick="window.location='<s:url action='view' namespace='/app/lead'><s:param name='id' value='#lead.id'/></s:url>'">
                                 <div class="lead-card-header"><s:property value="#lead.nomeContatto"/> <s:property value="#lead.cognomeContatto"/></div>
@@ -238,7 +238,7 @@
                         </s:iterator>
                     </div>
                     <div class="total-value">
-                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@NUOVO}.{budgetStimato}.sum()})"/>
+                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato.toString() == 'NUOVO'}.{budgetStimato}.sum()})"/>
                     </div>
                 </div>
 
@@ -246,10 +246,10 @@
                 <div class="pipeline-column col-contattato" data-stato="CONTATTATO">
                     <div class="pipeline-header">
                         <h5><i class="bi bi-telephone me-2"></i>Contattato</h5>
-                        <span class="pipeline-count"><s:property value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@CONTATTATO}.size()"/></span>
+                        <span class="pipeline-count"><s:property value="leads.{? #this.stato.toString() == 'CONTATTATO'}.size()"/></span>
                     </div>
                     <div class="drop-zone">
-                        <s:iterator value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@CONTATTATO}" var="lead">
+                        <s:iterator value="leads.{? #this.stato.toString() == 'CONTATTATO'}" var="lead">
                             <div class="lead-card" draggable="true" data-lead-id="<s:property value='#lead.id'/>"
                                  onclick="window.location='<s:url action='view' namespace='/app/lead'><s:param name='id' value='#lead.id'/></s:url>'">
                                 <div class="lead-card-header"><s:property value="#lead.nomeContatto"/> <s:property value="#lead.cognomeContatto"/></div>
@@ -268,7 +268,7 @@
                         </s:iterator>
                     </div>
                     <div class="total-value">
-                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@CONTATTATO}.{budgetStimato}.sum()})"/>
+                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato.toString() == 'CONTATTATO'}.{budgetStimato}.sum()})"/>
                     </div>
                 </div>
 
@@ -276,10 +276,10 @@
                 <div class="pipeline-column col-qualificato" data-stato="QUALIFICATO">
                     <div class="pipeline-header">
                         <h5><i class="bi bi-check-circle me-2"></i>Qualificato</h5>
-                        <span class="pipeline-count"><s:property value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@QUALIFICATO}.size()"/></span>
+                        <span class="pipeline-count"><s:property value="leads.{? #this.stato.toString() == 'QUALIFICATO'}.size()"/></span>
                     </div>
                     <div class="drop-zone">
-                        <s:iterator value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@QUALIFICATO}" var="lead">
+                        <s:iterator value="leads.{? #this.stato.toString() == 'QUALIFICATO'}" var="lead">
                             <div class="lead-card" draggable="true" data-lead-id="<s:property value='#lead.id'/>"
                                  onclick="window.location='<s:url action='view' namespace='/app/lead'><s:param name='id' value='#lead.id'/></s:url>'">
                                 <div class="lead-card-header"><s:property value="#lead.nomeContatto"/> <s:property value="#lead.cognomeContatto"/></div>
@@ -298,7 +298,7 @@
                         </s:iterator>
                     </div>
                     <div class="total-value">
-                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@QUALIFICATO}.{budgetStimato}.sum()})"/>
+                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato.toString() == 'QUALIFICATO'}.{budgetStimato}.sum()})"/>
                     </div>
                 </div>
 
@@ -306,10 +306,10 @@
                 <div class="pipeline-column col-preventivo" data-stato="PREVENTIVO">
                     <div class="pipeline-header">
                         <h5><i class="bi bi-file-text me-2"></i>Preventivo</h5>
-                        <span class="pipeline-count"><s:property value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@PREVENTIVO}.size()"/></span>
+                        <span class="pipeline-count"><s:property value="leads.{? #this.stato.toString() == 'PREVENTIVO'}.size()"/></span>
                     </div>
                     <div class="drop-zone">
-                        <s:iterator value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@PREVENTIVO}" var="lead">
+                        <s:iterator value="leads.{? #this.stato.toString() == 'PREVENTIVO'}" var="lead">
                             <div class="lead-card" draggable="true" data-lead-id="<s:property value='#lead.id'/>"
                                  onclick="window.location='<s:url action='view' namespace='/app/lead'><s:param name='id' value='#lead.id'/></s:url>'">
                                 <div class="lead-card-header"><s:property value="#lead.nomeContatto"/> <s:property value="#lead.cognomeContatto"/></div>
@@ -328,7 +328,7 @@
                         </s:iterator>
                     </div>
                     <div class="total-value">
-                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@PREVENTIVO}.{budgetStimato}.sum()})"/>
+                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato.toString() == 'PREVENTIVO'}.{budgetStimato}.sum()})"/>
                     </div>
                 </div>
 
@@ -336,10 +336,10 @@
                 <div class="pipeline-column col-negoziazione" data-stato="NEGOZIAZIONE">
                     <div class="pipeline-header">
                         <h5><i class="bi bi-chat-dots me-2"></i>Negoziazione</h5>
-                        <span class="pipeline-count"><s:property value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@NEGOZIAZIONE}.size()"/></span>
+                        <span class="pipeline-count"><s:property value="leads.{? #this.stato.toString() == 'NEGOZIAZIONE'}.size()"/></span>
                     </div>
                     <div class="drop-zone">
-                        <s:iterator value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@NEGOZIAZIONE}" var="lead">
+                        <s:iterator value="leads.{? #this.stato.toString() == 'NEGOZIAZIONE'}" var="lead">
                             <div class="lead-card" draggable="true" data-lead-id="<s:property value='#lead.id'/>"
                                  onclick="window.location='<s:url action='view' namespace='/app/lead'><s:param name='id' value='#lead.id'/></s:url>'">
                                 <div class="lead-card-header"><s:property value="#lead.nomeContatto"/> <s:property value="#lead.cognomeContatto"/></div>
@@ -358,7 +358,7 @@
                         </s:iterator>
                     </div>
                     <div class="total-value">
-                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@NEGOZIAZIONE}.{budgetStimato}.sum()})"/>
+                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato.toString() == 'NEGOZIAZIONE'}.{budgetStimato}.sum()})"/>
                     </div>
                 </div>
 
@@ -366,10 +366,10 @@
                 <div class="pipeline-column col-vinto" data-stato="VINTO">
                     <div class="pipeline-header">
                         <h5><i class="bi bi-trophy me-2"></i>Vinto</h5>
-                        <span class="pipeline-count"><s:property value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@VINTO}.size()"/></span>
+                        <span class="pipeline-count"><s:property value="leads.{? #this.stato.toString() == 'VINTO'}.size()"/></span>
                     </div>
                     <div class="drop-zone">
-                        <s:iterator value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@VINTO}" var="lead">
+                        <s:iterator value="leads.{? #this.stato.toString() == 'VINTO'}" var="lead">
                             <div class="lead-card" draggable="true" data-lead-id="<s:property value='#lead.id'/>"
                                  onclick="window.location='<s:url action='view' namespace='/app/lead'><s:param name='id' value='#lead.id'/></s:url>'">
                                 <div class="lead-card-header"><s:property value="#lead.nomeContatto"/> <s:property value="#lead.cognomeContatto"/></div>
@@ -388,7 +388,7 @@
                         </s:iterator>
                     </div>
                     <div class="total-value">
-                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@VINTO}.{budgetStimato}.sum()})"/>
+                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato.toString() == 'VINTO'}.{budgetStimato}.sum()})"/>
                     </div>
                 </div>
 
@@ -396,10 +396,10 @@
                 <div class="pipeline-column col-perso" data-stato="PERSO">
                     <div class="pipeline-header">
                         <h5><i class="bi bi-x-circle me-2"></i>Perso</h5>
-                        <span class="pipeline-count"><s:property value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@PERSO}.size()"/></span>
+                        <span class="pipeline-count"><s:property value="leads.{? #this.stato.toString() == 'PERSO'}.size()"/></span>
                     </div>
                     <div class="drop-zone">
-                        <s:iterator value="leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@PERSO}" var="lead">
+                        <s:iterator value="leads.{? #this.stato.toString() == 'PERSO'}" var="lead">
                             <div class="lead-card" draggable="true" data-lead-id="<s:property value='#lead.id'/>"
                                  onclick="window.location='<s:url action='view' namespace='/app/lead'><s:param name='id' value='#lead.id'/></s:url>'">
                                 <div class="lead-card-header"><s:property value="#lead.nomeContatto"/> <s:property value="#lead.cognomeContatto"/></div>
@@ -418,7 +418,7 @@
                         </s:iterator>
                     </div>
                     <div class="total-value text-danger">
-                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato == @it.zensoftware.luna2.model.Lead$Stato@PERSO}.{budgetStimato}.sum()})"/>
+                        Tot: € <s:property value="getText('{0,number,#,##0}', {leads.{? #this.stato.toString() == 'PERSO'}.{budgetStimato}.sum()})"/>
                     </div>
                 </div>
             </div>

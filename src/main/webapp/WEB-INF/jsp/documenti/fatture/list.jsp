@@ -112,17 +112,17 @@
                                                             <div>
                                                                 <small class="text-muted">Codice: <code><s:property value="#dto.fattura.sdiCodice"/></code></small>
                                                             </div>
-                                                            <s:if test="#dto.fattura.sdiStato != null">
-                                                                <s:if test="#dto.fattura.sdiStato.equals('INVIATA')">
+                                                                <s:if test="#dto.fattura.sdiStato != null">
+                                                                    <s:if test="'INVIATA'.equals(#dto.fattura.sdiStato)">
                                                                     <span class="badge bg-info">🔄 <s:property value="#dto.fattura.sdiStato" default="In attesa"/></span>
                                                                 </s:if>
-                                                                <s:elseif test="#dto.fattura.sdiStato.equals('ACCETTATA')">
+                                                                    <s:elseif test="'ACCETTATA'.equals(#dto.fattura.sdiStato)">
                                                                     <span class="badge bg-success">✓ <s:property value="#dto.fattura.sdiStato"/></span>
                                                                 </s:elseif>
-                                                                <s:elseif test="#dto.fattura.sdiStato.equals('SCARTATA')">
+                                                                    <s:elseif test="'SCARTATA'.equals(#dto.fattura.sdiStato)">
                                                                     <span class="badge bg-danger">✗ <s:property value="#dto.fattura.sdiStato"/></span>
                                                                 </s:elseif>
-                                                                <s:elseif test="#dto.fattura.sdiStato.equals('ERRORE')">
+                                                                    <s:elseif test="'ERRORE'.equals(#dto.fattura.sdiStato)">
                                                                     <span class="badge bg-danger">❌ Errore</span>
                                                                 </s:elseif>
                                                             </s:if>

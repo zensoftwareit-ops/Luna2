@@ -11,6 +11,7 @@
     <constant name="struts.multipart.maxSize" value="10485760"/>
     <constant name="struts.ognl.allowStaticFieldAccess" value="true"/>
     <constant name="struts.ognl.allowStaticMethodAccess" value="true"/>
+    <constant name="struts.allowlist.enable" value="false"/>
     <constant name="struts.convention.result.path" value="/WEB-INF/jsp/"/>
     <constant name="struts.convention.action.suffix" value="Action"/>
     <constant name="struts.convention.action.mapAllMatches" value="true"/>
