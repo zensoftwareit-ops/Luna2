@@ -115,9 +115,23 @@
                     <a class="nav-link" href="<s:url action='vendite' namespace='/app/report'/>"><i class="bi bi-bar-chart me-2"></i>Report</a>
                 </li>
             </s:if>
-            <s:if test="#session.currentUser.username.toLowerCase() == 'admin'">
+            <s:if test="#session.currentUser != null && #session.currentUser.username != null && #session.currentUser.username.equalsIgnoreCase('admin')">
                 <li class="nav-item mt-3">
                     <a class="nav-link" href="<s:url action='moduli' namespace='/app/admin'/>"><i class="bi bi-sliders me-2"></i>Moduli</a>
+                </li>
+            </s:if>
+            <li class="nav-item mt-5">
+                <a class="nav-link" href="<s:url action='logout' namespace='/'/>"><i class="bi bi-box-arrow-right me-2"></i>Logout</a>
+            </li>
+        </ul>
+
+        <div class="mt-auto pt-4 text-center">
+            <small class="text-white-50"><i class="bi bi-person-circle me-1"></i>${sessionScope.currentUser.nomeCompleto}</small>
+        </div>
+    </div>
+
+    <div class="col-md-10 content-wrapper p-4">
+        <div class="container-fluid">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1 class="h3">
                 <i class="bi bi-clock-history me-2"></i>Storico Movimenti Magazzino
@@ -274,8 +288,6 @@
             });
         });
     </script>
-    </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

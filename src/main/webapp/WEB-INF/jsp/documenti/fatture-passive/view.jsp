@@ -44,16 +44,16 @@
                                     <h2 class="mb-0">Fattura n. <code><s:property value="fatturaPassiva.numero"/></code></h2>
                                 </div>
                                 <div class="col-auto">
-                                    <s:if test="fatturaPassiva.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@DA_PAGARE)">
+                                    <s:if test="fatturaPassiva.statoPagamento == statoDaPagare">
                                         <span class="badge bg-warning text-dark" style="font-size: 0.9rem;">💰 Da Pagare</span>
                                     </s:if>
-                                    <s:elseif test="fatturaPassiva.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@PARZIALMENTE_PAGATA)">
+                                    <s:elseif test="fatturaPassiva.statoPagamento == statoParzialmentePagata">
                                         <span class="badge bg-info" style="font-size: 0.9rem;">⚠️ Parz. Pagata</span>
                                     </s:elseif>
-                                    <s:elseif test="fatturaPassiva.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@PAGATA)">
+                                    <s:elseif test="fatturaPassiva.statoPagamento == statoPagata">
                                         <span class="badge bg-success" style="font-size: 0.9rem;">✓ Pagata</span>
                                     </s:elseif>
-                                    <s:elseif test="fatturaPassiva.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@SCADUTA)">
+                                    <s:elseif test="fatturaPassiva.statoPagamento == statoScaduta">
                                         <span class="badge bg-danger" style="font-size: 0.9rem;">✗ Scaduta</span>
                                     </s:elseif>
                                 </div>
@@ -282,7 +282,7 @@
                         </div>
                         <div class="card-body">
                             <div class="btn-group" role="group">
-                                <s:if test="!fatturaPassiva.statoPagamento.equals(@it.zensoftware.luna2.model.FatturaPassiva$StatoPagamento@PAGATA)">
+                                <s:if test="fatturaPassiva.statoPagamento != statoPagata">
                                     <a href="<s:url action='fatture-passive-registra-pagamento' namespace='/app/documenti'><s:param name='id' value='fatturaPassiva.id'/></s:url>" 
                                        class="btn btn-success"
                                        onclick="return confirm('Registrare il pagamento di questa fattura?')">

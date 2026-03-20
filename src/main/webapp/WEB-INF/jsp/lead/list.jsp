@@ -219,7 +219,7 @@
                                     <td>
                                         <s:if test="#lead.dataProssimoFollowup != null">
                                             <s:date name="#lead.dataProssimoFollowup" format="dd/MM/yyyy"/>
-                                            <s:if test="#lead.dataProssimoFollowup.time < new java.util.Date().time">
+                                            <s:if test="#lead.dataProssimoFollowup.time < nowMillis">
                                                 <span class="badge bg-danger ms-1">Scaduto</span>
                                             </s:if>
                                         </s:if>

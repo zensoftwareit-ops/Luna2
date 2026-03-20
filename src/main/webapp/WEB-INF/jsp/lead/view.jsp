@@ -186,7 +186,7 @@
                                     <div>
                                         <s:if test="lead.dataProssimoFollowup != null">
                                             <s:date name="lead.dataProssimoFollowup" format="dd/MM/yyyy HH:mm"/>
-                                            <s:if test="lead.dataProssimoFollowup.time < new java.util.Date().time">
+                                            <s:if test="lead.dataProssimoFollowup.time < nowMillis">
                                                 <span class="badge bg-danger ms-2">Scaduto</span>
                                             </s:if>
                                         </s:if>

@@ -74,16 +74,9 @@
                                     </div>
                                     <div class="col-md-6 mb-3">
                                         <label class="form-label">Origine <span class="text-danger">*</span></label>
-                                        <select name="lead.origine" class="form-select" required>
-                                            <option value="">Seleziona...</option>
-                                            <option value="FIERA" <s:if test="lead.origine == @it.zensoftware.luna2.model.Lead$Origine@FIERA">selected</s:if>>Fiera</option>
-                                            <option value="CAMPAGNA" <s:if test="lead.origine == @it.zensoftware.luna2.model.Lead$Origine@CAMPAGNA">selected</s:if>>Campagna Marketing</option>
-                                            <option value="PASSAPAROLA" <s:if test="lead.origine == @it.zensoftware.luna2.model.Lead$Origine@PASSAPAROLA">selected</s:if>>Passaparola</option>
-                                            <option value="WEBSITE" <s:if test="lead.origine == @it.zensoftware.luna2.model.Lead$Origine@WEBSITE">selected</s:if>>Sito Web</option>
-                                            <option value="EMAIL" <s:if test="lead.origine == @it.zensoftware.luna2.model.Lead$Origine@EMAIL">selected</s:if>>Email</option>
-                                            <option value="TELEFONO" <s:if test="lead.origine == @it.zensoftware.luna2.model.Lead$Origine@TELEFONO">selected</s:if>>Telefono</option>
-                                            <option value="ALTRO" <s:if test="lead.origine == @it.zensoftware.luna2.model.Lead$Origine@ALTRO">selected</s:if>>Altro</option>
-                                        </select>
+                                        <s:select name="lead.origine" cssClass="form-select" required="true"
+                                                  list="originiLead" listKey="name()" listValue="name()"
+                                                  headerKey="" headerValue="Seleziona..."/>
                                     </div>
                                 </div>
                             </div>
@@ -187,15 +180,8 @@
                             <div class="card-body">
                                 <div class="mb-3">
                                     <label class="form-label">Stato <span class="text-danger">*</span></label>
-                                    <select name="lead.stato" class="form-select" required>
-                                        <option value="NUOVO" <s:if test="lead.stato == @it.zensoftware.luna2.model.Lead$Stato@NUOVO || lead.stato == null">selected</s:if>>Nuovo</option>
-                                        <option value="CONTATTATO" <s:if test="lead.stato == @it.zensoftware.luna2.model.Lead$Stato@CONTATTATO">selected</s:if>>Contattato</option>
-                                        <option value="QUALIFICATO" <s:if test="lead.stato == @it.zensoftware.luna2.model.Lead$Stato@QUALIFICATO">selected</s:if>>Qualificato</option>
-                                        <option value="PREVENTIVO" <s:if test="lead.stato == @it.zensoftware.luna2.model.Lead$Stato@PREVENTIVO">selected</s:if>>Preventivo</option>
-                                        <option value="NEGOZIAZIONE" <s:if test="lead.stato == @it.zensoftware.luna2.model.Lead$Stato@NEGOZIAZIONE">selected</s:if>>Negoziazione</option>
-                                        <option value="VINTO" <s:if test="lead.stato == @it.zensoftware.luna2.model.Lead$Stato@VINTO">selected</s:if>>Vinto</option>
-                                        <option value="PERSO" <s:if test="lead.stato == @it.zensoftware.luna2.model.Lead$Stato@PERSO">selected</s:if>>Perso</option>
-                                    </select>
+                                    <s:select name="lead.stato" cssClass="form-select" required="true"
+                                              list="statiLead" listKey="name()" listValue="name()"/>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">Probabilità Chiusura (%)</label>

@@ -474,6 +474,7 @@ public class LeadAction extends ActionSupport {
 
     public int getSuccess() { return success; }
     public void setSuccess(int success) { this.success = success; }
+    public long getNowMillis() { return System.currentTimeMillis(); }
 
     public SessionFactory getSessionFactory() { return sessionFactory; }
     public void setSessionFactory(SessionFactory sessionFactory) { this.sessionFactory = sessionFactory; }
