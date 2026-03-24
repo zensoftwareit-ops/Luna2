@@ -99,6 +99,7 @@
                         </div>
 
                         <s:form action="parseFile" namespace="/app/prodotti" method="post" enctype="multipart/form-data" theme="simple">
+                            <s:token/>
                             <div class="mb-3">
                                 <label class="form-label">Seleziona file da importare:</label>
                                 <s:file name="fileImport" cssClass="form-control" accept=".csv,.xlsx,.xls" required="true"/>
@@ -123,6 +124,7 @@
                         </div>
 
                         <s:form action="processImport" namespace="/app/prodotti" method="post" theme="simple" id="importForm">
+                            <s:token/>
                             <h5 class="mb-3">Mappatura Colonne</h5>
                             <p class="text-muted">Associa ogni colonna del file a un campo del database:</p>
 
@@ -224,9 +226,6 @@
             </s:else>
         </div>
     </div>
-
-    </div>
-</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
