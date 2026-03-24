@@ -31,7 +31,7 @@
                 <interceptor-ref name="authentication"/>
                 <interceptor-ref name="moduleAccess"/>
                 <interceptor-ref name="token">
-                    <param name="excludeMethods">execute,list,view,find,search,dashboard,index,create,edit,pipeline,export,save,delete,registerCareCall,reopen,close,escalate,createEvent,runAutomation</param>
+                    <param name="excludeMethods">execute,list,view,find,search,dashboard,index,create,edit,pipeline,export,save,delete,registerCareCall,reopen,close,escalate,createEvent,runAutomation,importForm,parseFile,processImport</param>
                 </interceptor-ref>
                 <interceptor-ref name="defaultStack"/>
             </interceptor-stack>
