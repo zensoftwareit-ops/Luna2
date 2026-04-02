@@ -18,7 +18,7 @@
     <constant name="struts.convention.default.parent.package" value="luna2-default"/>
 
     <!-- Packages -->
-    <package name="luna2-default" extends="struts-default">
+    <package name="luna2-default" extends="struts-default,json-default">
         <!-- Interceptors -->
         <interceptors>
             <interceptor name="authentication" 
