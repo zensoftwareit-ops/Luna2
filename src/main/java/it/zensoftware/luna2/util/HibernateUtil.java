@@ -142,6 +142,20 @@ public class HibernateUtil {
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioTicket.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioContratto.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.NoleggioNBT.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingProfile.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingAccount.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingEntry.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingEntryLine.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingAsset.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.TaxDeadline.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingPostingConfig.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingReportPreset.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.ApprovalRequest.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.TimeRecord.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PayrollRun.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PayrollDetail.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PayrollEmployeeConfig.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AdminOperation.class);
             
             logger.info("Annotated classes registered");
 

@@ -1036,6 +1036,246 @@
         </action>
     </package>
 
+    <package name="contabilita" extends="luna2-default" namespace="/app/contabilita">
+        <action name="dashboard" class="it.zensoftware.luna2.action.ContabilitaAction" method="dashboard">
+            <result name="success">/WEB-INF/jsp/contabilita/dashboard.jsp</result>
+        </action>
+
+        <action name="profilo" class="it.zensoftware.luna2.action.ContabilitaAction" method="profilo">
+            <result name="success">/WEB-INF/jsp/contabilita/profilo.jsp</result>
+        </action>
+
+        <action name="profilo-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveProfilo">
+            <result name="success" type="redirectAction">profilo</result>
+            <result name="error">/WEB-INF/jsp/contabilita/profilo.jsp</result>
+        </action>
+
+        <action name="conti" class="it.zensoftware.luna2.action.ContabilitaAction" method="conti">
+            <result name="success">/WEB-INF/jsp/contabilita/conti.jsp</result>
+        </action>
+
+        <action name="conto-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveConto">
+            <result name="success" type="redirectAction">conti</result>
+            <result name="error">/WEB-INF/jsp/contabilita/conti.jsp</result>
+        </action>
+
+        <action name="registrazioni" class="it.zensoftware.luna2.action.ContabilitaAction" method="registrazioni">
+            <result name="success">/WEB-INF/jsp/contabilita/registrazioni.jsp</result>
+        </action>
+
+        <action name="sincronizza-fatture" class="it.zensoftware.luna2.action.ContabilitaAction" method="sincronizzaFatture">
+            <result name="success" type="redirectAction">registrazioni</result>
+            <result name="error">/WEB-INF/jsp/contabilita/registrazioni.jsp</result>
+        </action>
+
+        <action name="ratei-risconti-auto" class="it.zensoftware.luna2.action.ContabilitaAction" method="generaRateiRiscontiAuto">
+            <result name="success" type="redirectAction">bilancio</result>
+            <result name="error">/WEB-INF/jsp/contabilita/bilancio.jsp</result>
+        </action>
+
+        <action name="chiusura-auto" class="it.zensoftware.luna2.action.ContabilitaAction" method="chiusuraEsercizioAuto">
+            <result name="success" type="redirectAction">bilancio</result>
+            <result name="error">/WEB-INF/jsp/contabilita/bilancio.jsp</result>
+        </action>
+
+        <action name="apertura-auto" class="it.zensoftware.luna2.action.ContabilitaAction" method="aperturaEsercizioAuto">
+            <result name="success" type="redirectAction">bilancio</result>
+            <result name="error">/WEB-INF/jsp/contabilita/bilancio.jsp</result>
+        </action>
+
+        <action name="registrazione-nuova" class="it.zensoftware.luna2.action.ContabilitaAction" method="nuovaRegistrazione">
+            <result name="success">/WEB-INF/jsp/contabilita/registrazione-form.jsp</result>
+        </action>
+
+        <action name="registrazione-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveRegistrazione">
+            <result name="success" type="redirectAction">registrazioni</result>
+            <result name="error">/WEB-INF/jsp/contabilita/registrazione-form.jsp</result>
+        </action>
+
+        <action name="registrazione-posta" class="it.zensoftware.luna2.action.ContabilitaAction" method="postaRegistrazione">
+            <result name="success" type="redirectAction">registrazioni</result>
+            <result name="error">/WEB-INF/jsp/contabilita/registrazioni.jsp</result>
+        </action>
+
+        <action name="scadenze" class="it.zensoftware.luna2.action.ContabilitaAction" method="scadenze">
+            <result name="success">/WEB-INF/jsp/contabilita/scadenze.jsp</result>
+        </action>
+
+        <action name="scadenza-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveScadenza">
+            <result name="success" type="redirectAction">scadenze</result>
+            <result name="error">/WEB-INF/jsp/contabilita/scadenze.jsp</result>
+        </action>
+
+        <action name="scadenza-completa" class="it.zensoftware.luna2.action.ContabilitaAction" method="completaScadenza">
+            <result name="success" type="redirectAction">scadenze</result>
+            <result name="error">/WEB-INF/jsp/contabilita/scadenze.jsp</result>
+        </action>
+
+        <action name="bilancio" class="it.zensoftware.luna2.action.ContabilitaAction" method="bilancio">
+            <result name="success">/WEB-INF/jsp/contabilita/bilancio.jsp</result>
+        </action>
+
+        <action name="mastrini" class="it.zensoftware.luna2.action.ContabilitaAction" method="mastrini">
+            <result name="success">/WEB-INF/jsp/contabilita/mastrini.jsp</result>
+        </action>
+
+        <action name="mastrino-pdf" class="it.zensoftware.luna2.action.ContabilitaAction" method="stampaMastrinoPdf">
+            <result name="success" type="stream">
+                <param name="contentType">application/pdf</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/contabilita/mastrini.jsp</result>
+        </action>
+
+        <action name="mastrino-excel" class="it.zensoftware.luna2.action.ContabilitaAction" method="exportMastrinoExcel">
+            <result name="success" type="stream">
+                <param name="contentType">application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/contabilita/mastrini.jsp</result>
+        </action>
+
+        <action name="libro-giornale" class="it.zensoftware.luna2.action.ContabilitaAction" method="libroGiornale">
+            <result name="success">/WEB-INF/jsp/contabilita/libro-giornale.jsp</result>
+        </action>
+
+        <action name="libro-giornale-stampa" class="it.zensoftware.luna2.action.ContabilitaAction" method="stampaLibroGiornale">
+            <result name="success" type="stream">
+                <param name="contentType">application/pdf</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/contabilita/libro-giornale.jsp</result>
+        </action>
+
+        <action name="configuratore" class="it.zensoftware.luna2.action.ContabilitaAction" method="configuratore">
+            <result name="success">/WEB-INF/jsp/contabilita/configuratore.jsp</result>
+        </action>
+
+        <action name="configuratore-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveConfiguratore">
+            <result name="success" type="redirectAction">configuratore</result>
+            <result name="error">/WEB-INF/jsp/contabilita/configuratore.jsp</result>
+        </action>
+
+        <action name="cespiti" class="it.zensoftware.luna2.action.ContabilitaAction" method="cespiti">
+            <result name="success">/WEB-INF/jsp/contabilita/cespiti.jsp</result>
+            <result name="error">/WEB-INF/jsp/contabilita/cespiti.jsp</result>
+        </action>
+
+        <action name="cespite-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveCespite">
+            <result name="success" type="redirectAction">cespiti</result>
+            <result name="error">/WEB-INF/jsp/contabilita/cespiti.jsp</result>
+        </action>
+
+        <action name="cespiti-ammortamenti-auto" class="it.zensoftware.luna2.action.ContabilitaAction" method="generaAmmortamentiAuto">
+            <result name="success" type="redirectAction">cespiti</result>
+            <result name="error">/WEB-INF/jsp/contabilita/cespiti.jsp</result>
+        </action>
+
+        <action name="reports" class="it.zensoftware.luna2.action.ContabilitaAction" method="reports">
+            <result name="success">/WEB-INF/jsp/contabilita/reports.jsp</result>
+        </action>
+
+        <action name="report-pdf" class="it.zensoftware.luna2.action.ContabilitaAction" method="exportReportPdf">
+            <result name="success" type="stream">
+                <param name="contentType">application/pdf</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/contabilita/reports.jsp</result>
+        </action>
+
+        <action name="report-excel" class="it.zensoftware.luna2.action.ContabilitaAction" method="exportReportExcel">
+            <result name="success" type="stream">
+                <param name="contentType">application/vnd.openxmlformats-officedocument.spreadsheetml.sheet</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/contabilita/reports.jsp</result>
+        </action>
+
+        <action name="report-csv" class="it.zensoftware.luna2.action.ContabilitaAction" method="exportReportCsv">
+            <result name="success" type="stream">
+                <param name="contentType">text/csv;charset=UTF-8</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/contabilita/reports.jsp</result>
+        </action>
+
+        <action name="report-preset-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveReportPreset">
+            <result name="success">/WEB-INF/jsp/contabilita/reports.jsp</result>
+            <result name="error">/WEB-INF/jsp/contabilita/reports.jsp</result>
+        </action>
+
+        <action name="report-preset-apply" class="it.zensoftware.luna2.action.ContabilitaAction" method="applyReportPreset">
+            <result name="success">/WEB-INF/jsp/contabilita/reports.jsp</result>
+            <result name="error">/WEB-INF/jsp/contabilita/reports.jsp</result>
+        </action>
+
+        <action name="report-preset-delete" class="it.zensoftware.luna2.action.ContabilitaAction" method="deleteReportPreset">
+            <result name="success">/WEB-INF/jsp/contabilita/reports.jsp</result>
+            <result name="error">/WEB-INF/jsp/contabilita/reports.jsp</result>
+        </action>
+
+        <!-- Scadenzario Fiscale (Tax Deadlines) -->
+        <action name="scadenzario-list" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="list">
+            <result name="success">/WEB-INF/jsp/amministrazione/scadenzario.jsp</result>
+            <result name="error">/WEB-INF/jsp/amministrazione/scadenzario.jsp</result>
+        </action>
+
+        <action name="scadenzario-create" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="create">
+            <result name="success">/WEB-INF/jsp/amministrazione/scadenzario.jsp</result>
+        </action>
+
+        <action name="scadenzario-save" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="save">
+            <result name="success" type="redirectAction">scadenzario-list</result>
+            <result name="error">/WEB-INF/jsp/amministrazione/scadenzario.jsp</result>
+        </action>
+
+        <action name="scadenzario-complete" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="complete">
+            <result name="success" type="redirectAction">scadenzario-list</result>
+            <result name="error">/WEB-INF/jsp/amministrazione/scadenzario.jsp</result>
+        </action>
+
+        <action name="scadenzario-delete" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="delete">
+            <result name="success" type="redirectAction">scadenzario-list</result>
+            <result name="error">/WEB-INF/jsp/amministrazione/scadenzario.jsp</result>
+        </action>
+
+        <action name="scadenzario-seed" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="seedItalianDeadlines">
+            <result name="success" type="redirectAction">scadenzario-list</result>
+            <result name="error">/WEB-INF/jsp/amministrazione/scadenzario.jsp</result>
+        </action>
+
+        <!-- JSON endpoints for dashboard -->
+        <action name="scadenzario-dashboard" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="dashboard">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <action name="scadenzario-upcoming" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="getUpcoming">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+
+        <action name="scadenzario-overdue" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="getOverdue">
+            <result name="success" type="json">
+                <param name="root">jsonResponse</param>
+            </result>
+        </action>
+    </package>
+
     <!-- Admin Package -->
     <package name="admin" extends="luna2-default" namespace="/app/admin">
         <action name="moduli" class="it.zensoftware.luna2.action.ModuleSettingsAction" method="execute">
@@ -1525,6 +1765,124 @@
         <!-- Le mie picking -->
         <action name="myPicking" class="it.zensoftware.luna2.action.PickingAction" method="myPicking">
             <result name="success">/WEB-INF/jsp/magazzino/my-picking.jsp</result>
+        </action>
+    </package>
+
+    <!-- Approval Workflow Package -->
+    <package name="approval" extends="luna2-default" namespace="/app/approval">
+        <action name="ferie-form" class="it.zensoftware.luna2.action.ApprovalWorkflowAction" method="ferieForm">
+            <result name="success">/WEB-INF/jsp/approval/ferie-form.jsp</result>
+            <result name="input">/WEB-INF/jsp/approval/ferie-form.jsp</result>
+            <result name="error">/WEB-INF/jsp/approval/ferie-form.jsp</result>
+        </action>
+
+        <action name="ferie-create" class="it.zensoftware.luna2.action.ApprovalWorkflowAction" method="ferieCreate">
+            <result name="success" type="redirectAction">ferie-list</result>
+            <result name="input">/WEB-INF/jsp/approval/ferie-form.jsp</result>
+            <result name="error">/WEB-INF/jsp/approval/ferie-form.jsp</result>
+        </action>
+
+        <action name="ferie-list" class="it.zensoftware.luna2.action.ApprovalWorkflowAction" method="ferieList">
+            <result name="success">/WEB-INF/jsp/approval/ferie-list.jsp</result>
+            <result name="error">/WEB-INF/jsp/approval/ferie-list.jsp</result>
+        </action>
+
+        <action name="ferie-submit" class="it.zensoftware.luna2.action.ApprovalWorkflowAction" method="submit">
+            <result name="success" type="redirectAction">ferie-list</result>
+            <result name="error" type="redirectAction">ferie-list</result>
+        </action>
+
+        <action name="pending-approvals" class="it.zensoftware.luna2.action.ApprovalWorkflowAction" method="pendingApprovals">
+            <result name="success">/WEB-INF/jsp/approval/pending-approvals.jsp</result>
+            <result name="error">/WEB-INF/jsp/approval/pending-approvals.jsp</result>
+        </action>
+
+        <action name="approve" class="it.zensoftware.luna2.action.ApprovalWorkflowAction" method="approve">
+            <result name="success" type="redirectAction">pending-approvals</result>
+            <result name="error" type="redirectAction">pending-approvals</result>
+        </action>
+
+        <action name="reject" class="it.zensoftware.luna2.action.ApprovalWorkflowAction" method="reject">
+            <result name="success" type="redirectAction">pending-approvals</result>
+            <result name="input" type="redirectAction">pending-approvals</result>
+            <result name="error" type="redirectAction">pending-approvals</result>
+        </action>
+    </package>
+
+    <!-- HR Presenze Package -->
+    <package name="hr" extends="luna2-default" namespace="/app/hr">
+        <action name="presenze" class="it.zensoftware.luna2.action.PresenzeAction" method="list">
+            <result name="success">/WEB-INF/jsp/hr/presenze-list.jsp</result>
+            <result name="error">/WEB-INF/jsp/hr/presenze-list.jsp</result>
+        </action>
+
+        <action name="checkin" class="it.zensoftware.luna2.action.PresenzeAction" method="checkin">
+            <result name="success" type="redirectAction">presenze</result>
+            <result name="error" type="redirectAction">presenze</result>
+        </action>
+
+        <action name="checkout" class="it.zensoftware.luna2.action.PresenzeAction" method="checkout">
+            <result name="success" type="redirectAction">presenze</result>
+            <result name="error" type="redirectAction">presenze</result>
+        </action>
+
+        <action name="save-absence" class="it.zensoftware.luna2.action.PresenzeAction" method="saveAbsence">
+            <result name="success" type="redirectAction">presenze</result>
+            <result name="input" type="redirectAction">presenze</result>
+            <result name="error" type="redirectAction">presenze</result>
+        </action>
+
+        <action name="payroll" class="it.zensoftware.luna2.action.PayrollAction" method="list">
+            <result name="success">/WEB-INF/jsp/hr/payroll-list.jsp</result>
+            <result name="error">/WEB-INF/jsp/hr/payroll-list.jsp</result>
+        </action>
+
+        <action name="payroll-generate" class="it.zensoftware.luna2.action.PayrollAction" method="generateCurrentMonth">
+            <result name="success" type="redirectAction">payroll</result>
+            <result name="input" type="redirectAction">payroll</result>
+            <result name="error" type="redirectAction">payroll</result>
+        </action>
+
+        <action name="payroll-confirm" class="it.zensoftware.luna2.action.PayrollAction" method="confirmCurrentMonth">
+            <result name="success" type="redirectAction">payroll</result>
+            <result name="input" type="redirectAction">payroll</result>
+            <result name="error" type="redirectAction">payroll</result>
+        </action>
+
+        <action name="payroll-save-config" class="it.zensoftware.luna2.action.PayrollAction" method="saveEmployeeConfig">
+            <result name="success" type="redirectAction">payroll</result>
+            <result name="input" type="redirectAction">payroll</result>
+            <result name="error" type="redirectAction">payroll</result>
+        </action>
+
+        <action name="payroll-export" class="it.zensoftware.luna2.action.PayrollAction" method="exportCurrentMonthCsv">
+            <result name="csv" type="stream">
+                <param name="contentType">text/csv;charset=UTF-8</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="input" type="redirectAction">payroll</result>
+            <result name="error" type="redirectAction">payroll</result>
+        </action>
+    </package>
+
+    <package name="amministrazione-ops" extends="luna2-default" namespace="/app/amministrazione">
+        <action name="ops" class="it.zensoftware.luna2.action.AmministrazioneAction" method="dashboard">
+            <result name="success">/WEB-INF/jsp/amministrazione/ops-dashboard.jsp</result>
+            <result name="error">/WEB-INF/jsp/amministrazione/ops-dashboard.jsp</result>
+        </action>
+
+        <action name="ops-save" class="it.zensoftware.luna2.action.AmministrazioneAction" method="saveOperation">
+            <result name="success" type="redirectAction">ops</result>
+            <result name="input" type="redirectAction">ops</result>
+            <result name="error" type="redirectAction">ops</result>
+        </action>
+
+        <action name="ops-complete" class="it.zensoftware.luna2.action.AmministrazioneAction" method="completeOperation">
+            <result name="success" type="redirectAction">ops</result>
+            <result name="input" type="redirectAction">ops</result>
+            <result name="error" type="redirectAction">ops</result>
         </action>
     </package>
 </struts>

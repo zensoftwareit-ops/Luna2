@@ -6,6 +6,8 @@ import org.hibernate.query.Query;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
+
 /**
  * DAO for User entity
  */
@@ -70,6 +72,19 @@ public class UserDAO extends GenericDAOImpl<User, Long> {
         } catch (Exception e) {
             logger.error("Error checking password: " + e.getMessage(), e);
             return false;
+        }
+    }
+
+    public List<User> findActivePayrollUsers() {
+        try (Session session = getSession()) {
+            return session.createQuery(
+                            "FROM User u WHERE u.attivo = true AND u.ruolo <> :adminRole ORDER BY u.cognome ASC, u.nome ASC",
+                            User.class)
+                    .setParameter("adminRole", User.Ruolo.ADMIN)
+                    .getResultList();
+        } catch (Exception e) {
+            logger.error("Error finding active payroll users", e);
+            return java.util.Collections.emptyList();
         }
     }
 }

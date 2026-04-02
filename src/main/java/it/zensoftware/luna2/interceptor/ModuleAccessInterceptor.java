@@ -73,6 +73,9 @@ public class ModuleAccessInterceptor extends AbstractInterceptor {
         if (namespace.startsWith("/app/ai")) {
             return "AI";
         }
+        if (namespace.startsWith("/app/contabilita")) {
+            return "CONTABILITA";
+        }
         if (namespace.startsWith("/app/admin")) {
             return null;
         }

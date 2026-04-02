@@ -29,8 +29,16 @@ public class ModuleSettingDAO {
     }
 
     public Map<String, Boolean> getEnabledMap() {
-        List<ModuleSetting> settings = findAll();
         Map<String, Boolean> map = new HashMap<>();
+        map.put("CORE", true);
+        map.put("MAGAZZINO", true);
+        map.put("CRM", true);
+        map.put("CRM_BROKER_AUTO", false);
+        map.put("PRODUZIONE", false);
+        map.put("AI", false);
+        map.put("CONTABILITA", false);
+
+        List<ModuleSetting> settings = findAll();
         for (ModuleSetting setting : settings) {
             map.put(setting.getCode(), Boolean.TRUE.equals(setting.getEnabled()));
         }

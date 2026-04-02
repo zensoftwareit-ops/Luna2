@@ -42,6 +42,16 @@ public class FatturaDAO extends GenericDAOImpl<Fattura, Long> {
         }
     }
 
+    public List<Fattura> findContabilizzabili() {
+        try (Session session = getSession()) {
+            return session.createQuery(
+                            "FROM Fattura f WHERE f.tipoFattura in (:tipi) ORDER BY f.dataFattura ASC, f.id ASC",
+                            Fattura.class)
+                    .setParameterList("tipi", java.util.Arrays.asList(TipoFattura.REALE, TipoFattura.ORDINARIA))
+                    .getResultList();
+        }
+    }
+
     /**
      * Gets the next invoice number for a specific year
      */

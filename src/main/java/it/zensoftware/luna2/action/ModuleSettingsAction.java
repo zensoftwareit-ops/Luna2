@@ -22,6 +22,7 @@ public class ModuleSettingsAction extends ActionSupport {
     private boolean crmBrokerAutoEnabled;
     private boolean produzioneEnabled;
     private boolean aiEnabled;
+    private boolean contabilitaEnabled;
 
     public String execute() {
         if (!isSuperUser()) {
@@ -41,6 +42,7 @@ public class ModuleSettingsAction extends ActionSupport {
         updateModule("CRM_BROKER_AUTO", "CRM Broker Auto", crmBrokerAutoEnabled, "Broker noleggio auto");
         updateModule("PRODUZIONE", "Produzione/Commesse", produzioneEnabled, "Commesse e avanzamento");
         updateModule("AI", "Modulo AI", aiEnabled, "Funzioni AI e automazioni");
+        updateModule("CONTABILITA", "Contabilita", contabilitaEnabled, "Contabilita generale, scadenze fiscali e piano dei conti");
 
         com.opensymphony.xwork2.ActionContext.getContext().getSession()
             .put("enabledModules", moduleSettingDAO.getEnabledMap());
@@ -69,6 +71,7 @@ public class ModuleSettingsAction extends ActionSupport {
         crmBrokerAutoEnabled = isEnabled("CRM_BROKER_AUTO", false);
         produzioneEnabled = isEnabled("PRODUZIONE", false);
         aiEnabled = isEnabled("AI", false);
+        contabilitaEnabled = isEnabled("CONTABILITA", false);
     }
 
     private boolean isEnabled(String code, boolean defaultValue) {
@@ -131,5 +134,13 @@ public class ModuleSettingsAction extends ActionSupport {
 
     public void setAiEnabled(boolean aiEnabled) {
         this.aiEnabled = aiEnabled;
+    }
+
+    public boolean isContabilitaEnabled() {
+        return contabilitaEnabled;
+    }
+
+    public void setContabilitaEnabled(boolean contabilitaEnabled) {
+        this.contabilitaEnabled = contabilitaEnabled;
     }
 }

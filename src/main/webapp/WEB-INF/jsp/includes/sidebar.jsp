@@ -160,10 +160,82 @@
                         </a>
                     </li>
                 </s:if>
+                <s:if test="#session.enabledModules['CONTABILITA']">
+                    <li class="nav-item">
+                        <a class="nav-link" href="<s:url action='dashboard' namespace='/app/contabilita'/>">
+                            <i class="bi bi-calculator me-2"></i>Contabilita
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='registrazioni' namespace='/app/contabilita'/>">
+                            <i class="bi bi-journal-text me-2"></i>Prima Nota
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='conti' namespace='/app/contabilita'/>">
+                            <i class="bi bi-diagram-3 me-2"></i>Piano dei Conti
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='scadenze' namespace='/app/contabilita'/>">
+                            <i class="bi bi-calendar-event me-2"></i>Scadenze Fiscali
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='bilancio' namespace='/app/contabilita'/>">
+                            <i class="bi bi-bar-chart-line me-2"></i>Bilancio
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='mastrini' namespace='/app/contabilita'/>">
+                            <i class="bi bi-journal-bookmark me-2"></i>Mastrini
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='libro-giornale' namespace='/app/contabilita'/>">
+                            <i class="bi bi-journal-richtext me-2"></i>Libro Giornale
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='configuratore' namespace='/app/contabilita'/>">
+                            <i class="bi bi-sliders me-2"></i>Config Conti Auto
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='cespiti' namespace='/app/contabilita'/>">
+                            <i class="bi bi-building me-2"></i>Cespiti
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='reports' namespace='/app/contabilita'/>">
+                            <i class="bi bi-file-earmark-bar-graph me-2"></i>Report PDF/XLSX
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='scadenzario-list' namespace='/app/contabilita'/>">
+                            <i class="bi bi-calendar-check me-2"></i>Scadenzario Fiscale
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='ops' namespace='/app/amministrazione'/>">
+                            <i class="bi bi-kanban me-2"></i>Ops Amministrazione
+                        </a>
+                    </li>
+                </s:if>
                 <s:if test="#session.enabledModules['CORE']">
                     <li class="nav-item">
                         <a class="nav-link" href="<s:url action='vendite' namespace='/app/report'/>">
                             <i class="bi bi-bar-chart me-2"></i>Report
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<s:url action='presenze' namespace='/app/hr'/>">
+                            <i class="bi bi-clock-history me-2"></i>Presenze
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<s:url action='payroll' namespace='/app/hr'/>">
+                            <i class="bi bi-cash-coin me-2"></i>Payroll
                         </a>
                     </li>
                 </s:if>

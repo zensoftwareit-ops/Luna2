@@ -53,6 +53,10 @@
                             <s:checkbox name="aiEnabled" cssClass="form-check-input"/>
                             <label class="form-check-label">Modulo AI</label>
                         </div>
+                        <div class="form-check form-switch mb-4">
+                            <s:checkbox name="contabilitaEnabled" cssClass="form-check-input"/>
+                            <label class="form-check-label">Contabilita</label>
+                        </div>
 
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save me-2"></i>Salva impostazioni
@@ -62,9 +66,6 @@
             </div>
         </div>
     </div>
-
-    </div>
-</div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>

@@ -111,4 +111,13 @@ public class FatturaPassivaDAO extends GenericDAOImpl<FatturaPassiva, Long> {
             return (maxNumero == null) ? 1 : (maxNumero + 1);
         }
     }
+
+    public List<FatturaPassiva> findAllOrdered() {
+        try (Session session = getSession()) {
+            return session.createQuery(
+                            "FROM FatturaPassiva f ORDER BY f.dataFattura ASC, f.id ASC",
+                            FatturaPassiva.class)
+                    .getResultList();
+        }
+    }
 }
