@@ -743,7 +743,7 @@ async function restoreDatabase(domain, dbUser, dbPass, backupPath) {
     return { success: r.success, error: r.error };
 }
 
-async function waitForInstanceReady(domain, appPort, timeoutSeconds = 180) {
+async function waitForInstanceReady(domain, appPort, timeoutSeconds = 300) {
     if (!appPort) {
         return { success: false, error: 'appPort non disponibile per readiness check' };
     }
