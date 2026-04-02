@@ -748,14 +748,22 @@ async function waitForInstanceReady(domain, appPort, timeoutSeconds = 180) {
         return { success: false, error: 'appPort non disponibile per readiness check' };
     }
 
-    const cmd = `for i in $(seq 1 ${timeoutSeconds}); do code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${appPort}/login.action" || true); if [ "$code" = "200" ] || [ "$code" = "302" ]; then echo "$code"; exit 0; fi; sleep 1; done; exit 1`;
+    const cmd = `last=000; for i in $(seq 1 ${timeoutSeconds}); do code=$(curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:${appPort}/login.action" || true); last=$code; if [ "$code" = "200" ] || [ "$code" = "302" ]; then echo "ok:$code"; exit 0; fi; sleep 1; done; echo "last:$last"; exit 1`;
     const r = await exec$(cmd, null, (timeoutSeconds + 15) * 1000);
 
     if (!r.success) {
-        return { success: false, error: 'Timeout readiness check su /login.action' };
+        const lastLine = (r.stdout || '').trim();
+        const lastHttpCode = lastLine.startsWith('last:') ? lastLine.slice(5) : null;
+        return {
+            success: false,
+            error: `Timeout readiness check su /login.action (lastHttpCode=${lastHttpCode || 'n/a'})`,
+            httpCode: lastHttpCode || null
+        };
     }
 
-    return { success: true, httpCode: (r.stdout || '').trim() };
+    const okLine = (r.stdout || '').trim();
+    const httpCode = okLine.startsWith('ok:') ? okLine.slice(3) : okLine;
+    return { success: true, httpCode };
 }
 
 function unquoteEnvValue(value) {
@@ -1021,6 +1029,14 @@ async function runSafeUpdateTask(taskId = null) {
                 if (restartR.success) {
                     const readyR = await waitForInstanceReady(d.domain, d.appPort);
                     instStep.substeps.push({ action: 'readiness', success: readyR.success, error: readyR.error || null, httpCode: readyR.httpCode || null });
+                    if (!readyR.success) {
+                        const logsR = await exec$(`docker logs --tail=80 luna2-${d.domain} 2>&1 || true`);
+                        instStep.substeps.push({
+                            action: 'app-logs-tail',
+                            success: true,
+                            output: (logsR.stdout || logsR.stderr || '').trim()
+                        });
+                    }
                     instStep.success = readyR.success;
                 } else {
                     instStep.success = false;
