@@ -6,6 +6,7 @@ import it.zensoftware.luna2.dao.FatturaRigaDAO;
 import it.zensoftware.luna2.dao.ClienteDAO;
 import it.zensoftware.luna2.dao.TrackingEmailDAO;
 import it.zensoftware.luna2.dao.PreventivoDAO;
+import it.zensoftware.luna2.dao.AccountingProfileDAO;
 import it.zensoftware.luna2.dto.FatturaTrackingDTO;
 import it.zensoftware.luna2.model.Fattura;
 import it.zensoftware.luna2.model.FatturaRiga;
@@ -14,6 +15,7 @@ import it.zensoftware.luna2.model.TrackingEmail;
 import it.zensoftware.luna2.model.Preventivo;
 import it.zensoftware.luna2.model.PreventivoRiga;
 import it.zensoftware.luna2.model.Preventivo.Stato;
+import it.zensoftware.luna2.model.AccountingProfile;
 import it.zensoftware.luna2.service.EmailService;
 import it.zensoftware.luna2.service.FatturaXMLService;
 import it.zensoftware.luna2.service.FattureExportService;
@@ -261,6 +263,22 @@ public class FattureAction extends ActionSupport {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PdfWriter.getInstance(document, baos);
             document.open();
+
+            // Add logo from company profile
+            AccountingProfileDAO profileDAO = new AccountingProfileDAO();
+            AccountingProfile profilo = profileDAO.getDefaultProfile();
+            if (profilo != null && profilo.getLogoPath() != null && !profilo.getLogoPath().isEmpty()) {
+                try {
+                    String logoPath = getServletContext().getRealPath(profilo.getLogoPath());
+                    Image logo = Image.getInstance(logoPath);
+                    logo.scaleToFit(100, 100);
+                    logo.setAlignment(Image.ALIGN_LEFT);
+                    document.add(logo);
+                    document.add(new Paragraph(" "));
+                } catch (Exception e) {
+                    logger.warn("Errore durante l'inserimento del logo nel PDF", e);
+                }
+            }
 
             generaPdf(document);
 

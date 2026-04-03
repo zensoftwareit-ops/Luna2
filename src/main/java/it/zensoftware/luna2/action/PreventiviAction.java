@@ -7,6 +7,7 @@ import it.zensoftware.luna2.dao.ClienteDAO;
 import it.zensoftware.luna2.dao.ProdottoDAO;
 import it.zensoftware.luna2.dao.TrackingEmailDAO;
 import it.zensoftware.luna2.dao.ModuleSettingDAO;
+import it.zensoftware.luna2.dao.AccountingProfileDAO;
 import it.zensoftware.luna2.dto.PreventivoTrackingDTO;
 import it.zensoftware.luna2.model.Preventivo;
 import it.zensoftware.luna2.model.PreventivoRiga;
@@ -48,6 +49,7 @@ public class PreventiviAction extends ActionSupport {
     private PreventivoRigaDAO preventivoRigaDAO = new PreventivoRigaDAO();
     private ClienteDAO clienteDAO = new ClienteDAO();
     private ProdottoDAO prodottoDAO = new ProdottoDAO();
+    private AccountingProfileDAO profileDAO = new AccountingProfileDAO();
     private TrackingEmailDAO trackingEmailDAO = new TrackingEmailDAO();
     private ModuleSettingDAO moduleSettingDAO = new ModuleSettingDAO();
     private EmailService emailService = new EmailService();
@@ -555,6 +557,21 @@ public class PreventiviAction extends ActionSupport {
         PdfWriter.getInstance(document, baos);
         document.open();
         
+        // Add logo from company profile
+        AccountingProfile profilo = profileDAO.getDefaultProfile();
+        if (profilo != null && profilo.getLogoPath() != null && !profilo.getLogoPath().isEmpty()) {
+            try {
+                String logoPath = getServletContext().getRealPath(profilo.getLogoPath());
+                Image logo = Image.getInstance(logoPath);
+                logo.scaleToFit(100, 100);
+                logo.setAlignment(Image.ALIGN_LEFT);
+                document.add(logo);
+                document.add(new Paragraph(" "));
+            } catch (Exception e) {
+                logger.warn("Errore durante l'inserimento del logo nel PDF", e);
+            }
+        }
+        
         // Header
         Paragraph header = new Paragraph();
         header.add(new Chunk("PREVENTIVO", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 24)));
@@ -628,6 +645,21 @@ public class PreventiviAction extends ActionSupport {
         Document document = new Document(PageSize.A4, 50, 50, 50, 50);
         PdfWriter.getInstance(document, baos);
         document.open();
+        
+        // Add logo from company profile
+        AccountingProfile profilo = profileDAO.getDefaultProfile();
+        if (profilo != null && profilo.getLogoPath() != null && !profilo.getLogoPath().isEmpty()) {
+            try {
+                String logoPath = getServletContext().getRealPath(profilo.getLogoPath());
+                Image logo = Image.getInstance(logoPath);
+                logo.scaleToFit(100, 100);
+                logo.setAlignment(Image.ALIGN_LEFT);
+                document.add(logo);
+                document.add(new Paragraph(" "));
+            } catch (Exception e) {
+                logger.warn("Errore durante l'inserimento del logo nel PDF", e);
+            }
+        }
         
         // Header
         Paragraph header = new Paragraph();
