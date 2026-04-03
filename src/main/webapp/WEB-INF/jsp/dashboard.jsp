@@ -359,7 +359,7 @@
                             <div class="card">
                                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                     <h5 class="mb-0">Ultime Fatture</h5>
-                                    <a href="<s:url action='fatture-list'/>" class="btn btn-sm btn-outline-primary">Vedi tutte</a>
+                                    <a href="<s:url action='fatture' namespace='/app/documenti'/>" class="btn btn-sm btn-outline-primary">Vedi tutte</a>
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="list-group list-group-flush">
@@ -392,7 +392,7 @@
                             <div class="card">
                                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                     <h5 class="mb-0">Ultimi Lead</h5>
-                                    <a href="<s:url action='lead-list'/>" class="btn btn-sm btn-outline-primary">Vedi tutti</a>
+                                    <a href="<s:url action='lead!list' namespace='/app/noleggio'/>" class="btn btn-sm btn-outline-primary">Vedi tutti</a>
                                 </div>
                                 <div class="card-body p-0">
                                     <div class="list-group list-group-flush">
@@ -427,7 +427,7 @@
                             <div class="card">
                                 <div class="card-header bg-white d-flex justify-content-between align-items-center">
                                     <h5 class="mb-0">Ultimi Preventivi</h5>
-                                    <a href="<s:url action='preventivi-list'/>" class="btn btn-sm btn-outline-primary">Vedi tutti</a>
+                                    <a href="<s:url action='preventivi' namespace='/app/documenti'/>" class="btn btn-sm btn-outline-primary">Vedi tutti</a>
                                 </div>
                                 <div class="card-body">
                                     <div class="table-responsive">
@@ -455,7 +455,7 @@
                                                             </span>
                                                         </td>
                                                         <td>
-                                                            <a href="<s:url action='preventivi-view'><s:param name='id' value='id'/></s:url>" class="btn btn-sm btn-outline-primary">
+                                                            <a href="<s:url action='preventivi-view' namespace='/app/documenti'><s:param name='id' value='id'/></s:url>" class="btn btn-sm btn-outline-primary">
                                                                 <i class="bi bi-eye"></i>
                                                             </a>
                                                         </td>
