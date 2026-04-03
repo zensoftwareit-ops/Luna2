@@ -149,10 +149,11 @@ public class PreventiviAction extends ActionSupport {
     public String save() {
         User currentUser = getCurrentUser();
         
-        // Converti la data dal formato HTML yyyy-MM-dd a java.util.Date
+        // Parsa la data dal formato HTML yyyy-MM-dd
+        Date dataParsed = null;
         if (dataPreventivoStr != null && !dataPreventivoStr.isEmpty()) {
             try {
-                preventivo.setDataPreventivo(new SimpleDateFormat("yyyy-MM-dd").parse(dataPreventivoStr));
+                dataParsed = new SimpleDateFormat("yyyy-MM-dd").parse(dataPreventivoStr);
             } catch (java.text.ParseException e) {
                 logger.warn("Formato data non valido: {}", dataPreventivoStr);
             }
@@ -160,14 +161,40 @@ public class PreventiviAction extends ActionSupport {
         
         try {
             if (preventivo.getId() == null) {
+                // === NUOVO PREVENTIVO ===
+                if (dataParsed != null) preventivo.setDataPreventivo(dataParsed);
                 preventivo.setCreatedBy(currentUser);
                 preventivo.setStato(Preventivo.Stato.BOZZA);
+                if (preventivo.getAnno() == null) {
+                    preventivo.setAnno(Calendar.getInstance().get(Calendar.YEAR));
+                }
                 preventivoDAO.save(preventivo);
                 addActionMessage("Preventivo creato con successo");
             } else {
-                preventivo.setModifiedBy(currentUser);
-                preventivoDAO.update(preventivo);
-                
+                // === AGGIORNAMENTO ESISTENTE ===
+                // Carica entity dal DB (lazy collections non inizializzate)
+                // per evitare che orphanRemoval su 'commesse' le cancelli
+                Preventivo existing = preventivoDAO.findById(preventivo.getId());
+                if (existing == null) {
+                    addActionError("Preventivo non trovato");
+                    return ERROR;
+                }
+                // Copia solo i campi editabili dal form
+                if (dataParsed != null) existing.setDataPreventivo(dataParsed);
+                existing.setCliente(preventivo.getCliente());
+                existing.setOggetto(preventivo.getOggetto());
+                existing.setStato(preventivo.getStato());
+                existing.setValiditaGiorni(preventivo.getValiditaGiorni());
+                existing.setNoteIntestazione(preventivo.getNoteIntestazione());
+                existing.setNotePiede(preventivo.getNotePiede());
+                existing.setCondizioniPagamento(preventivo.getCondizioniPagamento());
+                existing.setTempiConsegna(preventivo.getTempiConsegna());
+                existing.setScontoPercentuale(preventivo.getScontoPercentuale());
+                existing.setSpeseTrasporto(preventivo.getSpeseTrasporto());
+                existing.setModifiedBy(currentUser);
+                preventivoDAO.update(existing);
+                preventivo = existing;
+
                 // Elimina righe vecchie e salva le nuove
                 preventivoRigaDAO.deleteByPreventivoId(preventivo.getId());
                 addActionMessage("Preventivo aggiornato con successo");
@@ -192,10 +219,10 @@ public class PreventiviAction extends ActionSupport {
             
             return SUCCESS;
         } catch (Exception e) {
-            logger.error("Error saving preventivo", e);
+            logger.error("Error saving preventivo: {}", e.getMessage(), e);
             clienti = clienteDAO.findAllActive();
             prodotti = prodottoDAO.findAllActive();
-            addActionError("Errore durante il salvataggio del preventivo");
+            addActionError("Errore durante il salvataggio: " + e.getMessage());
             return ERROR;
         }
     }
