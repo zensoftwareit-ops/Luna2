@@ -77,6 +77,7 @@ public class PreventiviAction extends ActionSupport {
     private String trackingId;
     private String messageEmail;
     private String dataPreventivoStr; // usato per il binding della data dal form HTML
+    private Integer righeCount;
 
     public String list() {
         if (anno == null) {
@@ -195,8 +196,13 @@ public class PreventiviAction extends ActionSupport {
                 preventivoDAO.update(existing);
                 preventivo = existing;
 
-                // Elimina righe vecchie e salva le nuove
-                preventivoRigaDAO.deleteByPreventivoId(preventivo.getId());
+                // Elimina righe vecchie solo se il form ha inviato esplicitamente il conteggio.
+                // In questo modo evitiamo perdita dati se il binding delle righe non arriva al server.
+                if (righeCount != null) {
+                    preventivoRigaDAO.deleteByPreventivoId(preventivo.getId());
+                } else {
+                    logger.warn("Salvataggio preventivo {} senza righeCount: mantengo le righe esistenti", preventivo.getId());
+                }
                 addActionMessage("Preventivo aggiornato con successo");
             }
             
@@ -1161,4 +1167,6 @@ public class PreventiviAction extends ActionSupport {
     public String getMessageEmail() { return messageEmail; }
     public void setMessageEmail(String messageEmail) { this.messageEmail = messageEmail; }
     public String getDataPreventivoStr() { return dataPreventivoStr; }
-    public void setDataPreventivoStr(String dataPreventivoStr) { this.dataPreventivoStr = dataPreventivoStr; }}
+    public void setDataPreventivoStr(String dataPreventivoStr) { this.dataPreventivoStr = dataPreventivoStr; }
+    public Integer getRigheCount() { return righeCount; }
+    public void setRigheCount(Integer righeCount) { this.righeCount = righeCount; }}

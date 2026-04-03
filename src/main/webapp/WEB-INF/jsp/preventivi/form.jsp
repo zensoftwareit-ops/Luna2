@@ -91,6 +91,8 @@
                 <s:hidden name="preventivo.id"/>
                 <s:hidden name="preventivo.numero"/>
                 <s:hidden name="preventivo.anno"/>
+                <input type="hidden" name="righeCount" id="righeCount" value="0">
+                <div id="righeHiddenFields"></div>
 
                 <!-- Dati Generali -->
                 <div class="card mb-3">
@@ -455,6 +457,26 @@
             return id == null ? '' : String(id);
         }
 
+        function syncRigheHiddenFields() {
+            const container = $('#righeHiddenFields');
+            const fields = ['rigaNumero', 'descrizione', 'quantita', 'unitaMisura',
+                            'prezzoUnitario', 'scontoPercentuale', 'ivaPercentuale', 'note'];
+
+            container.empty();
+            $('#righeCount').val(righe.length);
+
+            righe.forEach((riga, index) => {
+                fields.forEach(key => {
+                    const value = riga[key] != null ? riga[key] : '';
+                    $('<input>', {
+                        type: 'hidden',
+                        name: `righe[${index}].${key}`,
+                        value: value
+                    }).appendTo(container);
+                });
+            });
+        }
+
         // Load existing righe
         <s:if test="righe != null && !righe.isEmpty()">
             <s:iterator value="righe" var="r">
@@ -580,6 +602,7 @@
         function renderRighe() {
             const tbody = $('#righeBody');
             tbody.empty();
+            syncRigheHiddenFields();
 
             if (righe.length === 0) {
                 tbody.append(`
@@ -660,22 +683,12 @@
         // Initial calculation
         $(document).ready(function() {
             ricalcolaTotaliCliente();
+            syncRigheHiddenFields();
         });
 
         // Before submit, add righe as hidden fields
         $('#preventivoForm').submit(function(e) {
-            // Remove old righe fields
-            $('input[name^="righe["]').remove();
-
-            // Add current righe (escludi id - il server lo genera)
-            righe.forEach((riga, index) => {
-                const fields = ['rigaNumero','descrizione','quantita','unitaMisura',
-                                'prezzoUnitario','scontoPercentuale','ivaPercentuale','note'];
-                fields.forEach(key => {
-                    const value = (riga[key] != null) ? riga[key] : '';
-                    $(this).append(`<input type="hidden" name="righe[${index}].${key}" value="${value}">`);
-                });
-            });
+            syncRigheHiddenFields();
         });
     </script>
 </body>
