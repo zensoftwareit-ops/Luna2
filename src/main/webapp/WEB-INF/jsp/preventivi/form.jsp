@@ -451,6 +451,10 @@
             return bootstrap.Modal.getOrCreateInstance(modalElement);
         }
 
+        function normalizeRigaId(id) {
+            return id == null ? '' : String(id);
+        }
+
         // Load existing righe
         <s:if test="righe != null && !righe.isEmpty()">
             <s:iterator value="righe" var="r">
@@ -500,9 +504,10 @@
         // Save Riga
         $('#saveRigaBtn').click(function() {
             const rigaId = $('#rigaId').val();
+            const existingRiga = rigaId ? righe.find(r => normalizeRigaId(r.id) === normalizeRigaId(rigaId)) : null;
             const riga = {
                 id: rigaId || null,
-                rigaNumero: rigaId ? righe.find(r => r.id == rigaId).rigaNumero : (++rigaCounter),
+                rigaNumero: existingRiga ? existingRiga.rigaNumero : (++rigaCounter),
                 descrizione: $('#rigaDescrizione').val(),
                 quantita: parseFloat($('#rigaQuantita').val()) || 0,
                 unitaMisura: $('#rigaUnitaMisura').val(),
@@ -519,8 +524,10 @@
 
             if (rigaId) {
                 // Update existing
-                const index = righe.findIndex(r => r.id == rigaId);
-                righe[index] = riga;
+                const index = righe.findIndex(r => normalizeRigaId(r.id) === normalizeRigaId(rigaId));
+                if (index !== -1) {
+                    righe[index] = riga;
+                }
             } else {
                 // Add new
                 riga.id = 'new_' + rigaCounter;
@@ -538,8 +545,8 @@
         // Edit Riga
         $(document).on('click', '.edit-riga-btn', function() {
             const row = $(this).closest('tr');
-            const rigaId = row.data('riga-id');
-            const riga = righe.find(r => r.id == rigaId);
+            const rigaId = row.attr('data-riga-id');
+            const riga = righe.find(r => normalizeRigaId(r.id) === normalizeRigaId(rigaId));
 
             if (riga) {
                 $('#rigaModalTitle').text('Modifica Riga');
@@ -562,8 +569,8 @@
         $(document).on('click', '.delete-riga-btn', function() {
             if (confirm('Eliminare questa riga?')) {
                 const row = $(this).closest('tr');
-                const rigaId = row.data('riga-id');
-                righe = righe.filter(r => r.id != rigaId);
+                const rigaId = row.attr('data-riga-id');
+                righe = righe.filter(r => normalizeRigaId(r.id) !== normalizeRigaId(rigaId));
                 renderRighe();
                 ricalcolaTotaliCliente();
             }

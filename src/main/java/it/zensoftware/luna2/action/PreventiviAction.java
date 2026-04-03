@@ -115,6 +115,7 @@ public class PreventiviAction extends ActionSupport {
         
         // Load clienti for selection
         clienti = clienteDAO.findAllActive();
+        prodotti = prodottoDAO.findAllActive();
         return SUCCESS;
     }
 
@@ -178,6 +179,8 @@ public class PreventiviAction extends ActionSupport {
             return SUCCESS;
         } catch (Exception e) {
             logger.error("Error saving preventivo", e);
+            clienti = clienteDAO.findAllActive();
+            prodotti = prodottoDAO.findAllActive();
             addActionError("Errore durante il salvataggio del preventivo");
             return ERROR;
         }
