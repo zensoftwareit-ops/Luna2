@@ -212,6 +212,11 @@
                         </a>
                     </li>
                     <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='profilo' namespace='/app/contabilita'/>">
+                            <i class="bi bi-building-gear me-2"></i>Settaggi Azienda
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
                         <a class="nav-link" href="<s:url action='scadenzario-list' namespace='/app/contabilita'/>">
                             <i class="bi bi-calendar-check me-2"></i>Scadenzario Fiscale
                         </a>

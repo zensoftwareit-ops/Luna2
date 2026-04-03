@@ -443,6 +443,14 @@
         let righe = [];
         let rigaCounter = <s:if test="righe != null && !righe.isEmpty()"><s:property value="righe.size()"/></s:if><s:else>0</s:else>;
 
+        function getRigaModalInstance() {
+            const modalElement = document.getElementById('rigaModal');
+            if (!modalElement || !window.bootstrap || !bootstrap.Modal) {
+                return null;
+            }
+            return bootstrap.Modal.getOrCreateInstance(modalElement);
+        }
+
         // Load existing righe
         <s:if test="righe != null && !righe.isEmpty()">
             <s:iterator value="righe" var="r">
@@ -469,7 +477,10 @@
             $('#rigaIvaPercentuale').val(22);
             $('#rigaScontoPercentuale').val(0);
             $('#rigaProdotto').val('').trigger('change');
-            $('#rigaModal').modal('show');
+            const modal = getRigaModalInstance();
+            if (modal) {
+                modal.show();
+            }
         });
 
         // When prodotto is selected, fill fields
@@ -518,7 +529,10 @@
 
             renderRighe();
             ricalcolaTotaliCliente();
-            $('#rigaModal').modal('hide');
+            const modal = getRigaModalInstance();
+            if (modal) {
+                modal.hide();
+            }
         });
 
         // Edit Riga
@@ -537,7 +551,10 @@
                 $('#rigaScontoPercentuale').val(riga.scontoPercentuale);
                 $('#rigaIvaPercentuale').val(riga.ivaPercentuale);
                 $('#rigaNote').val(riga.note || '');
-                $('#rigaModal').modal('show');
+                const modal = getRigaModalInstance();
+                if (modal) {
+                    modal.show();
+                }
             }
         });
 
