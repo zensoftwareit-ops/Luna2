@@ -36,6 +36,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.struts2.ServletActionContext;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -214,7 +215,7 @@ public class ContabilitaAction extends ActionSupport {
             // Handle logo upload
             if (logoFile != null && logoFileFileName != null && !logoFileFileName.isEmpty()) {
                 try {
-                    String uploadDir = getServletContext().getRealPath("/uploads/logos");
+                    String uploadDir = ServletActionContext.getServletContext().getRealPath("/uploads/logos");
                     java.io.File dir = new java.io.File(uploadDir);
                     if (!dir.exists()) {
                         dir.mkdirs();

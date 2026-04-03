@@ -269,7 +269,7 @@ public class FattureAction extends ActionSupport {
             AccountingProfile profilo = profileDAO.getDefaultProfile();
             if (profilo != null && profilo.getLogoPath() != null && !profilo.getLogoPath().isEmpty()) {
                 try {
-                    String logoPath = getServletContext().getRealPath(profilo.getLogoPath());
+                    String logoPath = ServletActionContext.getServletContext().getRealPath(profilo.getLogoPath());
                     Image logo = Image.getInstance(logoPath);
                     logo.scaleToFit(100, 100);
                     logo.setAlignment(Image.ALIGN_LEFT);

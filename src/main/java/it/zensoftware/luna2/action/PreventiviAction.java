@@ -17,6 +17,7 @@ import it.zensoftware.luna2.model.User;
 import it.zensoftware.luna2.model.TrackingEmail;
 import it.zensoftware.luna2.model.Commessa;
 import it.zensoftware.luna2.model.ModuleSetting;
+import it.zensoftware.luna2.model.AccountingProfile;
 import it.zensoftware.luna2.service.EmailService;
 import it.zensoftware.luna2.service.CommesseService;
 import it.zensoftware.luna2.service.notification.EventPublisher;
@@ -561,7 +562,7 @@ public class PreventiviAction extends ActionSupport {
         AccountingProfile profilo = profileDAO.getDefaultProfile();
         if (profilo != null && profilo.getLogoPath() != null && !profilo.getLogoPath().isEmpty()) {
             try {
-                String logoPath = getServletContext().getRealPath(profilo.getLogoPath());
+                String logoPath = ServletActionContext.getServletContext().getRealPath(profilo.getLogoPath());
                 Image logo = Image.getInstance(logoPath);
                 logo.scaleToFit(100, 100);
                 logo.setAlignment(Image.ALIGN_LEFT);
@@ -650,7 +651,7 @@ public class PreventiviAction extends ActionSupport {
         AccountingProfile profilo = profileDAO.getDefaultProfile();
         if (profilo != null && profilo.getLogoPath() != null && !profilo.getLogoPath().isEmpty()) {
             try {
-                String logoPath = getServletContext().getRealPath(profilo.getLogoPath());
+                String logoPath = ServletActionContext.getServletContext().getRealPath(profilo.getLogoPath());
                 Image logo = Image.getInstance(logoPath);
                 logo.scaleToFit(100, 100);
                 logo.setAlignment(Image.ALIGN_LEFT);
