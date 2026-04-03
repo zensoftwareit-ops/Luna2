@@ -16,7 +16,7 @@
         <div class="container-fluid">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="h3"><i class="bi bi-building-gear me-2"></i>Profilo Fiscale e Societario</h1>
-                <a href="<s:url action='dashboard' namespace='/app/contabilita'/>" class="btn btn-outline-secondary">Dashboard</a>
+                <a href="<s:url action='dashboard' namespace='/app'/>" class="btn btn-outline-secondary">Dashboard</a>
             </div>
 
             <s:if test="hasActionErrors()">
@@ -25,7 +25,7 @@
 
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <s:form action="profilo-save" namespace="/app/contabilita" method="post" theme="simple" enctype="multipart/form-data">
+                    <s:form action="company-save" namespace="/app/settings" method="post" theme="simple" enctype="multipart/form-data">
                         <s:hidden name="profilo.id"/>
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -93,7 +93,7 @@
 
                         <div class="mt-4 d-flex gap-2">
                             <button type="submit" class="btn btn-primary"><i class="bi bi-save me-2"></i>Salva profilo</button>
-                            <a href="<s:url action='dashboard' namespace='/app/contabilita'/>" class="btn btn-outline-secondary">Annulla</a>
+                            <a href="<s:url action='dashboard' namespace='/app'/>" class="btn btn-outline-secondary">Annulla</a>
                         </div>
                     </s:form>
                 </div>

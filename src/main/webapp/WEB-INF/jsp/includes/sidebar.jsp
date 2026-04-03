@@ -115,6 +115,11 @@
                             <i class="bi bi-box-seam me-2"></i>Prodotti
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<s:url action='company' namespace='/app/settings'/>">
+                            <i class="bi bi-building-gear me-2"></i>Settaggi Azienda
+                        </a>
+                    </li>
                     <li class="nav-item mt-3">
                         <h6 class="text-white-50 text-uppercase small px-3">Documenti</h6>
                     </li>
@@ -209,11 +214,6 @@
                     <li class="nav-item ms-3">
                         <a class="nav-link" href="<s:url action='reports' namespace='/app/contabilita'/>">
                             <i class="bi bi-file-earmark-bar-graph me-2"></i>Report PDF/XLSX
-                        </a>
-                    </li>
-                    <li class="nav-item ms-3">
-                        <a class="nav-link" href="<s:url action='profilo' namespace='/app/contabilita'/>">
-                            <i class="bi bi-building-gear me-2"></i>Settaggi Azienda
                         </a>
                     </li>
                     <li class="nav-item ms-3">

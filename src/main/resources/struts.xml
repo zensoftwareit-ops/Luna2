@@ -94,6 +94,15 @@
             <result name="success" type="redirectAction">notifications</result>
             <result name="error">/WEB-INF/jsp/settings/notifications.jsp</result>
         </action>
+
+        <action name="company" class="it.zensoftware.luna2.action.ContabilitaAction" method="profilo">
+            <result name="success">/WEB-INF/jsp/contabilita/profilo.jsp</result>
+        </action>
+
+        <action name="company-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveProfilo">
+            <result name="success" type="redirectAction">company</result>
+            <result name="error">/WEB-INF/jsp/contabilita/profilo.jsp</result>
+        </action>
     </package>
 
     <!-- Calendar Package -->
