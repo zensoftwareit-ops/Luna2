@@ -150,11 +150,28 @@ public class PreventiviAction extends ActionSupport {
                 preventivo.setModifiedBy(currentUser);
                 preventivoDAO.update(preventivo);
                 
-                // Ricalcola totali dopo salvataggio
-                preventivoDAO.ricalcolaTotali(preventivo);
-                
+                // Elimina righe vecchie e salva le nuove
+                preventivoRigaDAO.deleteByPreventivoId(preventivo.getId());
                 addActionMessage("Preventivo aggiornato con successo");
             }
+            
+            // Salva le righe dal form
+            if (righe != null && !righe.isEmpty()) {
+                for (int i = 0; i < righe.size(); i++) {
+                    PreventivoRiga riga = righe.get(i);
+                    if (riga != null && riga.getDescrizione() != null && !riga.getDescrizione().isEmpty()) {
+                        riga.setPreventivo(preventivo);
+                        if (riga.getRigaNumero() == null || riga.getRigaNumero() == 0) {
+                            riga.setRigaNumero(i + 1);
+                        }
+                        preventivoRigaDAO.save(riga);
+                    }
+                }
+            }
+            
+            // Ricalcola totali dopo salvataggio
+            preventivoDAO.ricalcolaTotali(preventivo);
+            
             return SUCCESS;
         } catch (Exception e) {
             logger.error("Error saving preventivo", e);
