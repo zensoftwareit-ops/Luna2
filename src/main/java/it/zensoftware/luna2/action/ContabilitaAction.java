@@ -111,6 +111,8 @@ public class ContabilitaAction extends ActionSupport {
 
     private Long id;
     private Long accountId;
+    private java.io.File logoFile;
+    private String logoFileFileName;
     private Long[] lineAccountIds;
     private String[] lineTypes;
     private String[] lineDescriptions;
@@ -207,6 +209,32 @@ public class ContabilitaAction extends ActionSupport {
             AccountingProfile existing = profileDAO.getDefaultProfile();
             if (existing != null && profilo.getId() == null) {
                 profilo.setId(existing.getId());
+            }
+
+            // Handle logo upload
+            if (logoFile != null && logoFileFileName != null && !logoFileFileName.isEmpty()) {
+                try {
+                    String uploadDir = getServletContext().getRealPath("/uploads/logos");
+                    java.io.File dir = new java.io.File(uploadDir);
+                    if (!dir.exists()) {
+                        dir.mkdirs();
+                    }
+
+                    // Generate unique filename
+                    String timestamp = String.valueOf(System.currentTimeMillis());
+                    String filename = timestamp + "_" + logoFileFileName;
+                    String filepath = uploadDir + java.io.File.separator + filename;
+                    
+                    // Copy file
+                    java.nio.file.Files.copy(logoFile.toPath(), new java.io.File(filepath).toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                    
+                    // Update profilo with logo path
+                    profilo.setLogoPath("/uploads/logos/" + filename);
+                } catch (Exception e) {
+                    logger.warn("Errore durante l'upload del logo", e);
+                    addActionError("Errore durante l'upload del logo: " + e.getMessage());
+                    // Continue without logo
+                }
             }
 
             if (profilo.getId() == null) {
@@ -2622,6 +2650,10 @@ public class ContabilitaAction extends ActionSupport {
     public void setSelectedPreset(String selectedPreset) { this.selectedPreset = selectedPreset; }
     public String getPresetName() { return presetName; }
     public void setPresetName(String presetName) { this.presetName = presetName; }
+    public java.io.File getLogoFile() { return logoFile; }
+    public void setLogoFile(java.io.File logoFile) { this.logoFile = logoFile; }
+    public String getLogoFileFileName() { return logoFileFileName; }
+    public void setLogoFileFileName(String logoFileFileName) { this.logoFileFileName = logoFileFileName; }
     public String[] getAvailablePostingKeys() {
         return new String[]{
                 KEY_AR_CLIENTI, KEY_AP_FORNITORI, KEY_REVENUE_MAIN, KEY_COST_MAIN, KEY_IVA,

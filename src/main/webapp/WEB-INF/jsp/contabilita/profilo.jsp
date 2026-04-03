@@ -25,7 +25,7 @@
 
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
-                    <s:form action="profilo-save" namespace="/app/contabilita" method="post" theme="simple">
+                    <s:form action="profilo-save" namespace="/app/contabilita" method="post" theme="simple" enctype="multipart/form-data">
                         <s:hidden name="profilo.id"/>
                         <div class="row g-3">
                             <div class="col-md-6">
@@ -75,6 +75,19 @@
                             <div class="col-md-12">
                                 <label class="form-label">Note operative</label>
                                 <s:textarea name="profilo.notes" cssClass="form-control" rows="4"/>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Logo aziendale</label>
+                                <div class="input-group">
+                                    <input type="file" name="logoFile" class="form-control" accept="image/*" />
+                                </div>
+                                <s:if test="profilo.logoPath != null">
+                                    <div class="mt-2">
+                                        <small class="text-muted d-block mb-2">Logo attuale:</small>
+                                        <img src="${pageContext.request.contextPath}<s:property value='profilo.logoPath'/>" 
+                                             alt="Logo aziendale" class="img-thumbnail" style="max-width: 150px; max-height: 100px;">
+                                    </div>
+                                </s:if>
                             </div>
                         </div>
 

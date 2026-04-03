@@ -79,6 +79,9 @@ public class AccountingProfile implements Serializable {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "logo_path", length = 500)
+    private String logoPath;
+
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at", updatable = false)
     private Date createdAt;
@@ -124,6 +127,8 @@ public class AccountingProfile implements Serializable {
     public void setPecEmail(String pecEmail) { this.pecEmail = pecEmail; }
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
+    public String getLogoPath() { return logoPath; }
+    public void setLogoPath(String logoPath) { this.logoPath = logoPath; }
     public Date getCreatedAt() { return createdAt; }
     public Date getUpdatedAt() { return updatedAt; }
 }
