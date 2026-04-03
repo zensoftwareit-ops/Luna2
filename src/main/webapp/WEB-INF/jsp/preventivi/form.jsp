@@ -108,7 +108,7 @@
                             <div class="col-md-3">
                                 <div class="mb-3">
                                     <label class="form-label">Data *</label>
-                                    <s:textfield name="preventivo.dataPreventivo" cssClass="form-control" type="date" required="true"/>
+                                    <s:textfield name="dataPreventivoStr" cssClass="form-control" type="date" required="true"/>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -459,15 +459,15 @@
         <s:if test="righe != null && !righe.isEmpty()">
             <s:iterator value="righe" var="r">
                 righe.push({
-                    id: <s:property value="#r.id"/>,
-                    rigaNumero: <s:property value="#r.rigaNumero"/>,
-                    descrizione: '<s:property value="#r.descrizione" escapeHtml="true"/>',
-                    quantita: <s:property value="#r.quantita"/>,
-                    unitaMisura: '<s:property value="#r.unitaMisura"/>',
-                    prezzoUnitario: <s:property value="#r.prezzoUnitario"/>,
-                    scontoPercentuale: <s:property value="#r.scontoPercentuale"/>,
-                    ivaPercentuale: <s:property value="#r.ivaPercentuale"/>,
-                    note: '<s:property value="#r.note" escapeHtml="true"/>'
+                    id: <s:property value='#r.id'/>,
+                    rigaNumero: <s:property value='#r.rigaNumero'/>,
+                    descrizione: '<s:property value="#r.descrizione" escapeJavaScript="true"/>',
+                    quantita: <s:property value='#r.quantita'/>,
+                    unitaMisura: '<s:property value="#r.unitaMisura" escapeJavaScript="true"/>',
+                    prezzoUnitario: <s:property value='#r.prezzoUnitario'/>,
+                    scontoPercentuale: <s:property value='#r.scontoPercentuale'/>,
+                    ivaPercentuale: <s:property value='#r.ivaPercentuale'/>,
+                    note: '<s:property value="#r.note" escapeJavaScript="true"/>'
                 });
             </s:iterator>
         </s:if>
@@ -667,10 +667,13 @@
             // Remove old righe fields
             $('input[name^="righe["]').remove();
 
-            // Add current righe
+            // Add current righe (escludi id - il server lo genera)
             righe.forEach((riga, index) => {
-                Object.keys(riga).forEach(key => {
-                    $(this).append(`<input type="hidden" name="righe[${index}].${key}" value="${riga[key]}">`);
+                const fields = ['rigaNumero','descrizione','quantita','unitaMisura',
+                                'prezzoUnitario','scontoPercentuale','ivaPercentuale','note'];
+                fields.forEach(key => {
+                    const value = (riga[key] != null) ? riga[key] : '';
+                    $(this).append(`<input type="hidden" name="righe[${index}].${key}" value="${value}">`);
                 });
             });
         });

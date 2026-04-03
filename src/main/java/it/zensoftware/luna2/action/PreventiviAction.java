@@ -76,6 +76,7 @@ public class PreventiviAction extends ActionSupport {
     private String emailDestinatario;
     private String trackingId;
     private String messageEmail;
+    private String dataPreventivoStr; // usato per il binding della data dal form HTML
 
     public String list() {
         if (anno == null) {
@@ -108,6 +109,7 @@ public class PreventiviAction extends ActionSupport {
         preventivo = new Preventivo();
         preventivo.setDataPreventivo(new Date());
         preventivo.setAnno(Calendar.getInstance().get(Calendar.YEAR));
+        dataPreventivoStr = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
         
         // Generate next numero
         String nextNumero = preventivoDAO.getNextNumero(preventivo.getAnno());
@@ -124,6 +126,9 @@ public class PreventiviAction extends ActionSupport {
             preventivo = preventivoDAO.findWithRighe(id);
             if (preventivo != null) {
                 righe = preventivo.getRighe();
+                if (preventivo.getDataPreventivo() != null) {
+                    dataPreventivoStr = new SimpleDateFormat("yyyy-MM-dd").format(preventivo.getDataPreventivo());
+                }
             }
             clienti = clienteDAO.findAllActive();
             prodotti = prodottoDAO.findAllActive();
@@ -143,6 +148,15 @@ public class PreventiviAction extends ActionSupport {
 
     public String save() {
         User currentUser = getCurrentUser();
+        
+        // Converti la data dal formato HTML yyyy-MM-dd a java.util.Date
+        if (dataPreventivoStr != null && !dataPreventivoStr.isEmpty()) {
+            try {
+                preventivo.setDataPreventivo(new SimpleDateFormat("yyyy-MM-dd").parse(dataPreventivoStr));
+            } catch (java.text.ParseException e) {
+                logger.warn("Formato data non valido: {}", dataPreventivoStr);
+            }
+        }
         
         try {
             if (preventivo.getId() == null) {
@@ -1118,4 +1132,6 @@ public class PreventiviAction extends ActionSupport {
     public String getTrackingId() { return trackingId; }
     public void setTrackingId(String trackingId) { this.trackingId = trackingId; }
     public String getMessageEmail() { return messageEmail; }
-    public void setMessageEmail(String messageEmail) { this.messageEmail = messageEmail; }}
+    public void setMessageEmail(String messageEmail) { this.messageEmail = messageEmail; }
+    public String getDataPreventivoStr() { return dataPreventivoStr; }
+    public void setDataPreventivoStr(String dataPreventivoStr) { this.dataPreventivoStr = dataPreventivoStr; }}
