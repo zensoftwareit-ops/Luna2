@@ -162,6 +162,12 @@
                                     <option value="">-- Cerca per codice, nome o barcode --</option>
                                     <s:iterator value="prodotti" var="p">
                                         <option value="<s:property value='#p.id'/>"
+                                            data-codice="<s:property value='#p.codice'/>"
+                                            data-ean="<s:property value='#p.codiceEan'/>"
+                                            data-um="<s:property value='#p.unitaMisura'/>"
+                                            data-default-fornitore-id="<s:property value='#p.fornitore != null ? #p.fornitore.id : ""'/>"
+                                            data-costo-default="<s:property value='#p.costoAcquisto != null ? #p.costoAcquisto : ""'/>"
+                                            data-giacenza="<s:property value='giacenzeByProdottoId[#p.id] != null ? giacenzeByProdottoId[#p.id] : 0'/>"
                                             <s:if test="prodottoId != null && prodottoId == #p.id">selected</s:if>>
                                             <s:property value="#p.codice"/> - <s:property value="#p.nome"/>
                                             <s:if test="#p.codiceEan != null && #p.codiceEan.trim().length() > 0">
@@ -174,6 +180,19 @@
                                     <i class="bi bi-search me-1"></i>
                                     Digita per cercare, oppure usa la pistola barcode nel campo sotto.
                                 </small>
+                            </div>
+
+                            <div class="row mb-3" id="productMetaRow" style="display:none;">
+                                <div class="col-md-6">
+                                    <div class="alert alert-light border mb-0">
+                                        <strong>Giacenza attuale:</strong> <span id="selectedProdottoGiacenza">-</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="alert alert-light border mb-0">
+                                        <strong>Unità di misura:</strong> <span id="selectedProdottoUm">-</span>
+                                    </div>
+                                </div>
                             </div>
 
                             <!-- Scanner barcode -->
@@ -202,6 +221,19 @@
                                                 placeholder="Es: 10" required="true" min="0.001"/>
                                 </div>
                             </div>
+
+                            <!-- Fornitore (solo carico) -->
+                            <s:if test='tipoMovimento == "CARICO"'>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold">Fornitore *</label>
+                                    <select name="fornitoreId" id="fornitoreId" class="form-select" required>
+                                        <option value="">-- Seleziona fornitore dal listino prodotto --</option>
+                                    </select>
+                                    <small class="form-text text-muted">
+                                        Il prezzo di acquisto viene compilato automaticamente dal listino fornitore, se presente.
+                                    </small>
+                                </div>
+                            </s:if>
 
                             <!-- Costo Unitario (solo per carico) -->
                             <s:if test='tipoMovimento == "CARICO"'>
@@ -263,12 +295,77 @@
         $(document).ready(function() {
             const $prodotto = $('.select2-prodotto');
             const $barcode = $('#barcodeInputQuick');
+            const $fornitore = $('#fornitoreId');
+            const $costo = $('input[name="costoUnitario"]');
+            const $metaRow = $('#productMetaRow');
+            const $metaGiacenza = $('#selectedProdottoGiacenza');
+            const $metaUm = $('#selectedProdottoUm');
+            const initialFornitoreId = '<s:property value="fornitoreId"/>';
+
+            const listini = [
+                <s:iterator value="listiniFornitore" var="lf" status="st">
+                {
+                    prodottoId: '<s:property value="#lf.prodotto.id"/>',
+                    fornitoreId: '<s:property value="#lf.fornitore.id"/>',
+                    fornitoreNome: '<s:property value="#lf.fornitore.ragioneSociale" escapeJavaScript="true"/>',
+                    prezzoAcquisto: '<s:property value="#lf.prezzoAcquisto"/>'
+                }<s:if test="!#st.last">,</s:if>
+                </s:iterator>
+            ];
 
             $prodotto.select2({
                 theme: 'bootstrap-5',
                 placeholder: '-- Cerca per codice, nome o barcode --',
                 width: '100%'
             });
+
+            function updateProductMeta() {
+                const selected = $prodotto.find('option:selected');
+                const id = selected.val();
+                if (!id) {
+                    $metaRow.hide();
+                    return;
+                }
+                const giacenza = selected.attr('data-giacenza') || '0';
+                const um = selected.attr('data-um') || '-';
+                $metaGiacenza.text(giacenza);
+                $metaUm.text(um);
+                $metaRow.show();
+            }
+
+            function populateFornitoriFromListino() {
+                if (!$fornitore.length) return;
+                const selected = $prodotto.find('option:selected');
+                const prodottoId = selected.val();
+                const defaultFornitoreId = selected.attr('data-default-fornitore-id');
+                const defaultCosto = selected.attr('data-costo-default');
+
+                $fornitore.empty();
+                $fornitore.append('<option value="">-- Seleziona fornitore dal listino prodotto --</option>');
+
+                const options = listini.filter(l => String(l.prodottoId) === String(prodottoId));
+                options.forEach(l => {
+                    $fornitore.append(`<option value="${l.fornitoreId}" data-prezzo="${l.prezzoAcquisto}">${l.fornitoreNome}</option>`);
+                });
+
+                if (defaultFornitoreId) {
+                    $fornitore.val(defaultFornitoreId);
+                }
+                if (initialFornitoreId) {
+                    $fornitore.val(initialFornitoreId);
+                }
+                if (!$fornitore.val() && options.length > 0) {
+                    $fornitore.val(options[0].fornitoreId);
+                }
+
+                const selectedFornitoreOpt = $fornitore.find('option:selected');
+                const prezzo = selectedFornitoreOpt.attr('data-prezzo');
+                if (prezzo) {
+                    $costo.val(prezzo);
+                } else if (defaultCosto && !$costo.val()) {
+                    $costo.val(defaultCosto);
+                }
+            }
 
             function normalize(v) {
                 return (v || '').toString().trim().toLowerCase();
@@ -281,7 +378,9 @@
                 let found = false;
                 $prodotto.find('option').each(function() {
                     const text = normalize($(this).text());
-                    if (text.includes(key)) {
+                    const code = normalize($(this).attr('data-codice'));
+                    const ean = normalize($(this).attr('data-ean'));
+                    if (text.includes(key) || code === key || ean === key) {
                         $prodotto.val($(this).val()).trigger('change');
                         found = true;
                         return false;
@@ -289,6 +388,18 @@
                 });
                 return found;
             }
+
+            $prodotto.on('change', function() {
+                updateProductMeta();
+                populateFornitoriFromListino();
+            });
+
+            $fornitore.on('change', function() {
+                const prezzo = $(this).find('option:selected').attr('data-prezzo');
+                if (prezzo) {
+                    $costo.val(prezzo);
+                }
+            });
 
             $barcode.on('keydown', function(e) {
                 if (e.key === 'Enter') {
@@ -301,6 +412,10 @@
                     $(this).val('');
                 }
             });
+
+            // inizializzazione stato pagina
+            updateProductMeta();
+            populateFornitoriFromListino();
         });
     </script>
 </body>

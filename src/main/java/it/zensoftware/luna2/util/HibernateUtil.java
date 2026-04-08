@@ -112,6 +112,7 @@ public class HibernateUtil {
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Preventivo.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PreventivoRiga.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Prodotto.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.ProdottoFornitoreListino.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Magazzino.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Contatto.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Lead.class);

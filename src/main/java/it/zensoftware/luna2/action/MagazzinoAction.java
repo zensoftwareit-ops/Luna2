@@ -5,9 +5,13 @@ import com.opensymphony.xwork2.ActionContext;
 import it.zensoftware.luna2.dao.MagazzinoDAO;
 import it.zensoftware.luna2.dao.MovimentoMagazzinoDAO;
 import it.zensoftware.luna2.dao.ProdottoDAO;
+import it.zensoftware.luna2.dao.FornitoreDAO;
+import it.zensoftware.luna2.dao.ProdottoFornitoreListinoDAO;
 import it.zensoftware.luna2.model.Magazzino;
 import it.zensoftware.luna2.model.MovimentoMagazzino;
 import it.zensoftware.luna2.model.Prodotto;
+import it.zensoftware.luna2.model.Fornitore;
+import it.zensoftware.luna2.model.ProdottoFornitoreListino;
 import it.zensoftware.luna2.model.User;
 import it.zensoftware.luna2.service.notification.EventPublisher;
 import it.zensoftware.luna2.service.notification.event.NotificationEventFactory;
@@ -20,6 +24,7 @@ import java.io.InputStream;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +35,8 @@ public class MagazzinoAction extends ActionSupport {
     private MagazzinoDAO magazzinoDAO = new MagazzinoDAO();
     private MovimentoMagazzinoDAO movimentoDAO = new MovimentoMagazzinoDAO();
     private ProdottoDAO prodottoDAO = new ProdottoDAO();
+    private FornitoreDAO fornitoreDAO = new FornitoreDAO();
+    private ProdottoFornitoreListinoDAO listinoFornitoreDAO = new ProdottoFornitoreListinoDAO();
     
     // Lista giacenze
     private List<Magazzino> giacenze;
@@ -38,10 +45,14 @@ public class MagazzinoAction extends ActionSupport {
     
     // Lista prodotti (per stampa etichette)
     private List<Prodotto> prodotti;
+    private List<Fornitore> fornitori;
+    private List<ProdottoFornitoreListino> listiniFornitore;
+    private Map<Long, BigDecimal> giacenzeByProdottoId;
     
     // Movimento
     private MovimentoMagazzino movimento;
     private Long prodottoId;
+    private Long fornitoreId;
     private String tipoMovimento;
     private BigDecimal quantita;
     private String causale;
@@ -128,6 +139,9 @@ public class MagazzinoAction extends ActionSupport {
     public String nuovoMovimento() {
         try {
             prodotti = prodottoDAO.findAllActive();
+            fornitori = fornitoreDAO.findAll();
+            listiniFornitore = listinoFornitoreDAO.findAllActive();
+            giacenzeByProdottoId = buildGiacenzeMap();
             if (prodottoId != null) {
                 Prodotto prodotto = prodottoDAO.findById(prodottoId);
                 if (prodotto != null) {
@@ -151,14 +165,37 @@ public class MagazzinoAction extends ActionSupport {
         try {
             if (prodottoId == null || quantita == null) {
                 prodotti = prodottoDAO.findAllActive();
+                fornitori = fornitoreDAO.findAll();
+                listiniFornitore = listinoFornitoreDAO.findAllActive();
+                giacenzeByProdottoId = buildGiacenzeMap();
                 addActionError("Prodotto e quantità sono obbligatori");
+                return INPUT;
+            }
+            if (fornitoreId == null) {
+                prodotti = prodottoDAO.findAllActive();
+                fornitori = fornitoreDAO.findAll();
+                listiniFornitore = listinoFornitoreDAO.findAllActive();
+                giacenzeByProdottoId = buildGiacenzeMap();
+                addActionError("Selezionare il fornitore per il carico merce");
                 return INPUT;
             }
             
             Prodotto prodotto = prodottoDAO.findById(prodottoId);
             if (prodotto == null) {
                 prodotti = prodottoDAO.findAllActive();
+                fornitori = fornitoreDAO.findAll();
+                listiniFornitore = listinoFornitoreDAO.findAllActive();
+                giacenzeByProdottoId = buildGiacenzeMap();
                 addActionError("Prodotto non trovato");
+                return INPUT;
+            }
+            Fornitore fornitore = fornitoreDAO.findById(fornitoreId);
+            if (fornitore == null) {
+                prodotti = prodottoDAO.findAllActive();
+                fornitori = fornitoreDAO.findAll();
+                listiniFornitore = listinoFornitoreDAO.findAllActive();
+                giacenzeByProdottoId = buildGiacenzeMap();
+                addActionError("Fornitore non trovato");
                 return INPUT;
             }
             
@@ -168,6 +205,7 @@ public class MagazzinoAction extends ActionSupport {
             // Crea movimento
             MovimentoMagazzino mov = new MovimentoMagazzino();
             mov.setProdotto(prodotto);
+            mov.setFornitore(fornitore);
             mov.setTipoMovimento(MovimentoMagazzino.TipoMovimento.CARICO);
             mov.setQuantita(quantita);
             mov.setCausale(causale != null ? causale : "Carico merce");
@@ -188,6 +226,13 @@ public class MagazzinoAction extends ActionSupport {
             if (costoUnitario != null && costoUnitario.compareTo(BigDecimal.ZERO) > 0) {
                 BigDecimal valore = nuovaGiacenza.multiply(costoUnitario);
                 magazzino.setValoreMagazzino(valore);
+            } else {
+                ProdottoFornitoreListino listino = listinoFornitoreDAO.findByProdottoAndFornitore(prodottoId, fornitoreId);
+                if (listino != null && listino.getPrezzoAcquisto() != null) {
+                    mov.setCostoUnitario(listino.getPrezzoAcquisto());
+                    BigDecimal valore = nuovaGiacenza.multiply(listino.getPrezzoAcquisto());
+                    magazzino.setValoreMagazzino(valore);
+                }
             }
             
             // Imposta utente
@@ -221,6 +266,9 @@ public class MagazzinoAction extends ActionSupport {
         } catch (Exception e) {
             logger.error("Errore durante il carico merce", e);
             prodotti = prodottoDAO.findAllActive();
+            fornitori = fornitoreDAO.findAll();
+            listiniFornitore = listinoFornitoreDAO.findAllActive();
+            giacenzeByProdottoId = buildGiacenzeMap();
             addActionError("Errore durante il carico merce: " + e.getMessage());
             return ERROR;
         }
@@ -233,6 +281,9 @@ public class MagazzinoAction extends ActionSupport {
         try {
             if (prodottoId == null || quantita == null) {
                 prodotti = prodottoDAO.findAllActive();
+                fornitori = fornitoreDAO.findAll();
+                listiniFornitore = listinoFornitoreDAO.findAllActive();
+                giacenzeByProdottoId = buildGiacenzeMap();
                 addActionError("Prodotto e quantità sono obbligatori");
                 return INPUT;
             }
@@ -240,6 +291,9 @@ public class MagazzinoAction extends ActionSupport {
             Prodotto prodotto = prodottoDAO.findById(prodottoId);
             if (prodotto == null) {
                 prodotti = prodottoDAO.findAllActive();
+                fornitori = fornitoreDAO.findAll();
+                listiniFornitore = listinoFornitoreDAO.findAllActive();
+                giacenzeByProdottoId = buildGiacenzeMap();
                 addActionError("Prodotto non trovato");
                 return INPUT;
             }
@@ -248,6 +302,9 @@ public class MagazzinoAction extends ActionSupport {
             Magazzino magazzino = magazzinoDAO.findByProdotto(prodottoId);
             if (magazzino == null) {
                 prodotti = prodottoDAO.findAllActive();
+                fornitori = fornitoreDAO.findAll();
+                listiniFornitore = listinoFornitoreDAO.findAllActive();
+                giacenzeByProdottoId = buildGiacenzeMap();
                 addActionError("Giacenza non trovata per questo prodotto");
                 return INPUT;
             }
@@ -255,6 +312,9 @@ public class MagazzinoAction extends ActionSupport {
             // Verifica giacenza disponibile
             if (magazzino.getGiacenzaDisponibile().compareTo(quantita) < 0) {
                 prodotti = prodottoDAO.findAllActive();
+                fornitori = fornitoreDAO.findAll();
+                listiniFornitore = listinoFornitoreDAO.findAllActive();
+                giacenzeByProdottoId = buildGiacenzeMap();
                 addActionError("Giacenza disponibile insufficiente. Disponibile: " + magazzino.getGiacenzaDisponibile());
                 return INPUT;
             }
@@ -307,9 +367,23 @@ public class MagazzinoAction extends ActionSupport {
         } catch (Exception e) {
             logger.error("Errore durante lo scarico merce", e);
             prodotti = prodottoDAO.findAllActive();
+            fornitori = fornitoreDAO.findAll();
+            listiniFornitore = listinoFornitoreDAO.findAllActive();
+            giacenzeByProdottoId = buildGiacenzeMap();
             addActionError("Errore durante lo scarico merce: " + e.getMessage());
             return ERROR;
         }
+    }
+
+    private Map<Long, BigDecimal> buildGiacenzeMap() {
+        Map<Long, BigDecimal> map = new HashMap<>();
+        List<Magazzino> all = magazzinoDAO.findAll();
+        for (Magazzino g : all) {
+            if (g.getProdotto() != null && g.getProdotto().getId() != null) {
+                map.put(g.getProdotto().getId(), g.getGiacenzaAttuale() != null ? g.getGiacenzaAttuale() : BigDecimal.ZERO);
+            }
+        }
+        return map;
     }
     
     /**
@@ -455,10 +529,15 @@ public class MagazzinoAction extends ActionSupport {
     public List<Magazzino> getSottoScorta() { return sottoScorta; }
     public BigDecimal getValoreTotale() { return valoreTotale; }
     public List<Prodotto> getProdotti() { return prodotti; }
+    public List<Fornitore> getFornitori() { return fornitori; }
+    public List<ProdottoFornitoreListino> getListiniFornitore() { return listiniFornitore; }
+    public Map<Long, BigDecimal> getGiacenzeByProdottoId() { return giacenzeByProdottoId; }
     public MovimentoMagazzino getMovimento() { return movimento; }
     public void setMovimento(MovimentoMagazzino movimento) { this.movimento = movimento; }
     public Long getProdottoId() { return prodottoId; }
     public void setProdottoId(Long prodottoId) { this.prodottoId = prodottoId; }
+    public Long getFornitoreId() { return fornitoreId; }
+    public void setFornitoreId(Long fornitoreId) { this.fornitoreId = fornitoreId; }
     public String getTipoMovimento() { return tipoMovimento; }
     public void setTipoMovimento(String tipoMovimento) { this.tipoMovimento = tipoMovimento; }
     public BigDecimal getQuantita() { return quantita; }

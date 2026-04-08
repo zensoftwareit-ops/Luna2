@@ -145,6 +145,50 @@
                             </div>
                         </div>
 
+                        <h6 class="mt-3">Listini Fornitori (Prezzi di acquisto)</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm" id="listiniFornitoriTable">
+                                <thead>
+                                    <tr>
+                                        <th>Fornitore</th>
+                                        <th style="width: 220px;">Prezzo Acquisto (€)</th>
+                                        <th style="width: 80px;">Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="listiniFornitoriBody">
+                                    <s:if test="listiniFornitore != null && !listiniFornitore.isEmpty()">
+                                        <s:iterator value="listiniFornitore" var="lf" status="st">
+                                            <tr>
+                                                <td>
+                                                    <select name="listinoFornitoreIds[<s:property value='#st.index'/>]" class="form-select form-select-sm" required>
+                                                        <option value="">-- Seleziona fornitore --</option>
+                                                        <s:iterator value="fornitori" var="f">
+                                                            <option value="<s:property value='#f.id'/>" <s:if test="#lf.fornitore != null && #lf.fornitore.id == #f.id">selected</s:if>>
+                                                                <s:property value="#f.ragioneSociale"/>
+                                                            </option>
+                                                        </s:iterator>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="number" step="0.01" min="0" class="form-control form-control-sm"
+                                                           name="listinoPrezziAcquisto[<s:property value='#st.index'/>]"
+                                                           value="<s:property value='#lf.prezzoAcquisto'/>" required>
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger remove-listino-row">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        </s:iterator>
+                                    </s:if>
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="addListinoRowBtn">
+                            <i class="bi bi-plus-circle me-1"></i>Aggiungi Listino Fornitore
+                        </button>
+
                         <!-- Sezione Prodotto A Misura -->
                         <div id="sezioneMisura" class="tipo-prodotto-section">
                             <h5 class="border-bottom pb-2 mb-3 mt-4">Informazioni Prodotto a Misura</h5>
@@ -234,6 +278,54 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        const fornitoriOptionsHtml = `
+            <option value="">-- Seleziona fornitore --</option>
+            <s:iterator value="fornitori" var="f">
+                <option value="<s:property value='#f.id'/>"><s:property value="#f.ragioneSociale"/></option>
+            </s:iterator>
+        `;
+
+        function reindexListinoRows() {
+            const rows = document.querySelectorAll('#listiniFornitoriBody tr');
+            rows.forEach((row, idx) => {
+                const sel = row.querySelector('select');
+                const inp = row.querySelector('input');
+                if (sel) sel.name = `listinoFornitoreIds[${idx}]`;
+                if (inp) inp.name = `listinoPrezziAcquisto[${idx}]`;
+            });
+        }
+
+        document.getElementById('addListinoRowBtn').addEventListener('click', function() {
+            const body = document.getElementById('listiniFornitoriBody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>
+                    <select class="form-select form-select-sm" required>
+                        ${fornitoriOptionsHtml}
+                    </select>
+                </td>
+                <td>
+                    <input type="number" step="0.01" min="0" class="form-control form-control-sm" required>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-listino-row">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            `;
+            body.appendChild(tr);
+            reindexListinoRows();
+        });
+
+        document.getElementById('listiniFornitoriBody').addEventListener('click', function(e) {
+            const btn = e.target.closest('.remove-listino-row');
+            if (!btn) return;
+            btn.closest('tr').remove();
+            reindexListinoRows();
+        });
+
+        reindexListinoRows();
+
         document.getElementById('tipoProdottoSelect').addEventListener('change', function() {
             // Nascondi tutte le sezioni
             document.querySelectorAll('.tipo-prodotto-section').forEach(el => el.classList.remove('active'));

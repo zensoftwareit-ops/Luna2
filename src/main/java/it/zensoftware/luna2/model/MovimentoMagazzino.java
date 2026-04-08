@@ -16,6 +16,10 @@ public class MovimentoMagazzino implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "prodotto_id")
     private Prodotto prodotto;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "fornitore_id")
+    private Fornitore fornitore;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_movimento", nullable = false)
@@ -100,6 +104,14 @@ public class MovimentoMagazzino implements Serializable {
 
     public void setProdotto(Prodotto prodotto) {
         this.prodotto = prodotto;
+    }
+
+    public Fornitore getFornitore() {
+        return fornitore;
+    }
+
+    public void setFornitore(Fornitore fornitore) {
+        this.fornitore = fornitore;
     }
 
     public TipoMovimento getTipoMovimento() {
