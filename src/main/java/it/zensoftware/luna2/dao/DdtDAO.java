@@ -139,6 +139,14 @@ public class DdtDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
+
+            Number linkedFattura = (Number) session.createNativeQuery("SELECT fattura_id FROM ddt WHERE id = :id")
+                .setParameter("id", id)
+                .uniqueResult();
+            if (linkedFattura != null) {
+                throw new RuntimeException("DDT gia convertito in fattura: cancellazione non consentita");
+            }
+
             session.createNativeQuery("DELETE FROM ddt WHERE id = :id")
                 .setParameter("id", id)
                 .executeUpdate();
@@ -204,10 +212,10 @@ public class DdtDAO {
                 item.setProdottoId(r[2] != null ? ((Number) r[2]).longValue() : null);
                 item.setProdottoNome((String) r[3]);
                 item.setDescrizione((String) r[4]);
-                item.setQuantita(toBigDecimal(r[5]));
+                item.setQuantita(toBigDecimal(r[5], 3));
                 item.setPrezzoUnitario(toBigDecimal(r[6]));
                 item.setImponibileRiga(toBigDecimal(r[7]));
-                item.setIvaPercentuale(toBigDecimal(r[8]));
+                item.setIvaPercentuale(toBigDecimal(r[8], 2));
                 items.add(item);
             }
             return items;
@@ -369,13 +377,17 @@ public class DdtDAO {
     }
 
     private BigDecimal toBigDecimal(Object value) {
+        return toBigDecimal(value, 2);
+    }
+
+    private BigDecimal toBigDecimal(Object value, int scale) {
         if (value == null) {
-            return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            return BigDecimal.ZERO.setScale(scale, RoundingMode.HALF_UP);
         }
         if (value instanceof BigDecimal) {
-            return ((BigDecimal) value).setScale(2, RoundingMode.HALF_UP);
+            return ((BigDecimal) value).setScale(scale, RoundingMode.HALF_UP);
         }
-        return new BigDecimal(value.toString()).setScale(2, RoundingMode.HALF_UP);
+        return new BigDecimal(value.toString()).setScale(scale, RoundingMode.HALF_UP);
     }
 
     public static class DdtListItem {

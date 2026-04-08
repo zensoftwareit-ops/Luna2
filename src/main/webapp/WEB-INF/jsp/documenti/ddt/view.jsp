@@ -24,9 +24,12 @@
                         <a href="<s:url action='ddt-generatePdf' namespace='/app/documenti'><s:param name='id' value='id'/></s:url>" target="_blank" class="btn btn-success">
                             <i class="bi bi-file-pdf me-1"></i>PDF
                         </a>
-                        <a href="<s:url action='ddt-converti-fattura' namespace='/app/documenti'><s:param name='id' value='id'/></s:url>" class="btn btn-warning" onclick="return confirm('Convertire questo DDT in fattura?')">
-                            <i class="bi bi-arrow-left-right me-1"></i>Converti in fattura
-                        </a>
+                        <form method="post" action="<s:url action='ddt-converti-fattura' namespace='/app/documenti'/>" class="d-inline">
+                            <input type="hidden" name="id" value="<s:property value='id'/>">
+                            <button type="submit" class="btn btn-warning" onclick="return confirm('Convertire questo DDT in fattura?')">
+                                <i class="bi bi-arrow-left-right me-1"></i>Converti in fattura
+                            </button>
+                        </form>
                     </div>
                 </div>
 
@@ -124,11 +127,13 @@
                                                 <td>€ <s:property value="#r.imponibileRiga"/></td>
                                                 <td><s:property value="#r.ivaPercentuale"/></td>
                                                 <td>
-                                                    <a href="<s:url action='ddt-delete-riga' namespace='/app/documenti'><s:param name='id' value='id'/><s:param name='rigaId' value='#r.id'/></s:url>"
-                                                       class="btn btn-sm btn-outline-danger"
-                                                       onclick="return confirm('Eliminare questa riga?')">
-                                                        <i class="bi bi-trash"></i>
-                                                    </a>
+                                                    <form method="post" action="<s:url action='ddt-delete-riga' namespace='/app/documenti'/>" class="d-inline">
+                                                        <input type="hidden" name="id" value="<s:property value='id'/>">
+                                                        <input type="hidden" name="rigaId" value="<s:property value='#r.id'/>">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Eliminare questa riga?')">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
                                                 </td>
                                             </tr>
                                         </s:iterator>

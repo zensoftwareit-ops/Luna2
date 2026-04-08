@@ -130,18 +130,18 @@
                                                            class="btn btn-outline-success" title="Stampa PDF">
                                                             <i class="bi bi-file-pdf"></i>
                                                         </a>
-                                                        <a href="<s:url action='ddt-converti-fattura' namespace='/app/documenti'><s:param name='id' value='#d.id'/></s:url>"
-                                                           class="btn btn-outline-warning"
-                                                           onclick="return confirm('Convertire questo DDT in fattura?')"
-                                                           title="Converti in fattura">
-                                                            <i class="bi bi-arrow-left-right"></i>
-                                                        </a>
-                                                        <a href="<s:url action='ddt-delete' namespace='/app/documenti'><s:param name='id' value='#d.id'/></s:url>"
-                                                           class="btn btn-outline-danger"
-                                                           onclick="return confirm('Eliminare il DDT selezionato?')"
-                                                           title="Elimina DDT">
-                                                            <i class="bi bi-trash"></i>
-                                                        </a>
+                                                        <form method="post" action="<s:url action='ddt-converti-fattura' namespace='/app/documenti'/>" class="d-inline">
+                                                            <input type="hidden" name="id" value="<s:property value='#d.id'/>">
+                                                            <button type="submit" class="btn btn-outline-warning" onclick="return confirm('Convertire questo DDT in fattura?')" title="Converti in fattura">
+                                                                <i class="bi bi-arrow-left-right"></i>
+                                                            </button>
+                                                        </form>
+                                                        <form method="post" action="<s:url action='ddt-delete' namespace='/app/documenti'/>" class="d-inline">
+                                                            <input type="hidden" name="id" value="<s:property value='#d.id'/>">
+                                                            <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Eliminare il DDT selezionato?')" title="Elimina DDT">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
                                                     </div>
                                                 </td>
                                             </tr>
