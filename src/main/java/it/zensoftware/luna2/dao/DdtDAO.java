@@ -192,8 +192,8 @@ public class DdtDAO {
             }
             return items;
         } catch (Exception e) {
-            logger.error("Errore caricamento lista DDT", e);
-            throw new RuntimeException("Errore caricamento DDT", e);
+            logger.error("Errore caricamento lista DDT: {}", e.getMessage(), e);
+            return new ArrayList<>();
         }
     }
 

@@ -74,7 +74,6 @@ public class DdtAction extends ActionSupport {
             ddtList = ddtDAO.findAll(anno, searchTerm);
             clienti = clienteDAO.findAll();
         } catch (Exception e) {
-            addActionError("Errore caricamento DDT: " + e.getMessage());
             ddtList = java.util.Collections.emptyList();
             clienti = java.util.Collections.emptyList();
         }
