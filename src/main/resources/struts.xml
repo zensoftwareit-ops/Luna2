@@ -756,11 +756,55 @@
             <result name="success">/WEB-INF/jsp/documenti/ddt/list.jsp</result>
         </action>
 
+        <action name="ddt-view" class="it.zensoftware.luna2.action.DdtAction" method="view">
+            <result name="view">/WEB-INF/jsp/documenti/ddt/view.jsp</result>
+            <result name="success">/WEB-INF/jsp/documenti/ddt/list.jsp</result>
+        </action>
+
         <action name="ddt-save" class="it.zensoftware.luna2.action.DdtAction" method="save">
             <result name="success" type="redirectAction">
                 <param name="actionName">ddt</param>
             </result>
             <result name="input">/WEB-INF/jsp/documenti/ddt/list.jsp</result>
+        </action>
+
+        <action name="ddt-add-riga" class="it.zensoftware.luna2.action.DdtAction" method="addRiga">
+            <result name="view">/WEB-INF/jsp/documenti/ddt/view.jsp</result>
+            <result name="success" type="redirectAction">
+                <param name="actionName">ddt-view</param>
+                <param name="id">${id}</param>
+            </result>
+        </action>
+
+        <action name="ddt-delete-riga" class="it.zensoftware.luna2.action.DdtAction" method="deleteRiga">
+            <result name="view">/WEB-INF/jsp/documenti/ddt/view.jsp</result>
+            <result name="success" type="redirectAction">
+                <param name="actionName">ddt-view</param>
+                <param name="id">${id}</param>
+            </result>
+        </action>
+
+        <action name="ddt-generatePdf" class="it.zensoftware.luna2.action.DdtAction" method="generatePdf">
+            <result name="success" type="stream">
+                <param name="inputName">inputStream</param>
+                <param name="contentType">application/pdf</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error" type="redirectAction">
+                <param name="actionName">ddt</param>
+            </result>
+        </action>
+
+        <action name="ddt-converti-fattura" class="it.zensoftware.luna2.action.DdtAction" method="convertToFattura">
+            <result name="redirect-fattura" type="redirectAction">
+                <param name="actionName">fatture-edit</param>
+                <param name="id">${id}</param>
+            </result>
+            <result name="view">/WEB-INF/jsp/documenti/ddt/view.jsp</result>
+            <result name="success" type="redirectAction">
+                <param name="actionName">ddt</param>
+            </result>
         </action>
 
         <action name="ddt-delete" class="it.zensoftware.luna2.action.DdtAction" method="delete">
