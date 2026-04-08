@@ -11,6 +11,8 @@ import org.hibernate.query.NativeQuery;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.Date;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -21,9 +23,135 @@ import java.util.List;
 public class DdtDAO {
 
     private static final Logger logger = LogManager.getLogger(DdtDAO.class);
+    private static volatile boolean schemaChecked = false;
+
+    private void ensureSchema(Session session) {
+        if (schemaChecked) {
+            return;
+        }
+
+        synchronized (DdtDAO.class) {
+            if (schemaChecked) {
+                return;
+            }
+
+            session.doWork(connection -> {
+                ensureDdtTable(connection);
+                ensureDdtRigheTable(connection);
+            });
+
+            schemaChecked = true;
+            logger.info("Schema DDT verificato/inizializzato correttamente");
+        }
+    }
+
+    private void ensureDdtTable(Connection connection) throws java.sql.SQLException {
+        DatabaseMetaData metaData = connection.getMetaData();
+        boolean hasDdt = hasTable(metaData, "ddt");
+
+        try (java.sql.Statement st = connection.createStatement()) {
+            if (!hasDdt) {
+                st.executeUpdate(
+                    "CREATE TABLE ddt (" +
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+                        "numero VARCHAR(50) NOT NULL UNIQUE," +
+                        "anno INT NOT NULL," +
+                        "data_ddt DATE NOT NULL," +
+                        "cliente_id BIGINT NOT NULL," +
+                        "ordine_id BIGINT," +
+                        "causale_trasporto VARCHAR(100)," +
+                        "aspetto_beni VARCHAR(100)," +
+                        "numero_colli INT," +
+                        "peso DECIMAL(10,2)," +
+                        "trasportatore VARCHAR(255)," +
+                        "indirizzo_destinazione TEXT," +
+                        "note TEXT," +
+                        "imponibile DECIMAL(15,2) NOT NULL DEFAULT 0.00," +
+                        "iva DECIMAL(15,2) NOT NULL DEFAULT 0.00," +
+                        "totale DECIMAL(15,2) NOT NULL DEFAULT 0.00," +
+                        "fattura_id BIGINT," +
+                        "data_creazione TIMESTAMP DEFAULT CURRENT_TIMESTAMP," +
+                        "created_by BIGINT" +
+                    ")"
+                );
+            }
+
+            ensureColumn(connection, st, "ddt", "causale_trasporto", "ALTER TABLE ddt ADD COLUMN causale_trasporto VARCHAR(100)");
+            ensureColumn(connection, st, "ddt", "aspetto_beni", "ALTER TABLE ddt ADD COLUMN aspetto_beni VARCHAR(100)");
+            ensureColumn(connection, st, "ddt", "numero_colli", "ALTER TABLE ddt ADD COLUMN numero_colli INT");
+            ensureColumn(connection, st, "ddt", "trasportatore", "ALTER TABLE ddt ADD COLUMN trasportatore VARCHAR(255)");
+            ensureColumn(connection, st, "ddt", "indirizzo_destinazione", "ALTER TABLE ddt ADD COLUMN indirizzo_destinazione TEXT");
+            ensureColumn(connection, st, "ddt", "note", "ALTER TABLE ddt ADD COLUMN note TEXT");
+            ensureColumn(connection, st, "ddt", "imponibile", "ALTER TABLE ddt ADD COLUMN imponibile DECIMAL(15,2) NOT NULL DEFAULT 0.00");
+            ensureColumn(connection, st, "ddt", "iva", "ALTER TABLE ddt ADD COLUMN iva DECIMAL(15,2) NOT NULL DEFAULT 0.00");
+            ensureColumn(connection, st, "ddt", "totale", "ALTER TABLE ddt ADD COLUMN totale DECIMAL(15,2) NOT NULL DEFAULT 0.00");
+            ensureColumn(connection, st, "ddt", "fattura_id", "ALTER TABLE ddt ADD COLUMN fattura_id BIGINT");
+            ensureColumn(connection, st, "ddt", "created_by", "ALTER TABLE ddt ADD COLUMN created_by BIGINT");
+        }
+    }
+
+    private void ensureDdtRigheTable(Connection connection) throws java.sql.SQLException {
+        DatabaseMetaData metaData = connection.getMetaData();
+        boolean hasDdtRighe = hasTable(metaData, "ddt_righe");
+
+        try (java.sql.Statement st = connection.createStatement()) {
+            if (!hasDdtRighe) {
+                st.executeUpdate(
+                    "CREATE TABLE ddt_righe (" +
+                        "id BIGINT AUTO_INCREMENT PRIMARY KEY," +
+                        "ddt_id BIGINT NOT NULL," +
+                        "riga_numero INT NOT NULL," +
+                        "tipo_riga VARCHAR(20) NOT NULL DEFAULT 'PRODOTTO'," +
+                        "prodotto_id BIGINT," +
+                        "descrizione TEXT NOT NULL," +
+                        "quantita DECIMAL(15,3) DEFAULT 1.000," +
+                        "prezzo_unitario DECIMAL(15,2) DEFAULT 0.00," +
+                        "imponibile_riga DECIMAL(15,2) DEFAULT 0.00," +
+                        "iva_percentuale DECIMAL(5,2) DEFAULT 22.00" +
+                    ")"
+                );
+            }
+
+            ensureColumn(connection, st, "ddt_righe", "riga_numero", "ALTER TABLE ddt_righe ADD COLUMN riga_numero INT NOT NULL DEFAULT 1");
+            ensureColumn(connection, st, "ddt_righe", "tipo_riga", "ALTER TABLE ddt_righe ADD COLUMN tipo_riga VARCHAR(20) NOT NULL DEFAULT 'PRODOTTO'");
+            ensureColumn(connection, st, "ddt_righe", "prezzo_unitario", "ALTER TABLE ddt_righe ADD COLUMN prezzo_unitario DECIMAL(15,2) DEFAULT 0.00");
+            ensureColumn(connection, st, "ddt_righe", "imponibile_riga", "ALTER TABLE ddt_righe ADD COLUMN imponibile_riga DECIMAL(15,2) DEFAULT 0.00");
+            ensureColumn(connection, st, "ddt_righe", "iva_percentuale", "ALTER TABLE ddt_righe ADD COLUMN iva_percentuale DECIMAL(5,2) DEFAULT 22.00");
+        }
+    }
+
+    private boolean hasTable(DatabaseMetaData metaData, String tableName) throws java.sql.SQLException {
+        try (java.sql.ResultSet rs = metaData.getTables(null, null, tableName, null)) {
+            if (rs.next()) {
+                return true;
+            }
+        }
+        try (java.sql.ResultSet rs = metaData.getTables(null, null, tableName.toUpperCase(), null)) {
+            return rs.next();
+        }
+    }
+
+    private boolean hasColumn(Connection connection, String tableName, String columnName) throws java.sql.SQLException {
+        DatabaseMetaData metaData = connection.getMetaData();
+        try (java.sql.ResultSet rs = metaData.getColumns(null, null, tableName, columnName)) {
+            if (rs.next()) {
+                return true;
+            }
+        }
+        try (java.sql.ResultSet rs = metaData.getColumns(null, null, tableName.toUpperCase(), columnName.toUpperCase())) {
+            return rs.next();
+        }
+    }
+
+    private void ensureColumn(Connection connection, java.sql.Statement st, String tableName, String columnName, String alterSql) throws java.sql.SQLException {
+        if (!hasColumn(connection, tableName, columnName)) {
+            st.executeUpdate(alterSql);
+        }
+    }
 
     public List<DdtListItem> findAll(Integer anno, String searchTerm) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            ensureSchema(session);
             StringBuilder sql = new StringBuilder(
                 "SELECT d.id, d.numero, d.anno, d.data_ddt, c.ragione_sociale, d.causale_trasporto, d.trasportatore, d.numero_colli, d.totale " +
                 "FROM ddt d " +
@@ -108,6 +236,7 @@ public class DdtDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
+            ensureSchema(session);
             String sql = "INSERT INTO ddt (numero, anno, data_ddt, cliente_id, causale_trasporto, aspetto_beni, numero_colli, trasportatore, indirizzo_destinazione, note, imponibile, iva, totale, created_by) " +
                 "VALUES (:numero, :anno, :dataDdt, :clienteId, :causale, :aspetto, :colli, :trasportatore, :indirizzo, :note, 0, 0, 0, :createdBy)";
 
@@ -139,6 +268,7 @@ public class DdtDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
+            ensureSchema(session);
 
             Number linkedFattura = (Number) session.createNativeQuery("SELECT fattura_id FROM ddt WHERE id = :id")
                 .setParameter("id", id)
@@ -162,6 +292,7 @@ public class DdtDAO {
 
     public DdtHeader findHeaderById(Long id) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            ensureSchema(session);
             String sql = "SELECT d.id, d.numero, d.anno, d.data_ddt, d.cliente_id, c.ragione_sociale, d.causale_trasporto, d.aspetto_beni, d.numero_colli, d.trasportatore, d.indirizzo_destinazione, d.note, d.imponibile, d.iva, d.totale, d.fattura_id " +
                 "FROM ddt d JOIN clienti c ON c.id = d.cliente_id WHERE d.id = :id";
             Object[] r = (Object[]) session.createNativeQuery(sql)
@@ -198,6 +329,7 @@ public class DdtDAO {
 
     public List<DdtRigaItem> findRigheByDdtId(Long ddtId) {
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
+            ensureSchema(session);
             String sql = "SELECT r.id, r.riga_numero, r.prodotto_id, p.nome, r.descrizione, r.quantita, r.prezzo_unitario, r.imponibile_riga, r.iva_percentuale " +
                 "FROM ddt_righe r LEFT JOIN prodotti p ON p.id = r.prodotto_id WHERE r.ddt_id = :ddtId ORDER BY r.riga_numero ASC";
             List<Object[]> rows = session.createNativeQuery(sql, Object[].class)
@@ -229,6 +361,7 @@ public class DdtDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
+            ensureSchema(session);
 
             Integer nextRiga = ((Number) session.createNativeQuery("SELECT COALESCE(MAX(riga_numero),0)+1 FROM ddt_righe WHERE ddt_id = :ddtId")
                 .setParameter("ddtId", ddtId)
@@ -265,6 +398,7 @@ public class DdtDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
+            ensureSchema(session);
             session.createNativeQuery("DELETE FROM ddt_righe WHERE id = :id")
                 .setParameter("id", rigaId)
                 .executeUpdate();
@@ -283,6 +417,7 @@ public class DdtDAO {
         Transaction tx = null;
         try (Session session = HibernateUtil.getSessionFactory().openSession()) {
             tx = session.beginTransaction();
+            ensureSchema(session);
 
             DdtHeader header = findHeaderById(ddtId);
             if (header == null) {
