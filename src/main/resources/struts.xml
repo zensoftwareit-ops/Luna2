@@ -755,6 +755,19 @@
         <action name="ddt" class="it.zensoftware.luna2.action.DdtAction" method="list">
             <result name="success">/WEB-INF/jsp/documenti/ddt/list.jsp</result>
         </action>
+
+        <action name="ddt-save" class="it.zensoftware.luna2.action.DdtAction" method="save">
+            <result name="success" type="redirectAction">
+                <param name="actionName">ddt</param>
+            </result>
+            <result name="input">/WEB-INF/jsp/documenti/ddt/list.jsp</result>
+        </action>
+
+        <action name="ddt-delete" class="it.zensoftware.luna2.action.DdtAction" method="delete">
+            <result name="success" type="redirectAction">
+                <param name="actionName">ddt</param>
+            </result>
+        </action>
     </package>
 
     <!-- Lead/CRM Package -->
