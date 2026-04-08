@@ -8,6 +8,8 @@
     <title>Movimento Magazzino - Luna2</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" />
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -152,25 +154,39 @@
                             </div>
                         </s:if>
 
-                        <s:form action="%{tipoMovimento == 'CARICO' ? 'carico' : 'scarico'}" namespace="/app/magazzino" method="post" cssClass="needs-validation">
+                        <s:form action="%{tipoMovimento == 'CARICO' ? 'carico' : 'scarico'}" namespace="/app/magazzino" method="post" cssClass="needs-validation" theme="simple">
                             <!-- Prodotto -->
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Prodotto *</label>
-                                <s:if test="movimento != null && movimento.prodotto != null">
-                                    <div class="alert alert-info">
-                                        <h6><s:property value="movimento.prodotto.nome"/></h6>
-                                        <p class="mb-0">
-                                            <strong>Codice:</strong> <code><s:property value="movimento.prodotto.codice"/></code>
-                                            <s:if test="movimento.prodotto.codiceEan != null">
-                                                | <strong>EAN:</strong> <code><s:property value="movimento.prodotto.codiceEan"/></code>
+                                <select name="prodottoId" class="form-select select2-prodotto" required>
+                                    <option value="">-- Cerca per codice, nome o barcode --</option>
+                                    <s:iterator value="prodotti" var="p">
+                                        <option value="<s:property value='#p.id'/>"
+                                            <s:if test="prodottoId != null && prodottoId == #p.id">selected</s:if>>
+                                            <s:property value="#p.codice"/> - <s:property value="#p.nome"/>
+                                            <s:if test="#p.codiceEan != null && #p.codiceEan.trim().length() > 0">
+                                                [<s:property value="#p.codiceEan"/>]
                                             </s:if>
-                                        </p>
-                                    </div>
-                                    <s:hidden name="prodottoId" value="%{movimento.prodotto.id}"/>
-                                </s:if>
-                                <s:else>
-                                    <s:textfield name="prodottoId" cssClass="form-control" placeholder="ID Prodotto" required="true"/>
-                                </s:else>
+                                        </option>
+                                    </s:iterator>
+                                </select>
+                                <small class="form-text text-muted">
+                                    <i class="bi bi-search me-1"></i>
+                                    Digita per cercare, oppure usa la pistola barcode nel campo sotto.
+                                </small>
+                            </div>
+
+                            <!-- Scanner barcode -->
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">Barcode scanner</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+                                    <input type="text" id="barcodeInputQuick" class="form-control"
+                                           placeholder="Scansiona EAN/Codice prodotto e premi Invio">
+                                </div>
+                                <small class="form-text text-muted">
+                                    Con scanner USB/HID il codice viene inserito come tastiera e seleziona automaticamente il prodotto.
+                                </small>
                             </div>
 
                             <!-- Data Movimento -->
@@ -240,6 +256,52 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            const $prodotto = $('.select2-prodotto');
+            const $barcode = $('#barcodeInputQuick');
+
+            $prodotto.select2({
+                theme: 'bootstrap-5',
+                placeholder: '-- Cerca per codice, nome o barcode --',
+                width: '100%'
+            });
+
+            function normalize(v) {
+                return (v || '').toString().trim().toLowerCase();
+            }
+
+            function selectProductByCodeOrBarcode(scanned) {
+                const key = normalize(scanned);
+                if (!key) return false;
+
+                let found = false;
+                $prodotto.find('option').each(function() {
+                    const text = normalize($(this).text());
+                    if (text.includes(key)) {
+                        $prodotto.val($(this).val()).trigger('change');
+                        found = true;
+                        return false;
+                    }
+                });
+                return found;
+            }
+
+            $barcode.on('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const scanned = $(this).val();
+                    const ok = selectProductByCodeOrBarcode(scanned);
+                    if (!ok) {
+                        alert('Prodotto non trovato per codice/barcode: ' + scanned);
+                    }
+                    $(this).val('');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

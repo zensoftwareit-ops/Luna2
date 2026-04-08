@@ -127,6 +127,7 @@ public class MagazzinoAction extends ActionSupport {
      */
     public String nuovoMovimento() {
         try {
+            prodotti = prodottoDAO.findAllActive();
             if (prodottoId != null) {
                 Prodotto prodotto = prodottoDAO.findById(prodottoId);
                 if (prodotto != null) {
@@ -149,12 +150,14 @@ public class MagazzinoAction extends ActionSupport {
     public String carico() {
         try {
             if (prodottoId == null || quantita == null) {
+                prodotti = prodottoDAO.findAllActive();
                 addActionError("Prodotto e quantità sono obbligatori");
                 return INPUT;
             }
             
             Prodotto prodotto = prodottoDAO.findById(prodottoId);
             if (prodotto == null) {
+                prodotti = prodottoDAO.findAllActive();
                 addActionError("Prodotto non trovato");
                 return INPUT;
             }
@@ -217,6 +220,7 @@ public class MagazzinoAction extends ActionSupport {
             
         } catch (Exception e) {
             logger.error("Errore durante il carico merce", e);
+            prodotti = prodottoDAO.findAllActive();
             addActionError("Errore durante il carico merce: " + e.getMessage());
             return ERROR;
         }
@@ -228,12 +232,14 @@ public class MagazzinoAction extends ActionSupport {
     public String scarico() {
         try {
             if (prodottoId == null || quantita == null) {
+                prodotti = prodottoDAO.findAllActive();
                 addActionError("Prodotto e quantità sono obbligatori");
                 return INPUT;
             }
             
             Prodotto prodotto = prodottoDAO.findById(prodottoId);
             if (prodotto == null) {
+                prodotti = prodottoDAO.findAllActive();
                 addActionError("Prodotto non trovato");
                 return INPUT;
             }
@@ -241,12 +247,14 @@ public class MagazzinoAction extends ActionSupport {
             // Recupera magazzino
             Magazzino magazzino = magazzinoDAO.findByProdotto(prodottoId);
             if (magazzino == null) {
+                prodotti = prodottoDAO.findAllActive();
                 addActionError("Giacenza non trovata per questo prodotto");
                 return INPUT;
             }
             
             // Verifica giacenza disponibile
             if (magazzino.getGiacenzaDisponibile().compareTo(quantita) < 0) {
+                prodotti = prodottoDAO.findAllActive();
                 addActionError("Giacenza disponibile insufficiente. Disponibile: " + magazzino.getGiacenzaDisponibile());
                 return INPUT;
             }
@@ -298,6 +306,7 @@ public class MagazzinoAction extends ActionSupport {
             
         } catch (Exception e) {
             logger.error("Errore durante lo scarico merce", e);
+            prodotti = prodottoDAO.findAllActive();
             addActionError("Errore durante lo scarico merce: " + e.getMessage());
             return ERROR;
         }
