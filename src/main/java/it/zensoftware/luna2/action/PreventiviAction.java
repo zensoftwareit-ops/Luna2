@@ -212,9 +212,33 @@ public class PreventiviAction extends ActionSupport {
                     PreventivoRiga riga = righe.get(i);
                     if (riga != null && riga.getDescrizione() != null && !riga.getDescrizione().isEmpty()) {
                         riga.setPreventivo(preventivo);
+                        if (riga.getTipoRiga() == null) {
+                            riga.setTipoRiga(PreventivoRiga.TipoRiga.PRODOTTO);
+                        }
                         if (riga.getRigaNumero() == null || riga.getRigaNumero() == 0) {
                             riga.setRigaNumero(i + 1);
                         }
+
+                        if (riga.getQuantita() == null) {
+                            riga.setQuantita(BigDecimal.ONE);
+                        }
+                        if (riga.getPrezzoUnitario() == null) {
+                            riga.setPrezzoUnitario(BigDecimal.ZERO);
+                        }
+                        if (riga.getScontoPercentuale() == null) {
+                            riga.setScontoPercentuale(BigDecimal.ZERO);
+                        }
+                        if (riga.getIvaPercentuale() == null) {
+                            riga.setIvaPercentuale(new BigDecimal("22.00"));
+                        }
+
+                        if (riga.getProdotto() != null && riga.getProdotto().getId() != null) {
+                            Prodotto prodottoPersistente = prodottoDAO.findById(riga.getProdotto().getId());
+                            riga.setProdotto(prodottoPersistente);
+                        } else {
+                            riga.setProdotto(null);
+                        }
+
                         preventivoRigaDAO.save(riga);
                     }
                 }

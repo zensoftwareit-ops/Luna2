@@ -459,21 +459,72 @@
 
         function syncRigheHiddenFields() {
             const container = $('#righeHiddenFields');
-            const fields = ['rigaNumero', 'descrizione', 'quantita', 'unitaMisura',
-                            'prezzoUnitario', 'scontoPercentuale', 'ivaPercentuale', 'note'];
 
             container.empty();
             $('#righeCount').val(righe.length);
 
             righe.forEach((riga, index) => {
-                fields.forEach(key => {
-                    const value = riga[key] != null ? riga[key] : '';
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].rigaNumero`,
+                    value: riga.rigaNumero != null ? riga.rigaNumero : (index + 1)
+                }).appendTo(container);
+
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].tipoRiga`,
+                    value: riga.tipoRiga || 'PRODOTTO'
+                }).appendTo(container);
+
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].descrizione`,
+                    value: riga.descrizione != null ? riga.descrizione : ''
+                }).appendTo(container);
+
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].quantita`,
+                    value: riga.quantita != null ? riga.quantita : 0
+                }).appendTo(container);
+
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].unitaMisura`,
+                    value: riga.unitaMisura != null ? riga.unitaMisura : 'PEZZO'
+                }).appendTo(container);
+
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].prezzoUnitario`,
+                    value: riga.prezzoUnitario != null ? riga.prezzoUnitario : 0
+                }).appendTo(container);
+
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].scontoPercentuale`,
+                    value: riga.scontoPercentuale != null ? riga.scontoPercentuale : 0
+                }).appendTo(container);
+
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].ivaPercentuale`,
+                    value: riga.ivaPercentuale != null ? riga.ivaPercentuale : 22
+                }).appendTo(container);
+
+                $('<input>', {
+                    type: 'hidden',
+                    name: `righe[${index}].note`,
+                    value: riga.note != null ? riga.note : ''
+                }).appendTo(container);
+
+                if (riga.prodottoId != null && riga.prodottoId !== '') {
                     $('<input>', {
                         type: 'hidden',
-                        name: `righe[${index}].${key}`,
-                        value: value
+                        name: `righe[${index}].prodotto.id`,
+                        value: riga.prodottoId
                     }).appendTo(container);
-                });
+                }
             });
         }
 
@@ -482,13 +533,15 @@
             <s:iterator value="righe" var="r">
                 righe.push({
                     id: <s:property value='#r.id'/>,
-                    rigaNumero: <s:property value='#r.rigaNumero'/>,
+                    rigaNumero: <s:property value='#r.rigaNumero != null ? #r.rigaNumero : 0'/>,
+                    tipoRiga: '<s:property value="#r.tipoRiga != null ? #r.tipoRiga.name() : \"PRODOTTO\""/>',
+                    prodottoId: <s:property value="#r.prodotto != null && #r.prodotto.id != null ? #r.prodotto.id : 'null'"/>,
                     descrizione: '<s:property value="#r.descrizione" escapeJavaScript="true"/>',
-                    quantita: <s:property value='#r.quantita'/>,
+                    quantita: <s:property value='#r.quantita != null ? #r.quantita : 0'/>,
                     unitaMisura: '<s:property value="#r.unitaMisura" escapeJavaScript="true"/>',
-                    prezzoUnitario: <s:property value='#r.prezzoUnitario'/>,
-                    scontoPercentuale: <s:property value='#r.scontoPercentuale'/>,
-                    ivaPercentuale: <s:property value='#r.ivaPercentuale'/>,
+                    prezzoUnitario: <s:property value='#r.prezzoUnitario != null ? #r.prezzoUnitario : 0'/>,
+                    scontoPercentuale: <s:property value='#r.scontoPercentuale != null ? #r.scontoPercentuale : 0'/>,
+                    ivaPercentuale: <s:property value='#r.ivaPercentuale != null ? #r.ivaPercentuale : 22'/>,
                     note: '<s:property value="#r.note" escapeJavaScript="true"/>'
                 });
             </s:iterator>
@@ -527,9 +580,12 @@
         $('#saveRigaBtn').click(function() {
             const rigaId = $('#rigaId').val();
             const existingRiga = rigaId ? righe.find(r => normalizeRigaId(r.id) === normalizeRigaId(rigaId)) : null;
+            const prodottoSelezionato = $('#rigaProdotto').val();
             const riga = {
                 id: rigaId || null,
                 rigaNumero: existingRiga ? existingRiga.rigaNumero : (++rigaCounter),
+                tipoRiga: 'PRODOTTO',
+                prodottoId: prodottoSelezionato ? parseInt(prodottoSelezionato, 10) : null,
                 descrizione: $('#rigaDescrizione').val(),
                 quantita: parseFloat($('#rigaQuantita').val()) || 0,
                 unitaMisura: $('#rigaUnitaMisura').val(),
@@ -580,6 +636,7 @@
                 $('#rigaScontoPercentuale').val(riga.scontoPercentuale);
                 $('#rigaIvaPercentuale').val(riga.ivaPercentuale);
                 $('#rigaNote').val(riga.note || '');
+                $('#rigaProdotto').val(riga.prodottoId || '').trigger('change');
                 const modal = getRigaModalInstance();
                 if (modal) {
                     modal.show();
