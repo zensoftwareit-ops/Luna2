@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.ArrayList;
 import java.util.Properties;
+import javax.servlet.http.HttpServletRequest;
 
 public class PreventiviAction extends ActionSupport {
     private static final Logger logger = LogManager.getLogger(PreventiviAction.class);
@@ -149,6 +150,7 @@ public class PreventiviAction extends ActionSupport {
 
     public String save() {
         User currentUser = getCurrentUser();
+        List<PreventivoRiga> righeDaSalvare = resolveRigheForSave();
         
         // Parsa la data dal formato HTML yyyy-MM-dd
         Date dataParsed = null;
@@ -207,9 +209,9 @@ public class PreventiviAction extends ActionSupport {
             }
             
             // Salva le righe dal form
-            if (righe != null && !righe.isEmpty()) {
-                for (int i = 0; i < righe.size(); i++) {
-                    PreventivoRiga riga = righe.get(i);
+            if (righeDaSalvare != null && !righeDaSalvare.isEmpty()) {
+                for (int i = 0; i < righeDaSalvare.size(); i++) {
+                    PreventivoRiga riga = righeDaSalvare.get(i);
                     if (riga != null && riga.getDescrizione() != null && !riga.getDescrizione().isEmpty()) {
                         riga.setPreventivo(preventivo);
                         if (riga.getTipoRiga() == null) {
@@ -1143,6 +1145,103 @@ public class PreventiviAction extends ActionSupport {
     private User getCurrentUser() {
         Map<String, Object> session = com.opensymphony.xwork2.ActionContext.getContext().getSession();
         return (User) session.get("currentUser");
+    }
+
+    private List<PreventivoRiga> resolveRigheForSave() {
+        if (righe != null && !righe.isEmpty()) {
+            return righe;
+        }
+
+        if (righeCount == null || righeCount <= 0) {
+            return righe;
+        }
+
+        HttpServletRequest request = ServletActionContext.getRequest();
+        if (request == null) {
+            return righe;
+        }
+
+        List<PreventivoRiga> parsed = new ArrayList<>();
+        for (int i = 0; i < righeCount; i++) {
+            String descrizione = trimToNull(request.getParameter("righe[" + i + "].descrizione"));
+            if (descrizione == null) {
+                continue;
+            }
+
+            PreventivoRiga r = new PreventivoRiga();
+            r.setDescrizione(descrizione);
+            r.setRigaNumero(parseInteger(request.getParameter("righe[" + i + "].rigaNumero"), i + 1));
+            r.setTipoRiga(parseTipoRiga(request.getParameter("righe[" + i + "].tipoRiga")));
+            r.setQuantita(parseBigDecimal(request.getParameter("righe[" + i + "].quantita"), BigDecimal.ONE));
+            r.setUnitaMisura(trimToNull(request.getParameter("righe[" + i + "].unitaMisura")));
+            r.setPrezzoUnitario(parseBigDecimal(request.getParameter("righe[" + i + "].prezzoUnitario"), BigDecimal.ZERO));
+            r.setScontoPercentuale(parseBigDecimal(request.getParameter("righe[" + i + "].scontoPercentuale"), BigDecimal.ZERO));
+            r.setIvaPercentuale(parseBigDecimal(request.getParameter("righe[" + i + "].ivaPercentuale"), new BigDecimal("22.00")));
+            r.setNote(trimToNull(request.getParameter("righe[" + i + "].note")));
+
+            String prodottoIdParam = trimToNull(request.getParameter("righe[" + i + "].prodotto.id"));
+            if (prodottoIdParam != null) {
+                try {
+                    Prodotto prodotto = prodottoDAO.findById(Long.parseLong(prodottoIdParam));
+                    r.setProdotto(prodotto);
+                } catch (NumberFormatException ex) {
+                    logger.warn("Prodotto id non valido per riga {}: {}", i, prodottoIdParam);
+                }
+            }
+
+            parsed.add(r);
+        }
+
+        if (!parsed.isEmpty()) {
+            logger.info("Fallback parsing righe attivato: {} righe lette dalla request", parsed.size());
+            return parsed;
+        }
+
+        return righe;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private BigDecimal parseBigDecimal(String value, BigDecimal defaultValue) {
+        String v = trimToNull(value);
+        if (v == null) {
+            return defaultValue;
+        }
+        try {
+            return new BigDecimal(v.replace(',', '.'));
+        } catch (NumberFormatException ex) {
+            return defaultValue;
+        }
+    }
+
+    private Integer parseInteger(String value, Integer defaultValue) {
+        String v = trimToNull(value);
+        if (v == null) {
+            return defaultValue;
+        }
+        try {
+            return Integer.parseInt(v);
+        } catch (NumberFormatException ex) {
+            return defaultValue;
+        }
+    }
+
+    private PreventivoRiga.TipoRiga parseTipoRiga(String value) {
+        String v = trimToNull(value);
+        if (v == null) {
+            return PreventivoRiga.TipoRiga.PRODOTTO;
+        }
+        try {
+            return PreventivoRiga.TipoRiga.valueOf(v);
+        } catch (IllegalArgumentException ex) {
+            return PreventivoRiga.TipoRiga.PRODOTTO;
+        }
     }
 
     private String resolveOwnerUserId(Preventivo trackedPreventivo) {
