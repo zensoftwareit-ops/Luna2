@@ -92,6 +92,7 @@
                 <s:hidden name="preventivo.numero"/>
                 <s:hidden name="preventivo.anno"/>
                 <input type="hidden" name="righeCount" id="righeCount" value="0">
+                <input type="hidden" name="righeJson" id="righeJson" value="[]">
                 <div id="righeHiddenFields"></div>
 
                 <!-- Dati Generali -->
@@ -463,67 +464,37 @@
             container.empty();
             $('#righeCount').val(righe.length);
 
+            // Serializza righe come JSON (metodo principale, 100% affidabile)
+            try {
+                const righeData = righe.map(r => ({
+                    rigaNumero: r.rigaNumero,
+                    tipoRiga: r.tipoRiga || 'PRODOTTO',
+                    prodottoId: r.prodottoId || null,
+                    descrizione: r.descrizione || '',
+                    quantita: r.quantita != null ? r.quantita : 1,
+                    unitaMisura: r.unitaMisura || 'PEZZO',
+                    prezzoUnitario: r.prezzoUnitario != null ? r.prezzoUnitario : 0,
+                    scontoPercentuale: r.scontoPercentuale != null ? r.scontoPercentuale : 0,
+                    ivaPercentuale: r.ivaPercentuale != null ? r.ivaPercentuale : 22,
+                    note: r.note || ''
+                }));
+                $('#righeJson').val(JSON.stringify(righeData));
+            } catch(e) {
+                console.error('Errore serializzazione righe JSON:', e);
+            }
+
+            // Mantieni anche hidden fields singoli come fallback secondario
             righe.forEach((riga, index) => {
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].rigaNumero`,
-                    value: riga.rigaNumero != null ? riga.rigaNumero : (index + 1)
-                }).appendTo(container);
-
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].tipoRiga`,
-                    value: riga.tipoRiga || 'PRODOTTO'
-                }).appendTo(container);
-
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].descrizione`,
-                    value: riga.descrizione != null ? riga.descrizione : ''
-                }).appendTo(container);
-
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].quantita`,
-                    value: riga.quantita != null ? riga.quantita : 0
-                }).appendTo(container);
-
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].unitaMisura`,
-                    value: riga.unitaMisura != null ? riga.unitaMisura : 'PEZZO'
-                }).appendTo(container);
-
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].prezzoUnitario`,
-                    value: riga.prezzoUnitario != null ? riga.prezzoUnitario : 0
-                }).appendTo(container);
-
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].scontoPercentuale`,
-                    value: riga.scontoPercentuale != null ? riga.scontoPercentuale : 0
-                }).appendTo(container);
-
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].ivaPercentuale`,
-                    value: riga.ivaPercentuale != null ? riga.ivaPercentuale : 22
-                }).appendTo(container);
-
-                $('<input>', {
-                    type: 'hidden',
-                    name: `righe[${index}].note`,
-                    value: riga.note != null ? riga.note : ''
-                }).appendTo(container);
-
+                $('<input>', { type: 'hidden', name: 'righe[' + index + '].rigaNumero', value: riga.rigaNumero != null ? riga.rigaNumero : (index + 1) }).appendTo(container);
+                $('<input>', { type: 'hidden', name: 'righe[' + index + '].descrizione', value: riga.descrizione != null ? riga.descrizione : '' }).appendTo(container);
+                $('<input>', { type: 'hidden', name: 'righe[' + index + '].quantita', value: riga.quantita != null ? riga.quantita : 0 }).appendTo(container);
+                $('<input>', { type: 'hidden', name: 'righe[' + index + '].unitaMisura', value: riga.unitaMisura != null ? riga.unitaMisura : 'PEZZO' }).appendTo(container);
+                $('<input>', { type: 'hidden', name: 'righe[' + index + '].prezzoUnitario', value: riga.prezzoUnitario != null ? riga.prezzoUnitario : 0 }).appendTo(container);
+                $('<input>', { type: 'hidden', name: 'righe[' + index + '].scontoPercentuale', value: riga.scontoPercentuale != null ? riga.scontoPercentuale : 0 }).appendTo(container);
+                $('<input>', { type: 'hidden', name: 'righe[' + index + '].ivaPercentuale', value: riga.ivaPercentuale != null ? riga.ivaPercentuale : 22 }).appendTo(container);
+                $('<input>', { type: 'hidden', name: 'righe[' + index + '].note', value: riga.note != null ? riga.note : '' }).appendTo(container);
                 if (riga.prodottoId != null && riga.prodottoId !== '') {
-                    $('<input>', {
-                        type: 'hidden',
-                        name: `righe[${index}].prodotto.id`,
-                        value: riga.prodottoId
-                    }).appendTo(container);
+                    $('<input>', { type: 'hidden', name: 'righe[' + index + '].prodotto.id', value: riga.prodottoId }).appendTo(container);
                 }
             });
         }

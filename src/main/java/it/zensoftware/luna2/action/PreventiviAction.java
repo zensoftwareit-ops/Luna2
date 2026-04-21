@@ -31,6 +31,9 @@ import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -79,6 +82,7 @@ public class PreventiviAction extends ActionSupport {
     private String messageEmail;
     private String dataPreventivoStr; // usato per il binding della data dal form HTML
     private Integer righeCount;
+    private String righeJson; // righe serializzate come JSON (metodo affidabile vs OGNL binding)
 
     public String list() {
         if (anno == null) {
@@ -1156,83 +1160,133 @@ public class PreventiviAction extends ActionSupport {
     }
 
     private List<PreventivoRiga> resolveRigheForSave() {
+        // PRIORITA' 1: JSON da campo nascosto (metodo più affidabile)
+        if (righeJson != null && !righeJson.trim().isEmpty() && !righeJson.trim().equals("[]")) {
+            try {
+                List<PreventivoRiga> fromJson = parseRigheFromJson(righeJson);
+                if (!fromJson.isEmpty()) {
+                    logger.info("Righe parsate da JSON: {}", fromJson.size());
+                    return fromJson;
+                }
+            } catch (Exception e) {
+                logger.error("Errore parsing righeJson, tento fallback: {}", e.getMessage());
+            }
+        }
+
+        // PRIORITA' 2: binding OGNL Struts2 (se funziona)
         if (hasAtLeastOneValidRiga(righe)) {
+            logger.info("Righe da binding OGNL: {}", righe.size());
             return righe;
         }
 
-        if (righeCount == null || righeCount <= 0) {
-            return righe;
-        }
-
+        // PRIORITA' 3: parametri request diretti
         HttpServletRequest request = ServletActionContext.getRequest();
-        if (request == null) {
-            return righe;
+        if (request != null && righeCount != null && righeCount > 0) {
+            List<PreventivoRiga> parsed = new ArrayList<>();
+            for (int i = 0; i < righeCount; i++) {
+                String descrizione = trimToNull(request.getParameter("righe[" + i + "].descrizione"));
+                if (descrizione == null) continue;
+
+                PreventivoRiga r = new PreventivoRiga();
+                r.setDescrizione(descrizione);
+                r.setRigaNumero(parseInteger(request.getParameter("righe[" + i + "].rigaNumero"), i + 1));
+                r.setTipoRiga(parseTipoRiga(request.getParameter("righe[" + i + "].tipoRiga")));
+                r.setQuantita(parseBigDecimal(request.getParameter("righe[" + i + "].quantita"), BigDecimal.ONE));
+                r.setUnitaMisura(trimToNull(request.getParameter("righe[" + i + "].unitaMisura")));
+                r.setPrezzoUnitario(parseBigDecimal(request.getParameter("righe[" + i + "].prezzoUnitario"), BigDecimal.ZERO));
+                r.setScontoPercentuale(parseBigDecimal(request.getParameter("righe[" + i + "].scontoPercentuale"), BigDecimal.ZERO));
+                r.setIvaPercentuale(parseBigDecimal(request.getParameter("righe[" + i + "].ivaPercentuale"), new BigDecimal("22.00")));
+                r.setNote(trimToNull(request.getParameter("righe[" + i + "].note")));
+
+                String prodottoIdParam = trimToNull(request.getParameter("righe[" + i + "].prodotto.id"));
+                if (prodottoIdParam != null) {
+                    try {
+                        r.setProdotto(prodottoDAO.findById(Long.parseLong(prodottoIdParam)));
+                    } catch (NumberFormatException ex) {
+                        logger.warn("Prodotto id non valido per riga {}: {}", i, prodottoIdParam);
+                    }
+                }
+                parsed.add(r);
+            }
+            if (!parsed.isEmpty()) {
+                logger.info("Fallback request params: {} righe", parsed.size());
+                return parsed;
+            }
         }
 
-        List<PreventivoRiga> parsed = new ArrayList<>();
-        for (int i = 0; i < righeCount; i++) {
-            String descrizione = trimToNull(request.getParameter("righe[" + i + "].descrizione"));
+        // Log diagnostico quando non arriva nulla
+        if (request != null) {
+            String righeJsonParam = request.getParameter("righeJson");
+            String righeCountParam = request.getParameter("righeCount");
+            logger.error("NESSUNA RIGA VALIDA RICEVUTA: righeJson='{}', righeCount='{}', righe={}",
+                righeJsonParam, righeCountParam, righe);
+        }
+
+        return righe != null ? righe : new ArrayList<>();
+    }
+
+    private List<PreventivoRiga> parseRigheFromJson(String json) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode root = mapper.readTree(json);
+        List<PreventivoRiga> result = new ArrayList<>();
+
+        if (!root.isArray()) {
+            return result;
+        }
+
+        int index = 0;
+        for (JsonNode node : root) {
+            String descrizione = node.has("descrizione") ? trimToNull(node.get("descrizione").asText()) : null;
             if (descrizione == null) {
+                index++;
                 continue;
             }
 
             PreventivoRiga r = new PreventivoRiga();
             r.setDescrizione(descrizione);
-            r.setRigaNumero(parseInteger(request.getParameter("righe[" + i + "].rigaNumero"), i + 1));
-            r.setTipoRiga(parseTipoRiga(request.getParameter("righe[" + i + "].tipoRiga")));
-            r.setQuantita(parseBigDecimal(request.getParameter("righe[" + i + "].quantita"), BigDecimal.ONE));
-            r.setUnitaMisura(trimToNull(request.getParameter("righe[" + i + "].unitaMisura")));
-            r.setPrezzoUnitario(parseBigDecimal(request.getParameter("righe[" + i + "].prezzoUnitario"), BigDecimal.ZERO));
-            r.setScontoPercentuale(parseBigDecimal(request.getParameter("righe[" + i + "].scontoPercentuale"), BigDecimal.ZERO));
-            r.setIvaPercentuale(parseBigDecimal(request.getParameter("righe[" + i + "].ivaPercentuale"), new BigDecimal("22.00")));
-            r.setNote(trimToNull(request.getParameter("righe[" + i + "].note")));
+            r.setRigaNumero(node.has("rigaNumero") ? node.get("rigaNumero").asInt(index + 1) : index + 1);
+            r.setTipoRiga(parseTipoRiga(node.has("tipoRiga") ? node.get("tipoRiga").asText() : null));
+            r.setQuantita(parseBigDecimal(node.has("quantita") ? node.get("quantita").asText() : null, BigDecimal.ONE));
+            r.setUnitaMisura(node.has("unitaMisura") ? trimToNull(node.get("unitaMisura").asText()) : "PEZZO");
+            r.setPrezzoUnitario(parseBigDecimal(node.has("prezzoUnitario") ? node.get("prezzoUnitario").asText() : null, BigDecimal.ZERO));
+            r.setScontoPercentuale(parseBigDecimal(node.has("scontoPercentuale") ? node.get("scontoPercentuale").asText() : null, BigDecimal.ZERO));
+            r.setIvaPercentuale(parseBigDecimal(node.has("ivaPercentuale") ? node.get("ivaPercentuale").asText() : null, new BigDecimal("22.00")));
+            r.setNote(node.has("note") ? trimToNull(node.get("note").asText()) : null);
 
-            String prodottoIdParam = trimToNull(request.getParameter("righe[" + i + "].prodotto.id"));
-            if (prodottoIdParam != null) {
+            if (node.has("prodottoId") && !node.get("prodottoId").isNull()) {
                 try {
-                    Prodotto prodotto = prodottoDAO.findById(Long.parseLong(prodottoIdParam));
-                    r.setProdotto(prodotto);
-                } catch (NumberFormatException ex) {
-                    logger.warn("Prodotto id non valido per riga {}: {}", i, prodottoIdParam);
+                    Long pid = node.get("prodottoId").asLong();
+                    if (pid > 0) {
+                        r.setProdotto(prodottoDAO.findById(pid));
+                    }
+                } catch (Exception ex) {
+                    logger.warn("prodottoId non valido in riga JSON {}", index);
                 }
             }
 
-            parsed.add(r);
+            result.add(r);
+            index++;
         }
-
-        if (!parsed.isEmpty()) {
-            logger.info("Fallback parsing righe attivato: {} righe lette dalla request", parsed.size());
-            return parsed;
-        }
-
-        return righe;
+        return result;
     }
 
     private boolean hasAtLeastOneValidRiga(List<PreventivoRiga> list) {
-        if (list == null || list.isEmpty()) {
-            return false;
-        }
+        if (list == null || list.isEmpty()) return false;
         for (PreventivoRiga r : list) {
-            if (r != null && trimToNull(r.getDescrizione()) != null) {
-                return true;
-            }
+            if (r != null && trimToNull(r.getDescrizione()) != null) return true;
         }
         return false;
     }
 
     private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
+        if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
 
     private BigDecimal parseBigDecimal(String value, BigDecimal defaultValue) {
         String v = trimToNull(value);
-        if (v == null) {
-            return defaultValue;
-        }
+        if (v == null) return defaultValue;
         try {
             return new BigDecimal(v.replace(',', '.'));
         } catch (NumberFormatException ex) {
@@ -1242,9 +1296,7 @@ public class PreventiviAction extends ActionSupport {
 
     private Integer parseInteger(String value, Integer defaultValue) {
         String v = trimToNull(value);
-        if (v == null) {
-            return defaultValue;
-        }
+        if (v == null) return defaultValue;
         try {
             return Integer.parseInt(v);
         } catch (NumberFormatException ex) {
@@ -1312,4 +1364,6 @@ public class PreventiviAction extends ActionSupport {
     public String getDataPreventivoStr() { return dataPreventivoStr; }
     public void setDataPreventivoStr(String dataPreventivoStr) { this.dataPreventivoStr = dataPreventivoStr; }
     public Integer getRigheCount() { return righeCount; }
-    public void setRigheCount(Integer righeCount) { this.righeCount = righeCount; }}
+    public void setRigheCount(Integer righeCount) { this.righeCount = righeCount; }
+    public String getRigheJson() { return righeJson; }
+    public void setRigheJson(String righeJson) { this.righeJson = righeJson; }}
