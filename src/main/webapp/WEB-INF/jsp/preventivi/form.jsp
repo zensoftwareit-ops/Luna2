@@ -537,13 +537,19 @@
         $('#rigaProdotto').change(function() {
             const selected = $(this).find(':selected');
             if (selected.val()) {
-                const prodottoNome = selected.text().split(' - ')[1];
-                const prezzo = selected.data('prezzo');
-                const um = selected.data('um');
-                
-                $('#rigaDescrizione').val(prodottoNome);
-                $('#rigaPrezzoUnitario').val(prezzo || 0);
-                $('#rigaUnitaMisura').val(um || 'PEZZO');
+                    const rawText = selected.text().trim();
+                    const dashIdx = rawText.indexOf(' - ');
+                    const prodottoNome = dashIdx >= 0 ? rawText.substring(dashIdx + 3).trim() : rawText;
+                    const prezzo = selected.data('prezzo');
+                    const um = selected.data('um');
+                    // Solo se NON siamo in modifica riga (il flag 'editing' protegge da sovrascrittura)
+                    if (!$('#rigaPrezzoUnitario').data('editing')) {
+                        $('#rigaDescrizione').val(prodottoNome);
+                        if (prezzo !== undefined && prezzo !== null && prezzo !== '') {
+                            $('#rigaPrezzoUnitario').val(prezzo);
+                        }
+                        if (um) { $('#rigaUnitaMisura').val(um); }
+                    }
             }
         });
 
@@ -600,14 +606,18 @@
             if (riga) {
                 $('#rigaModalTitle').text('Modifica Riga');
                 $('#rigaId').val(riga.id);
-                $('#rigaDescrizione').val(riga.descrizione);
-                $('#rigaQuantita').val(riga.quantita);
-                $('#rigaUnitaMisura').val(riga.unitaMisura);
-                $('#rigaPrezzoUnitario').val(riga.prezzoUnitario);
-                $('#rigaScontoPercentuale').val(riga.scontoPercentuale);
-                $('#rigaIvaPercentuale').val(riga.ivaPercentuale);
-                $('#rigaNote').val(riga.note || '');
-                $('#rigaProdotto').val(riga.prodottoId || '').trigger('change');
+                    // Imposta il flag PRIMA del trigger per bloccare la sovrascrittura
+                    $('#rigaPrezzoUnitario').data('editing', true);
+                    // Aggiorna il display Select2 senza sovrascrivere i campi
+                    $('#rigaProdotto').val(riga.prodottoId || '').trigger('change');
+                    // Ripristina i valori salvati della riga (override del change handler)
+                    $('#rigaDescrizione').val(riga.descrizione);
+                    $('#rigaQuantita').val(riga.quantita);
+                    $('#rigaUnitaMisura').val(riga.unitaMisura);
+                    $('#rigaPrezzoUnitario').val(riga.prezzoUnitario).data('editing', false);
+                    $('#rigaScontoPercentuale').val(riga.scontoPercentuale);
+                    $('#rigaIvaPercentuale').val(riga.ivaPercentuale);
+                    $('#rigaNote').val(riga.note || '');
                 const modal = getRigaModalInstance();
                 if (modal) {
                     modal.show();
@@ -645,20 +655,25 @@
             }
 
             righe.forEach(riga => {
-                const imponibileRiga = riga.quantita * riga.prezzoUnitario;
-                const scontoImportoRiga = imponibileRiga * (riga.scontoPercentuale / 100);
+                const qty    = parseFloat(riga.quantita)          || 0;
+                const prezzo = parseFloat(riga.prezzoUnitario)    || 0;
+                const sconto = parseFloat(riga.scontoPercentuale) || 0;
+                const iva    = parseFloat(riga.ivaPercentuale)    || 22;
+                const imponibileRiga = qty * prezzo;
+                const scontoImportoRiga = imponibileRiga * (sconto / 100);
                 const imponibileScontato = imponibileRiga - scontoImportoRiga;
-                const ivaImportoRiga = imponibileScontato * (riga.ivaPercentuale / 100);
+                const ivaImportoRiga = imponibileScontato * (iva / 100);
                 const totaleRiga = imponibileScontato + ivaImportoRiga;
+                const descEsc = (riga.descrizione || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 
                 tbody.append(`
                     <tr class="riga-row" data-riga-id="${riga.id}">
-                        <td>${riga.rigaNumero}</td>
-                        <td>${riga.descrizione}</td>
-                        <td class="text-end">${riga.quantita.toFixed(2)}</td>
-                        <td class="text-end">€ ${riga.prezzoUnitario.toFixed(2)}</td>
-                        <td class="text-end">${riga.scontoPercentuale.toFixed(2)}%</td>
-                        <td class="text-end">${riga.ivaPercentuale.toFixed(2)}%</td>
+                        <td>${riga.rigaNumero || ''}</td>
+                        <td>${descEsc}</td>
+                        <td class="text-end">${qty.toFixed(2)}</td>
+                        <td class="text-end">€ ${prezzo.toFixed(2)}</td>
+                        <td class="text-end">${sconto.toFixed(2)}%</td>
+                        <td class="text-end">${iva.toFixed(2)}%</td>
                         <td class="text-end"><strong>€ ${totaleRiga.toFixed(2)}</strong></td>
                         <td>
                             <button type="button" class="btn btn-sm btn-outline-primary edit-riga-btn">
@@ -679,11 +694,15 @@
             let ivaTotal = 0;
 
             righe.forEach(riga => {
-                const imponibileRiga = riga.quantita * riga.prezzoUnitario;
-                const scontoImportoRiga = imponibileRiga * (riga.scontoPercentuale / 100);
+                const qty2    = parseFloat(riga.quantita)          || 0;
+                const prezzo2 = parseFloat(riga.prezzoUnitario)    || 0;
+                const sconto2 = parseFloat(riga.scontoPercentuale) || 0;
+                const iva2    = parseFloat(riga.ivaPercentuale)    || 22;
+                const imponibileRiga = qty2 * prezzo2;
+                const scontoImportoRiga = imponibileRiga * (sconto2 / 100);
                 const imponibileScontato = imponibileRiga - scontoImportoRiga;
-                const ivaImportoRiga = imponibileScontato * (riga.ivaPercentuale / 100);
-                
+                const ivaImportoRiga = imponibileScontato * (iva2 / 100);
+
                 subtotale += imponibileScontato;
                 ivaTotal += ivaImportoRiga;
             });
