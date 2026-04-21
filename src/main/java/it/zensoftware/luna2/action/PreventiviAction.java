@@ -201,6 +201,14 @@ public class PreventiviAction extends ActionSupport {
                 // Elimina righe vecchie solo se il form ha inviato esplicitamente il conteggio.
                 // In questo modo evitiamo perdita dati se il binding delle righe non arriva al server.
                 if (righeCount != null) {
+                    if (righeCount > 0 && (righeDaSalvare == null || righeDaSalvare.isEmpty())) {
+                        logger.error("Salvataggio preventivo {} annullato: righeCount={}, ma nessuna riga valida ricevuta", preventivo.getId(), righeCount);
+                        addActionError("Errore salvataggio righe: dati riga non ricevuti correttamente. Riprova.");
+                        clienti = clienteDAO.findAllActive();
+                        prodotti = prodottoDAO.findAllActive();
+                        righe = preventivoRigaDAO.findByPreventivoId(preventivo.getId());
+                        return ERROR;
+                    }
                     preventivoRigaDAO.deleteByPreventivoId(preventivo.getId());
                 } else {
                     logger.warn("Salvataggio preventivo {} senza righeCount: mantengo le righe esistenti", preventivo.getId());
@@ -1148,7 +1156,7 @@ public class PreventiviAction extends ActionSupport {
     }
 
     private List<PreventivoRiga> resolveRigheForSave() {
-        if (righe != null && !righe.isEmpty()) {
+        if (hasAtLeastOneValidRiga(righe)) {
             return righe;
         }
 
@@ -1198,6 +1206,18 @@ public class PreventiviAction extends ActionSupport {
         }
 
         return righe;
+    }
+
+    private boolean hasAtLeastOneValidRiga(List<PreventivoRiga> list) {
+        if (list == null || list.isEmpty()) {
+            return false;
+        }
+        for (PreventivoRiga r : list) {
+            if (r != null && trimToNull(r.getDescrizione()) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String trimToNull(String value) {
