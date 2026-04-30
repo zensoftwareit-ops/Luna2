@@ -43,3 +43,6 @@ temp/
 node_modules/
 package-lock.json
 server-manager/node_modules/
+
+# Runtime data (Portainer, infrastructure)
+data/
