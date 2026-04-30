@@ -5,12 +5,15 @@ import it.zensoftware.luna2.dao.FatturaDAO;
 import it.zensoftware.luna2.model.Cliente;
 import it.zensoftware.luna2.model.Fattura;
 import it.zensoftware.luna2.util.HibernateUtil;
+import it.zensoftware.luna2.api.service.PdfService;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -109,9 +112,21 @@ public class FattureController {
         return ResponseEntity.ok(toDto(fattura));
     }
 
-    @GetMapping("/{id}/pdf")
+    @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportPdf(@PathVariable Long id) {
-        return ResponseEntity.status(501).body(new byte[0]);
+        Fattura fattura = fatturaDAO.findById(id);
+        if (fattura == null) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            byte[] pdfBytes = new PdfService().generateFatturaPdf(fattura);
+            return ResponseEntity
+                .ok()
+                .header("Content-Disposition", "attachment; filename=\"fattura-" + fattura.getNumero() + ".pdf\"")
+                .body(pdfBytes);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @DeleteMapping("/{id}")

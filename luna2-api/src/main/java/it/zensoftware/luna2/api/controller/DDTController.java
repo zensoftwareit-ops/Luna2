@@ -4,12 +4,14 @@ import it.zensoftware.luna2.dao.ClienteDAO;
 import it.zensoftware.luna2.dao.DdtDAO;
 import it.zensoftware.luna2.model.Cliente;
 import it.zensoftware.luna2.util.HibernateUtil;
+import it.zensoftware.luna2.api.service.PdfService;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -100,10 +102,26 @@ public class DDTController {
         return ResponseEntity.ok(toDto(updated));
     }
 
-    @GetMapping("/{id}/pdf")
+    @GetMapping(value = "/{id}/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> exportPdf(@PathVariable Long id) {
-        // TODO: Implementare generazione PDF DDT
-        return ResponseEntity.status(501).body(new byte[0]);
+        Map<String, Object> ddt = ddtDAO.findById(id);
+        if (ddt == null) {
+            return ResponseEntity.notFound().build();
+        }
+        try {
+            byte[] pdfBytes = new PdfService().generateDdtPdf(
+                id,
+                (String) ddt.get("numero"),
+                (Date) ddt.get("data_ddt"),
+                null // TODO: clienteDAO.findById(cliente_id)
+            );
+            return ResponseEntity
+                .ok()
+                .header("Content-Disposition", "attachment; filename=\"ddt-" + ddt.get("numero") + ".pdf\"")
+                .body(pdfBytes);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).build();
+        }
     }
 
     @DeleteMapping("/{id}")
