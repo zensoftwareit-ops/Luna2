@@ -7,6 +7,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import javax.validation.Valid;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,7 +70,7 @@ public class ProdottiController {
     }
 
     @PostMapping
-    public ResponseEntity<ProdottoDTO> create(@RequestBody ProdottoDTO dto) {
+    public ResponseEntity<ProdottoDTO> create(@Valid @RequestBody ProdottoDTO dto) {
         Prodotto prodotto = fromDto(dto, null);
         if (prodotto.getSku() == null || prodotto.getSku().isEmpty()) {
             prodotto.setSku("SKU-" + System.currentTimeMillis());
@@ -79,7 +80,7 @@ public class ProdottiController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ProdottoDTO> update(@PathVariable Long id, @RequestBody ProdottoDTO dto) {
+    public ResponseEntity<ProdottoDTO> update(@PathVariable Long id, @Valid @RequestBody ProdottoDTO dto) {
         Prodotto existing = prodottoDAO.findById(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -190,10 +191,20 @@ public class ProdottiController {
 
     public static class ProdottoDTO {
         public Long id;
+
+        @javax.validation.constraints.NotBlank(message = "Nome prodotto non può essere vuoto")
         public String nome;
+
         public String descrizione;
+
+        @javax.validation.constraints.NotNull(message = "Prezzo unitario è obbligatorio")
+        @javax.validation.constraints.DecimalMin(value = "0.01", message = "Prezzo deve essere > 0")
         public BigDecimal prezzoUnitario;
+
+        @javax.validation.constraints.NotNull(message = "Giacenza è obbligatoria")
+        @javax.validation.constraints.Min(value = 0, message = "Giacenza non può essere negativa")
         public Integer giacenza;
+
         public String sku;
         public String categoria;
 

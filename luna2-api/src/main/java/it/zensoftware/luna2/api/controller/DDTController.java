@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import javax.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -83,7 +84,7 @@ public class DDTController {
     }
 
     @PostMapping
-    public ResponseEntity<DDTDto> create(@RequestBody DDTDto dto) {
+    public ResponseEntity<DDTDto> create(@Valid @RequestBody DDTDto dto) {
         Map<String, Object> ddt = fromDto(dto);
         Long id = ddtDAO.save(ddt);
         ddt.put("id", id);
@@ -91,7 +92,7 @@ public class DDTController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DDTDto> update(@PathVariable Long id, @RequestBody DDTDto dto) {
+    public ResponseEntity<DDTDto> update(@PathVariable Long id, @Valid @RequestBody DDTDto dto) {
         Map<String, Object> existing = ddtDAO.findById(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -184,12 +185,25 @@ public class DDTController {
 
     public static class DDTDto {
         public Long id;
+
+        @javax.validation.constraints.NotBlank(message = "Numero DDT non può essere vuoto")
         public String numero;
+
+        @javax.validation.constraints.NotNull(message = "Cliente ID è obbligatorio")
         public Long clienteId;
+
         public String clienteNome;
+
+        @javax.validation.constraints.NotNull(message = "Data DDT è obbligatoria")
         public Date dataDdt;
+
+        @javax.validation.constraints.NotBlank(message = "Causale trasporto non può essere vuota")
         public String causaleTrasporto;
+
+        @javax.validation.constraints.NotNull(message = "Numero colli è obbligatorio")
+        @javax.validation.constraints.Min(value = 1, message = "Numero colli deve essere >= 1")
         public Integer numeroColli;
+
         public String trasportatore;
 
         public DDTDto() {}

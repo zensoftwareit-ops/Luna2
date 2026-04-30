@@ -2,11 +2,17 @@ package it.zensoftware.luna2.api.controller;
 
 import it.zensoftware.luna2.dao.ClienteDAO;
 import it.zensoftware.luna2.model.Cliente;
+import it.zensoftware.luna2.api.validator.ValidPartitaIva;
+import it.zensoftware.luna2.api.validator.ValidEmail;
+import it.zensoftware.luna2.api.validator.ValidItalianPhoneNumber;
+import it.zensoftware.luna2.api.security.InputSanitizer;
+import it.zensoftware.luna2.api.security.Auditable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import javax.validation.Valid;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -80,8 +86,9 @@ public class ClientiController {
     /**
      * Crea nuovo cliente.
      */
+    @Auditable(action = "CREATE", entityType = "Cliente")
     @PostMapping
-    public ResponseEntity<ClienteDTO> create(@RequestBody ClienteDTO dto) {
+    public ResponseEntity<ClienteDTO> create(@Valid @RequestBody ClienteDTO dto) {
         Cliente cliente = fromDto(dto, null);
         if (cliente.getCodiceCliente() == null || cliente.getCodiceCliente().isEmpty()) {
             cliente.setCodiceCliente(clienteDAO.generateNextCodiceCliente());
@@ -93,8 +100,9 @@ public class ClientiController {
     /**
      * Aggiorna cliente.
      */
+    @Auditable(action = "UPDATE", entityType = "Cliente")
     @PutMapping("/{id}")
-    public ResponseEntity<ClienteDTO> update(@PathVariable Long id, @RequestBody ClienteDTO dto) {
+    public ResponseEntity<ClienteDTO> update(@PathVariable Long id, @Valid @RequestBody ClienteDTO dto) {
         Cliente existing = clienteDAO.findById(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -108,6 +116,7 @@ public class ClientiController {
     /**
      * Cancella cliente.
      */
+    @Auditable(action = "DELETE", entityType = "Cliente")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         Cliente existing = clienteDAO.findById(id);
@@ -168,19 +177,26 @@ public class ClientiController {
 
     public static class ClienteDTO {
         public Long id;
+
+        @javax.validation.constraints.NotBlank(message = "Nome cliente non può essere vuoto")
         public String nome;
+
+        @ValidEmail(message = "Email non valida")
         public String email;
+
+        @ValidPartitaIva(message = "Partita IVA non valida")
         public String partitaIva;
+
         public String paese;
 
         public ClienteDTO() {}
 
         public ClienteDTO(Long id, String nome, String email, String partitaIva, String paese) {
             this.id = id;
-            this.nome = nome;
-            this.email = email;
-            this.partitaIva = partitaIva;
-            this.paese = paese;
+            this.nome = InputSanitizer.sanitize(nome);
+            this.email = InputSanitizer.sanitizeEmail(email);
+            this.partitaIva = InputSanitizer.sanitizeNumeric(partitaIva);
+            this.paese = InputSanitizer.sanitize(paese);
         }
     }
 }

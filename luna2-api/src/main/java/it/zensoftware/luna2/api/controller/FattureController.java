@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import javax.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -81,14 +82,14 @@ public class FattureController {
     }
 
     @PostMapping
-    public ResponseEntity<FatturaDTO> create(@RequestBody FatturaDTO dto) {
+    public ResponseEntity<FatturaDTO> create(@Valid @RequestBody FatturaDTO dto) {
         Fattura fattura = fromDto(dto, null);
         fatturaDAO.save(fattura);
         return ResponseEntity.status(201).body(toDto(fattura));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<FatturaDTO> update(@PathVariable Long id, @RequestBody FatturaDTO dto) {
+    public ResponseEntity<FatturaDTO> update(@PathVariable Long id, @Valid @RequestBody FatturaDTO dto) {
         Fattura existing = fatturaDAO.findById(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -248,17 +249,28 @@ public class FattureController {
         }
     }
 
-    
-    
+
+
     public static class FatturaDTO {
         public Long id;
+
+        @javax.validation.constraints.NotBlank(message = "Numero fattura non può essere vuoto")
         public String numero;
+
         public Long clienteId;
         public String clienteNome;
+
+        @javax.validation.constraints.NotNull(message = "Tipo fattura non può essere null")
         public Fattura.TipoFattura tipo;
+
         public Fattura.StatoPagamento stato;
+
+        @javax.validation.constraints.DecimalMin(value = "0.0", message = "Importo non può essere negativo")
         public BigDecimal importo;
+
+        @javax.validation.constraints.NotNull(message = "Data emissione è obbligatoria")
         public LocalDate dataEmissione;
+
         public LocalDate dataPagamento;
 
         public FatturaDTO() {}

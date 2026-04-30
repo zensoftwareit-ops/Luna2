@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import javax.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -89,7 +90,7 @@ public class PreventiviController {
     }
 
     @PostMapping
-    public ResponseEntity<PreventivoDTO> create(@RequestBody PreventivoDTO dto) {
+    public ResponseEntity<PreventivoDTO> create(@Valid @RequestBody PreventivoDTO dto) {
         Preventivo preventivo = fromDto(dto, null);
         if (preventivo.getNumero() == null || preventivo.getNumero().isEmpty()) {
             int anno = LocalDateTime.now().getYear();
@@ -101,7 +102,7 @@ public class PreventiviController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PreventivoDTO> update(@PathVariable Long id, @RequestBody PreventivoDTO dto) {
+    public ResponseEntity<PreventivoDTO> update(@PathVariable Long id, @Valid @RequestBody PreventivoDTO dto) {
         Preventivo existing = preventivoDAO.findById(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -258,12 +259,23 @@ public class PreventiviController {
 
     public static class PreventivoDTO {
         public Long id;
+
+        @javax.validation.constraints.NotBlank(message = "Numero preventivo non può essere vuoto")
         public String numero;
+
+        @javax.validation.constraints.NotNull(message = "Cliente ID è obbligatorio")
         public Long clienteId;
+
         public String clienteNome;
         public Preventivo.StatoPreventivo stato;
+
+        @javax.validation.constraints.NotNull(message = "Importo è obbligatorio")
+        @javax.validation.constraints.DecimalMin(value = "0.01", message = "Importo deve essere > 0")
         public BigDecimal importo;
+
+        @javax.validation.constraints.NotNull(message = "Data creazione è obbligatoria")
         public LocalDate dataCreazione;
+
         public LocalDate dataScadenza;
 
         public PreventivoDTO() {}

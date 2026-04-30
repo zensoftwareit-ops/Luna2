@@ -4,11 +4,14 @@ import it.zensoftware.luna2.dao.FatturaDAO;
 import it.zensoftware.luna2.dao.PagamentoDAO;
 import it.zensoftware.luna2.model.Fattura;
 import it.zensoftware.luna2.model.Pagamento;
+import it.zensoftware.luna2.api.security.RateLimited;
+import it.zensoftware.luna2.api.security.Auditable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import javax.validation.Valid;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -77,8 +80,10 @@ public class PagamentiController {
         return ResponseEntity.ok(toDto(pagamento));
     }
 
+    @RateLimited(maxRequests = 200, windowMinutes = 5)
+    @Auditable(action = "CREATE", entityType = "Pagamento")
     @PostMapping
-    public ResponseEntity<PagamentoDTO> create(@RequestBody PagamentoDTO dto) {
+    public ResponseEntity<PagamentoDTO> create(@Valid @RequestBody PagamentoDTO dto) {
         Pagamento pagamento = fromDto(dto, null);
         pagamentoDAO.save(pagamento);
 
@@ -90,8 +95,9 @@ public class PagamentiController {
         return ResponseEntity.status(201).body(toDto(pagamento));
     }
 
+    @Auditable(action = "UPDATE", entityType = "Pagamento")
     @PutMapping("/{id}")
-    public ResponseEntity<PagamentoDTO> update(@PathVariable Long id, @RequestBody PagamentoDTO dto) {
+    public ResponseEntity<PagamentoDTO> update(@PathVariable Long id, @Valid @RequestBody PagamentoDTO dto) {
         Pagamento existing = pagamentoDAO.findById(id);
         if (existing == null) {
             return ResponseEntity.notFound().build();
@@ -108,6 +114,7 @@ public class PagamentiController {
         return ResponseEntity.ok(toDto(updated));
     }
 
+    @Auditable(action = "RICONCILIA", entityType = "Pagamento")
     @PutMapping("/{id}/riconcilia")
     public ResponseEntity<PagamentoDTO> riconcilia(@PathVariable Long id) {
         Pagamento pagamento = pagamentoDAO.findById(id);
@@ -120,6 +127,7 @@ public class PagamentiController {
         return ResponseEntity.ok(toDto(pagamento));
     }
 
+    @Auditable(action = "DELETE", entityType = "Pagamento")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         Pagamento pagamento = pagamentoDAO.findById(id);
@@ -242,10 +250,20 @@ public class PagamentiController {
 
     public static class PagamentoDTO {
         public Long id;
+
+        @javax.validation.constraints.NotBlank(message = "Numero fattura non può essere vuoto")
         public String numeroFattura;
+
+        @javax.validation.constraints.NotNull(message = "Importo è obbligatorio")
+        @javax.validation.constraints.DecimalMin(value = "0.01", message = "Importo deve essere > 0")
         public BigDecimal importo;
+
+        @javax.validation.constraints.NotNull(message = "Data pagamento è obbligatoria")
         public LocalDate dataPagamento;
+
+        @javax.validation.constraints.NotNull(message = "Metodo pagamento è obbligatorio")
         public Pagamento.MetodoPagamento metodo;
+
         public String riferimento;
         public Boolean riconciliato;
         public LocalDate dataRiconciliazione;
