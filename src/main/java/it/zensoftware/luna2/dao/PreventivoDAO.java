@@ -24,7 +24,7 @@ public class PreventivoDAO extends GenericDAOImpl<Preventivo, Long> {
     public List<Preventivo> findByClienteId(Long clienteId) {
         try (Session session = getSession()) {
             Query<Preventivo> query = session.createQuery(
-                "FROM Preventivo WHERE cliente.id = :clienteId ORDER BY dataPreventivo DESC", 
+                "FROM Preventivo p LEFT JOIN FETCH p.cliente WHERE p.cliente.id = :clienteId ORDER BY p.dataPreventivo DESC",
                 Preventivo.class);
             query.setParameter("clienteId", clienteId);
             return query.list();
@@ -37,7 +37,7 @@ public class PreventivoDAO extends GenericDAOImpl<Preventivo, Long> {
     public List<Preventivo> findByStato(Preventivo.Stato stato) {
         try (Session session = getSession()) {
             Query<Preventivo> query = session.createQuery(
-                "FROM Preventivo WHERE stato = :stato ORDER BY dataPreventivo DESC", 
+                "FROM Preventivo p LEFT JOIN FETCH p.cliente WHERE p.stato = :stato ORDER BY p.dataPreventivo DESC",
                 Preventivo.class);
             query.setParameter("stato", stato);
             return query.list();
@@ -50,7 +50,7 @@ public class PreventivoDAO extends GenericDAOImpl<Preventivo, Long> {
     public List<Preventivo> findByAnno(Integer anno) {
         try (Session session = getSession()) {
             Query<Preventivo> query = session.createQuery(
-                "FROM Preventivo WHERE anno = :anno ORDER BY numero DESC", 
+                "FROM Preventivo p LEFT JOIN FETCH p.cliente WHERE p.anno = :anno ORDER BY p.numero DESC",
                 Preventivo.class);
             query.setParameter("anno", anno);
             return query.list();
