@@ -303,6 +303,7 @@
                 <div class="modal-body">
                     <form id="rigaForm">
                         <input type="hidden" id="rigaId">
+                        <input type="hidden" id="rigaProdottoId" value="">
                         <div class="row">
                             <div class="col-md-12">
                                 <div class="mb-3">
@@ -499,21 +500,21 @@
             });
         }
 
-        // Load existing righe
+        // Load existing righe - IMPORTANTE: usare 0 per i numeri null, non false
         <s:if test="righe != null && !righe.isEmpty()">
             <s:iterator value="righe" var="r">
                 righe.push({
                     id: <s:property value='#r.id'/>,
                     rigaNumero: <s:property value='#r.rigaNumero != null ? #r.rigaNumero : 0'/>,
                     tipoRiga: '<s:property value="#r.tipoRiga != null ? #r.tipoRiga.name() : \"PRODOTTO\""/>',
-                    prodottoId: <s:property value="#r.prodotto != null && #r.prodotto.id != null ? #r.prodotto.id : 'null'"/>,
-                    descrizione: '<s:property value="#r.descrizione" escapeJavaScript="true"/>',
-                    quantita: <s:property value='#r.quantita != null ? #r.quantita : 0'/>,
-                    unitaMisura: '<s:property value="#r.unitaMisura" escapeJavaScript="true"/>',
+                    prodottoId: <s:property value="#r.prodotto != null && #r.prodotto.id != null ? #r.prodotto.id : null"/>,
+                    descrizione: '<s:property value="#r.descrizione != null ? #r.descrizione : \"\"" escapeJavaScript="true"/>',
+                    quantita: <s:property value='#r.quantita != null ? #r.quantita : 1'/>,
+                    unitaMisura: '<s:property value="#r.unitaMisura != null ? #r.unitaMisura : \"PEZZO\"" escapeJavaScript="true"/>',
                     prezzoUnitario: <s:property value='#r.prezzoUnitario != null ? #r.prezzoUnitario : 0'/>,
                     scontoPercentuale: <s:property value='#r.scontoPercentuale != null ? #r.scontoPercentuale : 0'/>,
                     ivaPercentuale: <s:property value='#r.ivaPercentuale != null ? #r.ivaPercentuale : 22'/>,
-                    note: '<s:property value="#r.note" escapeJavaScript="true"/>'
+                    note: '<s:property value="#r.note != null ? #r.note : \"\"" escapeJavaScript="true"/>'
                 });
             </s:iterator>
         </s:if>
@@ -523,6 +524,7 @@
             $('#rigaModalTitle').text('Aggiungi Riga');
             $('#rigaForm')[0].reset();
             $('#rigaId').val('');
+            $('#rigaProdottoId').val('');  // Reset hidden prodotto ID
             $('#rigaQuantita').val(1);
             $('#rigaIvaPercentuale').val(22);
             $('#rigaScontoPercentuale').val(0);
@@ -533,9 +535,14 @@
             }
         });
 
-        // When prodotto is selected, fill fields
+        // When prodotto is selected, fill fields AND SAVE prodottoId
         $('#rigaProdotto').change(function() {
             const selected = $(this).find(':selected');
+            const prodottoId = selected.val();
+
+            // Salva il prodotto ID in hidden field
+            $('#rigaProdottoId').val(prodottoId || '');
+
             if (selected.val()) {
                     const rawText = selected.text().trim();
                     const dashIdx = rawText.indexOf(' - ');
@@ -553,16 +560,23 @@
             }
         });
 
-        // Save Riga
+        // Save Riga - Usa il prodottoId dal hidden field oppure dal select
         $('#saveRigaBtn').click(function() {
             const rigaId = $('#rigaId').val();
             const existingRiga = rigaId ? righe.find(r => normalizeRigaId(r.id) === normalizeRigaId(rigaId)) : null;
-            const prodottoSelezionato = $('#rigaProdotto').val();
+
+            // IMPORTANTE: Usa il prodotto ID dal hidden field (è sempre sincronizzato)
+            // oppure fall back al select value
+            let prodottoId = $('#rigaProdottoId').val();
+            if (!prodottoId) {
+                prodottoId = $('#rigaProdotto').val();
+            }
+
             const riga = {
                 id: rigaId || null,
                 rigaNumero: existingRiga ? existingRiga.rigaNumero : (++rigaCounter),
                 tipoRiga: 'PRODOTTO',
-                prodottoId: prodottoSelezionato ? parseInt(prodottoSelezionato, 10) : null,
+                prodottoId: prodottoId ? parseInt(prodottoId, 10) : null,
                 descrizione: $('#rigaDescrizione').val(),
                 quantita: parseFloat($('#rigaQuantita').val()) || 0,
                 unitaMisura: $('#rigaUnitaMisura').val(),
@@ -606,6 +620,10 @@
             if (riga) {
                 $('#rigaModalTitle').text('Modifica Riga');
                 $('#rigaId').val(riga.id);
+
+                // Sincronizza il prodottoId nel hidden field
+                $('#rigaProdottoId').val(riga.prodottoId || '');
+
                     // Imposta il flag PRIMA del trigger per bloccare la sovrascrittura
                     $('#rigaPrezzoUnitario').data('editing', true);
                     // Aggiorna il display Select2 senza sovrascrivere i campi
