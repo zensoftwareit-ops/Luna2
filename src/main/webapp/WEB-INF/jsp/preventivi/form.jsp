@@ -446,6 +446,7 @@
         // Righe management
         let righe = [];
         let rigaCounter = <s:if test="righe != null && !righe.isEmpty()"><s:property value="righe.size()"/></s:if><s:else>0</s:else>;
+        let tableAlreadyRendered = false;  // Flag per evitare doppie renderizzazioni
 
         function getRigaModalInstance() {
             const modalElement = document.getElementById('rigaModal');
@@ -500,20 +501,21 @@
             });
         }
 
-        // Load existing righe - IMPORTANTE: usare 0 per i numeri null, non false
+        // Load existing righe - usa parseFloat per evitare "false" come stringa
         <s:if test="righe != null && !righe.isEmpty()">
             <s:iterator value="righe" var="r">
+                var desc = '<s:property value="#r.descrizione != null ? #r.descrizione : \"\"" escapeJavaScript="true"/>';
                 righe.push({
                     id: <s:property value='#r.id'/>,
                     rigaNumero: <s:property value='#r.rigaNumero != null ? #r.rigaNumero : 0'/>,
                     tipoRiga: '<s:property value="#r.tipoRiga != null ? #r.tipoRiga.name() : \"PRODOTTO\""/>',
                     prodottoId: <s:property value="#r.prodotto != null && #r.prodotto.id != null ? #r.prodotto.id : null"/>,
-                    descrizione: '<s:property value="#r.descrizione != null ? #r.descrizione : \"\"" escapeJavaScript="true"/>',
-                    quantita: <s:property value='#r.quantita != null ? #r.quantita : 1'/>,
+                    descrizione: (desc === 'false' || desc === '') ? '' : desc,
+                    quantita: parseFloat(<s:property value='#r.quantita != null ? #r.quantita : 1'/>) || 1,
                     unitaMisura: '<s:property value="#r.unitaMisura != null ? #r.unitaMisura : \"PEZZO\"" escapeJavaScript="true"/>',
-                    prezzoUnitario: <s:property value='#r.prezzoUnitario != null ? #r.prezzoUnitario : 0'/>,
-                    scontoPercentuale: <s:property value='#r.scontoPercentuale != null ? #r.scontoPercentuale : 0'/>,
-                    ivaPercentuale: <s:property value='#r.ivaPercentuale != null ? #r.ivaPercentuale : 22'/>,
+                    prezzoUnitario: parseFloat(<s:property value='#r.prezzoUnitario != null ? #r.prezzoUnitario : 0'/>) || 0,
+                    scontoPercentuale: parseFloat(<s:property value='#r.scontoPercentuale != null ? #r.scontoPercentuale : 0'/>) || 0,
+                    ivaPercentuale: parseFloat(<s:property value='#r.ivaPercentuale != null ? #r.ivaPercentuale : 22'/>) || 22,
                     note: '<s:property value="#r.note != null ? #r.note : \"\"" escapeJavaScript="true"/>'
                 });
             </s:iterator>
@@ -656,6 +658,12 @@
 
         // Render Righe Table
         function renderRighe() {
+            // Se le righe sono già renderizzate e non è la prima volta, nascondi il placeholder
+            if (tableAlreadyRendered) {
+                $('#noRigheRow').hide();
+            }
+            tableAlreadyRendered = true;
+
             const tbody = $('#righeBody');
             tbody.empty();
             syncRigheHiddenFields();
@@ -747,6 +755,12 @@
 
         // Initial calculation
         $(document).ready(function() {
+            // IMPORTANTE: Renderizza la tabella con JavaScript per consistenza
+            // Questo sovrascrive il codice JSP originale e garantisce che:
+            // 1. Tutti i numeri vengono formattati con .toFixed(2)
+            // 2. Non ci sono conflitti tra JSP <s:text> e JavaScript
+            // 3. Il layout rimane consistente quando aggiungi/rimuovi righe
+            renderRighe();
             ricalcolaTotaliCliente();
             syncRigheHiddenFields();
         });
