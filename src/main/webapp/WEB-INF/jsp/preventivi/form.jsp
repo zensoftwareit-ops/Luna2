@@ -753,16 +753,21 @@
         // Ricalcola totali quando cambiano sconto o spese
         $('#scontoPercentuale, #speseTrasporto').on('input', ricalcolaTotaliCliente);
 
-        // Initial calculation
+        // Initial calculation - Con error handling
         $(document).ready(function() {
-            // IMPORTANTE: Renderizza la tabella con JavaScript per consistenza
-            // Questo sovrascrive il codice JSP originale e garantisce che:
-            // 1. Tutti i numeri vengono formattati con .toFixed(2)
-            // 2. Non ci sono conflitti tra JSP <s:text> e JavaScript
-            // 3. Il layout rimane consistente quando aggiungi/rimuovi righe
-            renderRighe();
-            ricalcolaTotaliCliente();
-            syncRigheHiddenFields();
+            try {
+                // IMPORTANTE: Renderizza la tabella con JavaScript per consistenza
+                // Questo sovrascrive il codice JSP originale e garantisce che:
+                // 1. Tutti i numeri vengono formattati con .toFixed(2)
+                // 2. Non ci sono conflitti tra JSP <s:text> e JavaScript
+                // 3. Il layout rimane consistente quando aggiungi/rimuovi righe
+                renderRighe();
+                ricalcolaTotaliCliente();
+                syncRigheHiddenFields();
+            } catch (e) {
+                console.error('Errore inizializzazione preventivo:', e);
+                // Continua comunque - il form è ancora usabile
+            }
         });
 
         // Before submit, add righe as hidden fields

@@ -76,11 +76,16 @@ public class PreventivoDAO extends GenericDAOImpl<Preventivo, Long> {
     }
 
     /**
-     * Find preventivo with righe loaded (JOIN FETCH)
+     * Find preventivo with cliente e righe loaded (JOIN FETCH)
      */
     public Preventivo findWithRighe(Long id) {
-        try {
-            Preventivo preventivo = findById(id);
+        try (Session session = getSession()) {
+            Query<Preventivo> query = session.createQuery(
+                "FROM Preventivo p LEFT JOIN FETCH p.cliente WHERE p.id = :id",
+                Preventivo.class);
+            query.setParameter("id", id);
+            Preventivo preventivo = query.uniqueResult();
+
             if (preventivo != null) {
                 // Load righe
                 List<PreventivoRiga> righe = preventivoRigaDAO.findByPreventivoId(id);
