@@ -511,11 +511,11 @@
                     tipoRiga: '<s:property value="#r.tipoRiga != null ? #r.tipoRiga.name() : \"PRODOTTO\""/>',
                     prodottoId: <s:property value="#r.prodotto != null && #r.prodotto.id != null ? #r.prodotto.id : null"/>,
                     descrizione: (desc === 'false' || desc === '') ? '' : desc,
-                    quantita: parseFloat(<s:property value='#r.quantita != null ? #r.quantita : 1'/>) || 1,
+                    quantita: parseFloat('<s:property value='#r.quantita != null ? #r.quantita : 1'/>') || 1,
                     unitaMisura: '<s:property value="#r.unitaMisura != null ? #r.unitaMisura : \"PEZZO\"" escapeJavaScript="true"/>',
-                    prezzoUnitario: parseFloat(<s:property value='#r.prezzoUnitario != null ? #r.prezzoUnitario : 0'/>) || 0,
-                    scontoPercentuale: parseFloat(<s:property value='#r.scontoPercentuale != null ? #r.scontoPercentuale : 0'/>) || 0,
-                    ivaPercentuale: parseFloat(<s:property value='#r.ivaPercentuale != null ? #r.ivaPercentuale : 22'/>) || 22,
+                    prezzoUnitario: parseFloat('<s:property value='#r.prezzoUnitario != null ? #r.prezzoUnitario : 0'/>') || 0,
+                    scontoPercentuale: parseFloat('<s:property value='#r.scontoPercentuale != null ? #r.scontoPercentuale : 0'/>') || 0,
+                    ivaPercentuale: parseFloat('<s:property value='#r.ivaPercentuale != null ? #r.ivaPercentuale : 22'/>') || 22,
                     note: '<s:property value="#r.note != null ? #r.note : \"\"" escapeJavaScript="true"/>'
                 });
             </s:iterator>
