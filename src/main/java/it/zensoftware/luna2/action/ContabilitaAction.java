@@ -2719,10 +2719,6 @@ public class ContabilitaAction extends ActionSupport {
         }
     }
 
-    private String formatDateIt(Date value) {
-        return value == null ? "" : new SimpleDateFormat("dd/MM/yyyy").format(value);
-    }
-
     public String markLiquidazionePaid() {
         try {
             if (id == null) {
@@ -2738,13 +2734,6 @@ public class ContabilitaAction extends ActionSupport {
 
             liquidazione.setStatus(IvaLiquidation.LiquidationStatus.PAID);
             liquidationDAO.update(liquidazione);
-
-            TaxDeadline deadline = deadlineDAO.findBySourceAndId("IVA_LIQUIDATION", id);
-            if (deadline != null) {
-                deadline.setStatus(TaxDeadline.DeadlineStatus.COMPLETED);
-                deadline.setCompletedAt(new Date());
-                deadlineDAO.update(deadline);
-            }
 
             addActionMessage("Liquidazione marcata come pagata");
             return SUCCESS;

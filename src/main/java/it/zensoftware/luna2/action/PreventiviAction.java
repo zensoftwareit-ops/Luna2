@@ -1176,6 +1176,12 @@ public class PreventiviAction extends ActionSupport {
         // PRIORITA' 2: binding OGNL Struts2 (se funziona)
         if (hasAtLeastOneValidRiga(righe)) {
             logger.info("Righe da binding OGNL: {}", righe.size());
+            // Calcola i totali per ogni riga
+            for (PreventivoRiga r : righe) {
+                if (r != null) {
+                    r.calcolaTotale();
+                }
+            }
             return righe;
         }
 
@@ -1206,6 +1212,8 @@ public class PreventiviAction extends ActionSupport {
                         logger.warn("Prodotto id non valido per riga {}: {}", i, prodottoIdParam);
                     }
                 }
+                // Calcola i totali della riga (imponibile, IVA, totale)
+                r.calcolaTotale();
                 parsed.add(r);
             }
             if (!parsed.isEmpty()) {
@@ -1263,6 +1271,9 @@ public class PreventiviAction extends ActionSupport {
                     logger.warn("prodottoId non valido in riga JSON {}", index);
                 }
             }
+
+            // Calcola i totali della riga (imponibile, IVA, totale)
+            r.calcolaTotale();
 
             result.add(r);
             index++;
