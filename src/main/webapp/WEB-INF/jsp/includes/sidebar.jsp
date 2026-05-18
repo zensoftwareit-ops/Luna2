@@ -222,6 +222,11 @@
                         </a>
                     </li>
                     <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='liquida-list' namespace='/app/contabilita'/>">
+                            <i class="bi bi-calculator me-2"></i>Liquidazioni IVA
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
                         <a class="nav-link" href="<s:url action='ops' namespace='/app/amministrazione'/>">
                             <i class="bi bi-kanban me-2"></i>Ops Amministrazione
                         </a>

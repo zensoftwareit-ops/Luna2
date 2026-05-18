@@ -1292,6 +1292,43 @@
             <result name="error">/WEB-INF/jsp/contabilita/reports.jsp</result>
         </action>
 
+        <!-- IVA Liquidations -->
+        <action name="liquida-list" class="it.zensoftware.luna2.action.ContabilitaAction" method="liquidazioniIva">
+            <result name="success">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+        </action>
+
+        <action name="liquida-calcola" class="it.zensoftware.luna2.action.ContabilitaAction" method="calcolaLiquidazione">
+            <result name="success">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+            <result name="input">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+            <result name="error">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+        </action>
+
+        <action name="liquida-save" class="it.zensoftware.luna2.action.ContabilitaAction" method="saveLiquidazione">
+            <result name="success" type="redirectAction">liquida-list</result>
+            <result name="input">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+            <result name="error">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+        </action>
+
+        <action name="liquida-auto" class="it.zensoftware.luna2.action.ContabilitaAction" method="generaLiquidazioniAuto">
+            <result name="success" type="redirectAction">liquida-list</result>
+            <result name="error">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+        </action>
+
+        <action name="liquida-export" class="it.zensoftware.luna2.action.ContabilitaAction" method="exportLiquidazionePdf">
+            <result name="success" type="stream">
+                <param name="contentType">application/pdf</param>
+                <param name="inputName">inputStream</param>
+                <param name="contentDisposition">${contentDisposition}</param>
+                <param name="bufferSize">4096</param>
+            </result>
+            <result name="error">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+        </action>
+
+        <action name="liquida-mark-paid" class="it.zensoftware.luna2.action.ContabilitaAction" method="markLiquidazionePaid">
+            <result name="success" type="redirectAction">liquida-list</result>
+            <result name="error">/WEB-INF/jsp/contabilita/liquidazioni-iva.jsp</result>
+        </action>
+
         <!-- Scadenzario Fiscale (Tax Deadlines) -->
         <action name="scadenzario-list" class="it.zensoftware.luna2.action.TaxDeadlineAction" method="list">
             <result name="success">/WEB-INF/jsp/amministrazione/scadenzario.jsp</result>

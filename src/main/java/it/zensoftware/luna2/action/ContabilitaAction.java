@@ -18,6 +18,7 @@ import it.zensoftware.luna2.dao.AccountingReportPresetDAO;
 import it.zensoftware.luna2.dao.FatturaDAO;
 import it.zensoftware.luna2.dao.FatturaPassivaDAO;
 import it.zensoftware.luna2.dao.TaxDeadlineDAO;
+import it.zensoftware.luna2.dao.IvaLiquidationDAO;
 import it.zensoftware.luna2.dto.AccountingBalanceRow;
 import it.zensoftware.luna2.model.AccountingAccount;
 import it.zensoftware.luna2.model.AccountingAsset;
@@ -29,7 +30,9 @@ import it.zensoftware.luna2.model.AccountingReportPreset;
 import it.zensoftware.luna2.model.Fattura;
 import it.zensoftware.luna2.model.FatturaPassiva;
 import it.zensoftware.luna2.model.TaxDeadline;
+import it.zensoftware.luna2.model.IvaLiquidation;
 import it.zensoftware.luna2.model.User;
+import it.zensoftware.luna2.service.IvaLiquidationService;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -94,17 +97,21 @@ public class ContabilitaAction extends ActionSupport {
     private final TaxDeadlineDAO deadlineDAO = new TaxDeadlineDAO();
     private final FatturaDAO fatturaDAO = new FatturaDAO();
     private final FatturaPassivaDAO fatturaPassivaDAO = new FatturaPassivaDAO();
+    private final IvaLiquidationDAO liquidationDAO = new IvaLiquidationDAO();
+    private final IvaLiquidationService liquidationService = new IvaLiquidationService();
 
     private AccountingProfile profilo;
     private AccountingAccount conto;
     private AccountingEntry registrazione;
     private TaxDeadline scadenza;
     private AccountingAsset cespite;
+    private IvaLiquidation liquidazione;
 
     private List<AccountingAccount> conti;
     private List<AccountingEntry> registrazioni;
     private List<TaxDeadline> scadenze;
     private List<AccountingAsset> cespiti;
+    private List<IvaLiquidation> liquidazioni;
     private List<AccountingBalanceRow> bilancioRows;
     private List<AccountingEntryLine> mastrinoLines;
     private AccountingAccount mastrinoConto;
@@ -123,6 +130,10 @@ public class ContabilitaAction extends ActionSupport {
     private String scadenzaDate;
     private String cespitePurchaseDate;
     private Integer annoEsercizio;
+    private Integer annoFiltro;
+    private String statoFiltro;
+    private String liquidazioneDateFrom;
+    private String liquidazioneDateTo;
 
     private String[] configKeys;
     private String[] configRegimes;
@@ -2524,6 +2535,227 @@ public class ContabilitaAction extends ActionSupport {
         return value == null ? 0L : value;
     }
 
+    public String liquidazioniIva() {
+        profilo = profileDAO.getDefaultProfile();
+        int anno = annoFiltro != null ? annoFiltro : Calendar.getInstance().get(Calendar.YEAR);
+
+        if (statoFiltro != null && !statoFiltro.trim().isEmpty()) {
+            try {
+                IvaLiquidation.LiquidationStatus status = IvaLiquidation.LiquidationStatus.valueOf(statoFiltro);
+                liquidazioni = liquidationDAO.findByYearAndStatus(anno, status);
+            } catch (IllegalArgumentException e) {
+                liquidazioni = liquidationDAO.findByYear(anno);
+            }
+        } else {
+            liquidazioni = liquidationDAO.findByYear(anno);
+        }
+
+        return SUCCESS;
+    }
+
+    public String calcolaLiquidazione() {
+        profilo = profileDAO.getDefaultProfile();
+        int anno = annoFiltro != null ? annoFiltro : Calendar.getInstance().get(Calendar.YEAR);
+
+        if (liquidazioneDateFrom == null || liquidazioneDateFrom.trim().isEmpty()) {
+            addActionError("Data inizio obbligatoria");
+            return INPUT;
+        }
+
+        try {
+            Date startDate = parseDate(liquidazioneDateFrom);
+            Date endDate = liquidazioneDateTo != null && !liquidazioneDateTo.trim().isEmpty()
+                ? parseDate(liquidazioneDateTo)
+                : startDate;
+
+            if (endDate.before(startDate)) {
+                addActionError("Data fine deve essere successiva a data inizio");
+                return INPUT;
+            }
+
+            liquidazione = new IvaLiquidation();
+            liquidazione.setLiquidationDate(startDate);
+            liquidazione.setEndDate(endDate);
+
+            BigDecimal ivaInvoices = liquidationService.getIvaInvoices(startDate, endDate);
+            BigDecimal ivaCosts = liquidationService.getIvaCosts(startDate, endDate);
+            BigDecimal netIva = liquidationService.computeNetIva(ivaInvoices, ivaCosts);
+            Date dueDate = liquidationService.computeDueDate(endDate, profilo.getVatFrequency());
+
+            liquidazione.setIvaInvoicesAmount(ivaInvoices);
+            liquidazione.setIvaCostsAmount(ivaCosts);
+            liquidazione.setNetIvaAmount(netIva);
+            liquidazione.setAmountDue(netIva);
+            liquidazione.setDueDate(dueDate);
+            liquidazione.setStatus(IvaLiquidation.LiquidationStatus.CALCULATED);
+
+            addActionMessage(String.format("Liquidazione calcolata: IVA attive: €%.2f, IVA passive: €%.2f, Netta dovuta: €%.2f",
+                ivaInvoices, ivaCosts, netIva));
+
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Error calculating liquidation", e);
+            addActionError("Errore nel calcolo della liquidazione: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String saveLiquidazione() {
+        try {
+            if (liquidazione == null || liquidazione.getLiquidationDate() == null) {
+                addActionError("Dati liquidazione incompleti");
+                return INPUT;
+            }
+
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(liquidazione.getEndDate());
+            String period = cal.get(Calendar.MONTH) < 2
+                ? String.format("%d-01", cal.get(Calendar.YEAR))
+                : String.format("%d-%02d", cal.get(Calendar.YEAR), cal.get(Calendar.MONTH) + 1);
+
+            liquidazione.setLiquidationPeriod(period);
+            liquidazione.setStatus(IvaLiquidation.LiquidationStatus.SUBMITTED);
+
+            liquidationDAO.save(liquidazione);
+
+            TaxDeadline deadline = new TaxDeadline();
+            deadline.setTitle("Liquidazione IVA - " + period);
+            deadline.setType(TaxDeadline.DeadlineType.IVA);
+            deadline.setDeadlineDate(liquidazione.getDueDate());
+            deadline.setAmountDue(liquidazione.getAmountDue());
+            deadline.setStatus(TaxDeadline.DeadlineStatus.OPEN);
+            deadline.setFrequency(profilo.getVatFrequency() == AccountingProfile.VatFrequency.MENSILE
+                ? TaxDeadline.Frequency.MONTHLY
+                : TaxDeadline.Frequency.QUARTERLY);
+
+            deadlineDAO.save(deadline);
+
+            addActionMessage("Liquidazione IVA salvata e scadenza creata automaticamente");
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Error saving liquidation", e);
+            addActionError("Errore nel salvataggio: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String generaLiquidazioniAuto() {
+        try {
+            profilo = profileDAO.getDefaultProfile();
+            int anno = annoFiltro != null ? annoFiltro : Calendar.getInstance().get(Calendar.YEAR);
+
+            liquidationService.generateAutoLiquidations(anno);
+
+            int expectedCount = profilo.getVatFrequency() == AccountingProfile.VatFrequency.MENSILE ? 12 : 4;
+            liquidazioni = liquidationDAO.findByYear(anno);
+
+            addActionMessage(String.format("Liquidazioni IVA generate: %d/%d", liquidazioni.size(), expectedCount));
+
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Error generating auto liquidations", e);
+            addActionError("Errore nella generazione automatica: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    public String exportLiquidazionePdf() {
+        try {
+            if (id == null) {
+                addActionError("ID liquidazione non fornito");
+                return ERROR;
+            }
+
+            liquidazione = liquidationDAO.findById(id);
+            if (liquidazione == null) {
+                addActionError("Liquidazione non trovata");
+                return ERROR;
+            }
+
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            Document doc = new Document();
+            PdfWriter.getInstance(doc, baos);
+            doc.open();
+
+            Paragraph title = new Paragraph("LIQUIDAZIONE IVA");
+            title.setAlignment(com.itextpdf.text.Element.ALIGN_CENTER);
+            doc.add(title);
+
+            doc.add(new Paragraph(" "));
+            doc.add(new Paragraph("Periodo: " + liquidazione.getLiquidationPeriod()));
+            doc.add(new Paragraph("Data inizio: " + formatDateIt(liquidazione.getLiquidationDate())));
+            doc.add(new Paragraph("Data fine: " + formatDateIt(liquidazione.getEndDate())));
+            doc.add(new Paragraph(" "));
+
+            PdfPTable table = new PdfPTable(2);
+            table.setWidthPercentage(100);
+            addHeaderCell(table, "Descrizione");
+            addHeaderCell(table, "Importo");
+
+            table.addCell("IVA Fatture Attive");
+            table.addCell("€ " + String.format("%.2f", liquidazione.getIvaInvoicesAmount()));
+
+            table.addCell("IVA Fatture Passive");
+            table.addCell("€ " + String.format("%.2f", liquidazione.getIvaCostsAmount()));
+
+            table.addCell("IVA Netta Dovuta");
+            table.addCell("€ " + String.format("%.2f", liquidazione.getAmountDue()));
+
+            doc.add(table);
+            doc.add(new Paragraph(" "));
+            doc.add(new Paragraph("Scadenza pagamento: " + formatDateIt(liquidazione.getDueDate())));
+            doc.add(new Paragraph("Stato: " + liquidazione.getStatus()));
+
+            doc.close();
+
+            inputStream = new ByteArrayInputStream(baos.toByteArray());
+            contentDisposition = "attachment; filename=\"liquidazione-iva-" + liquidazione.getLiquidationPeriod() + ".pdf\"";
+
+            return "pdf";
+        } catch (Exception e) {
+            logger.error("Error exporting PDF", e);
+            addActionError("Errore nell'esportazione PDF: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+    private String formatDateIt(Date value) {
+        return value == null ? "" : new SimpleDateFormat("dd/MM/yyyy").format(value);
+    }
+
+    public String markLiquidazionePaid() {
+        try {
+            if (id == null) {
+                addActionError("ID liquidazione non fornito");
+                return ERROR;
+            }
+
+            liquidazione = liquidationDAO.findById(id);
+            if (liquidazione == null) {
+                addActionError("Liquidazione non trovata");
+                return ERROR;
+            }
+
+            liquidazione.setStatus(IvaLiquidation.LiquidationStatus.PAID);
+            liquidationDAO.update(liquidazione);
+
+            TaxDeadline deadline = deadlineDAO.findBySourceAndId("IVA_LIQUIDATION", id);
+            if (deadline != null) {
+                deadline.setStatus(TaxDeadline.DeadlineStatus.COMPLETED);
+                deadline.setCompletedAt(new Date());
+                deadlineDAO.update(deadline);
+            }
+
+            addActionMessage("Liquidazione marcata come pagata");
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Error marking liquidation as paid", e);
+            addActionError("Errore nel marcare come pagata: " + e.getMessage());
+            return ERROR;
+        }
+    }
+
+
     public String getFormattedToday() {
         return new SimpleDateFormat("dd/MM/yyyy").format(new Date());
     }
@@ -2541,9 +2773,21 @@ public class ContabilitaAction extends ActionSupport {
     public void setRegistrazione(AccountingEntry registrazione) { this.registrazione = registrazione; }
     public TaxDeadline getScadenza() { return scadenza; }
     public void setScadenza(TaxDeadline scadenza) { this.scadenza = scadenza; }
+    public IvaLiquidation getLiquidazione() { return liquidazione; }
+    public void setLiquidazione(IvaLiquidation liquidazione) { this.liquidazione = liquidazione; }
     public List<AccountingAccount> getConti() { return conti; }
     public List<AccountingEntry> getRegistrazioni() { return registrazioni; }
     public List<TaxDeadline> getScadenze() { return scadenze; }
+    public List<IvaLiquidation> getLiquidazioni() { return liquidazioni; }
+    public void setLiquidazioni(List<IvaLiquidation> liquidazioni) { this.liquidazioni = liquidazioni; }
+    public Integer getAnnoFiltro() { return annoFiltro; }
+    public void setAnnoFiltro(Integer annoFiltro) { this.annoFiltro = annoFiltro; }
+    public String getStatoFiltro() { return statoFiltro; }
+    public void setStatoFiltro(String statoFiltro) { this.statoFiltro = statoFiltro; }
+    public String getLiquidazioneDateFrom() { return liquidazioneDateFrom; }
+    public void setLiquidazioneDateFrom(String liquidazioneDateFrom) { this.liquidazioneDateFrom = liquidazioneDateFrom; }
+    public String getLiquidazioneDateTo() { return liquidazioneDateTo; }
+    public void setLiquidazioneDateTo(String liquidazioneDateTo) { this.liquidazioneDateTo = liquidazioneDateTo; }
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public Long getAccountId() { return accountId; }
