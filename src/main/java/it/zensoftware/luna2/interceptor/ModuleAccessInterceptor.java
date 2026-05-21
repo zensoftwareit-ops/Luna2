@@ -19,30 +19,35 @@ public class ModuleAccessInterceptor extends AbstractInterceptor {
 
     @Override
     public String intercept(ActionInvocation invocation) throws Exception {
-        Map<String, Object> session = invocation.getInvocationContext().getSession();
-        User user = (User) session.get("currentUser");
+        try {
+            Map<String, Object> session = invocation.getInvocationContext().getSession();
+            User user = (User) session.get("currentUser");
 
-        if (user == null) {
+            if (user == null) {
+                return invocation.invoke();
+            }
+
+            Map<String, Boolean> enabled = moduleSettingDAO.getEnabledMap();
+            session.put("enabledModules", enabled);
+
+            if (isSuperUser(user)) {
+                return invocation.invoke();
+            }
+
+            String namespace = invocation.getProxy().getNamespace();
+            String moduleCode = resolveModule(namespace);
+
+            if (moduleCode != null && Boolean.FALSE.equals(enabled.get(moduleCode))) {
+                logger.warn("Module disabled: " + moduleCode + " for user " + user.getUsername());
+                return "moduleDisabled";
+            }
+
             return invocation.invoke();
+        } catch (Exception e) {
+            logger.error("Errore nel ModuleAccessInterceptor: {}", e.getMessage(), e);
+            // Se non riusciamo a verificare i moduli, blocchiamo l'accesso per sicurezza
+            throw e;
         }
-
-        if (isSuperUser(user)) {
-            session.put("enabledModules", moduleSettingDAO.getEnabledMap());
-            return invocation.invoke();
-        }
-
-        Map<String, Boolean> enabled = moduleSettingDAO.getEnabledMap();
-        session.put("enabledModules", enabled);
-
-        String namespace = invocation.getProxy().getNamespace();
-        String moduleCode = resolveModule(namespace);
-
-        if (moduleCode != null && Boolean.FALSE.equals(enabled.get(moduleCode))) {
-            logger.warn("Module disabled: " + moduleCode + " for user " + user.getUsername());
-            return "moduleDisabled";
-        }
-
-        return invocation.invoke();
     }
 
     private boolean isSuperUser(User user) {
