@@ -157,7 +157,11 @@ public class HibernateUtil {
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PayrollDetail.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PayrollEmployeeConfig.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AdminOperation.class);
-            
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.EcommercePlatform.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.EcommerceOrder.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.EcommerceProduct.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.EcommerceSyncLog.class);
+
             logger.info("Annotated classes registered");
 
             Metadata metadata = metadataSources.buildMetadata();

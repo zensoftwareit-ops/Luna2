@@ -23,6 +23,7 @@ public class ModuleSettingsAction extends ActionSupport {
     private boolean produzioneEnabled;
     private boolean aiEnabled;
     private boolean contabilitaEnabled;
+    private boolean ecommerceEnabled;
 
     public String execute() {
         if (!isSuperUser()) {
@@ -43,6 +44,7 @@ public class ModuleSettingsAction extends ActionSupport {
         updateModule("PRODUZIONE", "Produzione/Commesse", produzioneEnabled, "Commesse e avanzamento");
         updateModule("AI", "Modulo AI", aiEnabled, "Funzioni AI e automazioni");
         updateModule("CONTABILITA", "Contabilita", contabilitaEnabled, "Contabilita generale, scadenze fiscali e piano dei conti");
+        updateModule("ECOMMERCE_CENTRALIZATION", "Centralizzazione eCommerce", ecommerceEnabled, "Dashboard centralizzata per WooCommerce, Shopify, Amazon e eBay");
 
         com.opensymphony.xwork2.ActionContext.getContext().getSession()
             .put("enabledModules", moduleSettingDAO.getEnabledMap());
@@ -72,6 +74,7 @@ public class ModuleSettingsAction extends ActionSupport {
         produzioneEnabled = isEnabled("PRODUZIONE", false);
         aiEnabled = isEnabled("AI", false);
         contabilitaEnabled = isEnabled("CONTABILITA", false);
+        ecommerceEnabled = isEnabled("ECOMMERCE_CENTRALIZATION", false);
     }
 
     private boolean isEnabled(String code, boolean defaultValue) {
@@ -142,5 +145,13 @@ public class ModuleSettingsAction extends ActionSupport {
 
     public void setContabilitaEnabled(boolean contabilitaEnabled) {
         this.contabilitaEnabled = contabilitaEnabled;
+    }
+
+    public boolean isEcommerceEnabled() {
+        return ecommerceEnabled;
+    }
+
+    public void setEcommerceEnabled(boolean ecommerceEnabled) {
+        this.ecommerceEnabled = ecommerceEnabled;
     }
 }
