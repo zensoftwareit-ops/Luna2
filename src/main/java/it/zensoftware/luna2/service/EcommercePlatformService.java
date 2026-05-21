@@ -155,6 +155,12 @@ public class EcommercePlatformService {
                 case SHOPIFY:
                     syncShopify(platform);
                     break;
+                case AMAZON:
+                    syncAmazon(platform);
+                    break;
+                case EBAY:
+                    syncEbay(platform);
+                    break;
                 default:
                     logger.warn("Unsupported platform type: " + platform.getPlatformType());
             }
@@ -194,6 +200,42 @@ public class EcommercePlatformService {
             platformDAO.update(platform);
         } catch (Exception e) {
             logger.error("Error syncing Shopify", e);
+            platform.setLastSyncStatus(EcommercePlatform.SyncStatus.FAILED);
+            platformDAO.update(platform);
+        }
+    }
+
+    /**
+     * Sync orders and products from Amazon
+     */
+    private void syncAmazon(EcommercePlatform platform) {
+        try {
+            AmazonService service = new AmazonService(orderDAO, productDAO, syncLogDAO);
+            service.synchronizeOrders(platform);
+            service.synchronizeProducts(platform);
+            platform.setLastSync(new Date());
+            platform.setLastSyncStatus(EcommercePlatform.SyncStatus.SUCCESS);
+            platformDAO.update(platform);
+        } catch (Exception e) {
+            logger.error("Error syncing Amazon", e);
+            platform.setLastSyncStatus(EcommercePlatform.SyncStatus.FAILED);
+            platformDAO.update(platform);
+        }
+    }
+
+    /**
+     * Sync orders and inventory from eBay
+     */
+    private void syncEbay(EcommercePlatform platform) {
+        try {
+            EbayService service = new EbayService(orderDAO, productDAO, syncLogDAO);
+            service.synchronizeOrders(platform);
+            service.synchronizeProducts(platform);
+            platform.setLastSync(new Date());
+            platform.setLastSyncStatus(EcommercePlatform.SyncStatus.SUCCESS);
+            platformDAO.update(platform);
+        } catch (Exception e) {
+            logger.error("Error syncing eBay", e);
             platform.setLastSyncStatus(EcommercePlatform.SyncStatus.FAILED);
             platformDAO.update(platform);
         }
