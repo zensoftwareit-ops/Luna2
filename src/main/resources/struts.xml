@@ -1994,4 +1994,60 @@
             <result name="error" type="redirectAction">ops</result>
         </action>
     </package>
+
+    <!-- eCommerce Centralization Package -->
+    <package name="ecommerce" extends="luna2-default" namespace="/app/ecommerce">
+        <!-- Dashboard -->
+        <action name="dashboard" class="it.zensoftware.luna2.action.EcommerceAction" method="dashboard">
+            <result name="success">/WEB-INF/jsp/ecommerce/dashboard.jsp</result>
+        </action>
+
+        <!-- Orders view -->
+        <action name="orders" class="it.zensoftware.luna2.action.EcommerceAction" method="orders">
+            <result name="success">/WEB-INF/jsp/ecommerce/orders.jsp</result>
+        </action>
+
+        <!-- Products view -->
+        <action name="products" class="it.zensoftware.luna2.action.EcommerceAction" method="products">
+            <result name="success">/WEB-INF/jsp/ecommerce/products.jsp</result>
+        </action>
+
+        <!-- Platform configuration -->
+        <action name="platforms" class="it.zensoftware.luna2.action.EcommercePlatformConfigAction" method="list">
+            <result name="success">/WEB-INF/jsp/ecommerce/platforms.jsp</result>
+        </action>
+
+        <action name="platform-edit" class="it.zensoftware.luna2.action.EcommercePlatformConfigAction" method="edit">
+            <result name="success">/WEB-INF/jsp/ecommerce/platform-edit.jsp</result>
+        </action>
+
+        <action name="platform-save" class="it.zensoftware.luna2.action.EcommercePlatformConfigAction" method="save">
+            <result name="success" type="redirectAction">
+                <param name="actionName">platforms</param>
+            </result>
+            <result name="input" type="redirectAction">
+                <param name="actionName">platform-edit</param>
+            </result>
+        </action>
+
+        <action name="platform-delete" class="it.zensoftware.luna2.action.EcommercePlatformConfigAction" method="delete">
+            <result name="success" type="redirectAction">
+                <param name="actionName">platforms</param>
+            </result>
+        </action>
+
+        <!-- AJAX endpoints -->
+        <action name="sync-now" class="it.zensoftware.luna2.action.EcommerceAction" method="syncNow">
+            <result name="json" type="json">
+                <param name="root">response</param>
+            </result>
+        </action>
+
+        <action name="test-connection" class="it.zensoftware.luna2.action.EcommercePlatformConfigAction" method="testConnection">
+            <result name="json" type="json">
+                <param name="root">response</param>
+            </result>
+        </action>
+    </package>
+
 </struts>
