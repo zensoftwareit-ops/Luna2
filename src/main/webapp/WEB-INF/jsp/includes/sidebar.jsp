@@ -237,6 +237,28 @@
                         </a>
                     </li>
                 </s:if>
+                <s:if test="#session.enabledModules['ECOMMERCE_CENTRALIZATION']">
+                    <li class="nav-item mt-3">
+                        <a class="nav-link" href="<s:url action='dashboard' namespace='/app/ecommerce'/>">
+                            <i class="bi bi-globe me-2"></i>eCommerce
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='orders' namespace='/app/ecommerce'/>">
+                            <i class="bi bi-box-seam me-2"></i>Ordini
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='products' namespace='/app/ecommerce'/>">
+                            <i class="bi bi-bag me-2"></i>Prodotti
+                        </a>
+                    </li>
+                    <li class="nav-item ms-3">
+                        <a class="nav-link" href="<s:url action='platforms' namespace='/app/ecommerce'/>">
+                            <i class="bi bi-shop me-2"></i>Piattaforme
+                        </a>
+                    </li>
+                </s:if>
                 <s:if test="#session.enabledModules['CORE']">
                     <li class="nav-item">
                         <a class="nav-link" href="<s:url action='vendite' namespace='/app/report'/>">

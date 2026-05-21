@@ -57,6 +57,10 @@
                             <s:checkbox name="contabilitaEnabled" cssClass="form-check-input"/>
                             <label class="form-check-label">Contabilita</label>
                         </div>
+                        <div class="form-check form-switch mb-4">
+                            <s:checkbox name="ecommerceEnabled" cssClass="form-check-input"/>
+                            <label class="form-check-label">Centralizzazione eCommerce (WooCommerce, Shopify, Amazon, eBay)</label>
+                        </div>
 
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-save me-2"></i>Salva impostazioni
