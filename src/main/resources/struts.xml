@@ -654,6 +654,12 @@
             <result name="error" type="redirectAction">fatture-passive</result>
         </action>
 
+        <action name="fatture-passive-registra-pagamenti-bulk" class="it.zensoftware.luna2.action.FatturePassiveAction" method="registraPagamentiBulk">
+            <result name="json" type="json">
+                <param name="root">response</param>
+            </result>
+        </action>
+
         <action name="fatture-passive-delete" class="it.zensoftware.luna2.action.FatturePassiveAction" method="delete">
             <result name="success" type="redirectAction">
                 <param name="actionName">fatture-passive</param>

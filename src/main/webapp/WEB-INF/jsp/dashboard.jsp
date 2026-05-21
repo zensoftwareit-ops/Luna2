@@ -219,6 +219,30 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="col-xl-3 col-md-6 mb-3">
+                            <div class="card stat-card">
+                                <div class="card-body position-relative">
+                                    <s:if test="fatturePassiveScadute > 0">
+                                        <span class="badge bg-warning alert-badge"><s:property value="fatturePassiveScadute"/> Alert</span>
+                                    </s:if>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="text-muted mb-2">Fatture Passive in Scadenza</h6>
+                                            <h3 class="mb-0"><s:property value="fatturePassiveScadute"/></h3>
+                                            <small class="<s:if test='fatturePassiveScadute > 0'>text-warning</s:if><s:else>text-muted</s:else>">
+                                                <i class="bi bi-inbox"></i>
+                                                <s:if test="fatturePassiveScadute > 0">Da pagare</s:if>
+                                                <s:else>OK</s:else>
+                                            </small>
+                                        </div>
+                                        <div class="stat-icon bg-<s:if test='fatturePassiveScadute > 0'>warning</s:if><s:else>secondary</s:else> bg-opacity-10 text-<s:if test='fatturePassiveScadute > 0'>warning</s:if><s:else>secondary</s:else>">
+                                            <i class="bi bi-inbox"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Charts Row -->

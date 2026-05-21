@@ -28,6 +28,7 @@ public class DashboardAction extends ActionSupport {
     private LeadDAO leadDAO = new LeadDAO();
     private GiacenzaDAO giacenzaDAO = new GiacenzaDAO();
     private CommessaDAO commessaDAO = new CommessaDAO();
+    private FatturaPassivaDAO fatturaPassivaDAO = new FatturaPassivaDAO();
 
     // Core metrics
     private BigDecimal fatturatoMese;
@@ -41,6 +42,7 @@ public class DashboardAction extends ActionSupport {
     private int giacenzeSottoScorta;
     private BigDecimal valoreMagazzinoTotale;
     private int commesseAttive;
+    private int fatturePassiveScadute;
     
     // Lists
     private List<Preventivo> ultimiPreventivi;
@@ -159,6 +161,15 @@ public class DashboardAction extends ActionSupport {
                 commesseAttive = 0;
             }
 
+            // Fatture passive in scadenza
+            try {
+                List<FatturaPassiva> fatturePassiveScadute = fatturaPassivaDAO.findScadute();
+                this.fatturePassiveScadute = fatturePassiveScadute != null ? fatturePassiveScadute.size() : 0;
+            } catch (Exception e) {
+                logger.warn("Error loading passive invoices: " + e.getMessage());
+                this.fatturePassiveScadute = 0;
+            }
+
             // Get latest data
             ultimiPreventivi = preventivoDAO.findByAnno(currentYear);
             if (ultimiPreventivi != null && ultimiPreventivi.size() > 10) {
@@ -233,6 +244,7 @@ public class DashboardAction extends ActionSupport {
     public int getGiacenzeSottoScorta() { return giacenzeSottoScorta; }
     public BigDecimal getValoreMagazzinoTotale() { return valoreMagazzinoTotale; }
     public int getCommesseAttive() { return commesseAttive; }
+    public int getFatturePassiveScadute() { return fatturePassiveScadute; }
     public List<Preventivo> getUltimiPreventivi() { return ultimiPreventivi; }
     public List<Fattura> getUltimeFatture() { return ultimeFatture; }
     public List<Ordine> getUltimiOrdini() { return ultimiOrdini; }

@@ -62,6 +62,9 @@
                                 <table id="fatturePassiveTable" class="table table-striped table-hover">
                                     <thead>
                                         <tr>
+                                            <th style="width: 40px;">
+                                                <input type="checkbox" id="selectAllCheckbox" title="Seleziona tutti">
+                                            </th>
                                             <th>Numero</th>
                                             <th>Data</th>
                                             <th>Fornitore</th>
@@ -75,6 +78,9 @@
                                     <tbody>
                                         <s:iterator value="fatturePassive" var="fattura">
                                             <tr>
+                                                <td>
+                                                    <input type="checkbox" class="fattura-checkbox" value="<s:property value='#fattura.id'/>" title="Seleziona fattura">
+                                                </td>
                                                 <td><code><s:property value="#fattura.numero"/></code></td>
                                                 <td><s:date name="#fattura.dataFattura" format="dd/MM/yyyy"/></td>
                                                 <td>
@@ -146,6 +152,13 @@
                                     </tbody>
                                 </table>
                             </div>
+
+                            <!-- Pulsante Registra Pagamenti Selezionati -->
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-success" id="registraPagamentiBtn" style="display:none;">
+                                    <i class="bi bi-check-circle me-2"></i>Registra Pagamento Selezionate
+                                </button>
+                            </div>
                         </s:if>
                         <s:else>
                             <div class="alert alert-info" role="alert">
@@ -177,6 +190,50 @@
         </div>
     </div>
 
+    <!-- Modal Registra Pagamenti -->
+    <div class="modal fade" id="registraPagamentiModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registra Pagamento Fatture Selezionate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="registraPagamentiForm">
+                        <div class="mb-3">
+                            <label for="dataPagamento" class="form-label">Data Pagamento *</label>
+                            <input type="date" class="form-control" id="dataPagamento" name="dataPagamento" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="metodoPagamento" class="form-label">Metodo Pagamento *</label>
+                            <select class="form-select" id="metodoPagamento" name="metodoPagamento" required>
+                                <option value="">-- Seleziona metodo --</option>
+                                <option value="BONIFICO">Bonifico</option>
+                                <option value="ASSEGNO">Assegno</option>
+                                <option value="CONTANTI">Contanti</option>
+                                <option value="CARTA">Carta di Credito</option>
+                                <option value="RID">RID</option>
+                                <option value="ALTRO">Altro</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notesPagamento" class="form-label">Note</label>
+                            <textarea class="form-control" id="notesPagamento" name="notesPagamento" rows="3"></textarea>
+                        </div>
+                        <div id="fattureSelezionateList" class="alert alert-info" style="max-height: 200px; overflow-y: auto;">
+                            <strong>Fatture selezionate:</strong>
+                            <ul id="fattureList" class="mb-0"></ul>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="button" class="btn btn-success" id="submitRegistraPagamenti">Registra Pagamenti</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
@@ -188,9 +245,96 @@
                     url: '//cdn.datatables.net/plug-ins/1.13.4/i18n/it-IT.json'
                 },
                 columnDefs: [
-                    { orderable: false, targets: -1 }
+                    { orderable: false, targets: [0, -1] }
                 ]
             });
+
+            // Gestione checkbox seleziona tutto
+            $('#selectAllCheckbox').change(function() {
+                $('.fattura-checkbox').prop('checked', this.checked);
+                updateBulkButtonVisibility();
+            });
+
+            // Aggiorna visibilità pulsante quando cambia selezione
+            $(document).on('change', '.fattura-checkbox', function() {
+                updateBulkButtonVisibility();
+            });
+
+            // Mostra/nascondi pulsante bulk registration
+            function updateBulkButtonVisibility() {
+                var checked = $('.fattura-checkbox:checked').length;
+                $('#registraPagamentiBtn').toggle(checked > 0);
+            }
+
+            // Click sul pulsante bulk registration
+            $('#registraPagamentiBtn').click(function() {
+                var selectedIds = [];
+                $('.fattura-checkbox:checked').each(function() {
+                    selectedIds.push($(this).val());
+                });
+
+                // Popola lista fatture nel modal
+                var fattureList = '';
+                $('.fattura-checkbox:checked').each(function() {
+                    var row = $(this).closest('tr');
+                    var numero = row.find('td:eq(1) code').text();
+                    fattureList += '<li>Fattura ' + numero + '</li>';
+                });
+                $('#fattureList').html(fattureList);
+
+                // Imposta data odierna
+                var today = new Date().toISOString().split('T')[0];
+                $('#dataPagamento').val(today);
+
+                // Mostra modal
+                new bootstrap.Modal(document.getElementById('registraPagamentiModal')).show();
+            });
+
+            // Submit registrazione pagamenti
+            $('#submitRegistraPagamenti').click(function() {
+                var selectedIds = [];
+                $('.fattura-checkbox:checked').each(function() {
+                    selectedIds.push($(this).val());
+                });
+
+                if (selectedIds.length === 0) {
+                    alert('Seleziona almeno una fattura');
+                    return;
+                }
+
+                var dataPagamento = $('#dataPagamento').val();
+                var metodoPagamento = $('#metodoPagamento').val();
+                var notes = $('#notesPagamento').val();
+
+                if (!dataPagamento || !metodoPagamento) {
+                    alert('Compila tutti i campi obbligatori');
+                    return;
+                }
+
+                // Invia richiesta AJAX
+                $.ajax({
+                    url: '<s:url action="fatture-passive-registra-pagamenti-bulk" namespace="/app/documenti"/>',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        fatturaIds: selectedIds,
+                        dataPagamento: dataPagamento,
+                        metodoPagamento: metodoPagamento,
+                        note: notes
+                    }),
+                    success: function(response) {
+                        bootstrap.Modal.getInstance(document.getElementById('registraPagamentiModal')).hide();
+                        alert('Pagamenti registrati con successo!');
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        alert('Errore: ' + (xhr.responseText || 'Errore sconosciuto'));
+                    }
+                });
+            });
+
+            // Inizializza visibilità pulsante
+            updateBulkButtonVisibility();
         });
     </script>
 </body>

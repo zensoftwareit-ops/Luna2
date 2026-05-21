@@ -3,7 +3,9 @@ package it.zensoftware.luna2.action;
 import com.opensymphony.xwork2.ActionSupport;
 import it.zensoftware.luna2.dao.FatturaPassivaDAO;
 import it.zensoftware.luna2.dao.FornitoreDAO;
+import it.zensoftware.luna2.dao.TaxDeadlineDAO;
 import it.zensoftware.luna2.model.FatturaPassiva;
+import it.zensoftware.luna2.model.TaxDeadline;
 import it.zensoftware.luna2.service.FatturePassiveService;
 import it.zensoftware.luna2.service.FattureExportService;
 import it.zensoftware.luna2.util.HibernateUtil;
@@ -13,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Calendar;
 
@@ -34,9 +37,17 @@ public class FatturePassiveAction extends ActionSupport {
     private java.io.File uploadFile;
     private String uploadFileContentType;
     private String uploadFileFileName;
-    
+
+    // Properties for bulk payment registration
+    private List<Long> fatturaIds;
+    private String dataPagamento;
+    private String metodoPagamento;
+    private String note;
+    private Map<String, Object> response;
+
     private final FatturaPassivaDAO fatturaPassivaDAO = new FatturaPassivaDAO();
     private final FornitoreDAO fornitoreDAO = new FornitoreDAO();
+    private final TaxDeadlineDAO taxDeadlineDAO = new TaxDeadlineDAO();
     private final FatturePassiveService fatturePassiveService = new FatturePassiveService(fatturaPassivaDAO, fornitoreDAO);
     private final FattureExportService exportService = new FattureExportService();
     
@@ -128,8 +139,9 @@ public class FatturePassiveAction extends ActionSupport {
             }
             
             fatturaPassiva.setStatoPagamento(FatturaPassiva.StatoPagamento.PAGATA);
+            fatturaPassiva.setDataPagamento(new java.util.Date());
             fatturaPassivaDAO.update(fatturaPassiva);
-            
+
             addActionMessage("Fattura marcata come pagata");
             logger.info("Fattura passiva " + fatturaPassiva.getNumero() + " marcata come pagata");
             
@@ -140,7 +152,64 @@ public class FatturePassiveAction extends ActionSupport {
             return ERROR;
         }
     }
-    
+
+    /**
+     * Registra pagamento per multiple fatture passive
+     */
+    public String registraPagamentiBulk() {
+        response = new java.util.HashMap<>();
+        try {
+            if (fatturaIds == null || fatturaIds.isEmpty()) {
+                response.put("success", false);
+                response.put("message", "Nessuna fattura selezionata");
+                return "json";
+            }
+
+            int success = 0;
+            int errors = 0;
+            java.util.Date pagamentoDate = null;
+
+            // Parse data pagamento
+            try {
+                pagamentoDate = new java.text.SimpleDateFormat("yyyy-MM-dd").parse(dataPagamento);
+            } catch (java.text.ParseException e) {
+                pagamentoDate = new java.util.Date();
+            }
+
+            for (Long fatturaId : fatturaIds) {
+                try {
+                    FatturaPassiva fattura = fatturaPassivaDAO.findById(fatturaId);
+                    if (fattura != null) {
+                        fattura.setStatoPagamento(FatturaPassiva.StatoPagamento.PAGATA);
+                        fattura.setDataPagamento(pagamentoDate);
+                        if (metodoPagamento != null) {
+                            fattura.setMetodoPagamento(metodoPagamento);
+                        }
+                        fatturaPassivaDAO.update(fattura);
+
+                        success++;
+                        logger.info("Fattura passiva " + fattura.getNumero() + " marcata come pagata (bulk)");
+                    }
+                } catch (Exception e) {
+                    errors++;
+                    logger.error("Errore nel pagamento fattura " + fatturaId + ": " + e.getMessage());
+                }
+            }
+
+            response.put("success", true);
+            response.put("message", "Pagamenti registrati: " + success + ", errori: " + errors);
+            response.put("successCount", success);
+            response.put("errorCount", errors);
+
+            return "json";
+        } catch (Exception e) {
+            logger.error("Errore nel registrazione pagamenti bulk", e);
+            response.put("success", false);
+            response.put("message", "Errore: " + e.getMessage());
+            return "json";
+        }
+    }
+
     /**
      * Elimina una fattura passiva
      */
@@ -436,5 +505,46 @@ public class FatturePassiveAction extends ActionSupport {
 
     public FatturaPassiva.StatoPagamento getStatoScaduta() {
         return FatturaPassiva.StatoPagamento.SCADUTA;
+    }
+
+    // Getter/Setter for bulk payment registration
+    public List<Long> getFatturaIds() {
+        return fatturaIds;
+    }
+
+    public void setFatturaIds(List<Long> fatturaIds) {
+        this.fatturaIds = fatturaIds;
+    }
+
+    public String getDataPagamento() {
+        return dataPagamento;
+    }
+
+    public void setDataPagamento(String dataPagamento) {
+        this.dataPagamento = dataPagamento;
+    }
+
+    public String getMetodoPagamento() {
+        return metodoPagamento;
+    }
+
+    public void setMetodoPagamento(String metodoPagamento) {
+        this.metodoPagamento = metodoPagamento;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
+    }
+
+    public Map<String, Object> getResponse() {
+        return response;
+    }
+
+    public void setResponse(Map<String, Object> response) {
+        this.response = response;
     }
 }

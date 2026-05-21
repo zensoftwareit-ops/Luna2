@@ -143,6 +143,11 @@
                             <i class="bi bi-receipt me-2"></i>Fatture
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<s:url action='fatture-passive' namespace='/app/documenti'/>">
+                            <i class="bi bi-inbox me-2"></i>Fatture Passive (SDI)
+                        </a>
+                    </li>
                 </s:if>
                 <s:if test="#session.enabledModules['MAGAZZINO']">
                     <li class="nav-item mt-3">
