@@ -112,34 +112,52 @@ public class PreventiviAction extends ActionSupport {
     }
 
     public String create() {
-        preventivo = new Preventivo();
-        preventivo.setDataPreventivo(new Date());
-        preventivo.setAnno(Calendar.getInstance().get(Calendar.YEAR));
-        dataPreventivoStr = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
-        
-        // Generate next numero
-        String nextNumero = preventivoDAO.getNextNumero(preventivo.getAnno());
-        preventivo.setNumero(nextNumero);
-        
-        // Load clienti for selection
-        clienti = clienteDAO.findAllActive();
-        prodotti = prodottoDAO.findAllActive();
-        return SUCCESS;
+        try {
+            preventivo = new Preventivo();
+            preventivo.setDataPreventivo(new Date());
+            preventivo.setAnno(Calendar.getInstance().get(Calendar.YEAR));
+            dataPreventivoStr = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+
+            // Generate next numero
+            String nextNumero = preventivoDAO.getNextNumero(preventivo.getAnno());
+            preventivo.setNumero(nextNumero);
+
+            // Load clienti for selection
+            clienti = clienteDAO.findAllActive();
+            prodotti = prodottoDAO.findAllActive();
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Errore caricamento form preventivo: {}", e.getMessage(), e);
+            addActionError("Errore nel caricamento del form. Contattare l'amministratore.");
+            return ERROR;
+        }
     }
 
     public String edit() {
-        if (id != null) {
-            preventivo = preventivoDAO.findWithRighe(id);
-            if (preventivo != null) {
-                righe = preventivo.getRighe();
-                if (preventivo.getDataPreventivo() != null) {
-                    dataPreventivoStr = new SimpleDateFormat("yyyy-MM-dd").format(preventivo.getDataPreventivo());
+        try {
+            if (id != null) {
+                preventivo = preventivoDAO.findWithRighe(id);
+                if (preventivo != null) {
+                    righe = preventivo.getRighe();
+                    if (preventivo.getDataPreventivo() != null) {
+                        dataPreventivoStr = new SimpleDateFormat("yyyy-MM-dd").format(preventivo.getDataPreventivo());
+                    }
+                } else {
+                    addActionError("Preventivo non trovato");
+                    return ERROR;
                 }
+                clienti = clienteDAO.findAllActive();
+                prodotti = prodottoDAO.findAllActive();
+            } else {
+                addActionError("ID preventivo non fornito");
+                return ERROR;
             }
-            clienti = clienteDAO.findAllActive();
-            prodotti = prodottoDAO.findAllActive();
+            return SUCCESS;
+        } catch (Exception e) {
+            logger.error("Errore caricamento preventivo: {}", e.getMessage(), e);
+            addActionError("Errore nel caricamento del preventivo. Contattare l'amministratore.");
+            return ERROR;
         }
-        return SUCCESS;
     }
 
     public String view() {
