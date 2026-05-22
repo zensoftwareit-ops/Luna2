@@ -65,6 +65,21 @@ public class ClienteDAO extends GenericDAOImpl<Cliente, Long> {
     }
 
     /**
+     * Find client by email
+     */
+    public Cliente findByEmail(String email) {
+        try (Session session = getSession()) {
+            Query<Cliente> query = session.createQuery(
+                "FROM Cliente WHERE LOWER(email) = LOWER(:email)", Cliente.class);
+            query.setParameter("email", email);
+            return query.uniqueResult();
+        } catch (Exception e) {
+            logger.error("Error finding client by email", e);
+            return null;
+        }
+    }
+
+    /**
      * Find client by codice cliente
      */
     public Cliente findByCodiceCliente(String codiceCliente) {

@@ -67,7 +67,7 @@ public class ProdottoDAO extends GenericDAOImpl<Prodotto, Long> {
     public List<Prodotto> findByCategoria(String categoria) {
         try (Session session = getSession()) {
             Query<Prodotto> query = session.createQuery(
-                "FROM Prodotto WHERE categoria = :categoria AND attivo = true ORDER BY nome", 
+                "FROM Prodotto WHERE categoria = :categoria AND attivo = true ORDER BY nome",
                 Prodotto.class);
             query.setParameter("categoria", categoria);
             return query.list();
@@ -76,4 +76,17 @@ public class ProdottoDAO extends GenericDAOImpl<Prodotto, Long> {
             throw new RuntimeException(e);
         }
     }
+
+    public Prodotto findBySku(String sku) {
+        try (Session session = getSession()) {
+            Query<Prodotto> query = session.createQuery(
+                "FROM Prodotto WHERE sku = :sku", Prodotto.class);
+            query.setParameter("sku", sku);
+            return query.uniqueResult();
+        } catch (Exception e) {
+            logger.error("Error finding product by SKU", e);
+            return null;
+        }
+    }
 }
+

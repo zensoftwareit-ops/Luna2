@@ -70,4 +70,20 @@ public class OrdineDAO extends GenericDAOImpl<Ordine, Long> {
         }
         return ordine;
     }
+
+    /**
+     * Find order by customer reference (used for eCommerce order linking)
+     */
+    public Ordine findByRiferimentoCliente(String riferimento) {
+        try (Session session = getSession()) {
+            Query<Ordine> query = session.createQuery(
+                    "FROM Ordine o WHERE o.riferimentoCliente = :riferimento",
+                    Ordine.class);
+            query.setParameter("riferimento", riferimento);
+            return query.uniqueResult();
+        } catch (Exception e) {
+            return null;
+        }
+    }
 }
+
