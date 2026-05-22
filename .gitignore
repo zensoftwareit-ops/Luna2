@@ -46,3 +46,8 @@ server-manager/node_modules/
 
 # Runtime data (Portainer, infrastructure)
 data/
+
+# Environment variables (NEVER commit tokens!)
+.env
+server-manager/.env
+server-manager/.git-askpass.sh
