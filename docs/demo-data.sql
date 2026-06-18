@@ -11,6 +11,7 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ============================================================
 -- PULIZIA DATI ESISTENTI (commenta se vuoi mantenere dati precedenti)
 -- ============================================================
+-- NOTA: Non tocchiamo users, solo i dati di business
 TRUNCATE TABLE accounting_entry_lines;
 TRUNCATE TABLE accounting_entries;
 TRUNCATE TABLE iva_liquidations;
@@ -30,16 +31,11 @@ TRUNCATE TABLE fornitori;
 TRUNCATE TABLE clienti;
 TRUNCATE TABLE contatti;
 TRUNCATE TABLE lead;
--- Non eliminare users per preservare l'admin e gli accessi
--- TRUNCATE TABLE users;
 
 -- ============================================================
--- 1. UTENTI (solo inserimento demo, preserva admin esistente)
+-- 1. UTENTI (SKIP - manteniamo gli utenti esistenti)
 -- ============================================================
-INSERT IGNORE INTO users (id, username, password, email, nome, cognome, ruolo, attivo, data_creazione, data_modifica) VALUES
-(1, 'admin',   '$2a$10$Kd5lXjfKz3ZTqYJWq5mY3eQfVnHVxGnuVRLvJlpCh6gJvFzPqD3Ey', 'admin@techsolutions.it',    'Mario',    'Rossi',    'ADMIN',   true, NOW(), NOW()),
-(2, 'luca',    '$2a$10$Kd5lXjfKz3ZTqYJWq5mY3eQfVnHVxGnuVRLvJlpCh6gJvFzPqD3Ey', 'luca@techsolutions.it',     'Luca',     'Bianchi',  'MANAGER', true, NOW(), NOW()),
-(3, 'giulia',  '$2a$10$Kd5lXjfKz3ZTqYJWq5mY3eQfVnHVxGnuVRLvJlpCh6gJvFzPqD3Ey', 'giulia@techsolutions.it',   'Giulia',   'Ferrari',  'USER',    true, NOW(), NOW());
+-- Saltato per preservare utenti e accessi esistenti
 
 -- ============================================================
 -- 2. CLIENTI
