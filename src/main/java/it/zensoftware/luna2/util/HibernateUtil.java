@@ -151,6 +151,8 @@ public class HibernateUtil {
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.TaxDeadline.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingPostingConfig.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.AccountingReportPreset.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.IvaLiquidation.class);
+            metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.Pagamento.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.ApprovalRequest.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.TimeRecord.class);
             metadataSources.addAnnotatedClass(it.zensoftware.luna2.model.PayrollRun.class);
