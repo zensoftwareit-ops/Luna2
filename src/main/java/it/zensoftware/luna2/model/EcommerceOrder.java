@@ -24,10 +24,10 @@ public class EcommerceOrder implements Serializable {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "platform_type", nullable = false)
     private EcommercePlatform.PlatformType platformType;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "external_order_id", nullable = false, length = 100)
     private String externalOrderId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -38,7 +38,7 @@ public class EcommerceOrder implements Serializable {
     private String orderNumber;
 
     @Temporal(TemporalType.DATE)
-    @Column(nullable = false)
+    @Column(name = "order_date", nullable = false)
     private Date orderDate;
 
     @Column(length = 100)
@@ -53,7 +53,7 @@ public class EcommerceOrder implements Serializable {
     @Column(length = 10)
     private String currency = "EUR";
 
-    @Column(length = 50)
+    @Column(name = "order_status", length = 50)
     private String orderStatus;
 
     @Column(columnDefinition = "LONGTEXT")

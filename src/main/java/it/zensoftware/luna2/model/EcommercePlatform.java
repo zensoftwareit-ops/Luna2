@@ -29,7 +29,7 @@ public class EcommercePlatform implements Serializable {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "platform_type", nullable = false)
     private PlatformType platformType;
 
     @Column(nullable = false, length = 100)
@@ -44,7 +44,7 @@ public class EcommercePlatform implements Serializable {
     @Column(length = 500)
     private String apiSecret;
 
-    @Column(nullable = false)
+    @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
     @Temporal(TemporalType.TIMESTAMP)

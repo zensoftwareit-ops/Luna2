@@ -24,10 +24,10 @@ public class EcommerceProduct implements Serializable {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "platform_type", nullable = false)
     private EcommercePlatform.PlatformType platformType;
 
-    @Column(nullable = false, length = 100)
+    @Column(name = "external_product_id", nullable = false, length = 100)
     private String externalProductId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -37,7 +37,7 @@ public class EcommerceProduct implements Serializable {
     @Column(length = 100)
     private String sku;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "product_name", nullable = false, length = 255)
     private String productName;
 
     @Column(columnDefinition = "TEXT")
