@@ -20,10 +20,27 @@ public class EcommerceAction extends ActionSupport {
 
     private static final Logger logger = LogManager.getLogger(EcommerceAction.class);
 
-    private EcommercePlatformDAO platformDAO = new EcommercePlatformDAO();
-    private EcommerceOrderDAO orderDAO = new EcommerceOrderDAO();
-    private EcommerceProductDAO productDAO = new EcommerceProductDAO();
-    private EcommercePlatformService platformService = new EcommercePlatformService();
+    private EcommercePlatformDAO platformDAO;
+    private EcommerceOrderDAO orderDAO;
+    private EcommerceProductDAO productDAO;
+    private EcommercePlatformService platformService;
+
+    private EcommercePlatformDAO getPlatformDAO() {
+        if (platformDAO == null) platformDAO = new EcommercePlatformDAO();
+        return platformDAO;
+    }
+    private EcommerceOrderDAO getOrderDAO() {
+        if (orderDAO == null) orderDAO = new EcommerceOrderDAO();
+        return orderDAO;
+    }
+    private EcommerceProductDAO getProductDAO() {
+        if (productDAO == null) productDAO = new EcommerceProductDAO();
+        return productDAO;
+    }
+    private EcommercePlatformService getPlatformService() {
+        if (platformService == null) platformService = new EcommercePlatformService();
+        return platformService;
+    }
 
     private List<EcommercePlatform> platforms;
     private List<EcommerceOrder> orders;
@@ -39,17 +56,17 @@ public class EcommerceAction extends ActionSupport {
     public String dashboard() {
         try {
             logger.info("Loading eCommerce dashboard");
-            platforms = platformDAO.findAll();
+            platforms = getPlatformDAO().findAll();
 
             int offset = (currentPage - 1) * pageSize;
-            orders = orderDAO.findAll();
+            orders = getOrderDAO().findAll();
             if (offset < orders.size()) {
                 orders = orders.subList(offset, Math.min(offset + pageSize, orders.size()));
             } else {
                 orders.clear();
             }
 
-            products = productDAO.findAll();
+            products = getProductDAO().findAll();
             if (offset < products.size()) {
                 products = products.subList(offset, Math.min(offset + pageSize, products.size()));
             } else {
@@ -67,17 +84,17 @@ public class EcommerceAction extends ActionSupport {
     public String orders() {
         try {
             logger.info("Loading eCommerce orders");
-            platforms = platformDAO.findAll();
+            platforms = getPlatformDAO().findAll();
 
             if (platform != null && !platform.isEmpty()) {
                 try {
                     EcommercePlatform.PlatformType platformType = EcommercePlatform.PlatformType.valueOf(platform.toUpperCase());
-                    orders = orderDAO.findByPlatformType(platformType);
+                    orders = getOrderDAO().findByPlatformType(platformType);
                 } catch (IllegalArgumentException e) {
-                    orders = orderDAO.findAll();
+                    orders = getOrderDAO().findAll();
                 }
             } else {
-                orders = orderDAO.findAll();
+                orders = getOrderDAO().findAll();
             }
 
             if (status != null && !status.isEmpty()) {
@@ -102,19 +119,19 @@ public class EcommerceAction extends ActionSupport {
     public String products() {
         try {
             logger.info("Loading eCommerce products");
-            platforms = platformDAO.findAll();
+            platforms = getPlatformDAO().findAll();
 
             if (search != null && !search.isEmpty()) {
-                products = productDAO.findByName(search);
+                products = getProductDAO().findByName(search);
             } else if (platform != null && !platform.isEmpty()) {
                 try {
                     EcommercePlatform.PlatformType platformType = EcommercePlatform.PlatformType.valueOf(platform.toUpperCase());
-                    products = productDAO.findByPlatformType(platformType);
+                    products = getProductDAO().findByPlatformType(platformType);
                 } catch (IllegalArgumentException e) {
-                    products = productDAO.findAll();
+                    products = getProductDAO().findAll();
                 }
             } else {
-                products = productDAO.findAll();
+                products = getProductDAO().findAll();
             }
 
             int offset = (currentPage - 1) * pageSize;
@@ -136,7 +153,7 @@ public class EcommerceAction extends ActionSupport {
         response = new java.util.HashMap<>();
         try {
             logger.info("Triggering manual sync");
-            platformService.syncAllPlatforms();
+            getPlatformService().syncAllPlatforms();
             response.put("success", true);
             response.put("message", "Sincronizzazione avviata");
             return "json";

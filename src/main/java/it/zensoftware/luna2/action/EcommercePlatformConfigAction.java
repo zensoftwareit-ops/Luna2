@@ -16,8 +16,17 @@ public class EcommercePlatformConfigAction extends ActionSupport {
 
     private static final Logger logger = LogManager.getLogger(EcommercePlatformConfigAction.class);
 
-    private EcommercePlatformDAO platformDAO = new EcommercePlatformDAO();
-    private EcommercePlatformService platformService = new EcommercePlatformService();
+    private EcommercePlatformDAO platformDAO;
+    private EcommercePlatformService platformService;
+
+    private EcommercePlatformDAO getPlatformDAO() {
+        if (platformDAO == null) platformDAO = new EcommercePlatformDAO();
+        return platformDAO;
+    }
+    private EcommercePlatformService getPlatformService() {
+        if (platformService == null) platformService = new EcommercePlatformService();
+        return platformService;
+    }
 
     private List<EcommercePlatform> platforms;
     private EcommercePlatform platform;
@@ -35,7 +44,7 @@ public class EcommercePlatformConfigAction extends ActionSupport {
     public String list() {
         try {
             logger.info("Loading eCommerce platforms");
-            platforms = platformDAO.findAll();
+            platforms = getPlatformDAO().findAll();
             return SUCCESS;
         } catch (Exception e) {
             logger.error("Error loading platforms", e);
@@ -47,7 +56,7 @@ public class EcommercePlatformConfigAction extends ActionSupport {
     public String edit() {
         try {
             if (id != null) {
-                platform = platformDAO.findById(id);
+                platform = getPlatformDAO().findById(id);
                 if (platform == null) {
                     addActionError("Piattaforma non trovata");
                     return ERROR;
@@ -81,7 +90,7 @@ public class EcommercePlatformConfigAction extends ActionSupport {
             }
 
             if (id != null) {
-                platform = platformDAO.findById(id);
+                platform = getPlatformDAO().findById(id);
             } else {
                 platform = new EcommercePlatform();
             }
@@ -95,10 +104,10 @@ public class EcommercePlatformConfigAction extends ActionSupport {
             platform.setSyncFrequencyMinutes(syncFrequencyMinutes);
 
             if (id == null) {
-                platformDAO.save(platform);
+                getPlatformDAO().save(platform);
                 addActionMessage("Piattaforma aggiunta con successo");
             } else {
-                platformDAO.update(platform);
+                getPlatformDAO().update(platform);
                 addActionMessage("Piattaforma aggiornata con successo");
             }
 
@@ -124,7 +133,7 @@ public class EcommercePlatformConfigAction extends ActionSupport {
                 return ERROR;
             }
 
-            platformService.removePlatform(id);
+            getPlatformService().removePlatform(id);
             addActionMessage("Piattaforma eliminata");
             logger.info("Platform deleted: " + id);
 
@@ -145,7 +154,7 @@ public class EcommercePlatformConfigAction extends ActionSupport {
                 return "json";
             }
 
-            boolean connected = platformService.testConnection(id);
+            boolean connected = getPlatformService().testConnection(id);
             if (connected) {
                 response.put("success", true);
                 response.put("message", "Connessione riuscita");

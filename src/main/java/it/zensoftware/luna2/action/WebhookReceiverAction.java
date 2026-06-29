@@ -279,6 +279,14 @@ public class WebhookReceiverAction extends ActionSupport {
                 return "json";
             }
 
+            if (platform == null || platform.isEmpty()) {
+                logger.warn("Missing platform parameter in webhook request");
+                response.put("success", "false");
+                response.put("error", "Missing platform parameter");
+                httpStatusCode = 400;
+                return "json";
+            }
+
             switch (platform.toLowerCase()) {
                 case "woocommerce":
                     return handleWooCommerce();

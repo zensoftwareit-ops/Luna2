@@ -159,7 +159,7 @@ public class EcommercePaymentReconciliationService {
             logger.info("Starting payment reconciliation for all orders");
 
             // Get all eCommerce orders that are in payment-sensitive states
-            List<EcommerceOrder> orders = ecommerceOrderDAO.findAll();
+            List<EcommerceOrder> orders = getEcommerceOrderDAO().findAll();
 
             for (EcommerceOrder order : orders) {
                 try {

@@ -20,7 +20,12 @@ import java.util.List;
 public class InventorySyncService {
 
     private static final Logger logger = LogManager.getLogger(InventorySyncService.class);
-    private EcommerceProductDAO productDAO = new EcommerceProductDAO();
+    private EcommerceProductDAO productDAO;
+
+    private EcommerceProductDAO getProductDAO() {
+        if (productDAO == null) productDAO = new EcommerceProductDAO();
+        return productDAO;
+    }
 
     /**
      * Update product inventory on all platforms
@@ -28,7 +33,7 @@ public class InventorySyncService {
      */
     public void syncInventoryToAllPlatforms(Long productId, Integer newQuantity) {
         try {
-            EcommerceProduct product = productDAO.findById(productId);
+            EcommerceProduct product = getProductDAO().findById(productId);
             if (product == null) {
                 logger.warn("Product not found: " + productId);
                 return;
@@ -59,7 +64,7 @@ public class InventorySyncService {
 
             // Update local inventory
             product.setStockQuantity(newQuantity);
-            productDAO.update(product);
+            getProductDAO().update(product);
             logger.info("Inventory synced for product: " + productId + " on " + platform.getPlatformType());
 
         } catch (Exception e) {
@@ -169,7 +174,7 @@ public class InventorySyncService {
     public void syncInventoryFromPlatforms() {
         try {
             logger.info("Starting bidirectional inventory sync from all platforms");
-            List<EcommerceProduct> allProducts = productDAO.findAll();
+            List<EcommerceProduct> allProducts = getProductDAO().findAll();
 
             for (EcommerceProduct product : allProducts) {
                 try {

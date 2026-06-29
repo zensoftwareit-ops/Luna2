@@ -157,7 +157,7 @@ public class EcommerceShipmentTrackingService {
         try {
             logger.info("Starting shipment tracking for all orders");
 
-            java.util.List<EcommerceOrder> orders = ecommerceOrderDAO.findAll();
+            java.util.List<EcommerceOrder> orders = getEcommerceOrderDAO().findAll();
 
             for (EcommerceOrder order : orders) {
                 try {
