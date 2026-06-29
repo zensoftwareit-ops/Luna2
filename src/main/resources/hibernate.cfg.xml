@@ -10,8 +10,8 @@
 		<property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
 		<property name="hibernate.connection.url">jdbc:mysql://luna2-mysql:3306/luna2?useSSL=false&amp;serverTimezone=Europe/Rome&amp;allowPublicKeyRetrieval=true</property>
 		<property name="hibernate.connection.username">luna2_user</property>
-		<property name="hibernate.connection.password">luna2_password</property>
-		<property name="hibernate.connection.pool_size">5</property>
+		<property name="hibernate.connection.password">${DB_PASSWORD}</property>
+		<property name="hibernate.connection.pool_size">20</property>
 		<!-- Update schema on startup to align with entities -->
 		<property name="hibernate.hbm2ddl.auto">update</property>
 

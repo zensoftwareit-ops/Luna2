@@ -113,6 +113,11 @@ public class CalendarSyncService {
     }
 
     private String getEncryptionKey() {
+        // Env var takes priority
+        String envKey = System.getenv("CALENDAR_ENCRYPTION_SECRET");
+        if (envKey != null && !envKey.isEmpty()) {
+            return envKey;
+        }
         Properties props = new Properties();
         try (InputStream is = this.getClass().getClassLoader().getResourceAsStream("application.properties")) {
             if (is != null) {
@@ -125,7 +130,6 @@ public class CalendarSyncService {
         } catch (Exception e) {
             logger.warn("Impossibile leggere encryption key da application.properties", e);
         }
-        // Default key (should be env var in production)
-        return "DefaultCalendarSecretKey2026";
+        throw new IllegalStateException("CALENDAR_ENCRYPTION_SECRET non configurato. Impostare la variabile d'ambiente.");
     }
 }
