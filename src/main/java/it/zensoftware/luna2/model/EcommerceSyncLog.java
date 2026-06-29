@@ -31,7 +31,7 @@ public class EcommerceSyncLog implements Serializable {
     private Long id;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "platform_type", nullable = false)
+    @Column(nullable = false)
     private EcommercePlatform.PlatformType platformType;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -39,11 +39,11 @@ public class EcommerceSyncLog implements Serializable {
     private EcommercePlatform ecommercePlatform;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "sync_type", nullable = false)
+    @Column(nullable = false)
     private SyncType syncType;
 
     @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "start_time", nullable = false)
+    @Column(nullable = false)
     private Date startTime;
 
     @Temporal(TemporalType.TIMESTAMP)

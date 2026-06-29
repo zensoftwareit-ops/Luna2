@@ -326,18 +326,7 @@ public class GoogleCalendarProvider implements CalendarProvider {
         } catch (Exception e) {
             logger.warn("Impossibile leggere application.properties", e);
         }
-        // Env vars override file values for sensitive credentials
-        overrideFromEnv(props, "calendar.google.clientId",     "CALENDAR_GOOGLE_CLIENT_ID");
-        overrideFromEnv(props, "calendar.google.clientSecret", "CALENDAR_GOOGLE_CLIENT_SECRET");
-        overrideFromEnv(props, "calendar.google.stateSecret",  "CALENDAR_GOOGLE_STATE_SECRET");
         return props;
-    }
-
-    private void overrideFromEnv(Properties props, String propKey, String envKey) {
-        String value = System.getenv(envKey);
-        if (value != null && !value.isEmpty()) {
-            props.setProperty(propKey, value);
-        }
     }
 
     private String toRfc3339(LocalDateTime dateTime) {
