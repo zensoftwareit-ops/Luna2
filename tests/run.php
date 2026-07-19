@@ -49,6 +49,16 @@ $assert(is_array($composer) && isset($composer['require']['php']), 'composer.jso
 $assert(is_file($base . '/public/index.php') && is_file($base . '/public/.htaccess'), 'Webroot incompleta.');
 $assert(is_file($base . '/docs/DATEV_KOINOS_MIGRATION.md'), 'Piano migrazione Koinos mancante.');
 
+$cli = (string) file_get_contents($base . '/bin/luna');
+$migrateStart = strpos($cli, "case 'migrate':");
+$setupStart = strpos($cli, "case 'setup:admin':");
+$migrateBlock = $migrateStart !== false && $setupStart !== false
+    ? substr($cli, $migrateStart, $setupStart - $migrateStart)
+    : '';
+$assert($migrateBlock !== '', 'Comando migrate non trovato.');
+$assert(!str_contains($migrateBlock, 'beginTransaction('), 'Le migrazioni DDL MySQL non devono usare una transazione PDO.');
+$assert(!str_contains($migrateBlock, 'commit('), 'Le migrazioni DDL MySQL non devono invocare commit().');
+
 $secretPatterns = [
     '/GOCSPX-[A-Za-z0-9_-]+/',
     '/DefaultCalendarSecretKey/i',
