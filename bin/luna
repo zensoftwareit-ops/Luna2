@@ -47,7 +47,6 @@ try {
                 if ($sql === false) {
                     throw new RuntimeException("Impossibile leggere {$name}");
                 }
-                $db->beginTransaction();
                 try {
                     $statements = preg_split('/;\s*(?:\r?\n|$)/', $sql) ?: [];
                     foreach ($statements as $statementSql) {
@@ -56,13 +55,9 @@ try {
                         }
                     }
                     $db->prepare('INSERT INTO migrations (migration) VALUES (?)')->execute([$name]);
-                    $db->commit();
                     echo "Applicata: {$name}\n";
                 } catch (Throwable $e) {
-                    if ($db->inTransaction()) {
-                        $db->rollBack();
-                    }
-                    throw $e;
+                    throw new RuntimeException("Migrazione {$name} non completata: {$e->getMessage()}", 0, $e);
                 }
             }
             break;
