@@ -11,6 +11,7 @@ final class AccountingController extends BaseController
 {
     public function journal(): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $from = (string) ($_GET['from'] ?? date('Y-01-01'));
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
@@ -25,6 +26,7 @@ final class AccountingController extends BaseController
 
     public function create(): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $statement = $this->db->prepare('SELECT id, code, name, account_type FROM chart_of_accounts WHERE organization_id = ? AND active = 1 AND is_postable = 1 ORDER BY code');
         $statement->execute([Auth::organizationId()]);
@@ -34,6 +36,7 @@ final class AccountingController extends BaseController
 
     public function post(): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $header = [
             'entry_date' => $_POST['entry_date'] ?? date('Y-m-d'),
@@ -53,6 +56,7 @@ final class AccountingController extends BaseController
 
     public function trialBalance(): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $from = (string) ($_GET['from'] ?? date('Y-01-01'));
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
@@ -77,6 +81,7 @@ final class AccountingController extends BaseController
 
     public function ledger(string $id): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $statement = $this->db->prepare('SELECT id, code, name FROM chart_of_accounts WHERE id = ? AND organization_id = ?');
         $statement->execute([(int) $id, Auth::organizationId()]);
@@ -95,5 +100,10 @@ final class AccountingController extends BaseController
         $statement->execute([Auth::organizationId(), (int) $id]);
         $lines = $statement->fetchAll();
         $this->view->render('accounting/ledger', compact('account', 'lines') + ['title' => 'Mastrino ' . $account['code']]);
+    }
+
+    private function guard(): void
+    {
+        $this->requireFeature('accounting');
     }
 }

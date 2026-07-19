@@ -150,6 +150,7 @@ final class ResourceController extends BaseController
         if (!$module) {
             throw new InvalidArgumentException('Modulo non disponibile.');
         }
+        $this->requireFeature((string) $module['feature']);
         return $module;
     }
 

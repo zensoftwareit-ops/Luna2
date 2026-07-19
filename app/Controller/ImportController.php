@@ -12,6 +12,7 @@ final class ImportController extends BaseController
 {
     public function index(): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $statement = $this->db->prepare('SELECT * FROM import_batches WHERE organization_id = ? ORDER BY id DESC LIMIT 100');
         $statement->execute([Auth::organizationId()]);
@@ -21,6 +22,7 @@ final class ImportController extends BaseController
 
     public function upload(): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $service = $this->service();
         $id = $service->upload($_FILES['import_file'] ?? [], (string) ($_POST['import_type'] ?? ''), Env::int('IMPORT_MAX_BYTES', 52428800));
@@ -30,6 +32,7 @@ final class ImportController extends BaseController
 
     public function preview(string $id): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $statement = $this->db->prepare('SELECT * FROM import_batches WHERE id = ? AND organization_id = ?');
         $statement->execute([(int) $id, Auth::organizationId()]);
@@ -49,6 +52,7 @@ final class ImportController extends BaseController
 
     public function commit(string $id): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
         $result = $this->service()->commit((int) $id);
         $this->audit('COMMIT', 'import_batches', (int) $id, $result);
@@ -57,6 +61,7 @@ final class ImportController extends BaseController
 
     public function rollback(string $id): never
     {
+        $this->guard();
         $this->requireRoles(['OWNER', 'ADMIN']);
         $count = $this->service()->rollback((int) $id);
         $this->audit('ROLLBACK', 'import_batches', (int) $id, ['records' => $count]);
@@ -66,5 +71,10 @@ final class ImportController extends BaseController
     private function service(): ImportService
     {
         return new ImportService($this->db, Auth::organizationId(), Auth::id(), $this->config['app']['storage_path']);
+    }
+
+    private function guard(): void
+    {
+        $this->requireFeature('imports');
     }
 }

@@ -9,7 +9,7 @@ $select = static fn (string $label, array $options, bool $required = false): arr
 
 return [
     'customers' => [
-        'group' => 'Anagrafiche', 'title' => 'Clienti', 'singular' => 'Cliente', 'table' => 'customers',
+        'feature' => 'anagraphics', 'group' => 'Anagrafiche', 'title' => 'Clienti', 'singular' => 'Cliente', 'table' => 'customers',
         'title_column' => 'business_name', 'search' => ['code', 'business_name', 'vat_number', 'tax_code', 'email'],
         'columns' => ['code', 'business_name', 'vat_number', 'tax_code', 'city', 'email', 'active'],
         'fields' => [
@@ -24,7 +24,7 @@ return [
         ],
     ],
     'suppliers' => [
-        'group' => 'Anagrafiche', 'title' => 'Fornitori', 'singular' => 'Fornitore', 'table' => 'suppliers',
+        'feature' => 'anagraphics', 'group' => 'Anagrafiche', 'title' => 'Fornitori', 'singular' => 'Fornitore', 'table' => 'suppliers',
         'title_column' => 'business_name', 'search' => ['code', 'business_name', 'vat_number', 'tax_code', 'email'],
         'columns' => ['code', 'business_name', 'vat_number', 'city', 'email', 'active'],
         'fields' => [
@@ -38,7 +38,7 @@ return [
         ],
     ],
     'products' => [
-        'group' => 'Vendite e magazzino', 'title' => 'Prodotti e servizi', 'singular' => 'Prodotto', 'table' => 'products',
+        'feature' => 'inventory', 'group' => 'Vendite e magazzino', 'title' => 'Prodotti e servizi', 'singular' => 'Prodotto', 'table' => 'products',
         'title_column' => 'name', 'search' => ['code', 'sku', 'ean', 'name', 'category'],
         'columns' => ['code', 'name', 'category', 'unit', 'sale_price', 'purchase_cost', 'active'],
         'fields' => [
@@ -52,7 +52,7 @@ return [
         ],
     ],
     'leads' => [
-        'group' => 'CRM', 'title' => 'Lead', 'singular' => 'Lead', 'table' => 'leads',
+        'feature' => 'crm', 'group' => 'CRM', 'title' => 'Lead', 'singular' => 'Lead', 'table' => 'leads',
         'title_column' => 'company_name', 'search' => ['company_name', 'contact_name', 'email', 'phone', 'source'],
         'columns' => ['company_name', 'contact_name', 'status', 'estimated_value', 'next_action_at', 'owner_name'],
         'fields' => [
@@ -65,7 +65,7 @@ return [
         ],
     ],
     'activities' => [
-        'group' => 'CRM', 'title' => 'Attività CRM', 'singular' => 'Attività', 'table' => 'activities',
+        'feature' => 'crm', 'group' => 'CRM', 'title' => 'Attività CRM', 'singular' => 'Attività', 'table' => 'activities',
         'title_column' => 'subject', 'search' => ['subject', 'activity_type', 'status', 'assigned_to'],
         'columns' => ['subject', 'activity_type', 'status', 'starts_at', 'due_at', 'assigned_to'],
         'fields' => [
@@ -77,12 +77,12 @@ return [
         ],
     ],
     'warehouses' => [
-        'group' => 'Vendite e magazzino', 'title' => 'Magazzini', 'singular' => 'Magazzino', 'table' => 'warehouses',
+        'feature' => 'inventory', 'group' => 'Vendite e magazzino', 'title' => 'Magazzini', 'singular' => 'Magazzino', 'table' => 'warehouses',
         'title_column' => 'name', 'search' => ['code', 'name', 'address'], 'columns' => ['code', 'name', 'address', 'active'],
         'fields' => ['code' => $text('Codice', true), 'name' => $text('Nome', true), 'address' => $text('Indirizzo'), 'active' => ['label' => 'Attivo', 'type' => 'checkbox', 'default' => 1]],
     ],
     'inventory-movements' => [
-        'group' => 'Vendite e magazzino', 'title' => 'Movimenti magazzino', 'singular' => 'Movimento', 'table' => 'inventory_movements',
+        'feature' => 'inventory', 'group' => 'Vendite e magazzino', 'title' => 'Movimenti magazzino', 'singular' => 'Movimento', 'table' => 'inventory_movements',
         'title_column' => 'reason', 'search' => ['product_code', 'movement_type', 'reason', 'document_number'],
         'columns' => ['movement_date', 'product_code', 'movement_type', 'quantity', 'unit_cost', 'warehouse_code', 'document_number'],
         'fields' => [
@@ -94,7 +94,7 @@ return [
         ],
     ],
     'projects' => [
-        'group' => 'Operatività', 'title' => 'Commesse', 'singular' => 'Commessa', 'table' => 'projects',
+        'feature' => 'projects', 'group' => 'Operatività', 'title' => 'Commesse', 'singular' => 'Commessa', 'table' => 'projects',
         'title_column' => 'name', 'search' => ['code', 'name', 'customer_name', 'status'],
         'columns' => ['code', 'name', 'customer_name', 'status', 'start_date', 'end_date', 'budget'],
         'fields' => [
@@ -105,7 +105,7 @@ return [
         ],
     ],
     'tax-deadlines' => [
-        'group' => 'Contabilità', 'title' => 'Scadenzario fiscale', 'singular' => 'Scadenza', 'table' => 'tax_deadlines',
+        'feature' => 'accounting', 'group' => 'Contabilità', 'title' => 'Scadenzario fiscale', 'singular' => 'Scadenza', 'table' => 'tax_deadlines',
         'title_column' => 'description', 'search' => ['deadline_type', 'description', 'status', 'reference_period'],
         'columns' => ['due_date', 'deadline_type', 'description', 'reference_period', 'amount', 'status'],
         'fields' => [
@@ -116,7 +116,7 @@ return [
         ],
     ],
     'fixed-assets' => [
-        'group' => 'Contabilità', 'title' => 'Cespiti', 'singular' => 'Cespite', 'table' => 'fixed_assets',
+        'feature' => 'accounting', 'group' => 'Contabilità', 'title' => 'Cespiti', 'singular' => 'Cespite', 'table' => 'fixed_assets',
         'title_column' => 'description', 'search' => ['asset_code', 'description', 'category'],
         'columns' => ['asset_code', 'description', 'purchase_date', 'purchase_cost', 'depreciation_rate', 'net_book_value', 'status'],
         'fields' => [
@@ -127,7 +127,7 @@ return [
         ],
     ],
     'calendar-events' => [
-        'group' => 'Operatività', 'title' => 'Calendario', 'singular' => 'Evento', 'table' => 'calendar_events',
+        'feature' => 'calendar', 'group' => 'Operatività', 'title' => 'Calendario', 'singular' => 'Evento', 'table' => 'calendar_events',
         'title_column' => 'title', 'search' => ['title', 'location', 'provider'],
         'columns' => ['title', 'starts_at', 'ends_at', 'location', 'provider', 'sync_status'],
         'fields' => [
@@ -139,7 +139,7 @@ return [
         ],
     ],
     'time-records' => [
-        'group' => 'HR', 'title' => 'Presenze', 'singular' => 'Presenza', 'table' => 'time_records',
+        'feature' => 'hr', 'group' => 'HR', 'title' => 'Presenze', 'singular' => 'Presenza', 'table' => 'time_records',
         'title_column' => 'employee_name', 'search' => ['employee_name', 'record_type', 'notes'],
         'columns' => ['work_date', 'employee_name', 'record_type', 'check_in', 'check_out', 'hours', 'approved'],
         'fields' => [
@@ -151,7 +151,7 @@ return [
         ],
     ],
     'payroll-runs' => [
-        'group' => 'HR', 'title' => 'Elaborazioni paghe', 'singular' => 'Elaborazione', 'table' => 'payroll_runs',
+        'feature' => 'hr', 'group' => 'HR', 'title' => 'Elaborazioni paghe', 'singular' => 'Elaborazione', 'table' => 'payroll_runs',
         'title_column' => 'period_label', 'search' => ['period_label', 'status'],
         'columns' => ['period_label', 'period_start', 'period_end', 'employees_count', 'gross_total', 'net_total', 'status'],
         'fields' => [
@@ -162,7 +162,7 @@ return [
         ],
     ],
     'ecommerce-channels' => [
-        'group' => 'Integrazioni', 'title' => 'Canali e-commerce', 'singular' => 'Canale', 'table' => 'ecommerce_channels',
+        'feature' => 'ecommerce', 'group' => 'Integrazioni', 'title' => 'Canali e-commerce', 'singular' => 'Canale', 'table' => 'ecommerce_channels',
         'title_column' => 'name', 'search' => ['name', 'platform', 'status'], 'columns' => ['name', 'platform', 'status', 'last_sync_at', 'active'],
         'fields' => [
             'name' => $text('Nome', true), 'platform' => $select('Piattaforma', ['WOOCOMMERCE' => 'WooCommerce', 'SHOPIFY' => 'Shopify', 'AMAZON' => 'Amazon', 'EBAY' => 'eBay'], true),
@@ -171,7 +171,7 @@ return [
         ],
     ],
     'ecommerce-orders' => [
-        'group' => 'Integrazioni', 'title' => 'Ordini e-commerce', 'singular' => 'Ordine e-commerce', 'table' => 'ecommerce_orders',
+        'feature' => 'ecommerce', 'group' => 'Integrazioni', 'title' => 'Ordini e-commerce', 'singular' => 'Ordine e-commerce', 'table' => 'ecommerce_orders',
         'title_column' => 'external_order_id', 'search' => ['platform', 'external_order_id', 'customer_email', 'status'],
         'columns' => ['order_date', 'platform', 'external_order_id', 'customer_email', 'total', 'currency', 'status', 'import_status'],
         'fields' => [
@@ -181,7 +181,7 @@ return [
         ],
     ],
     'rental-contracts' => [
-        'group' => 'Noleggio', 'title' => 'Contratti noleggio', 'singular' => 'Contratto', 'table' => 'rental_contracts',
+        'feature' => 'rental', 'group' => 'Noleggio', 'title' => 'Contratti noleggio', 'singular' => 'Contratto', 'table' => 'rental_contracts',
         'title_column' => 'contract_number', 'search' => ['contract_number', 'customer_name', 'vehicle_plate', 'status'],
         'columns' => ['contract_number', 'customer_name', 'vehicle_plate', 'start_date', 'end_date', 'monthly_fee', 'status'],
         'fields' => [
@@ -192,7 +192,7 @@ return [
         ],
     ],
     'rental-tickets' => [
-        'group' => 'Noleggio', 'title' => 'Ticket noleggio', 'singular' => 'Ticket', 'table' => 'rental_tickets',
+        'feature' => 'rental', 'group' => 'Noleggio', 'title' => 'Ticket noleggio', 'singular' => 'Ticket', 'table' => 'rental_tickets',
         'title_column' => 'subject', 'search' => ['ticket_number', 'subject', 'customer_name', 'status', 'priority'],
         'columns' => ['ticket_number', 'opened_at', 'customer_name', 'subject', 'priority', 'status', 'sla_due_at'],
         'fields' => [

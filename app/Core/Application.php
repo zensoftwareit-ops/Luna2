@@ -10,6 +10,7 @@ use Luna\Controller\DashboardController;
 use Luna\Controller\DocumentController;
 use Luna\Controller\ImportController;
 use Luna\Controller\ResourceController;
+use Luna\Controller\SettingsController;
 use Throwable;
 
 final class Application
@@ -45,7 +46,7 @@ final class Application
 
         $config = require $basePath . '/bootstrap/app.php';
         $db = Database::connect();
-        $view = new View($basePath, $config);
+        $view = new View($basePath, $config, $db);
         $router = new Router($db, $view, $config);
         self::routes($router);
 
@@ -94,6 +95,10 @@ final class Application
         $router->add('GET', '/imports/{id}', [ImportController::class, 'preview']);
         $router->add('POST', '/imports/{id}/commit', [ImportController::class, 'commit']);
         $router->add('POST', '/imports/{id}/rollback', [ImportController::class, 'rollback']);
+
+        $router->add('GET', '/settings/modules', [SettingsController::class, 'modules']);
+        $router->add('POST', '/settings/modules', [SettingsController::class, 'saveModules']);
+        $router->add('GET', '/settings/system', [SettingsController::class, 'system']);
     }
 
     public function run(): void
@@ -102,9 +107,22 @@ final class Application
             $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
             $this->router->dispatch(strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET'), rtrim($path, '/') ?: '/');
         } catch (Throwable $exception) {
-            error_log($exception->__toString());
-            $message = Env::bool('APP_DEBUG') ? $exception->getMessage() : 'Si è verificato un errore. Il dettaglio è stato registrato.';
-            $this->view->render('error', ['title' => 'Errore applicativo', 'message' => $message], 500);
+            $reference = ErrorReporter::report($exception, $this->basePath);
+            $schemaIssue = ErrorReporter::isSchemaError($exception);
+            $message = $schemaIssue
+                ? 'Il database non è completamente aggiornato. Controlla le migrazioni dalla pagina Stato del sistema.'
+                : 'Non è stato possibile completare l’operazione. Il dettaglio tecnico è stato registrato.';
+            if (Env::bool('APP_DEBUG')) {
+                $message .= ' ' . $exception->getMessage();
+            }
+            $this->view->render('error', [
+                'title' => $schemaIssue ? 'Database da aggiornare' : 'Errore applicativo',
+                'message' => $message,
+                'reference' => $reference,
+                'schemaIssue' => $schemaIssue,
+                'actionUrl' => Auth::isAdmin() ? '/settings/system' : '/dashboard',
+                'actionLabel' => Auth::isAdmin() ? 'Controlla il sistema' : 'Torna alla dashboard',
+            ], $schemaIssue ? 503 : 500);
         }
     }
 }

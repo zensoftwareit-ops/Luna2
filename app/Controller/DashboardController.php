@@ -5,13 +5,22 @@ declare(strict_types=1);
 namespace Luna\Controller;
 
 use Luna\Core\Auth;
+use Luna\Core\ModuleManager;
+use Luna\Core\SystemHealth;
+use Throwable;
 
 final class DashboardController extends BaseController
 {
     public function index(): never
     {
         $organizationId = Auth::organizationId();
-        $metrics = [];
+        $manager = new ModuleManager($this->db, $this->config['features'], $organizationId);
+        $featureStates = $manager->all();
+        $metrics = [
+            'customers' => 0, 'open_quotes' => 0, 'receivables' => 0,
+            'payables' => 0, 'overdue_tax' => 0, 'low_stock' => 0,
+        ];
+        $warnings = [];
 
         $queries = [
             'customers' => 'SELECT COUNT(*) FROM customers WHERE organization_id = ? AND active = 1',
@@ -22,26 +31,37 @@ final class DashboardController extends BaseController
             'low_stock' => 'SELECT COUNT(*) FROM inventory_balances WHERE organization_id = ? AND quantity <= minimum_stock',
         ];
         foreach ($queries as $key => $sql) {
-            $statement = $this->db->prepare($sql);
-            $statement->execute([$organizationId]);
-            $metrics[$key] = $statement->fetchColumn();
+            try {
+                $statement = $this->db->prepare($sql);
+                $statement->execute([$organizationId]);
+                $metrics[$key] = $statement->fetchColumn();
+            } catch (Throwable) {
+                $warnings[] = $key;
+            }
         }
 
-        $statement = $this->db->prepare(
-            "SELECT id, number, document_date, counterparty_name, total, balance_due, status, document_type
-             FROM documents WHERE organization_id = ? ORDER BY document_date DESC, id DESC LIMIT 8"
-        );
-        $statement->execute([$organizationId]);
-        $recentDocuments = $statement->fetchAll();
+        $recentDocuments = [];
+        if (SystemHealth::tableExists($this->db, 'documents')) {
+            $statement = $this->db->prepare(
+                "SELECT id, number, document_date, counterparty_name, total, balance_due, status, document_type
+                 FROM documents WHERE organization_id = ? ORDER BY document_date DESC, id DESC LIMIT 8"
+            );
+            $statement->execute([$organizationId]);
+            $recentDocuments = $statement->fetchAll();
+        }
 
-        $statement = $this->db->prepare(
-            "SELECT due_date, deadline_type, description, amount, status
-             FROM tax_deadlines WHERE organization_id = ? AND status <> 'COMPLETED'
-             ORDER BY due_date ASC LIMIT 8"
-        );
-        $statement->execute([$organizationId]);
-        $deadlines = $statement->fetchAll();
+        $deadlines = [];
+        if (SystemHealth::tableExists($this->db, 'tax_deadlines')) {
+            $statement = $this->db->prepare(
+                "SELECT due_date, deadline_type, description, amount, status
+                 FROM tax_deadlines WHERE organization_id = ? AND status <> 'COMPLETED'
+                 ORDER BY due_date ASC LIMIT 8"
+            );
+            $statement->execute([$organizationId]);
+            $deadlines = $statement->fetchAll();
+        }
 
-        $this->view->render('dashboard', compact('metrics', 'recentDocuments', 'deadlines') + ['title' => 'Dashboard']);
+        $migrations = SystemHealth::migrationStatus($this->db, dirname(__DIR__, 2));
+        $this->view->render('dashboard', compact('metrics', 'recentDocuments', 'deadlines', 'warnings', 'migrations', 'featureStates') + ['title' => 'Dashboard']);
     }
 }

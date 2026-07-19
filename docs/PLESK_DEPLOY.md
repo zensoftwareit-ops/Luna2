@@ -22,6 +22,8 @@ php bin/luna migrate
 
 Il file `.env` viene creato una sola volta sul server e non è versionato. Le directory `storage/*` devono essere scrivibili dall’utente PHP ma non pubbliche.
 
+Al termine accedere come amministratore a **Configurazione → Stato del sistema**. La pagina deve mostrare tutte le migrazioni applicate e nessuna estensione o directory mancante. Gli errori applicativi sono registrati in `storage/logs/application-YYYY-MM-DD.log` con lo stesso codice di riferimento mostrato a video. Non abilitare `APP_DEBUG` in produzione.
+
 ## Primo avvio
 
 ```bash

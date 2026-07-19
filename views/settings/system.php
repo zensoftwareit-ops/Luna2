@@ -1,0 +1,17 @@
+<?php use Luna\Core\View; ?>
+<section class="page-intro compact">
+    <div><span class="eyebrow">Diagnostica</span><h1>Stato del sistema</h1><p>Controllo di database, runtime PHP e directory applicative.</p></div>
+    <a class="button ghost" href="/settings/modules"><?= View::icon('settings') ?> Gestione moduli</a>
+</section>
+
+<div class="health-summary <?= $migrations['pending'] === [] ? 'healthy' : 'attention' ?>">
+    <span><?= View::icon($migrations['pending'] === [] ? 'check' : 'alert') ?></span>
+    <div><strong><?= $migrations['pending'] === [] ? 'Sistema aggiornato' : 'Aggiornamento database richiesto' ?></strong><p><?= $migrations['pending'] === [] ? 'Tutte le migrazioni risultano applicate.' : count($migrations['pending']) . ' migrazioni non risultano applicate.' ?></p></div>
+</div>
+
+<div class="settings-grid">
+    <section class="card settings-card"><div class="card-header"><div><span class="section-kicker">Database</span><h2>Migrazioni</h2></div><span class="score"><?= count($migrations['applied']) ?>/<?= count($migrations['available']) ?></span></div><div class="check-list"><?php foreach ($migrations['available'] as $migration): ?><div><span class="check-dot <?= in_array($migration, $migrations['applied'], true) ? 'ok' : 'missing' ?>"><?= View::icon(in_array($migration, $migrations['applied'], true) ? 'check' : 'alert') ?></span><code><?= View::e($migration) ?></code><small><?= in_array($migration, $migrations['applied'], true) ? 'Applicata' : 'Da applicare' ?></small></div><?php endforeach; ?></div><?php if ($migrations['pending'] !== []): ?><div class="settings-help"><strong>Come completare da Plesk</strong><p>Apri l’attività PHP temporanea con script <code>bin/luna</code>, usa l’argomento <code>migrate</code> e premi “Esegui ora”.</p></div><?php endif; ?></section>
+    <section class="card settings-card"><div class="card-header"><div><span class="section-kicker">Runtime</span><h2>PHP <?= View::e($runtime['php']) ?></h2></div></div><div class="check-list compact-list"><?php foreach ($runtime['extensions'] as $extension => $loaded): ?><div><span class="check-dot <?= $loaded ? 'ok' : 'missing' ?>"><?= View::icon($loaded ? 'check' : 'alert') ?></span><code><?= View::e($extension) ?></code><small><?= $loaded ? 'Disponibile' : 'Mancante' ?></small></div><?php endforeach; ?></div></section>
+    <section class="card settings-card"><div class="card-header"><div><span class="section-kicker">Filesystem</span><h2>Directory scrivibili</h2></div></div><div class="check-list compact-list"><?php foreach ($runtime['directories'] as $directory => $writable): ?><div><span class="check-dot <?= $writable ? 'ok' : 'missing' ?>"><?= View::icon($writable ? 'check' : 'alert') ?></span><code>storage/<?= View::e($directory) ?></code><small><?= $writable ? 'Scrivibile' : 'Permessi da correggere' ?></small></div><?php endforeach; ?></div></section>
+    <section class="card settings-card"><div class="card-header"><div><span class="section-kicker">Moduli</span><h2>Tabelle richieste</h2></div></div><div class="check-list compact-list"><?php foreach ($tables as $key => $status): ?><div><span class="check-dot <?= $status['ready'] ? 'ok' : 'missing' ?>"><?= View::icon($status['ready'] ? 'check' : 'alert') ?></span><span><?= View::e($config['features'][$key]['label'] ?? $key) ?></span><small><?= $status['ready'] ? 'Pronto' : count($status['missing']) . ' mancanti' ?></small></div><?php endforeach; ?></div></section>
+</div>

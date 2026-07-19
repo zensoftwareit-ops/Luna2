@@ -11,6 +11,11 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 - piano dei conti, prima nota Dare/Avere, contabilizzazione fatture, libro giornale, mastrini e bilancio di verifica;
 - schema per IVA, scadenze fiscali, pagamenti, banche, riconciliazione e cespiti;
 - import DATEV Koinos con staging, anteprima, idempotenza, log, quadrature e rollback per CSV/XLSX/XML/ZIP.
+- pannello amministrativo per attivare o disattivare i moduli per azienda;
+- diagnostica integrata per migrazioni, tabelle, estensioni PHP e permessi storage;
+- log degli errori con codice di riferimento, senza esporre dettagli tecnici agli utenti.
+
+Gli utenti `OWNER` e `ADMIN` trovano nel menu **Configurazione** le pagine **Gestione moduli** e **Stato del sistema**. Se lo schema non è completo, l’interfaccia indica la migrazione o la tabella mancante invece di mostrare un errore generico. I dettagli delle eccezioni sono salvati in `storage/logs/application-YYYY-MM-DD.log`.
 
 ## Stato del progetto
 

@@ -1,9 +1,14 @@
 (() => {
   'use strict';
 
-  document.querySelector('[data-menu-toggle]')?.addEventListener('click', () => {
-    document.querySelector('#sidebar')?.classList.toggle('open');
-  });
+  const sidebar = document.querySelector('#sidebar');
+  const setMenu = (open) => {
+    sidebar?.classList.toggle('open', open);
+    document.body.classList.toggle('menu-open', open);
+  };
+  document.querySelector('[data-menu-toggle]')?.addEventListener('click', () => setMenu(true));
+  document.querySelectorAll('[data-menu-close]').forEach((button) => button.addEventListener('click', () => setMenu(false)));
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') setMenu(false); });
 
   document.querySelectorAll('form[data-confirm]').forEach((form) => {
     form.addEventListener('submit', (event) => {
@@ -13,6 +18,19 @@
 
   document.querySelectorAll('.clickable-row').forEach((row) => {
     row.addEventListener('dblclick', () => { if (row.dataset.href) window.location.href = row.dataset.href; });
+  });
+
+  document.querySelector('[data-history-back]')?.addEventListener('click', () => window.history.back());
+
+  document.querySelectorAll('.module-checkbox').forEach((checkbox) => {
+    const refresh = () => {
+      const card = checkbox.closest('.module-card');
+      card?.classList.toggle('enabled', checkbox.checked);
+      const label = card?.querySelector('.module-state small');
+      if (label) label.textContent = checkbox.checked ? 'Attivo' : 'Disattivato';
+    };
+    checkbox.addEventListener('change', refresh);
+    refresh();
   });
 
   const documentForm = document.querySelector('[data-document-form]');

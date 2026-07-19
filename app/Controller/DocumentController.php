@@ -14,14 +14,14 @@ use Throwable;
 final class DocumentController extends BaseController
 {
     private const TYPES = [
-        'quotes' => ['code' => 'QUOTE', 'title' => 'Preventivi', 'singular' => 'Preventivo', 'prefix' => 'PREV', 'counterparty' => 'customer'],
-        'orders' => ['code' => 'SALES_ORDER', 'title' => 'Ordini clienti', 'singular' => 'Ordine', 'prefix' => 'ORD', 'counterparty' => 'customer'],
-        'ddt' => ['code' => 'DDT', 'title' => 'Documenti di trasporto', 'singular' => 'DDT', 'prefix' => 'DDT', 'counterparty' => 'customer'],
-        'invoices' => ['code' => 'SALES_INVOICE', 'title' => 'Fatture attive', 'singular' => 'Fattura', 'prefix' => 'FT', 'counterparty' => 'customer'],
-        'credit-notes' => ['code' => 'CREDIT_NOTE', 'title' => 'Note di credito', 'singular' => 'Nota di credito', 'prefix' => 'NC', 'counterparty' => 'customer'],
-        'proformas' => ['code' => 'PROFORMA', 'title' => 'Proforma', 'singular' => 'Proforma', 'prefix' => 'PF', 'counterparty' => 'customer'],
-        'purchase-orders' => ['code' => 'PURCHASE_ORDER', 'title' => 'Ordini fornitori', 'singular' => 'Ordine fornitore', 'prefix' => 'ORDF', 'counterparty' => 'supplier'],
-        'purchase-invoices' => ['code' => 'PURCHASE_INVOICE', 'title' => 'Fatture passive', 'singular' => 'Fattura passiva', 'prefix' => 'FP', 'counterparty' => 'supplier'],
+        'quotes' => ['feature' => 'sales', 'code' => 'QUOTE', 'title' => 'Preventivi', 'singular' => 'Preventivo', 'prefix' => 'PREV', 'counterparty' => 'customer'],
+        'orders' => ['feature' => 'sales', 'code' => 'SALES_ORDER', 'title' => 'Ordini clienti', 'singular' => 'Ordine', 'prefix' => 'ORD', 'counterparty' => 'customer'],
+        'ddt' => ['feature' => 'sales', 'code' => 'DDT', 'title' => 'Documenti di trasporto', 'singular' => 'DDT', 'prefix' => 'DDT', 'counterparty' => 'customer'],
+        'invoices' => ['feature' => 'sales', 'code' => 'SALES_INVOICE', 'title' => 'Fatture attive', 'singular' => 'Fattura', 'prefix' => 'FT', 'counterparty' => 'customer'],
+        'credit-notes' => ['feature' => 'sales', 'code' => 'CREDIT_NOTE', 'title' => 'Note di credito', 'singular' => 'Nota di credito', 'prefix' => 'NC', 'counterparty' => 'customer'],
+        'proformas' => ['feature' => 'sales', 'code' => 'PROFORMA', 'title' => 'Proforma', 'singular' => 'Proforma', 'prefix' => 'PF', 'counterparty' => 'customer'],
+        'purchase-orders' => ['feature' => 'purchases', 'code' => 'PURCHASE_ORDER', 'title' => 'Ordini fornitori', 'singular' => 'Ordine fornitore', 'prefix' => 'ORDF', 'counterparty' => 'supplier'],
+        'purchase-invoices' => ['feature' => 'purchases', 'code' => 'PURCHASE_INVOICE', 'title' => 'Fatture passive', 'singular' => 'Fattura passiva', 'prefix' => 'FP', 'counterparty' => 'supplier'],
     ];
 
     public function index(string $type): never
@@ -41,10 +41,249 @@ final class DocumentController extends BaseController
         $statement->execute($params);
         $documents = $statement->fetchAll();
 
-        $this->view->render('documents/index', compact('type', 'definition', 'documents', 'search') + [5Ó~yöÚ$z{-®éÜj×ÙXÝ[ÛˆÛ\ÜÏH˜Ø\™X›K]Ü˜\X›OXYˆÏÝ‘\ØÜš^š[Û™OÝ”K0èÝ”™^ž›ÏÝ”ØÛÛÏÝ’[\ÛšXš[OÝ’UOÝ•Ý[OÝÝÝXY›ÙOÜ›Ü™XXÚ
-	[™\È\È	[™JNˆÏÏH
-[
-H	[™VÉÛ[™WÛ[X™\‰×HÏÝÏHšY]ÎŽ™J	[™VÉÙ\ØÜš\[Û‰×JHÏÝÏHšY]ÎŽ™J	[™VÉÜ]X[]I×Hˆ	È	Èˆ	[™VÉÝ[š]	×JHÏÝÏHšY]ÎŽ›[Û™^J	[™VÉÝ[š]ÜšXÙI×JHÏÝÏHšY]ÎŽ™J	[™VÉÙ\ØÛÝ[Ü\˜Ù[	×JHÏ‰OÝÏHšY]ÎŽ›[Û™^J	[™VÉÝ^X›WØ[[Ý[	×JHÏÝÏHšY]ÎŽ™J	[™VÉÝ˜]Ü˜]I×JHÏ‰OÝÏHšY]ÎŽ›[Û™^J	[™VÉÝÝ[Ø[[Ý[	×JHÏÝÝÜ[™›Ü™XXÚÈÏÝ›ÙO›ÛÝÛÛÜ[HHÝ’[\ÛšXš[OÝÛÛÜ[HŒˆÏHšY]ÎŽ›[Û™^J	ØÝ[Y[ÉÝ^X›WÝÝ[	×JHÏÝÝÛÛÜ[HHÝ’UOÝÛÛÜ[HŒˆÏHšY]ÎŽ›[Û™^J	ØÝ[Y[ÉÝ˜]ÝÝ[	×JHÏÝÝÛÛÜ[HHÝ•Ý[OÝÛÛÜ[HŒˆÝ›Û™ÏÏHšY]ÎŽ›[Û™^J	ØÝ[Y[ÉÝÝ[	×JHÏÜÝ›Û™ÏÝÝÝ›ÛÝÝX›OÜÙXÝ[Û‚ÙXÝ[ÛˆÛ\ÜÏH˜Ø\™›Ü›KXØ\™YÙÚ[Ü›˜HÝ]ÏÚ›Ü›HY]ÙHœÜÝˆXÝ[ÛH‹ÙØÝ[Y[ËÏÏHšY]ÎŽ™J	\JHÏ‹ÏÏH
-[
-H	ØÝ[Y[ÉÚY	×HÏ‹ÜÝ]\ÈˆÛ\ÜÏHš[›[™KY›Ü›H[œ]\OHšY[ˆˆ˜[YOH—ÝÚÙ[ˆˆ˜[YOHÏHšY]ÎŽ™JÜÜ™ŽŽÚÙ[Š
-JHÏˆÙ[XÝ˜[YOHœÝ]\ÈÜ[Û‘Q•ÛÜ[ÛÜ[Û”ÑS•ÛÜ[ÛÜ[ÛPÐÑTQÛÜ[ÛÜ[Û”‘R‘PÕQÛÜ[ÛÜ[ÛÓÓ‘’T“QQÛÜ[ÛÜ[Û’S—Ô“ÑÔ‘TÔÏÛÜ[ÛÜ[Û‘•S’SQÛÜ[ÛÜ[Û’TÔÕQQÛÜ[ÛÜ[Û”‘PÑRU‘QÛÜ[ÛÜ[Û”T•PSWÔRQÛÜ[ÛÜ[Û”RQÛÜ[ÛÜ[Û“Õ‘T‘QOÛÜ[ÛÜ[ÛÐSÑSQÛÜ[ÛÜÙ[XÝ]ÛˆÛ\ÜÏH˜]Ûˆš[X\žHYÙÚ[Ü›˜OØ]ÛÙ›Ü›OÛ\ÜÏHš[“8 &Y[Z\ÜÚ[Û™HH[˜H˜]\˜H]]˜HÈHšXÙ^š[Û™HH[˜H\ÜÚ]˜HÙ[™\˜H]]ÛX]XØ[Y[HHØÜš]\˜HÛÛXš[KÙH[X[›ÈZHÛÛHHÚ\Ý[XH0êÛÛ™šYÝ\˜]ËÜÜÙXÝ[Û‚
+        $this->view->render('documents/index', compact('type', 'definition', 'documents', 'search') + ['title' => $definition['title']]);
+    }
+
+    public function create(string $type): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES']);
+        $definition = $this->type($type);
+        $table = $definition['counterparty'] === 'customer' ? 'customers' : 'suppliers';
+        $statement = $this->db->prepare("SELECT id, code, business_name, vat_number FROM {$table} WHERE organization_id = ? AND active = 1 ORDER BY business_name");
+        $statement->execute([Auth::organizationId()]);
+        $counterparties = $statement->fetchAll();
+        $statement = $this->db->prepare('SELECT id, code, name, unit, sale_price, purchase_cost, vat_rate FROM products WHERE organization_id = ? AND active = 1 ORDER BY name');
+        $statement->execute([Auth::organizationId()]);
+        $products = $statement->fetchAll();
+        $statement = $this->db->prepare('SELECT code, description, rate, nature FROM vat_codes WHERE organization_id = ? AND active = 1 ORDER BY rate DESC, code');
+        $statement->execute([Auth::organizationId()]);
+        $vatCodes = $statement->fetchAll();
+
+        $document = [
+            'document_date' => date('Y-m-d'), 'due_date' => date('Y-m-d', strtotime('+30 days')),
+            'currency' => 'EUR', 'fatturapa_type' => $definition['code'] === 'CREDIT_NOTE' ? 'TD04' : 'TD01',
+            'vat_collectability' => 'I', 'payment_method_code' => 'MP05',
+        ];
+        $this->view->render('documents/form', compact('type', 'definition', 'document', 'counterparties', 'products', 'vatCodes') + ['title' => 'Nuovo ' . $definition['singular']]);
+    }
+
+    public function save(string $type): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES']);
+        $definition = $this->type($type);
+        $counterpartyId = (int) ($_POST['counterparty_id'] ?? 0);
+        $counterparty = $this->counterparty($definition['counterparty'], $counterpartyId);
+        if (!$counterparty) {
+            $this->redirect('/documents/' . $type . '/create', 'Seleziona una controparte valida.', 'error');
+        }
+
+        $lines = $this->normalizeLines($_POST['lines'] ?? []);
+        if ($lines === []) {
+            $this->redirect('/documents/' . $type . '/create', 'Inserisci almeno una riga valida.', 'error');
+        }
+        $taxable = round(array_sum(array_column($lines, 'taxable_amount')), 2);
+        $vat = round(array_sum(array_column($lines, 'vat_amount')), 2);
+        $total = round($taxable + $vat, 2);
+
+        $this->db->beginTransaction();
+        try {
+            $date = (string) ($_POST['document_date'] ?? date('Y-m-d'));
+            $number = $this->nextNumber($definition, $date);
+            $statement = $this->db->prepare(
+                "INSERT INTO documents
+                 (organization_id, document_type, number, fiscal_year, document_date, due_date, counterparty_type,
+                  counterparty_id, counterparty_name, subject, currency, taxable_total, vat_total, total, balance_due,
+                  status, fatturapa_type, vat_collectability, payment_method_code, notes, created_by, updated_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, NOW(), NOW())"
+            );
+            $statement->execute([
+                Auth::organizationId(), $definition['code'], $number, (int) substr($date, 0, 4), $date,
+                ($_POST['due_date'] ?? '') ?: null, strtoupper($definition['counterparty']), $counterpartyId,
+                $counterparty['business_name'], trim((string) ($_POST['subject'] ?? '')), ($_POST['currency'] ?? 'EUR') ?: 'EUR',
+                $taxable, $vat, $total, $total, ($_POST['fatturapa_type'] ?? '') ?: null,
+                ($_POST['vat_collectability'] ?? '') ?: null, ($_POST['payment_method_code'] ?? '') ?: null,
+                trim((string) ($_POST['notes'] ?? '')) ?: null, Auth::id(), Auth::id(),
+            ]);
+            $documentId = (int) $this->db->lastInsertId();
+            $insertLine = $this->db->prepare(
+                'INSERT INTO document_lines
+                 (organization_id, document_id, line_number, product_id, product_code, description, quantity, unit,
+                  unit_price, discount_percent, taxable_amount, vat_code, vat_rate, vat_nature, vat_amount, total_amount, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+            );
+            foreach ($lines as $index => $line) {
+                $insertLine->execute([
+                    Auth::organizationId(), $documentId, $index + 1, $line['product_id'], $line['product_code'],
+                    $line['description'], $line['quantity'], $line['unit'], $line['unit_price'], $line['discount_percent'],
+                    $line['taxable_amount'], $line['vat_code'], $line['vat_rate'], $line['vat_nature'], $line['vat_amount'], $line['total_amount'],
+                ]);
+            }
+            $this->db->commit();
+            $this->audit('CREATE', 'documents', $documentId, ['type' => $definition['code'], 'number' => $number, 'total' => $total]);
+            $this->redirect("/documents/{$type}/{$documentId}", $definition['singular'] . ' creato correttamente.');
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
+    public function view(string $type, string $id): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
+        $definition = $this->type($type);
+        [$document, $lines] = $this->loadDocument((int) $id, $definition['code']);
+        $this->view->render('documents/view', compact('type', 'definition', 'document', 'lines') + ['title' => $definition['singular'] . ' ' . $document['number']]);
+    }
+
+    public function pdf(string $type, string $id): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
+        $definition = $this->type($type);
+        [$document, $lines] = $this->loadDocument((int) $id, $definition['code']);
+        $statement = $this->db->prepare('SELECT * FROM organizations WHERE id = ?');
+        $statement->execute([Auth::organizationId()]);
+        $organization = $statement->fetch();
+
+        ob_start();
+        require dirname(__DIR__, 2) . '/views/documents/pdf.php';
+        $html = (string) ob_get_clean();
+        $pdf = new Dompdf(['isRemoteEnabled' => false]);
+        $pdf->loadHtml($html, 'UTF-8');
+        $pdf->setPaper('A4');
+        $pdf->render();
+        $pdf->stream(preg_replace('/[^A-Za-z0-9._-]/', '-', $document['number']) . '.pdf', ['Attachment' => true]);
+        exit;
+    }
+
+    public function xml(string $type, string $id): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES']);
+        $definition = $this->type($type);
+        if (!in_array($definition['code'], ['SALES_INVOICE', 'CREDIT_NOTE'], true)) {
+            throw new InvalidArgumentException('Questo documento non prevede XML FatturaPA.');
+        }
+        $service = new FatturaPaService($this->db, Auth::organizationId());
+        $xml = $service->generate((int) $id);
+        header('Content-Type: application/xml; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="IT' . Auth::organizationId() . '_' . str_pad($id, 5, '0', STR_PAD_LEFT) . '.xml"');
+        echo $xml;
+        exit;
+    }
+
+    public function status(string $type, string $id): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES']);
+        $definition = $this->type($type);
+        $status = strtoupper((string) ($_POST['status'] ?? ''));
+        $allowed = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'CONFIRMED', 'IN_PROGRESS', 'FULFILLED', 'ISSUED', 'RECEIVED', 'PARTIALLY_PAID', 'PAID', 'OVERDUE', 'CANCELLED'];
+        if (!in_array($status, $allowed, true)) {
+            throw new InvalidArgumentException('Stato non valido.');
+        }
+        $this->db->beginTransaction();
+        try {
+            $statement = $this->db->prepare('UPDATE documents SET status = ?, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ? AND document_type = ?');
+            $statement->execute([$status, Auth::id(), (int) $id, Auth::organizationId(), $definition['code']]);
+            if (in_array($status, ['ISSUED', 'RECEIVED'], true)) {
+                (new AccountingService($this->db, Auth::organizationId(), Auth::id()))->postDocument((int) $id);
+            }
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $exception;
+        }
+        $this->audit('STATUS_CHANGE', 'documents', (int) $id, ['status' => $status]);
+        $this->redirect("/documents/{$type}/{$id}", 'Stato aggiornato.');
+    }
+
+    private function type(string $type): array
+    {
+        $definition = self::TYPES[$type] ?? throw new InvalidArgumentException('Tipo documento non valido.');
+        $this->requireFeature($definition['feature']);
+        return $definition;
+    }
+
+    private function counterparty(string $type, int $id): array|false
+    {
+        $table = $type === 'customer' ? 'customers' : 'suppliers';
+        $statement = $this->db->prepare("SELECT * FROM {$table} WHERE id = ? AND organization_id = ? AND active = 1");
+        $statement->execute([$id, Auth::organizationId()]);
+        return $statement->fetch();
+    }
+
+    private function normalizeLines(array $input): array
+    {
+        $lines = [];
+        foreach ($input as $row) {
+            $description = trim((string) ($row['description'] ?? ''));
+            $quantity = $this->decimal($row['quantity'] ?? 0);
+            $unitPrice = $this->decimal($row['unit_price'] ?? 0);
+            $discount = max(0.0, min(100.0, $this->decimal($row['discount_percent'] ?? 0)));
+            $vatRate = max(0.0, $this->decimal($row['vat_rate'] ?? 0));
+            if ($description === '' || $quantity <= 0) {
+                continue;
+            }
+            $taxable = round($quantity * $unitPrice * (1 - $discount / 100), 2);
+            $vat = round($taxable * $vatRate / 100, 2);
+            $lines[] = [
+                'product_id' => !empty($row['product_id']) ? (int) $row['product_id'] : null,
+                'product_code' => trim((string) ($row['product_code'] ?? '')) ?: null,
+                'description' => $description,
+                'quantity' => round($quantity, 4),
+                'unit' => trim((string) ($row['unit'] ?? 'NR')) ?: 'NR',
+                'unit_price' => round($unitPrice, 4),
+                'discount_percent' => round($discount, 2),
+                'taxable_amount' => $taxable,
+                'vat_code' => trim((string) ($row['vat_code'] ?? '')) ?: null,
+                'vat_rate' => round($vatRate, 2),
+                'vat_nature' => trim((string) ($row['vat_nature'] ?? '')) ?: null,
+                'vat_amount' => $vat,
+                'total_amount' => round($taxable + $vat, 2),
+            ];
+        }
+        return $lines;
+    }
+
+    private function nextNumber(array $definition, string $date): string
+    {
+        $year = (int) substr($date, 0, 4);
+        $key = $definition['code'] . '-' . $year;
+        $statement = $this->db->prepare('SELECT id, prefix, next_value, padding FROM document_sequences WHERE organization_id = ? AND sequence_key = ? FOR UPDATE');
+        $statement->execute([Auth::organizationId(), $key]);
+        $sequence = $statement->fetch();
+        if (!$sequence) {
+            $prefix = $definition['prefix'] . '-' . $year . '-';
+            $this->db->prepare('INSERT INTO document_sequences (organization_id, sequence_key, prefix, next_value, padding, created_at, updated_at) VALUES (?, ?, ?, 2, 4, NOW(), NOW())')
+                ->execute([Auth::organizationId(), $key, $prefix]);
+            return $prefix . '0001';
+        }
+        $this->db->prepare('UPDATE document_sequences SET next_value = next_value + 1, updated_at = NOW() WHERE id = ?')->execute([$sequence['id']]);
+        return $sequence['prefix'] . str_pad((string) $sequence['next_value'], (int) $sequence['padding'], '0', STR_PAD_LEFT);
+    }
+
+    private function loadDocument(int $id, string $code): array
+    {
+        $statement = $this->db->prepare('SELECT * FROM documents WHERE id = ? AND organization_id = ? AND document_type = ?');
+        $statement->execute([$id, Auth::organizationId(), $code]);
+        $document = $statement->fetch();
+        if (!$document) {
+            throw new InvalidArgumentException('Documento non trovato.');
+        }
+        $statement = $this->db->prepare('SELECT * FROM document_lines WHERE document_id = ? AND organization_id = ? ORDER BY line_number');
+        $statement->execute([$id, Auth::organizationId()]);
+        return [$document, $statement->fetchAll()];
+    }
+
+    private function decimal(mixed $value): float
+    {
+        $string = trim((string) $value);
+        if (str_contains($string, ',')) {
+            $string = str_replace('.', '', $string);
+            $string = str_replace(',', '.', $string);
+        }
+        return (float) $string;
+    }
+}
