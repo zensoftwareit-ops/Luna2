@@ -1,0 +1,6 @@
+<?php use Luna\Core\View; ?>
+<div class="page-actions"><form method="get" class="search-form"><label>Dal <input type="date" name="from" value="<?= View::e($from) ?>"></label><label>Al <input type="date" name="to" value="<?= View::e($to) ?>"></label><button class="button">Filtra</button></form><a class="button primary" href="/accounting/journal/create">Nuova registrazione</a></div>
+<section class="card table-wrap"><table><thead><tr><th>Data</th><th>Protocollo</th><th>Tipo</th><th>Descrizione</th><th>Documento</th><th>Controparte</th><th>Dare</th><th>Avere</th><th>Stato</th></tr></thead><tbody>
+<?php foreach ($entries as $entry): ?><tr><td><?= View::date($entry['entry_date']) ?></td><td><?= View::e($entry['protocol_number']) ?></td><td><?= View::e($entry['entry_type']) ?></td><td><?= View::e($entry['description']) ?></td><td><?= View::e($entry['document_number']) ?></td><td><?= View::e($entry['counterparty']) ?></td><td><?= View::money($entry['total_debit']) ?></td><td><?= View::money($entry['total_credit']) ?></td><td><span class="badge"><?= View::e($entry['status']) ?></span></td></tr><?php endforeach; ?>
+<?php if (!$entries): ?><tr><td colspan="9" class="muted">Nessuna registrazione nel periodo.</td></tr><?php endif; ?>
+</tbody></table></section>

@@ -1,53 +1,15 @@
-# Maven
-target/
-pom.xml.tag
-pom.xml.releaseBackup
-pom.xml.versionsBackup
-pom.xml.next
-release.properties
-dependency-reduced-pom.xml
-buildNumber.properties
-.mvn/timing.properties
-.mvn/wrapper/maven-wrapper.jar
-
-# IDE
-.idea/
-*.iml
-.project
-.classpath
-.settings/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
+/.env
+/vendor/
+/storage/cache/*
+/storage/imports/*
+/storage/logs/*
+/storage/private/*
+/storage/sessions/*
+!/storage/cache/.gitkeep
+!/storage/imports/.gitkeep
+!/storage/logs/.gitkeep
+!/storage/private/.gitkeep
+!/storage/sessions/.gitkeep
+/.idea/
+/.vscode/
 *.log
-logs/
-
-# Database
-*.db
-*.sqlite
-
-# Application specific
-src/main/resources/hibernate.cfg.xml
-src/main/resources/database.properties
-uploads/
-temp/
-
-# Node.js
-node_modules/
-package-lock.json
-server-manager/node_modules/
-
-# Runtime data (Portainer, infrastructure)
-data/
-
-# Environment variables (NEVER commit tokens!)
-.env
-server-manager/.env
-server-manager/.git-askpass.sh

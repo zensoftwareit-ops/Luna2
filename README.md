@@ -1,328 +1,94 @@
-# Luna2 - Gestionale Cloud per PMI
+# Luna2 PHP
 
-Luna2 è un software gestionale completo sviluppato in Java per la gestione aziendale di piccole e medie imprese. Include moduli per CRM, gestione clienti/fornitori, prodotti, magazzino, documenti commerciali (preventivi, ordini, DDT, fatture) e reporting.
+Riscrittura PHP di Luna2 per hosting Plesk, con MySQL 8 e una sola webroot `public/`.
 
-## Tecnologie Utilizzate
+Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo residente. Comprende già:
 
-- **Backend**: Java 11, Maven
-- **Framework Web**: Struts2 6.3.0
-- **ORM**: Hibernate 5.6.15 + C3P0 Connection Pool
-- **Database**: MySQL 8.0
-- **Frontend**: JSP, HTML5, CSS3, Bootstrap 5.3.0
-- **Librerie Aggiuntive**:
-  - iText 5.5.13.3 (generazione PDF)
-  - Apache POI 5.2.3 (export Excel)
-  - BCrypt (hashing password)
-  - Log4j2 (logging)
-  - Jackson (JSON)
+- autenticazione Argon2id, isolamento per azienda, CSRF, audit e security header;
+- anagrafiche clienti/fornitori, prodotti, CRM, magazzini, commesse, calendario, HR, e-commerce e noleggio;
+- preventivi, ordini, DDT, proforma, fatture attive/passive e note di credito con righe, numerazione e PDF;
+- generazione XML FatturaPA e struttura per provider SDI accreditato;
+- piano dei conti, prima nota Dare/Avere, contabilizzazione fatture, libro giornale, mastrini e bilancio di verifica;
+- schema per IVA, scadenze fiscali, pagamenti, banche, riconciliazione e cespiti;
+- import DATEV Koinos con staging, anteprima, idempotenza, log, quadrature e rollback per CSV/XLSX/XML/ZIP.
 
-## Funzionalità Principali
+## Stato del progetto
 
-### Moduli Implementati
+Questa è la nuova fondazione eseguibile, non ancora il via libera alla produzione del primo cliente. Le funzioni che richiedono contratti o dati esterni (canale SDI, conservazione a norma, OAuth calendario, credenziali marketplace e formato proprietario dell’archivio Koinos) sono deliberatamente separate. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md).
 
-1. **Dashboard**
-   - Panoramica KPI aziendali
-   - Fatturato mensile
-   - Preventivi aperti
-   - Clienti attivi
-   - Scadenze
+## Requisiti
 
-2. **CRM / Lead Management**
-   - Gestione lead e opportunità
-   - Stati: Nuovo, Contattato, Qualificato, Proposta, Negoziazione, Vinto, Perso
-   - Tag e categorizzazione
-   - Conversione lead in cliente
-
-3. **Anagrafica Clienti**
-   - Gestione completa anagrafica clienti
-   - Dati fiscali (P.IVA, C.F., Codice Destinatario SDI)
-   - Contatti multipli per cliente
-   - Storico documenti e fatturato
-
-4. **Anagrafica Fornitori**
-   - Gestione fornitori
-   - Dati di contatto e fiscali
-   - Condizioni di pagamento
-
-5. **Prodotti e Listini**
-   - Catalogo prodotti
-   - Categorie e sottocategorie
-   - Listini prezzi multipli
-   - Codici prodotto e barcode
-
-6. **Documenti Commerciali**
-   - Preventivi
-   - Ordini cliente/fornitore
-   - DDT (Documenti di Trasporto)
-   - Fatture (attive/passive)
-   - Numerazione automatica progressiva
-   - Calcolo IVA e totali
-
-7. **Magazzino**
-   - Gestione giacenze
-   - Movimenti di carico/scarico
-   - Inventario
-   - Storico movimenti
-
-8. **Report e Statistiche**
-   - Report vendite per periodo
-   - Analisi prodotti più venduti
-   - Report clienti
-   - Export Excel/CSV
-   - Grafici e dashboard
-
-## Requisiti di Sistema
-
-- Java JDK 11 o superiore
-- Apache Maven 3.6+
-- MySQL Server 8.0+
-- Apache Tomcat 9.0+ o Jetty 9.4+ (per deployment)
-- 2 GB RAM minimo
-- 500 MB spazio disco
+- PHP 8.2 o successivo (consigliato PHP 8.4 su Plesk)
+- MySQL 8.0 o MariaDB compatibile con JSON, window function e `CHECK`
+- Composer 2
+- estensioni PHP: `ctype`, `dom`, `fileinfo`, `gd`, `json`, `libxml`, `mbstring`, `pdo_mysql`, `simplexml`, `zip`
+- HTTPS
 
 ## Installazione
 
-### 1. Clonare il Repository
+```bash
+git clone --branch luna2-php https://github.com/zensoftwareit-ops/Luna2.git luna2-php
+cd luna2-php
+cp .env.example .env
+composer install --no-dev --optimize-autoloader
+php bin/luna key:generate
+php bin/luna migrate
+php bin/luna setup:admin "Ragione Sociale Srl" admin@example.it "una-password-lunga-e-unica"
+```
+
+Il comando `key:generate` stampa una riga `APP_KEY=...`: copiarla in `.env`. Non esistono credenziali predefinite.
+
+Impostare la document root del dominio su `public/`. Se Plesk non consente di cambiare la document root, il file `.htaccess` nella radice inoltra le richieste a `public/` e blocca le cartelle private; la webroot dedicata resta la configurazione raccomandata.
+
+Configurare un task pianificato giornaliero:
 
 ```bash
-git clone <repository-url>
-cd Luna2
+php /var/www/vhosts/example.it/luna2-php/bin/luna cron:daily
 ```
 
-### 2. Configurare il Database MySQL
+## Import DATEV Koinos
 
-Creare il database e l'utente:
+Aprire **Contabilità → Import DATEV Koinos**. Ogni caricamento crea un lotto immutabile con checksum. La conferma è separata dal caricamento; dopo la conferma è disponibile il rollback. Ordine consigliato:
 
-```sql
-CREATE DATABASE luna2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'luna2_user'@'localhost' IDENTIFIED BY 'luna2_password';
-GRANT ALL PRIVILEGES ON luna2.* TO 'luna2_user'@'localhost';
-FLUSH PRIVILEGES;
-```
+1. clienti e fornitori;
+2. piano dei conti;
+3. XML FatturaPA attivi e passivi;
+4. prima nota storica;
+5. pagamenti/incassi;
+6. saldi, cespiti, scadenze e movimenti bancari dopo la quadratura del campione.
 
-Eseguire lo script di creazione schema:
+Per l’archivio proprietario **Esporta archivio** serve almeno un export reale e anonimizzato del cliente. Il piano completo è in [docs/DATEV_KOINOS_MIGRATION.md](docs/DATEV_KOINOS_MIGRATION.md).
+
+## SDI
+
+L’applicazione genera XML FatturaPA, ma non simula un endpoint pubblico inesistente. La trasmissione deve avvenire tramite:
+
+- provider/intermediario con API e accordo di servizio;
+- canale Web Service/FTP preventivamente accreditato presso SdI;
+- PEC o upload manuale, per volumi contenuti.
+
+Il file `.env` contiene `SDI_DRIVER` e i parametri del provider; il connettore concreto va configurato dopo la scelta contrattuale.
+
+## Test
 
 ```bash
-mysql -u luna2_user -p luna2 < src/main/resources/database/schema.sql
+composer test
 ```
 
-### 3. Configurare Hibernate
+Il test esegue il lint di tutti i file PHP, controlla che ogni modulo configurato abbia tabella e colonne nelle migrazioni e cerca credenziali accidentalmente versionate.
 
-Copiare il template di configurazione:
+## Struttura
 
-```bash
-cp src/main/resources/hibernate.cfg.xml.template src/main/resources/hibernate.cfg.xml
+```text
+app/                 core, controller e servizi
+bin/luna             CLI migrazioni/setup/cron
+config/              configurazione e metadati moduli
+database/migrations/ schema MySQL versionato
+docs/                parità, migrazione, Plesk e sicurezza
+public/              unica webroot, asset e front controller
+storage/             file privati non versionati
+tests/               controlli strutturali
+views/               interfaccia server-rendered
 ```
-
-Modificare `hibernate.cfg.xml` con i dati del database:
-
-```xml
-<property name="hibernate.connection.url">jdbc:mysql://localhost:3306/luna2?useSSL=false&amp;serverTimezone=Europe/Rome</property>
-<property name="hibernate.connection.username">luna2_user</property>
-<property name="hibernate.connection.password">luna2_password</property>
-```
-
-### 4. Compilare il Progetto
-
-```bash
-mvn clean install
-```
-
-### 5. Avviare l'Applicazione
-
-#### Opzione A: Usando Jetty (Development)
-
-```bash
-mvn jetty:run
-```
-
-L'applicazione sarà disponibile su: `http://localhost:8080/luna2`
-
-#### Opzione B: Deploy su Tomcat (Production)
-
-```bash
-# Generare il WAR
-mvn clean package
-
-# Copiare il WAR in Tomcat
-cp target/luna2.war /path/to/tomcat/webapps/
-
-# Avviare Tomcat
-/path/to/tomcat/bin/catalina.sh start
-```
-
-L'applicazione sarà disponibile su: `http://localhost:8080/luna2`
-
-## Credenziali di Accesso Predefinite
-
-Dopo l'installazione del database, utilizzare le seguenti credenziali:
-
-- **Username**: `admin`
-- **Password**: `admin123`
-
-**IMPORTANTE**: Cambiare la password amministratore dopo il primo accesso!
-
-## Struttura del Progetto
-
-```
-Luna2/
-├── src/
-│   ├── main/
-│   │   ├── java/
-│   │   │   └── it/zensoftware/luna2/
-│   │   │       ├── action/          # Struts2 Actions (Controllers)
-│   │   │       ├── dao/              # Data Access Objects
-│   │   │       ├── model/            # Entities (JPA/Hibernate)
-│   │   │       ├── filter/           # Servlet Filters
-│   │   │       ├── interceptor/      # Struts2 Interceptors
-│   │   │       └── util/             # Utility Classes
-│   │   ├── resources/
-│   │   │   ├── database/             # SQL Scripts
-│   │   │   ├── hibernate.cfg.xml    # Hibernate Configuration
-│   │   │   └── log4j2.xml           # Logging Configuration
-│   │   └── webapp/
-│   │       ├── WEB-INF/
-│   │       │   ├── jsp/              # JSP Views
-│   │       │   ├── web.xml           # Web Descriptor
-│   │       │   └── struts.xml        # Struts Configuration
-│   │       └── assets/               # Static Resources (CSS, JS, images)
-│   └── test/                         # Unit Tests
-├── pom.xml                           # Maven Configuration
-└── README.md                         # This file
-```
-
-## Configurazione
-
-### Configurazione Database
-
-Modificare `src/main/resources/hibernate.cfg.xml`:
-
-```xml
-<!-- Database connection settings -->
-<property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
-<property name="hibernate.connection.url">jdbc:mysql://localhost:3306/luna2</property>
-<property name="hibernate.connection.username">luna2_user</property>
-<property name="hibernate.connection.password">luna2_password</property>
-
-<!-- Connection pool settings -->
-<property name="hibernate.c3p0.min_size">5</property>
-<property name="hibernate.c3p0.max_size">20</property>
-<property name="hibernate.c3p0.timeout">300</property>
-<property name="hibernate.c3p0.max_statements">50</property>
-```
-
-### Configurazione Logging
-
-Modificare `src/main/resources/log4j2.xml` per personalizzare i livelli di log.
-
-## Utilizzo
-
-### Accesso all'Applicazione
-
-1. Aprire il browser su `http://localhost:8080/luna2`
-2. Inserire username e password
-3. Accedere alla dashboard principale
-
-### Gestione Clienti
-
-1. Navigare su **Clienti** nel menu laterale
-2. Click su **Nuovo Cliente** per aggiungere un cliente
-3. Compilare i dati anagrafici e fiscali
-4. Salvare
-
-### Creazione Preventivo
-
-1. Navigare su **Documenti → Preventivi**
-2. Click su **Nuovo Preventivo**
-3. Selezionare il cliente
-4. Aggiungere le righe prodotto
-5. Il sistema calcolerà automaticamente totali e IVA
-6. Salvare e generare PDF
-
-### Gestione Magazzino
-
-1. Navigare su **Magazzino → Giacenze**
-2. Per effettuare un carico: **Nuovo Carico**
-3. Selezionare prodotto e quantità
-4. Il sistema aggiornerà automaticamente le giacenze
-
-### Report e Statistiche
-
-1. Navigare su **Report**
-2. Selezionare tipo di report (Vendite, Prodotti, Clienti)
-3. Impostare periodo di riferimento
-4. Visualizzare i dati o esportare in Excel
-
-## Backup e Manutenzione
-
-### Backup Database
-
-```bash
-# Backup completo
-mysqldump -u luna2_user -p luna2 > backup_luna2_$(date +%Y%m%d).sql
-
-# Backup solo dati
-mysqldump -u luna2_user -p --no-create-info luna2 > backup_data_$(date +%Y%m%d).sql
-```
-
-### Ripristino Database
-
-```bash
-mysql -u luna2_user -p luna2 < backup_luna2_20240101.sql
-```
-
-## Troubleshooting
-
-### Errore di Connessione Database
-
-Verificare che:
-- MySQL sia in esecuzione: `systemctl status mysql`
-- Le credenziali in `hibernate.cfg.xml` siano corrette
-- Il database esista: `SHOW DATABASES;`
-- L'utente abbia i permessi: `SHOW GRANTS FOR 'luna2_user'@'localhost';`
-
-### OutOfMemoryError
-
-Aumentare la memoria JVM:
-
-```bash
-export MAVEN_OPTS="-Xmx1024m -XX:MaxPermSize=256m"
-mvn jetty:run
-```
-
-## Sicurezza
-
-- Le password sono hashate con BCrypt
-- Protezione CSRF tramite Struts2 Token
-- Session timeout configurabile
-- Autenticazione richiesta per tutte le pagine (tranne login)
-- Validazione input lato server
-- Prepared statements per prevenire SQL Injection
-
-## Performance
-
-- Connection pooling C3P0 per ottimizzare connessioni DB
-- Caching di secondo livello Hibernate (opzionale)
-- Lazy loading per ridurre query
-- Indici database ottimizzati
-
-## Licenza
 
 Copyright © 2026 Zen Software. Tutti i diritti riservati.
-
-## Supporto
-
-Per supporto tecnico o segnalazione bug:
-
-- Email: support@zensoftware.it
-- Documentazione: https://docs.gestionaleluna.it
-
-## Crediti
-
-Sviluppato da Zen Software  
-Website: https://www.gestionaleluna.it
-
----
-
-**Versione**: 2.0.0  
-**Data Rilascio**: Gennaio 2026

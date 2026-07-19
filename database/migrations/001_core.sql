@@ -1,0 +1,463 @@
+CREATE TABLE IF NOT EXISTS migrations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    migration VARCHAR(190) NOT NULL UNIQUE,
+    executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS organizations (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    business_name VARCHAR(190) NOT NULL,
+    vat_number VARCHAR(32) NULL,
+    tax_code VARCHAR(32) NULL,
+    fiscal_regime VARCHAR(8) NOT NULL DEFAULT 'RF01',
+    sdi_code VARCHAR(16) NULL,
+    pec VARCHAR(190) NULL,
+    email VARCHAR(190) NULL,
+    phone VARCHAR(50) NULL,
+    address VARCHAR(255) NULL,
+    postal_code VARCHAR(16) NULL,
+    city VARCHAR(100) NULL,
+    province VARCHAR(8) NULL,
+    country_code CHAR(2) NOT NULL DEFAULT 'IT',
+    iban VARCHAR(34) NULL,
+    currency CHAR(3) NOT NULL DEFAULT 'EUR',
+    locale VARCHAR(16) NOT NULL DEFAULT 'it_IT',
+    timezone VARCHAR(64) NOT NULL DEFAULT 'Europe/Rome',
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_organizations_vat (vat_number)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(190) NOT NULL,
+    email VARCHAR(190) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('OWNER','ADMIN','ACCOUNTANT','SALES','WAREHOUSE','HR','VIEWER') NOT NULL DEFAULT 'VIEWER',
+    locale VARCHAR(16) NOT NULL DEFAULT 'it_IT',
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    last_login_at DATETIME NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_users_email (email),
+    KEY idx_users_org (organization_id),
+    CONSTRAINT fk_users_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(190) NOT NULL,
+    ip_address VARCHAR(45) NOT NULL,
+    successful TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_login_attempts_limit (email, ip_address, successful, created_at),
+    KEY idx_login_attempts_cleanup (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NULL,
+    action VARCHAR(64) NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id VARCHAR(64) NULL,
+    ip_address VARCHAR(45) NULL,
+    user_agent VARCHAR(500) NULL,
+    payload_json JSON NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_audit_org_date (organization_id, created_at),
+    KEY idx_audit_entity (organization_id, entity_type, entity_id),
+    CONSTRAINT fk_audit_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_audit_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS module_settings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    module_key VARCHAR(100) NOT NULL,
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    settings_json JSON NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_module_org_key (organization_id, module_key),
+    CONSTRAINT fk_module_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS document_sequences (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    sequence_key VARCHAR(100) NOT NULL,
+    prefix VARCHAR(64) NOT NULL DEFAULT '',
+    next_value BIGINT UNSIGNED NOT NULL DEFAULT 1,
+    padding TINYINT UNSIGNED NOT NULL DEFAULT 4,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_sequences_org_key (organization_id, sequence_key),
+    CONSTRAINT fk_sequences_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS customers (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    code VARCHAR(50) NULL,
+    business_name VARCHAR(190) NOT NULL,
+    vat_number VARCHAR(32) NULL,
+    tax_code VARCHAR(32) NULL,
+    sdi_code VARCHAR(16) NULL,
+    pec VARCHAR(190) NULL,
+    email VARCHAR(190) NULL,
+    phone VARCHAR(50) NULL,
+    address VARCHAR(255) NULL,
+    postal_code VARCHAR(16) NULL,
+    city VARCHAR(100) NULL,
+    province VARCHAR(8) NULL,
+    country_code CHAR(2) NOT NULL DEFAULT 'IT',
+    iban VARCHAR(34) NULL,
+    payment_terms VARCHAR(100) NULL,
+    credit_limit DECIMAL(15,2) NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    source_import_batch_id BIGINT UNSIGNED NULL,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_customers_code (organization_id, code),
+    UNIQUE KEY uq_customers_vat (organization_id, vat_number),
+    KEY idx_customers_name (organization_id, business_name),
+    CONSTRAINT fk_customers_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS suppliers (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    code VARCHAR(50) NULL,
+    business_name VARCHAR(190) NOT NULL,
+    vat_number VARCHAR(32) NULL,
+    tax_code VARCHAR(32) NULL,
+    sdi_code VARCHAR(16) NULL,
+    pec VARCHAR(190) NULL,
+    email VARCHAR(190) NULL,
+    phone VARCHAR(50) NULL,
+    address VARCHAR(255) NULL,
+    postal_code VARCHAR(16) NULL,
+    city VARCHAR(100) NULL,
+    province VARCHAR(8) NULL,
+    country_code CHAR(2) NOT NULL DEFAULT 'IT',
+    iban VARCHAR(34) NULL,
+    payment_terms VARCHAR(100) NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    source_import_batch_id BIGINT UNSIGNED NULL,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_suppliers_code (organization_id, code),
+    UNIQUE KEY uq_suppliers_vat (organization_id, vat_number),
+    KEY idx_suppliers_name (organization_id, business_name),
+    CONSTRAINT fk_suppliers_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS contacts (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    customer_id BIGINT UNSIGNED NULL,
+    supplier_id BIGINT UNSIGNED NULL,
+    name VARCHAR(190) NOT NULL,
+    job_title VARCHAR(100) NULL,
+    email VARCHAR(190) NULL,
+    phone VARCHAR(50) NULL,
+    notes TEXT NULL,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_contacts_org (organization_id),
+    CONSTRAINT fk_contacts_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_contacts_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+    CONSTRAINT fk_contacts_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS products (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    code VARCHAR(64) NOT NULL,
+    sku VARCHAR(100) NULL,
+    ean VARCHAR(32) NULL,
+    name VARCHAR(190) NOT NULL,
+    description TEXT NULL,
+    category VARCHAR(100) NULL,
+    product_type ENUM('PRODUCT','SERVICE') NOT NULL DEFAULT 'PRODUCT',
+    unit VARCHAR(16) NOT NULL DEFAULT 'NR',
+    sale_price DECIMAL(15,4) NOT NULL DEFAULT 0,
+    purchase_cost DECIMAL(15,4) NOT NULL DEFAULT 0,
+    vat_rate DECIMAL(5,2) NOT NULL DEFAULT 22,
+    track_inventory TINYINT(1) NOT NULL DEFAULT 0,
+    minimum_stock DECIMAL(15,4) NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    source_import_batch_id BIGINT UNSIGNED NULL,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_products_code (organization_id, code),
+    KEY idx_products_search (organization_id, name, sku, ean),
+    CONSTRAINT fk_products_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS product_variants (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    product_id BIGINT UNSIGNED NOT NULL,
+    sku VARCHAR(100) NULL,
+    ean VARCHAR(32) NULL,
+    name VARCHAR(190) NOT NULL,
+    attributes_json JSON NULL,
+    sale_price DECIMAL(15,4) NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_variant_sku (organization_id, sku),
+    CONSTRAINT fk_variants_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_variants_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS supplier_price_lists (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    product_id BIGINT UNSIGNED NOT NULL,
+    supplier_id BIGINT UNSIGNED NOT NULL,
+    supplier_code VARCHAR(100) NULL,
+    purchase_price DECIMAL(15,4) NOT NULL,
+    valid_from DATE NULL,
+    valid_to DATE NULL,
+    preferred TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_supplier_prices (organization_id, product_id, supplier_id),
+    CONSTRAINT fk_price_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_price_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    CONSTRAINT fk_price_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS warehouses (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    code VARCHAR(50) NOT NULL,
+    name VARCHAR(190) NOT NULL,
+    address VARCHAR(255) NULL,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_warehouses_code (organization_id, code),
+    CONSTRAINT fk_warehouses_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS inventory_balances (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    warehouse_id BIGINT UNSIGNED NOT NULL,
+    product_id BIGINT UNSIGNED NOT NULL,
+    quantity DECIMAL(15,4) NOT NULL DEFAULT 0,
+    reserved_quantity DECIMAL(15,4) NOT NULL DEFAULT 0,
+    minimum_stock DECIMAL(15,4) NOT NULL DEFAULT 0,
+    average_cost DECIMAL(15,4) NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_inventory_balance (organization_id, warehouse_id, product_id),
+    CONSTRAINT fk_balance_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_balance_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouses(id) ON DELETE CASCADE,
+    CONSTRAINT fk_balance_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS inventory_movements (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    movement_date DATE NOT NULL,
+    product_id BIGINT UNSIGNED NOT NULL,
+    product_code VARCHAR(64) NULL,
+    warehouse_id BIGINT UNSIGNED NOT NULL,
+    warehouse_code VARCHAR(50) NULL,
+    movement_type ENUM('IN','OUT','TRANSFER_IN','TRANSFER_OUT','ADJUSTMENT') NOT NULL,
+    quantity DECIMAL(15,4) NOT NULL,
+    unit_cost DECIMAL(15,4) NULL,
+    reason VARCHAR(255) NOT NULL,
+    document_type VARCHAR(50) NULL,
+    document_number VARCHAR(100) NULL,
+    source_import_batch_id BIGINT UNSIGNED NULL,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_inventory_movements (organization_id, movement_date, product_id),
+    CONSTRAINT fk_movement_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_movement_product FOREIGN KEY (product_id) REFERENCES products(id),
+    CONSTRAINT fk_movement_warehouse FOREIGN KEY (warehouse_id) REFERENCES warehouses(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS vat_codes (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    code VARCHAR(20) NOT NULL,
+    description VARCHAR(190) NOT NULL,
+    rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+    nature VARCHAR(8) NULL,
+    legal_reference VARCHAR(255) NULL,
+    deductible_percent DECIMAL(5,2) NOT NULL DEFAULT 100,
+    stamp_duty TINYINT(1) NOT NULL DEFAULT 0,
+    active TINYINT(1) NOT NULL DEFAULT 1,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_vat_codes (organization_id, code),
+    CONSTRAINT fk_vat_codes_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS documents (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    document_type ENUM('QUOTE','SALES_ORDER','PURCHASE_ORDER','DDT','PROFORMA','SALES_INVOICE','PURCHASE_INVOICE','CREDIT_NOTE') NOT NULL,
+    number VARCHAR(100) NOT NULL,
+    fiscal_year SMALLINT UNSIGNED NOT NULL,
+    document_date DATE NOT NULL,
+    due_date DATE NULL,
+    counterparty_type ENUM('CUSTOMER','SUPPLIER') NOT NULL,
+    counterparty_id BIGINT UNSIGNED NOT NULL,
+    counterparty_name VARCHAR(190) NOT NULL,
+    subject VARCHAR(255) NULL,
+    currency CHAR(3) NOT NULL DEFAULT 'EUR',
+    taxable_total DECIMAL(15,2) NOT NULL DEFAULT 0,
+    vat_total DECIMAL(15,2) NOT NULL DEFAULT 0,
+    withholding_total DECIMAL(15,2) NOT NULL DEFAULT 0,
+    stamp_duty_total DECIMAL(15,2) NOT NULL DEFAULT 0,
+    total DECIMAL(15,2) NOT NULL DEFAULT 0,
+    balance_due DECIMAL(15,2) NOT NULL DEFAULT 0,
+    status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+    fatturapa_type VARCHAR(8) NULL,
+    vat_collectability VARCHAR(8) NULL,
+    payment_method_code VARCHAR(8) NULL,
+    transport_reason VARCHAR(190) NULL,
+    packages_count INT NULL,
+    carrier VARCHAR(190) NULL,
+    destination_address VARCHAR(255) NULL,
+    notes TEXT NULL,
+    external_key CHAR(64) NULL,
+    source_document_id BIGINT UNSIGNED NULL,
+    source_import_batch_id BIGINT UNSIGNED NULL,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_documents_number (organization_id, document_type, fiscal_year, number),
+    UNIQUE KEY uq_documents_external (organization_id, external_key),
+    KEY idx_documents_counterparty (organization_id, counterparty_type, counterparty_id),
+    KEY idx_documents_date_status (organization_id, document_date, status),
+    CONSTRAINT fk_documents_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_documents_source FOREIGN KEY (source_document_id) REFERENCES documents(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS document_lines (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    document_id BIGINT UNSIGNED NOT NULL,
+    line_number INT UNSIGNED NOT NULL,
+    product_id BIGINT UNSIGNED NULL,
+    product_code VARCHAR(64) NULL,
+    description VARCHAR(1000) NOT NULL,
+    quantity DECIMAL(15,4) NOT NULL DEFAULT 1,
+    unit VARCHAR(16) NULL,
+    unit_price DECIMAL(15,4) NOT NULL DEFAULT 0,
+    discount_percent DECIMAL(7,4) NOT NULL DEFAULT 0,
+    taxable_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    vat_code VARCHAR(20) NULL,
+    vat_rate DECIMAL(5,2) NOT NULL DEFAULT 0,
+    vat_nature VARCHAR(8) NULL,
+    vat_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    total_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    cost_center_id BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_document_line (document_id, line_number),
+    CONSTRAINT fk_lines_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_lines_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE,
+    CONSTRAINT fk_lines_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payment_schedules (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    document_id BIGINT UNSIGNED NOT NULL,
+    installment_number INT UNSIGNED NOT NULL,
+    due_date DATE NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    paid_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    status ENUM('OPEN','PARTIAL','PAID','OVERDUE','CANCELLED') NOT NULL DEFAULT 'OPEN',
+    payment_method_code VARCHAR(8) NULL,
+    iban VARCHAR(34) NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_payment_schedule (document_id, installment_number),
+    CONSTRAINT fk_schedule_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_schedule_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    document_id BIGINT UNSIGNED NULL,
+    payment_schedule_id BIGINT UNSIGNED NULL,
+    payment_date DATE NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    method VARCHAR(50) NOT NULL,
+    reference_number VARCHAR(190) NULL,
+    transaction_id VARCHAR(190) NULL,
+    bank_name VARCHAR(190) NULL,
+    description VARCHAR(500) NULL,
+    reconciled TINYINT(1) NOT NULL DEFAULT 0,
+    reconciled_at DATETIME NULL,
+    source_import_batch_id BIGINT UNSIGNED NULL,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_payments_date (organization_id, payment_date),
+    CONSTRAINT fk_payments_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_payments_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL,
+    CONSTRAINT fk_payments_schedule FOREIGN KEY (payment_schedule_id) REFERENCES payment_schedules(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id BIGINT UNSIGNED NOT NULL,
+    original_name VARCHAR(255) NOT NULL,
+    stored_name VARCHAR(255) NOT NULL,
+    media_type VARCHAR(190) NOT NULL,
+    file_size BIGINT UNSIGNED NOT NULL,
+    checksum_sha256 CHAR(64) NOT NULL,
+    created_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_attachments_entity (organization_id, entity_type, entity_id),
+    CONSTRAINT fk_attachments_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS email_tracking (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    document_id BIGINT UNSIGNED NULL,
+    recipient VARCHAR(190) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    tracking_token CHAR(64) NOT NULL,
+    sent_at DATETIME NULL,
+    first_opened_at DATETIME NULL,
+    last_opened_at DATETIME NULL,
+    opens_count INT UNSIGNED NOT NULL DEFAULT 0,
+    first_downloaded_at DATETIME NULL,
+    downloads_count INT UNSIGNED NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_email_tracking_token (tracking_token),
+    CONSTRAINT fk_email_tracking_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_email_tracking_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

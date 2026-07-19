@@ -1,0 +1,42 @@
+{
+  "name": "zensoftware/luna2-php",
+  "description": "Luna2 ERP PHP per Plesk",
+  "type": "project",
+  "license": "proprietary",
+  "require": {
+    "php": "^8.2",
+    "ext-ctype": "*",
+    "ext-dom": "*",
+    "ext-fileinfo": "*",
+    "ext-gd": "*",
+    "ext-json": "*",
+    "ext-libxml": "*",
+    "ext-mbstring": "*",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-simplexml": "*",
+    "ext-zip": "*",
+    "dompdf/dompdf": "^3.1",
+    "guzzlehttp/guzzle": "^7.9",
+    "phpmailer/phpmailer": "^6.10",
+    "phpoffice/phpspreadsheet": "^5.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Luna\\": "app/"
+    }
+  },
+  "scripts": {
+    "post-install-cmd": [
+      "@php bin/luna storage:init"
+    ],
+    "test": "@php tests/run.php"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true,
+    "allow-plugins": {
+      "php-http/discovery": true
+    }
+  }
+}
