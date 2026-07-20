@@ -71,6 +71,10 @@ $assert(str_contains($application, "'/settings/company'"), 'Rotta setup azienda 
 $assert(str_contains($application, "'/settings/users'"), 'Rotta gestione utenti mancante.');
 $assert(str_contains($application, "'/accounting/vat-registers'"), 'Rotta registri IVA mancante.');
 $assert(str_contains($application, "'/accounting/vat-settlements'"), 'Rotta liquidazioni IVA mancante.');
+$assert(str_contains($application, "'/accounting/setup'"), 'Rotta configurazione piano dei conti mancante.');
+$assert(str_contains($application, "'/accounting/treasury'"), 'Rotta tesoreria e partite mancante.');
+$assert(str_contains($application, "'/accounting/compliance'"), 'Rotta adempimenti e chiusure mancante.');
+$assert(str_contains($application, "'/settings/endpoints'"), 'Rotta endpoint fatturazione elettronica mancante.');
 $assert(str_contains($application, 'ErrorReporter::report'), 'Registrazione errori applicativi mancante.');
 $platformController = (string) file_get_contents($base . '/app/Controller/PlatformController.php');
 $settingsController = (string) file_get_contents($base . '/app/Controller/SettingsController.php');
@@ -89,6 +93,17 @@ $assert(str_contains($accountingService, 'assertAccountsBelongToOrganization'), 
 $assert(str_contains($vatService, 'syncDocument') && str_contains($vatService, 'assertPeriodOpen'), 'Sincronizzazione IVA o blocco periodo mancante.');
 $assert(isset($tableSchemas['vat_settlement_details']), 'Dettaglio liquidazioni IVA mancante.');
 $assert(str_contains($schema, 'vat_settlement_details'), 'Storico di dettaglio delle liquidazioni IVA mancante.');
+$advancedAccountingTables = [
+    'accounting_settings', 'vat_registers', 'accounting_causes', 'accounting_account_mappings',
+    'accounting_open_items', 'payment_allocations', 'vat_cash_events', 'vat_adjustments',
+    'lipe_communications', 'vat_annual_summaries', 'accounting_period_locks', 'accounting_closing_runs',
+    'accounting_adjustment_schedules', 'fixed_asset_categories', 'withholding_records', 'api_endpoint_configs',
+];
+foreach ($advancedAccountingTables as $table) {
+    $assert(isset($tableSchemas[$table]), "Tabella contabile avanzata mancante: {$table}");
+}
+$assert(str_contains($schema, "normal_balance ENUM('DEBIT','CREDIT')") && str_contains($schema, 'statement_section'), 'Classificazione avanzata del piano dei conti mancante.');
+$assert(str_contains($schema, 'secret_reference') && !str_contains($schema, 'secret_value'), 'Gli endpoint devono memorizzare riferimenti e non segreti.');
 $assert(is_file($base . '/views/accounting/vat-registers.php') && is_file($base . '/views/accounting/vat-settlements.php') && is_file($base . '/views/accounting/vat-settlement.php'), 'Interfaccia IVA incompleta.');
 $renderAccountingView = static function (string $file, array $variables) use ($base): string {
     extract($variables, EXTR_SKIP);
@@ -108,10 +123,28 @@ try {
     $renderedAccounting .= $renderAccountingView('vat-settlements', ['settlements' => [], 'year' => 2026]);
     $settlement = ['id' => 1, 'period_type' => 'MONTHLY', 'period_year' => 2026, 'period_number' => 1, 'calculated_at' => '2026-02-01', 'updated_at' => '2026-02-01', 'status' => 'CALCULATED', 'vat_debit' => 0, 'vat_credit' => 0, 'previous_credit' => 0, 'interest_amount' => 0, 'balance' => 0, 'notes' => null];
     $renderedAccounting .= $renderAccountingView('vat-settlement', ['settlement' => $settlement, 'details' => []]);
+    $renderedAccounting .= $renderAccountingView('setup', ['accounts' => [], 'settings' => [], 'registers' => [], 'causes' => [], 'mappings' => [], 'mappingLabels' => []]);
+    $renderedAccounting .= $renderAccountingView('treasury', ['direction' => '', 'openItems' => [], 'payments' => [], 'bankAccounts' => [], 'bankTransactions' => [], 'links' => [], 'withholdings' => [], 'accounts' => []]);
+    $periodStart = new DateTimeImmutable('2026-01-01');
+    $periodEnd = new DateTimeImmutable('2026-12-31');
+    $renderedAccounting .= $renderAccountingView('compliance', ['year' => 2026, 'adjustments' => [], 'lipe' => [], 'annual' => [], 'closingRuns' => [], 'schedules' => [], 'categories' => [], 'assets' => [], 'depreciations' => [], 'accounts' => [], 'statements' => [], 'statementTotals' => [], 'periodStart' => $periodStart, 'periodEnd' => $periodEnd]);
     $assert(str_contains($renderedAccounting, 'Prima nota') && str_contains($renderedAccounting, 'Registri IVA') && str_contains($renderedAccounting, 'Liquidazioni IVA'), 'Rendering viste contabili incompleto.');
+    $assert(str_contains($renderedAccounting, 'Piano dei conti') && str_contains($renderedAccounting, 'Tesoreria e partite') && str_contains($renderedAccounting, 'Adempimenti, bilancio e cespiti'), 'Rendering contabilità avanzata incompleto.');
 } catch (Throwable $exception) {
     $assert(false, 'Errore rendering viste contabili: ' . $exception->getMessage());
 }
+$endpointService = (string) file_get_contents($base . '/app/Service/EndpointConfigService.php');
+$assert(!preg_match('/\bcurl_|file_get_contents\s*\(\s*\$baseUrl|new\s+(?:Client|HttpClient)\b/', $endpointService), 'La configurazione endpoint non deve effettuare chiamate di rete.');
+$endpointView = (string) file_get_contents($base . '/views/settings/endpoints.php');
+$assert(str_contains($endpointView, 'endpoint_id=') && str_contains($endpointView, 'name="id"'), 'Le configurazioni endpoint devono poter essere modificate e disattivate.');
+$importService = (string) file_get_contents($base . '/app/Service/ImportService.php');
+foreach (['open_items', 'vat_movements', 'fixed_assets', 'bank_transactions'] as $target) {
+    $assert(str_contains($importService, "'{$target}'"), "Target import DATEV mancante: {$target}");
+}
+$assert(str_contains($importService, 'fondo_ammortamento') && str_contains($importService, 'tax_net_value'), 'L\'import cespiti deve preservare fondi e valori netti storici.');
+$assert(str_contains($importService, 'SAVEPOINT import_fixed_asset_row'), 'L\'import cespiti deve isolare gli errori per riga.');
+$assert(!str_contains($importService, 'Numero documento, data o importo non validi.'), 'I pagamenti storici senza documento devono poter essere importati.');
+$assert(str_contains($schema, 'code_conflict') && str_contains($schema, 'L2S.'), 'Il seed contabile non deve sovrascrivere codici del piano dei conti esistente.');
 $allViews = '';
 foreach (glob($base . '/views/*.php') ?: [] as $viewFile) {
     $allViews .= file_get_contents($viewFile);

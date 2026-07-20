@@ -17,16 +17,16 @@ Legenda: **Operativo** = flusso utilizzabile nella base PHP; **Base pronta** = s
 | Proforma, fatture attive e note credito | Operativo | Numerazione, righe, PDF, XML FatturaPA, contabilizzazione |
 | Fatture passive | Operativo | Inserimento/import XML, scadenza e contabilizzazione |
 | Invio email e tracking | Base pronta | Tabelle presenti; coda SMTP e pixel/link firmati da completare |
-| SDI invio/ricezione/notifiche | Dipendenza esterna | Scegliere provider o canale accreditato; niente endpoint fittizio |
+| SDI invio/ricezione/notifiche | Base pronta / Dipendenza esterna | Endpoint test/produzione configurabili senza chiamate o segreti; connettore e servizio API da sviluppare dopo la scelta del canale |
 | Conservazione a norma | Dipendenza esterna | Necessario provider/accordo di conservazione |
-| Pagamenti, rate e acconti | Base pronta | Schema e import storico; UI operativa e aggiornamento saldo da completare |
-| Piano dei conti e prima nota | Operativo / in estensione | Bozze, modifica, dettaglio, scritture manuali/automatiche e quadratura; causali configurabili da completare |
+| Pagamenti, rate e acconti | Operativo | Partite, scadenze, incassi/pagamenti, allocazione, aggiornamento saldo e storno controllato |
+| Piano dei conti e prima nota | Operativo | Gerarchia, classificazione civilistica/fiscale, causali, sezionali, mappature, bozze e scritture manuali/automatiche quadrate |
 | Libro giornale, mastrini, bilancio verifica | Operativo | Filtri periodo, progressivo mastrino e totali Dare/Avere |
-| Conto economico e stato patrimoniale | Base pronta | Dati disponibili; riclassificazione e stampe ufficiali da completare |
-| Registri IVA e liquidazioni | Operativo di base | Vendite/acquisti/corrispettivi, detraibilità, liquidazioni e blocco periodo; sezionali, regimi speciali, pro-rata e LIPE restano nel gate P0 |
-| Ratei, risconti, chiusura/apertura | Base pronta | Tipi scrittura presenti; wizard e regole da completare |
-| Cespiti e ammortamenti | Operativo / Base pronta | Registro CRUD; calcolo civilistico/fiscale e scritture automatiche da completare |
-| Banche e riconciliazione | Base pronta | Schema CAMT/CSV e matching da completare |
+| Conto economico e stato patrimoniale | Operativo / validazione cliente | Riclassificazione dal piano dei conti e saldi per esercizi anche non solari; stampa ufficiale da validare |
+| Registri IVA e liquidazioni | Operativo / validazione fiscale | Sezionali, regimi, esigibilità, IVA per cassa, detraibilità, pro-rata, rettifiche, liquidazioni e raccordi LIPE/annuale non telematici |
+| Ratei, risconti, chiusura/apertura | Operativo / validazione cliente | Assestamenti, controlli, chiusura economica, risultato, apertura patrimoniale e blocco esercizio |
+| Cespiti e ammortamenti | Operativo / validazione fiscale | Categorie, valori civilistici/fiscali, primo anno, quote e scritture automatiche |
+| Banche e riconciliazione | Operativo manuale | Conti, movimenti, matching parziale/totale e annullamento; open banking resta successivo |
 | Scadenzario fiscale | Operativo | CRUD, dashboard e aggiornamento automatico scaduti |
 | Magazzini e movimenti | Operativo / Base pronta | CRUD; aggiornamento atomico giacenze, trasferimenti/picking/barcode da completare |
 | Commesse | Operativo / Base pronta | CRUD e budget; avanzamento/fatturazione/consuntivo da completare |
@@ -36,7 +36,7 @@ Legenda: **Operativo** = flusso utilizzabile nella base PHP; **Base pronta** = s
 | e-commerce Woo/Shopify/Amazon/eBay | Base pronta / Dipendenza esterna | Canali, ordini, prodotti e log; adapter API/webhook da completare |
 | Noleggio, ticket e scadenze | Operativo / Base pronta | Contratti e ticket CRUD; automazioni SLA/km/revisioni da completare |
 | Report PDF/CSV/XLSX | Operativo / Base pronta | PDF documenti e CSV CRUD; report direzionali/XLSX da completare |
-| Import DATEV Koinos | Operativo per formati aperti | CSV/XLSX, XML FatturaPA e ZIP; archivio proprietario richiede campione |
+| Import DATEV Koinos | Operativo per formati aperti | CSV/XLSX/ZIP per piano conti, anagrafiche, prima nota, IVA, partite, pagamenti, cespiti e banca; XML FatturaPA; archivio proprietario richiede campione |
 
 ## Gate prima del primo cliente
 

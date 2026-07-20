@@ -48,18 +48,34 @@ final class OrganizationService
     private function seedCore(int $organizationId): void
     {
         $accounts = [
-            ['1000', 'Crediti verso clienti', 'ASSET', 'TRADE_RECEIVABLES'],
-            ['1100', 'Banca c/c', 'ASSET', 'BANK'],
-            ['1200', 'IVA a credito', 'ASSET', 'VAT_RECEIVABLE'],
-            ['2000', 'Debiti verso fornitori', 'LIABILITY', 'TRADE_PAYABLES'],
-            ['2100', 'IVA a debito', 'LIABILITY', 'VAT_PAYABLE'],
-            ['3000', 'Patrimonio netto', 'EQUITY', 'EQUITY'],
-            ['4000', 'Ricavi vendite e prestazioni', 'REVENUE', 'SALES_REVENUE'],
-            ['5000', 'Costi per acquisti e servizi', 'EXPENSE', 'PURCHASE_COSTS'],
+            ['1000', 'Crediti verso clienti', 'ASSET', 'DEBIT', 'TRADE_RECEIVABLES', 'SP.ATTIVO.CREDITI'],
+            ['1100', 'Banca c/c', 'ASSET', 'DEBIT', 'BANK', 'SP.ATTIVO.LIQUIDITA'],
+            ['1110', 'Cassa contanti', 'ASSET', 'DEBIT', 'CASH', 'SP.ATTIVO.LIQUIDITA'],
+            ['1200', 'IVA a credito', 'ASSET', 'DEBIT', 'VAT_RECEIVABLE', 'SP.ATTIVO.CREDITI_TRIBUTARI'],
+            ['1300', 'Risconti attivi', 'ASSET', 'DEBIT', 'PREPAID_EXPENSES', 'SP.ATTIVO.RATEI_RISCONTI'],
+            ['1310', 'Ratei attivi', 'ASSET', 'DEBIT', 'ACCRUED_INCOME', 'SP.ATTIVO.RATEI_RISCONTI'],
+            ['1500', 'Fondo ammortamento', 'ASSET', 'CREDIT', 'ACCUMULATED_DEPRECIATION', 'SP.ATTIVO.IMMOBILIZZAZIONI'],
+            ['2000', 'Debiti verso fornitori', 'LIABILITY', 'CREDIT', 'TRADE_PAYABLES', 'SP.PASSIVO.DEBITI'],
+            ['2100', 'IVA a debito', 'LIABILITY', 'CREDIT', 'VAT_PAYABLE', 'SP.PASSIVO.DEBITI_TRIBUTARI'],
+            ['2200', 'Erario c/IVA', 'LIABILITY', 'CREDIT', 'VAT_CLEARING', 'SP.PASSIVO.DEBITI_TRIBUTARI'],
+            ['2300', 'Erario c/ritenute', 'LIABILITY', 'CREDIT', 'WITHHOLDING_PAYABLE', 'SP.PASSIVO.DEBITI_TRIBUTARI'],
+            ['2310', 'Enti previdenziali', 'LIABILITY', 'CREDIT', 'SOCIAL_SECURITY_PAYABLE', 'SP.PASSIVO.DEBITI'],
+            ['2400', 'Ratei passivi', 'LIABILITY', 'CREDIT', 'ACCRUED_EXPENSES', 'SP.PASSIVO.RATEI_RISCONTI'],
+            ['2410', 'Risconti passivi', 'LIABILITY', 'CREDIT', 'DEFERRED_INCOME', 'SP.PASSIVO.RATEI_RISCONTI'],
+            ['3000', 'Patrimonio netto', 'EQUITY', 'CREDIT', 'EQUITY', 'SP.PASSIVO.PATRIMONIO_NETTO'],
+            ['3100', 'Utili e perdite portati a nuovo', 'EQUITY', 'CREDIT', 'RETAINED_EARNINGS', 'SP.PASSIVO.PATRIMONIO_NETTO'],
+            ['3900', 'Risultato d’esercizio', 'EQUITY', 'CREDIT', 'PROFIT_LOSS', 'SP.PASSIVO.PATRIMONIO_NETTO'],
+            ['3990', 'Bilancio di apertura', 'EQUITY', 'CREDIT', 'OPENING_BALANCE', 'SP.PASSIVO.PATRIMONIO_NETTO'],
+            ['4000', 'Ricavi vendite e prestazioni', 'REVENUE', 'CREDIT', 'SALES_REVENUE', 'CE.A.RICAVI'],
+            ['4010', 'Altri ricavi e proventi', 'REVENUE', 'CREDIT', 'OTHER_REVENUE', 'CE.A.ALTRI_RICAVI'],
+            ['5000', 'Costi per acquisti e servizi', 'EXPENSE', 'DEBIT', 'PURCHASE_COSTS', 'CE.B.COSTI'],
+            ['5010', 'Abbuoni e differenze passive', 'EXPENSE', 'DEBIT', 'PAYMENT_DIFFERENCES', 'CE.B.COSTI'],
+            ['5100', 'Ammortamenti', 'EXPENSE', 'DEBIT', 'DEPRECIATION_EXPENSE', 'CE.B.AMMORTAMENTI'],
         ];
         $statement = $this->db->prepare(
-            'INSERT INTO chart_of_accounts (organization_id, code, name, account_type, system_key, is_postable, active)
-             VALUES (?, ?, ?, ?, ?, 1, 1)'
+            'INSERT INTO chart_of_accounts
+             (organization_id, code, name, account_type, normal_balance, system_key, statement_section, is_postable, active, locked)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, 1)'
         );
         foreach ($accounts as $account) {
             $statement->execute(array_merge([$organizationId], $account));
@@ -83,6 +99,33 @@ final class OrganizationService
         foreach ($vatCodes as $vatCode) {
             $statement->execute(array_merge([$organizationId], $vatCode));
         }
+
+        $this->db->prepare('INSERT INTO accounting_settings (organization_id) VALUES (?)')->execute([$organizationId]);
+        $register = $this->db->prepare(
+            'INSERT INTO vat_registers (organization_id, code, name, register_type, is_default) VALUES (?, ?, ?, ?, 1)'
+        );
+        foreach ([['V1', 'Vendite', 'SALES'], ['A1', 'Acquisti', 'PURCHASES'], ['C1', 'Corrispettivi', 'CORRISPETTIVI']] as $row) {
+            $register->execute(array_merge([$organizationId], $row));
+        }
+        $cause = $this->db->prepare(
+            'INSERT INTO accounting_causes
+             (organization_id, code, name, category, default_description, creates_open_item, automatic)
+             VALUES (?, ?, ?, ?, ?, ?, ?)'
+        );
+        foreach ([
+            ['GEN', 'Registrazione generica', 'GENERAL', 'Registrazione contabile', 0, 0],
+            ['FAV', 'Fattura di vendita', 'SALES', 'Fattura di vendita', 1, 1],
+            ['FAC', 'Fattura di acquisto', 'PURCHASE', 'Fattura di acquisto', 1, 1],
+            ['INC', 'Incasso cliente', 'RECEIPT', 'Incasso cliente', 0, 1],
+            ['PAG', 'Pagamento fornitore', 'PAYMENT', 'Pagamento fornitore', 0, 1],
+        ] as $row) {
+            $cause->execute(array_merge([$organizationId], $row));
+        }
+        $this->db->prepare(
+            'INSERT INTO accounting_account_mappings (organization_id, mapping_key, account_id, description)
+             SELECT organization_id, system_key, id, name FROM chart_of_accounts
+             WHERE organization_id = ? AND system_key IS NOT NULL'
+        )->execute([$organizationId]);
 
         $this->db->prepare("INSERT INTO warehouses (organization_id, code, name, active) VALUES (?, 'MAIN', 'Magazzino principale', 1)")
             ->execute([$organizationId]);

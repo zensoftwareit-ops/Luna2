@@ -8,9 +8,12 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 - anagrafiche clienti/fornitori, prodotti, CRM, magazzini, commesse, calendario, HR, e-commerce e noleggio;
 - preventivi, ordini, DDT, proforma, fatture attive/passive e note di credito con righe, numerazione e PDF;
 - generazione XML FatturaPA e struttura per provider SDI accreditato;
-- piano dei conti, prima nota con bozze, contabilizzazione fatture, libro giornale, mastrini e bilancio di verifica;
-- registri IVA vendite/acquisti/corrispettivi e liquidazioni mensili/trimestrali con blocco periodo;
-- schema per IVA, scadenze fiscali, pagamenti, banche, riconciliazione e cespiti;
+- piano dei conti gerarchico e classificato, causali, sezionali, prima nota, automatismi, giornale, mastrini e bilancio di verifica;
+- registri IVA con regimi/esigibilità/detraibilità, IVA per cassa, pro-rata, liquidazioni, rettifiche e blocchi periodo;
+- partite clienti/fornitori, incassi/pagamenti, ritenute, banche e riconciliazione manuale controllata;
+- stato patrimoniale e conto economico riclassificati, assestamenti, chiusura/apertura e cespiti civilistici/fiscali;
+- prospetti di raccordo LIPE e IVA annuale, esplicitamente non trasmissibili fino alla validazione del futuro servizio;
+- endpoint e-invoice configurabili senza memorizzare segreti né eseguire chiamate esterne;
 - import DATEV Koinos con staging, anteprima, idempotenza, log, quadrature e rollback per CSV/XLSX/XML/ZIP.
 - area `SUPERUSER` per creare aziende e utenti, reimpostare gli accessi e configurare i moduli;
 - diagnostica integrata per migrazioni, tabelle, estensioni PHP e permessi storage;
@@ -53,14 +56,14 @@ php /var/www/vhosts/example.it/luna2-php/bin/luna cron:daily
 
 ## Import DATEV Koinos
 
-Aprire **Contabilità → Import DATEV Koinos**. Ogni caricamento crea un lotto immutabile con checksum. La conferma è separata dal caricamento; dopo la conferma è disponibile il rollback. Ordine consigliato:
+Aprire **Importazioni**. Ogni caricamento crea un lotto immutabile con checksum. La conferma è separata dal caricamento; dopo la conferma è disponibile il rollback. Ordine consigliato:
 
-1. clienti e fornitori;
-2. piano dei conti;
-3. XML FatturaPA attivi e passivi;
-4. prima nota storica;
-5. pagamenti/incassi;
-6. saldi, cespiti, scadenze e movimenti bancari dopo la quadratura del campione.
+1. piano dei conti gerarchico e anagrafiche;
+2. XML FatturaPA attivi e passivi;
+3. prima nota e registri IVA storici;
+4. partite aperte e pagamenti/incassi;
+5. cespiti e movimenti bancari;
+6. quadratura di saldi, IVA, partite, banche e registro cespiti sul campione Koinos.
 
 Per l’archivio proprietario **Esporta archivio** serve almeno un export reale e anonimizzato del cliente. Il piano completo è in [docs/DATEV_KOINOS_MIGRATION.md](docs/DATEV_KOINOS_MIGRATION.md).
 
@@ -72,7 +75,7 @@ L’applicazione genera XML FatturaPA, ma non simula un endpoint pubblico inesis
 - canale Web Service/FTP preventivamente accreditato presso SdI;
 - PEC o upload manuale, per volumi contenuti.
 
-Il file `.env` contiene `SDI_DRIVER` e i parametri del provider; il connettore concreto va configurato dopo la scelta contrattuale.
+Gli URL del futuro servizio si configurano in **Contabilità → Endpoint e-invoice**. Le credenziali restano fuori dal database e vengono indicate soltanto tramite riferimenti `ENV:NOME_VARIABILE` o `vault://…`. Il connettore concreto sarà sviluppato dopo la scelta contrattuale.
 
 ## Test
 

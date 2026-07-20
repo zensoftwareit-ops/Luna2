@@ -10,7 +10,7 @@ Le note ufficiali DATEV mostrano che la gestione contabile comprende, oltre alla
 - [Portale DATEV Koinos](https://www.datev.it/)
 - [DK Konto e riconciliazione bancaria](https://dkkonto.datev.it/)
 
-## Operativo in Luna2 3.3
+## Operativo in Luna2 4.0
 
 | Funzione | Copertura |
 |---|---|
@@ -23,23 +23,28 @@ Le note ufficiali DATEV mostrano che la gestione contabile comprende, oltre alla
 | Liquidazioni IVA | Periodicità mensile/trimestrale, credito precedente, interessi inseriti e verificati, saldo e dettaglio per registro/codice |
 | Blocco periodo IVA | Liquidazioni definitive/pagate impediscono la modifica dei movimenti; riapertura esplicita e auditata |
 | Storico esistente | Sincronizzazione idempotente dei documenti già emessi/ricevuti nei registri IVA |
+| Piano dei conti avanzato | Gerarchia, saldo naturale, conti movimentabili, classificazione civilistica/fiscale e mappature degli automatismi |
+| Tesoreria | Partite, scadenze, incassi/pagamenti, riconciliazione bancaria parziale/totale e storni controllati |
+| Adempimenti | Rettifiche, prospetti di raccordo LIPE/IVA annuale versionati e non trasmissibili, revisione e blocco solo senza anomalie |
+| Bilancio e chiusure | Conto economico/stato patrimoniale riclassificati, ratei/risconti, chiusura e apertura anche per esercizi non solari |
+| Cespiti e ritenute | Quote civilistiche/fiscali, scritture automatiche, ritenute e scadenza del versamento |
 
-## Obbligatorio prima della sostituzione completa di Koinos
+## Gate di validazione prima della sostituzione completa di Koinos
 
 | Priorità | Funzione da completare | Criterio di accettazione |
 |---|---|---|
-| P0 | Causali contabili configurabili e automatismi | Stesse scritture del campione Koinos per ogni causale utilizzata dal cliente |
-| P0 | Sezionali e protocolli IVA multipli | Numerazione, prefissi/suffissi e stampe uguali ai registri Koinos |
-| P0 | Split payment, reverse charge, IVA per cassa e indetraibilità | Quadratura per codice IVA e casistica reale del cliente |
-| P0 | Pro-rata e rettifiche detrazione | Risultato annuale uguale al prospetto del commercialista |
-| P0 | LIPE e dichiarazione IVA | Prospetto, controlli ed export validati sul periodo campione; invio solo tramite canale autorizzato |
-| P0 | Chiusura/apertura esercizio, ratei e risconti | Bilancio di chiusura e saldi di riapertura uguali a Koinos |
-| P0 | Partitari e scadenzari clienti/fornitori | Saldi e partite aperte uguali alla data di cutover |
-| P1 | Stato patrimoniale e conto economico riclassificati | Stampe confrontate con bilanci approvati |
-| P1 | Ritenute, professionisti e principio di cassa | Casistiche del cliente validate dal consulente |
+| P0 | Causali contabili configurabili e automatismi | Implementato; validare le stesse scritture del campione Koinos per ogni causale utilizzata dal cliente |
+| P0 | Sezionali e protocolli IVA multipli | Implementato; confrontare numerazione, prefissi/suffissi e registri con Koinos |
+| P0 | Split payment, reverse charge, IVA per cassa e indetraibilità | Motore dati implementato; quadratura obbligatoria sulle casistiche reali del cliente |
+| P0 | Pro-rata e rettifiche detrazione | Implementato; risultato annuale da confrontare con il prospetto del commercialista |
+| P0 | LIPE e dichiarazione IVA | Raccordi implementati ma non trasmissibili; export telematico e invio solo nel futuro servizio API autorizzato |
+| P0 | Chiusura/apertura esercizio, ratei e risconti | Workflow implementato; bilancio di chiusura e saldi di riapertura devono coincidere con Koinos |
+| P0 | Partitari e scadenzari clienti/fornitori | Workflow implementato; saldi e partite aperte devono coincidere alla data di cutover |
+| P1 | Stato patrimoniale e conto economico riclassificati | Prospetti implementati; classificazione e stampe da confrontare con bilanci approvati |
+| P1 | Ritenute, professionisti e principio di cassa | Workflow implementato; aliquote e casistiche del cliente da validare col consulente |
 | P1 | Regime del margine e altri regimi speciali | Implementare soltanto quelli effettivamente utilizzati |
-| P1 | Cespiti civilistici/fiscali e ammortamenti | Registro e scritture annuali quadrati con Koinos |
-| P1 | Banche e riconciliazione | Saldi banca/cassa e movimenti riconciliati uguali agli estratti conto |
+| P1 | Cespiti civilistici/fiscali e ammortamenti | Workflow implementato; registro e scritture annuali devono quadrare con Koinos |
+| P1 | Banche e riconciliazione | Matching manuale implementato; saldi e movimenti devono coincidere con gli estratti conto |
 | P1 | Stampe ufficiali e conservazione | PDF numerati, auditati e conservati secondo il processo concordato |
 
 ## Evidenze richieste al primo cliente

@@ -5,6 +5,8 @@ $existingLines = array_map(static fn (array $line): array => [
     'account_id' => (int) $line['account_id'], 'description' => $line['description'] ?? '',
     'debit' => $line['debit'] ?? 0, 'credit' => $line['credit'] ?? 0,
 ], $lines);
+$causes = $causes ?? [];
+$vatRegisters = $vatRegisters ?? [];
 ?>
 <section class="page-intro compact"><div><a class="back-link" href="/accounting/journal">← Prima nota</a><h1><?= !empty($entry['id']) ? 'Modifica registrazione' : 'Nuova registrazione' ?></h1><p>Salva come bozza oppure contabilizza dopo aver verificato la quadratura.</p></div></section>
 <form method="post" action="/accounting/journal/save" data-accounting-form data-existing-lines="<?= View::e(json_encode($existingLines, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>">
@@ -12,8 +14,11 @@ $existingLines = array_map(static fn (array $line): array => [
 <section class="card form-card"><div class="form-section-head"><div><span class="section-kicker">Testata movimento</span><h2>Dati registrazione</h2></div><?php if (!empty($entry['protocol_number'])): ?><span class="badge status-draft"><?= View::e($entry['protocol_number']) ?></span><?php endif; ?></div><div class="form-grid">
 <label class="field"><span>Data registrazione *</span><input type="date" name="entry_date" value="<?= View::e($entry['entry_date'] ?? date('Y-m-d')) ?>" required></label>
 <label class="field"><span>Data competenza</span><input type="date" name="competence_date" value="<?= View::e($entry['competence_date'] ?? date('Y-m-d')) ?>"></label>
-<label class="field"><span>Causale</span><select name="entry_type"><option value="MANUAL" <?= ($entry['entry_type'] ?? '') === 'MANUAL' ? 'selected' : '' ?>>Operazione manuale</option><option value="OPENING" <?= ($entry['entry_type'] ?? '') === 'OPENING' ? 'selected' : '' ?>>Apertura conti</option><option value="ADJUSTMENT" <?= ($entry['entry_type'] ?? '') === 'ADJUSTMENT' ? 'selected' : '' ?>>Rettifica</option><option value="CLOSING" <?= ($entry['entry_type'] ?? '') === 'CLOSING' ? 'selected' : '' ?>>Chiusura conti</option><option value="PAYMENT" <?= ($entry['entry_type'] ?? '') === 'PAYMENT' ? 'selected' : '' ?>>Pagamento/incasso</option></select></label>
+<label class="field"><span>Tipo movimento</span><select name="entry_type"><option value="MANUAL" <?= ($entry['entry_type'] ?? '') === 'MANUAL' ? 'selected' : '' ?>>Operazione manuale</option><option value="OPENING" <?= ($entry['entry_type'] ?? '') === 'OPENING' ? 'selected' : '' ?>>Apertura conti</option><option value="ADJUSTMENT" <?= ($entry['entry_type'] ?? '') === 'ADJUSTMENT' ? 'selected' : '' ?>>Rettifica</option><option value="CLOSING" <?= ($entry['entry_type'] ?? '') === 'CLOSING' ? 'selected' : '' ?>>Chiusura conti</option><option value="PAYMENT" <?= ($entry['entry_type'] ?? '') === 'PAYMENT' ? 'selected' : '' ?>>Pagamento/incasso</option></select></label>
+<label class="field"><span>Causale contabile</span><select name="cause_id"><option value="">Nessuna</option><?php foreach ($causes as $cause): ?><option value="<?= (int) $cause['id'] ?>" <?= (int) ($entry['cause_id'] ?? 0) === (int) $cause['id'] ? 'selected' : '' ?>><?= View::e($cause['code'] . ' · ' . $cause['name']) ?></option><?php endforeach; ?></select></label>
+<label class="field"><span>Sezionale IVA</span><select name="vat_register_id"><option value="">Nessuno</option><?php foreach ($vatRegisters as $register): ?><option value="<?= (int) $register['id'] ?>" <?= (int) ($entry['vat_register_id'] ?? 0) === (int) $register['id'] ? 'selected' : '' ?>><?= View::e($register['code'] . ' · ' . $register['name']) ?></option><?php endforeach; ?></select></label>
 <label class="field"><span>Numero documento</span><input name="document_number" value="<?= View::e($entry['document_number'] ?? '') ?>"></label>
+<label class="field"><span>Protocollo origine</span><input name="source_protocol" value="<?= View::e($entry['source_protocol'] ?? '') ?>"></label>
 <label class="field"><span>Controparte</span><input name="counterparty" value="<?= View::e($entry['counterparty'] ?? '') ?>"></label>
 <label class="field full-width"><span>Descrizione *</span><input name="description" value="<?= View::e($entry['description'] ?? '') ?>" required></label>
 <label class="field full-width"><span>Note</span><textarea name="notes" rows="3"><?= View::e($entry['notes'] ?? '') ?></textarea></label>

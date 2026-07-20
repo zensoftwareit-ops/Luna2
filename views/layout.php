@@ -33,8 +33,8 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=3.3.0">
-    <script src="/assets/app.js?v=3.3.0" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=4.0.0">
+    <script src="/assets/app.js?v=4.0.0" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -87,9 +87,12 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                         <a class="<?= $active('/accounting/journal') ?>" href="/accounting/journal">Prima nota</a>
                         <a class="<?= $active('/accounting/vat-registers') ?>" href="/accounting/vat-registers">Registri IVA</a>
                         <a class="<?= $active('/accounting/vat-settlements') ?>" href="/accounting/vat-settlements">Liquidazioni IVA</a>
+                        <a class="<?= $active('/accounting/treasury') ?>" href="/accounting/treasury">Tesoreria e partite</a>
                         <a class="<?= $active('/accounting/trial-balance') ?>" href="/accounting/trial-balance">Bilancio di verifica</a>
+                        <a class="<?= $active('/accounting/compliance') ?>" href="/accounting/compliance">Adempimenti e chiusure</a>
+                        <a class="<?= $active('/accounting/setup') ?>" href="/accounting/setup">Piano dei conti e causali</a>
                         <a class="<?= $active('/r/tax-deadlines') ?>" href="/r/tax-deadlines">Scadenze fiscali</a>
-                        <a class="<?= $active('/r/fixed-assets') ?>" href="/r/fixed-assets">Cespiti</a>
+                        <?php if (in_array((string) (Auth::user()['role'] ?? ''), ['OWNER', 'ADMIN'], true)): ?><a class="<?= $active('/settings/endpoints') ?>" href="/settings/endpoints">Endpoint e-invoice</a><?php endif; ?>
                     </div>
                 </details>
             <?php endif; ?>

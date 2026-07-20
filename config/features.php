@@ -49,7 +49,15 @@ return [
         'label' => 'Contabilità',
         'description' => 'Prima nota, mastri, registri e liquidazioni IVA, bilanci, scadenze e cespiti.',
         'icon' => 'calculator',
-        'required_tables' => ['chart_of_accounts', 'journal_entries', 'journal_entry_lines', 'vat_movements', 'vat_settlements', 'vat_settlement_details', 'tax_deadlines', 'fixed_assets'],
+        'required_tables' => [
+            'chart_of_accounts', 'journal_entries', 'journal_entry_lines', 'accounting_settings', 'accounting_causes',
+            'accounting_account_mappings', 'vat_registers', 'vat_movements', 'vat_settlements', 'vat_settlement_details',
+            'accounting_open_items', 'payment_allocations', 'vat_cash_events', 'bank_accounts', 'bank_transactions',
+            'reconciliation_links', 'vat_adjustments', 'lipe_communications', 'vat_annual_summaries',
+            'accounting_period_locks', 'accounting_closing_runs', 'accounting_adjustment_schedules',
+            'tax_deadlines', 'fixed_assets', 'fixed_asset_categories', 'depreciation_entries',
+            'withholding_records', 'api_endpoint_configs',
+        ],
         'default' => true,
     ],
     'calendar' => [

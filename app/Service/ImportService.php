@@ -14,7 +14,10 @@ use ZipArchive;
 
 final class ImportService
 {
-    private const TARGETS = ['customers', 'suppliers', 'chart_of_accounts', 'journal_entries', 'payments', 'fatturapa'];
+    private const TARGETS = [
+        'customers', 'suppliers', 'chart_of_accounts', 'journal_entries', 'payments', 'open_items',
+        'vat_movements', 'fixed_assets', 'bank_transactions', 'fatturapa',
+    ];
     private const EXTENSIONS = ['csv', 'txt', 'xlsx', 'xml', 'p7m', 'zip'];
 
     public function __construct(
@@ -93,6 +96,10 @@ final class ImportService
                 'chart_of_accounts' => $this->commitAccounts($batchId, $rows),
                 'journal_entries' => $this->commitJournal($batchId, $rows),
                 'payments' => $this->commitPayments($batchId, $rows),
+                'open_items' => $this->commitOpenItems($batchId, $rows),
+                'vat_movements' => $this->commitVatMovements($batchId, $rows),
+                'fixed_assets' => $this->commitFixedAssets($batchId, $rows),
+                'bank_transactions' => $this->commitBankTransactions($batchId, $rows),
                 'fatturapa' => $this->commitFatturaPa($batchId, $rows),
                 default => throw new InvalidArgumentException('Importazione non gestita.'),
             };
@@ -117,7 +124,10 @@ final class ImportService
         if (!in_array($batch['status'], ['COMPLETED', 'COMPLETED_WITH_ERRORS'], true)) {
             throw new InvalidArgumentException('Questo lotto non può essere annullato.');
         }
-        $allowedTables = ['customers', 'suppliers', 'chart_of_accounts', 'journal_entries', 'payments', 'documents'];
+        $allowedTables = [
+            'customers', 'suppliers', 'chart_of_accounts', 'journal_entries', 'payments', 'documents',
+            'accounting_open_items', 'vat_movements', 'fixed_assets', 'bank_transactions',
+        ];
         $statement = $this->db->prepare('SELECT * FROM import_records WHERE batch_id = ? AND organization_id = ? ORDER BY id DESC');
         $statement->execute([$batchId, $this->organizationId]);
         $records = $statement->fetchAll();
@@ -377,6 +387,7 @@ final class ImportService
     private function commitAccounts(int $batchId, array $rows): array
     {
         $imported = 0; $errors = 0;
+        $parents = [];
         foreach ($rows as $staged) {
             $row = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
             $code = $this->pick($row, ['code', 'codice', 'codice_conto', 'conto']);
@@ -392,21 +403,48 @@ final class ImportService
                 str_contains($typeRaw, 'RICAV') || str_contains($typeRaw, 'REVEN') => 'REVENUE',
                 default => 'EXPENSE',
             };
+            $normalRaw = mb_strtoupper($this->pick($row, ['normal_balance', 'saldo_naturale', 'segno']) ?: '');
+            $normal = str_contains($normalRaw, 'AVER') || str_contains($normalRaw, 'CREDIT')
+                ? 'CREDIT'
+                : (str_contains($normalRaw, 'DAR') || str_contains($normalRaw, 'DEBIT')
+                    ? 'DEBIT' : (in_array($type, ['LIABILITY','EQUITY','REVENUE'], true) ? 'CREDIT' : 'DEBIT'));
+            $classification = $this->pick($row, ['classification_code', 'classificazione', 'codice_classificazione']);
+            $section = $this->pick($row, ['statement_section', 'sezione_bilancio', 'bilancio']);
+            $taxMapping = $this->pick($row, ['tax_mapping_code', 'codice_fiscale', 'rigo_dichiarazione']);
+            $postableRaw = mb_strtoupper($this->pick($row, ['is_postable', 'movimentabile', 'dettaglio']) ?: '1');
+            $postable = in_array($postableRaw, ['0','NO','N','FALSE','RAGGRUPPAMENTO'], true) ? 0 : 1;
             $find = $this->db->prepare('SELECT * FROM chart_of_accounts WHERE organization_id = ? AND code = ?');
             $find->execute([$this->organizationId, $code]);
             $existing = $find->fetch();
+            if ($existing && !empty($existing['locked'])) {
+                $this->markRow($staged['id'], 'SKIPPED', 'Conto di sistema protetto.', (int) $existing['id']);
+                continue;
+            }
             if ($existing) {
-                $this->db->prepare('UPDATE chart_of_accounts SET name = ?, account_type = ?, updated_by = ?, updated_at = NOW() WHERE id = ?')
-                    ->execute([$name, $type, $this->userId, $existing['id']]);
+                $this->db->prepare('UPDATE chart_of_accounts SET name = ?, account_type = ?, normal_balance = ?, classification_code = ?, statement_section = ?, tax_mapping_code = ?, is_postable = ?, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                    ->execute([$name, $type, $normal, $classification, $section, $taxMapping, $postable, $this->userId, $existing['id'], $this->organizationId]);
                 $entityId = (int) $existing['id'];
                 $this->recordImport($batchId, 'chart_of_accounts', $entityId, 'UPDATE', $existing);
             } else {
-                $this->db->prepare('INSERT INTO chart_of_accounts (organization_id, code, name, account_type, is_postable, active, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, 1, 1, ?, ?, ?, NOW(), NOW())')
-                    ->execute([$this->organizationId, $code, $name, $type, $batchId, $this->userId, $this->userId]);
+                $this->db->prepare('INSERT INTO chart_of_accounts (organization_id, code, name, account_type, normal_balance, classification_code, statement_section, tax_mapping_code, is_postable, active, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())')
+                    ->execute([$this->organizationId, $code, $name, $type, $normal, $classification, $section, $taxMapping, $postable, $batchId, $this->userId, $this->userId]);
                 $entityId = (int) $this->db->lastInsertId();
                 $this->recordImport($batchId, 'chart_of_accounts', $entityId, 'CREATE', null);
             }
+            $parentCode = $this->pick($row, ['parent_code', 'codice_padre', 'conto_padre', 'raggruppamento']);
+            if ($parentCode) {
+                $parents[$entityId] = $parentCode;
+            }
             $this->markRow($staged['id'], 'IMPORTED', null, $entityId); $imported++;
+        }
+        foreach ($parents as $accountId => $parentCode) {
+            $find = $this->db->prepare('SELECT id FROM chart_of_accounts WHERE organization_id = ? AND code = ?');
+            $find->execute([$this->organizationId, $parentCode]);
+            $parentId = (int) $find->fetchColumn();
+            if ($parentId > 0 && $parentId !== $accountId) {
+                $this->db->prepare('UPDATE chart_of_accounts SET parent_id = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                    ->execute([$parentId, $accountId, $this->organizationId]);
+            }
         }
         return compact('imported', 'errors');
     }
@@ -485,17 +523,174 @@ final class ImportService
             $documentNumber = $this->pick($row, ['document_number', 'numero_documento', 'fattura']);
             $amount = $this->decimal($this->pick($row, ['amount', 'importo']) ?: 0);
             $date = $this->dateValue($this->pick($row, ['payment_date', 'data_pagamento', 'data']));
-            if (!$documentNumber || $amount <= 0 || !$date) {
-                $this->markRow($staged['id'], 'ERROR', 'Numero documento, data o importo non validi.'); $errors++; continue;
+            if ($amount <= 0 || !$date) {
+                $this->markRow($staged['id'], 'ERROR', 'Data o importo del pagamento non validi.'); $errors++; continue;
             }
-            $find = $this->db->prepare('SELECT id FROM documents WHERE organization_id = ? AND number = ? ORDER BY id DESC LIMIT 1');
-            $find->execute([$this->organizationId, $documentNumber]);
-            $documentId = $find->fetchColumn() ?: null;
-            $this->db->prepare('INSERT INTO payments (organization_id, document_id, payment_date, amount, method, reference_number, bank_name, description, reconciled, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, NOW(), NOW())')
-                ->execute([$this->organizationId, $documentId, $date, $amount, $this->pick($row, ['method', 'metodo', 'modalita']) ?: 'OTHER', $this->pick($row, ['reference', 'riferimento', 'cro']), $this->pick($row, ['bank', 'banca']), $this->pick($row, ['description', 'descrizione', 'causale']), $batchId, $this->userId, $this->userId]);
+            $documentId = null;
+            if ($documentNumber) {
+                $find = $this->db->prepare('SELECT id FROM documents WHERE organization_id = ? AND number = ? ORDER BY id DESC LIMIT 1');
+                $find->execute([$this->organizationId, $documentNumber]);
+                $documentId = $find->fetchColumn() ?: null;
+            }
+            $direction = mb_strtoupper($this->pick($row, ['payment_type', 'tipo', 'direzione']) ?: 'RECEIPT');
+            $paymentType = str_contains($direction, 'PAG') || str_contains($direction, 'OUT') ? 'PAYMENT' : 'RECEIPT';
+            $this->db->prepare('INSERT INTO payments (organization_id, document_id, payment_type, payment_date, amount, currency, bank_amount, method, status, reference_number, bank_name, description, reconciled, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, \'POSTED\', ?, ?, ?, 0, ?, ?, ?, NOW(), NOW())')
+                ->execute([$this->organizationId, $documentId, $paymentType, $date, $amount, mb_strtoupper($this->pick($row, ['currency', 'valuta']) ?: 'EUR'), $amount, $this->pick($row, ['method', 'metodo', 'modalita']) ?: 'OTHER', $this->pick($row, ['reference', 'riferimento', 'cro']) ?: $documentNumber, $this->pick($row, ['bank', 'banca']), $this->pick($row, ['description', 'descrizione', 'causale']), $batchId, $this->userId, $this->userId]);
             $entityId = (int) $this->db->lastInsertId();
             $this->recordImport($batchId, 'payments', $entityId, 'CREATE', null);
             $this->markRow($staged['id'], 'IMPORTED', null, $entityId); $imported++;
+        }
+        return compact('imported', 'errors');
+    }
+
+    private function commitOpenItems(int $batchId, array $rows): array
+    {
+        $imported = 0; $errors = 0;
+        foreach ($rows as $staged) {
+            $row = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+            $directionRaw = mb_strtoupper($this->pick($row, ['direction', 'tipo', 'segno', 'partita_tipo']) ?: 'RECEIVABLE');
+            $direction = str_contains($directionRaw, 'DEB') || str_contains($directionRaw, 'PAY') || str_contains($directionRaw, 'FORN') ? 'PAYABLE' : 'RECEIVABLE';
+            $partyName = $this->pick($row, ['party_name', 'controparte', 'nominativo', 'ragione_sociale', 'cliente_fornitore']);
+            $issueDate = $this->dateValue($this->pick($row, ['issue_date', 'data_documento', 'data']));
+            $dueDate = $this->dateValue($this->pick($row, ['due_date', 'scadenza', 'data_scadenza'])) ?: $issueDate;
+            $original = abs($this->decimal($this->pick($row, ['original_amount', 'importo_originario', 'importo']) ?: 0));
+            $settled = min($original, abs($this->decimal($this->pick($row, ['settled_amount', 'pagato', 'incassato']) ?: 0)));
+            $accountCode = $this->pick($row, ['account_code', 'codice_conto', 'conto']);
+            $account = $this->db->prepare('SELECT id FROM chart_of_accounts WHERE organization_id = ? AND (code = ? OR system_key = ?) ORDER BY system_key IS NOT NULL DESC LIMIT 1');
+            $account->execute([$this->organizationId, $accountCode, $direction === 'RECEIVABLE' ? 'TRADE_RECEIVABLES' : 'TRADE_PAYABLES']);
+            $accountId = (int) $account->fetchColumn();
+            if (!$partyName || !$issueDate || !$dueDate || $original <= 0 || !$accountId) {
+                $this->markRow($staged['id'], 'ERROR', 'Controparte, date, importo o conto della partita non validi.'); $errors++; continue;
+            }
+            $status = $settled >= $original - .005 ? 'SETTLED' : ($settled > .005 ? 'PARTIAL' : ($dueDate < date('Y-m-d') ? 'OVERDUE' : 'OPEN'));
+            $statement = $this->db->prepare(
+                'INSERT INTO accounting_open_items
+                 (organization_id, direction, party_type, party_name, account_id, reference, issue_date, due_date,
+                  original_amount, settled_amount, currency, status, source_import_batch_id, created_by, updated_by, created_at, updated_at)
+                 VALUES (?, ?, \'OTHER\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+            );
+            $statement->execute([$this->organizationId, $direction, $partyName, $accountId, $this->pick($row, ['reference', 'riferimento', 'numero_documento', 'fattura']), $issueDate, $dueDate, $original, $settled, mb_strtoupper($this->pick($row, ['currency', 'valuta']) ?: 'EUR'), $status, $batchId, $this->userId, $this->userId]);
+            $id = (int) $this->db->lastInsertId();
+            $this->recordImport($batchId, 'accounting_open_items', $id, 'CREATE', null);
+            $this->markRow($staged['id'], 'IMPORTED', null, $id); $imported++;
+        }
+        return compact('imported', 'errors');
+    }
+
+    private function commitVatMovements(int $batchId, array $rows): array
+    {
+        $imported = 0; $errors = 0;
+        $service = new VatService($this->db, $this->organizationId, $this->userId);
+        foreach ($rows as $staged) {
+            $row = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+            $registerRaw = mb_strtoupper($this->pick($row, ['register_type', 'registro', 'tipo_registro']) ?: 'SALES');
+            $register = str_contains($registerRaw, 'ACQ') || str_contains($registerRaw, 'PUR') ? 'PURCHASES' : (str_contains($registerRaw, 'CORR') ? 'CORRISPETTIVI' : 'SALES');
+            $data = [
+                'register_type' => $register,
+                'movement_date' => $this->dateValue($this->pick($row, ['movement_date', 'data_registrazione', 'data'])),
+                'protocol_number' => $this->pick($row, ['protocol_number', 'protocollo', 'numero_registrazione']),
+                'counterparty_name' => $this->pick($row, ['counterparty_name', 'controparte', 'nominativo']),
+                'description' => $this->pick($row, ['description', 'descrizione', 'causale']),
+                'vat_code' => $this->pick($row, ['vat_code', 'codice_iva', 'aliquota']) ?: 'N/D',
+                'taxable_amount' => $this->pick($row, ['taxable_amount', 'imponibile']) ?: 0,
+                'vat_amount' => $this->pick($row, ['vat_amount', 'imposta', 'iva']) ?: 0,
+                'vat_due_amount' => $this->pick($row, ['vat_due_amount', 'iva_dovuta']),
+                'deductible_vat' => $this->pick($row, ['deductible_vat', 'iva_detraibile']),
+                'deductibility_percent' => $this->pick($row, ['deductibility_percent', 'percentuale_detraibilita']) ?: 100,
+                'operation_type' => mb_strtoupper($this->pick($row, ['operation_type', 'tipo_operazione']) ?: 'DOMESTIC'),
+                'collectability' => mb_strtoupper($this->pick($row, ['collectability', 'esigibilita']) ?: 'IMMEDIATE'),
+            ];
+            try {
+                $id = $service->saveManual($data);
+                $this->db->prepare("UPDATE vat_movements SET source_type = 'IMPORT', source_import_batch_id = ? WHERE id = ? AND organization_id = ?")
+                    ->execute([$batchId, $id, $this->organizationId]);
+                $this->recordImport($batchId, 'vat_movements', $id, 'CREATE', null);
+                $this->markRow($staged['id'], 'IMPORTED', null, $id); $imported++;
+            } catch (Throwable $exception) {
+                $this->markRow($staged['id'], 'ERROR', $exception->getMessage()); $errors++;
+            }
+        }
+        return compact('imported', 'errors');
+    }
+
+    private function commitFixedAssets(int $batchId, array $rows): array
+    {
+        $imported = 0; $errors = 0;
+        $service = new AssetService($this->db, $this->organizationId, $this->userId);
+        foreach ($rows as $staged) {
+            $row = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+            $this->db->exec('SAVEPOINT import_fixed_asset_row');
+            try {
+                $id = $service->saveAsset([
+                    'asset_code' => $this->pick($row, ['asset_code', 'codice_cespite', 'codice']),
+                    'description' => $this->pick($row, ['description', 'descrizione']),
+                    'category' => $this->pick($row, ['category', 'categoria']),
+                    'purchase_date' => $this->dateValue($this->pick($row, ['purchase_date', 'data_acquisto', 'data'])),
+                    'in_service_date' => $this->dateValue($this->pick($row, ['in_service_date', 'entrata_in_funzione'])),
+                    'purchase_cost' => $this->pick($row, ['purchase_cost', 'costo_storico', 'costo']),
+                    'residual_value' => $this->pick($row, ['residual_value', 'valore_residuo']) ?: 0,
+                    'civil_depreciation_rate' => $this->pick($row, ['civil_depreciation_rate', 'aliquota_civile', 'aliquota']),
+                    'tax_depreciation_rate' => $this->pick($row, ['tax_depreciation_rate', 'aliquota_fiscale', 'aliquota']),
+                    'first_year_percent' => $this->pick($row, ['first_year_percent', 'percentuale_primo_anno']) ?: 50,
+                    'status' => 'ACTIVE',
+                ]);
+                $cost = $this->decimal($this->pick($row, ['purchase_cost', 'costo_storico', 'costo']) ?: 0);
+                $civilFund = max(0, $this->decimal($this->pick($row, ['accumulated_depreciation', 'fondo_ammortamento', 'fondo_civile']) ?: 0));
+                $taxFund = max(0, $this->decimal($this->pick($row, ['tax_accumulated_depreciation', 'fondo_ammortamento_fiscale', 'fondo_fiscale']) ?: $civilFund));
+                $civilNetSource = $this->pick($row, ['net_book_value', 'valore_netto_contabile', 'residuo_civile']);
+                $taxNetSource = $this->pick($row, ['tax_net_value', 'valore_netto_fiscale', 'residuo_fiscale']);
+                $civilNet = $civilNetSource !== null && $civilNetSource !== '' ? $this->decimal($civilNetSource) : $cost - $civilFund;
+                $taxNet = $taxNetSource !== null && $taxNetSource !== '' ? $this->decimal($taxNetSource) : $cost - $taxFund;
+                if ($civilFund > $cost + .005 || $taxFund > $cost + .005 || $civilNet < -.005 || $taxNet < -.005
+                    || abs(($civilFund + $civilNet) - $cost) > .02 || abs(($taxFund + $taxNet) - $cost) > .02) {
+                    throw new InvalidArgumentException('Fondi ammortamento e valori netti del cespite non sono coerenti con il costo storico.');
+                }
+                $this->db->prepare(
+                    'UPDATE fixed_assets SET accumulated_depreciation = ?, net_book_value = ?,
+                     tax_accumulated_depreciation = ?, tax_net_value = ?, source_import_batch_id = ?, updated_at = NOW()
+                     WHERE id = ? AND organization_id = ?'
+                )->execute([$civilFund, $civilNet, $taxFund, $taxNet, $batchId, $id, $this->organizationId]);
+                $this->recordImport($batchId, 'fixed_assets', $id, 'CREATE', null);
+                $this->markRow($staged['id'], 'IMPORTED', null, $id); $imported++;
+            } catch (Throwable $exception) {
+                $this->db->exec('ROLLBACK TO SAVEPOINT import_fixed_asset_row');
+                $this->markRow($staged['id'], 'ERROR', $exception->getMessage()); $errors++;
+            }
+        }
+        return compact('imported', 'errors');
+    }
+
+    private function commitBankTransactions(int $batchId, array $rows): array
+    {
+        $imported = 0; $errors = 0;
+        $service = new BankingService($this->db, $this->organizationId, $this->userId);
+        foreach ($rows as $staged) {
+            $row = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+            $bankName = trim((string) ($this->pick($row, ['bank_account', 'conto_bancario', 'banca']) ?: ''));
+            $bankKey = strtoupper(str_replace(' ', '', (string) ($this->pick($row, ['iban']) ?: $bankName)));
+            $find = $this->db->prepare('SELECT id FROM bank_accounts WHERE organization_id = ? AND (REPLACE(iban, \' \', \'\') = ? OR UPPER(name) = ?) LIMIT 1');
+            $find->execute([$this->organizationId, $bankKey, mb_strtoupper($bankName)]);
+            $bankId = (int) $find->fetchColumn();
+            try {
+                if (!$bankId) {
+                    throw new InvalidArgumentException('Conto bancario non trovato: crearlo prima dell’import.');
+                }
+                $id = $service->saveTransaction([
+                    'bank_account_id' => $bankId,
+                    'booking_date' => $this->dateValue($this->pick($row, ['booking_date', 'data_contabile', 'data'])),
+                    'value_date' => $this->dateValue($this->pick($row, ['value_date', 'data_valuta'])),
+                    'amount' => $this->pick($row, ['amount', 'importo']),
+                    'description' => $this->pick($row, ['description', 'descrizione', 'causale']),
+                    'counterparty' => $this->pick($row, ['counterparty', 'controparte', 'nominativo']),
+                    'reference' => $this->pick($row, ['reference', 'riferimento', 'cro']),
+                    'external_id' => $this->pick($row, ['external_id', 'id_movimento']),
+                ]);
+                $this->db->prepare('UPDATE bank_transactions SET source_import_batch_id = ? WHERE id = ? AND organization_id = ?')->execute([$batchId, $id, $this->organizationId]);
+                $this->recordImport($batchId, 'bank_transactions', $id, 'CREATE', null);
+                $this->markRow($staged['id'], 'IMPORTED', null, $id); $imported++;
+            } catch (Throwable $exception) {
+                $this->markRow($staged['id'], 'ERROR', $exception->getMessage()); $errors++;
+            }
         }
         return compact('imported', 'errors');
     }
@@ -591,7 +786,7 @@ final class ImportService
     {
         return match ($table) {
             'customers', 'suppliers' => ['code', 'business_name', 'vat_number', 'tax_code', 'sdi_code', 'pec', 'email', 'phone', 'address', 'postal_code', 'city', 'province', 'country_code', 'iban', 'payment_terms', 'active'],
-            'chart_of_accounts' => ['code', 'name', 'account_type', 'parent_id', 'is_postable', 'active'],
+            'chart_of_accounts' => ['code', 'name', 'account_type', 'normal_balance', 'parent_id', 'classification_code', 'statement_section', 'tax_mapping_code', 'is_postable', 'active'],
             default => [],
         };
     }

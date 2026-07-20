@@ -54,9 +54,10 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         $accounts = $this->accounts();
+        [$causes, $vatRegisters] = $this->journalOptions();
         $entry = ['entry_date' => date('Y-m-d'), 'competence_date' => date('Y-m-d'), 'entry_type' => 'MANUAL'];
         $lines = [];
-        $this->view->render('accounting/form', compact('accounts', 'entry', 'lines') + ['title' => 'Nuova registrazione']);
+        $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines') + ['title' => 'Nuova registrazione']);
     }
 
     public function edit(string $id): never
@@ -67,7 +68,8 @@ final class AccountingController extends BaseController
             $this->redirect('/accounting/journal/' . (int) $id, 'Solo le bozze manuali possono essere modificate.', 'error');
         }
         $accounts = $this->accounts();
-        $this->view->render('accounting/form', compact('accounts', 'entry', 'lines') + ['title' => 'Modifica prima nota']);
+        [$causes, $vatRegisters] = $this->journalOptions();
+        $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines') + ['title' => 'Modifica prima nota']);
     }
 
     public function show(string $id): never
@@ -179,7 +181,8 @@ final class AccountingController extends BaseController
         }
         $statement = $this->db->prepare(
             'SELECT id, document_id, source_type, movement_date, protocol_number, counterparty_name, description,
-                    vat_code, taxable_amount, vat_amount, deductible_vat
+                    vat_code, taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent,
+                    operation_type, collectability, vat_register_id
              FROM vat_movements
              WHERE organization_id = ? AND register_type = ? AND period_year = ? AND period_month = ?
              ORDER BY movement_date, id'
@@ -203,7 +206,10 @@ final class AccountingController extends BaseController
         $vatCodes = $this->db->prepare('SELECT code, description, rate, nature FROM vat_codes WHERE organization_id = ? AND active = 1 ORDER BY rate DESC, code');
         $vatCodes->execute([Auth::organizationId()]);
         $vatCodes = $vatCodes->fetchAll();
-        $this->view->render('accounting/vat-registers', compact('register', 'year', 'month', 'movements', 'summary', 'totals', 'vatCodes') + ['title' => 'Registri IVA']);
+        $registers = $this->db->prepare('SELECT id, code, name, register_type FROM vat_registers WHERE organization_id = ? AND active = 1 ORDER BY register_type, code');
+        $registers->execute([Auth::organizationId()]);
+        $registers = $registers->fetchAll();
+        $this->view->render('accounting/vat-registers', compact('register', 'year', 'month', 'movements', 'summary', 'totals', 'vatCodes', 'registers') + ['title' => 'Registri IVA']);
     }
 
     public function saveVatMovement(): never
@@ -316,6 +322,16 @@ final class AccountingController extends BaseController
         return $statement->fetchAll();
     }
 
+    private function journalOptions(): array
+    {
+        $statement = $this->db->prepare('SELECT id, code, name, category FROM accounting_causes WHERE organization_id = ? AND active = 1 ORDER BY code');
+        $statement->execute([Auth::organizationId()]);
+        $causes = $statement->fetchAll();
+        $statement = $this->db->prepare('SELECT id, code, name, register_type FROM vat_registers WHERE organization_id = ? AND active = 1 ORDER BY register_type, code');
+        $statement->execute([Auth::organizationId()]);
+        return [$causes, $statement->fetchAll()];
+    }
+
     private function entry(int $id): array
     {
         $statement = $this->db->prepare('SELECT * FROM journal_entries WHERE id = ? AND organization_id = ?');
@@ -339,8 +355,11 @@ final class AccountingController extends BaseController
             'entry_date' => $_POST['entry_date'] ?? date('Y-m-d'),
             'competence_date' => $_POST['competence_date'] ?? null,
             'entry_type' => $_POST['entry_type'] ?? 'MANUAL',
+            'cause_id' => $_POST['cause_id'] ?? null,
+            'vat_register_id' => $_POST['vat_register_id'] ?? null,
             'description' => $_POST['description'] ?? '',
             'document_number' => $_POST['document_number'] ?? null,
+            'source_protocol' => $_POST['source_protocol'] ?? null,
             'counterparty' => $_POST['counterparty'] ?? null,
             'notes' => $_POST['notes'] ?? null,
         ];

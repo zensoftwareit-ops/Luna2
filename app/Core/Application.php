@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Luna\Core;
 
 use Luna\Controller\AccountingController;
+use Luna\Controller\AccountingAdminController;
 use Luna\Controller\AuthController;
 use Luna\Controller\DashboardController;
+use Luna\Controller\ComplianceController;
 use Luna\Controller\DocumentController;
 use Luna\Controller\ImportController;
+use Luna\Controller\IntegrationController;
 use Luna\Controller\PlatformController;
 use Luna\Controller\ResourceController;
 use Luna\Controller\SettingsController;
+use Luna\Controller\TreasuryController;
 use Throwable;
 
 final class Application
@@ -104,6 +108,39 @@ final class Application
         $router->add('POST', '/accounting/vat-settlements/{id}/status', [AccountingController::class, 'updateVatSettlementStatus']);
         $router->add('GET', '/accounting/vat-settlements/{id}', [AccountingController::class, 'showVatSettlement']);
 
+        $router->add('GET', '/accounting/setup', [AccountingAdminController::class, 'index']);
+        $router->add('POST', '/accounting/setup/accounts', [AccountingAdminController::class, 'saveAccount']);
+        $router->add('POST', '/accounting/setup/accounts/{id}/toggle', [AccountingAdminController::class, 'toggleAccount']);
+        $router->add('POST', '/accounting/setup/settings', [AccountingAdminController::class, 'saveSettings']);
+        $router->add('POST', '/accounting/setup/registers', [AccountingAdminController::class, 'saveRegister']);
+        $router->add('POST', '/accounting/setup/causes', [AccountingAdminController::class, 'saveCause']);
+        $router->add('POST', '/accounting/setup/mappings', [AccountingAdminController::class, 'saveMapping']);
+
+        $router->add('GET', '/accounting/treasury', [TreasuryController::class, 'index']);
+        $router->add('POST', '/accounting/treasury/sync', [TreasuryController::class, 'sync']);
+        $router->add('POST', '/accounting/treasury/payments', [TreasuryController::class, 'payment']);
+        $router->add('POST', '/accounting/treasury/payments/{id}/reverse', [TreasuryController::class, 'reversePayment']);
+        $router->add('POST', '/accounting/treasury/bank-accounts', [TreasuryController::class, 'bankAccount']);
+        $router->add('POST', '/accounting/treasury/bank-transactions', [TreasuryController::class, 'bankTransaction']);
+        $router->add('POST', '/accounting/treasury/reconcile', [TreasuryController::class, 'reconcile']);
+        $router->add('POST', '/accounting/treasury/reconciliations/{id}/delete', [TreasuryController::class, 'unreconcile']);
+        $router->add('POST', '/accounting/treasury/withholdings', [TreasuryController::class, 'withholding']);
+        $router->add('POST', '/accounting/treasury/withholdings/{id}/pay', [TreasuryController::class, 'payWithholding']);
+
+        $router->add('GET', '/accounting/compliance', [ComplianceController::class, 'index']);
+        $router->add('POST', '/accounting/compliance/vat-adjustments', [ComplianceController::class, 'vatAdjustment']);
+        $router->add('POST', '/accounting/compliance/lipe', [ComplianceController::class, 'generateLipe']);
+        $router->add('POST', '/accounting/compliance/annual-vat', [ComplianceController::class, 'generateAnnual']);
+        $router->add('POST', '/accounting/compliance/{kind}/{id}/status', [ComplianceController::class, 'vatStatus']);
+        $router->add('POST', '/accounting/compliance/closings', [ComplianceController::class, 'prepareClosing']);
+        $router->add('POST', '/accounting/compliance/closings/{id}/post', [ComplianceController::class, 'postClosing']);
+        $router->add('POST', '/accounting/compliance/adjustments', [ComplianceController::class, 'adjustment']);
+        $router->add('POST', '/accounting/compliance/adjustments/{id}/post', [ComplianceController::class, 'postAdjustment']);
+        $router->add('POST', '/accounting/compliance/asset-categories', [ComplianceController::class, 'assetCategory']);
+        $router->add('POST', '/accounting/compliance/assets', [ComplianceController::class, 'asset']);
+        $router->add('POST', '/accounting/compliance/assets/{id}/calculate', [ComplianceController::class, 'calculateDepreciation']);
+        $router->add('POST', '/accounting/compliance/depreciations/{id}/post', [ComplianceController::class, 'postDepreciation']);
+
         $router->add('GET', '/imports', [ImportController::class, 'index']);
         $router->add('POST', '/imports/upload', [ImportController::class, 'upload']);
         $router->add('GET', '/imports/{id}', [ImportController::class, 'preview']);
@@ -113,6 +150,8 @@ final class Application
         $router->add('GET', '/settings/modules', [SettingsController::class, 'modules']);
         $router->add('POST', '/settings/modules', [SettingsController::class, 'saveModules']);
         $router->add('GET', '/settings/system', [SettingsController::class, 'system']);
+        $router->add('GET', '/settings/endpoints', [IntegrationController::class, 'endpoints']);
+        $router->add('POST', '/settings/endpoints', [IntegrationController::class, 'saveEndpoint']);
         $router->add('GET', '/settings/company', [PlatformController::class, 'index']);
         $router->add('POST', '/settings/company', [PlatformController::class, 'createCompany']);
         $router->add('POST', '/settings/company/{id}/select', [PlatformController::class, 'selectCompany']);
