@@ -8,7 +8,8 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 - anagrafiche clienti/fornitori, prodotti, CRM, magazzini, commesse, calendario, HR, e-commerce e noleggio;
 - preventivi, ordini, DDT, proforma, fatture attive/passive e note di credito con righe, numerazione e PDF;
 - generazione XML FatturaPA e struttura per provider SDI accreditato;
-- piano dei conti, prima nota Dare/Avere, contabilizzazione fatture, libro giornale, mastrini e bilancio di verifica;
+- piano dei conti, prima nota con bozze, contabilizzazione fatture, libro giornale, mastrini e bilancio di verifica;
+- registri IVA vendite/acquisti/corrispettivi e liquidazioni mensili/trimestrali con blocco periodo;
 - schema per IVA, scadenze fiscali, pagamenti, banche, riconciliazione e cespiti;
 - import DATEV Koinos con staging, anteprima, idempotenza, log, quadrature e rollback per CSV/XLSX/XML/ZIP.
 - area `SUPERUSER` per creare aziende e utenti, reimpostare gli accessi e configurare i moduli;

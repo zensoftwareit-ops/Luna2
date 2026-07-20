@@ -87,9 +87,22 @@ final class Application
 
         $router->add('GET', '/accounting/journal', [AccountingController::class, 'journal']);
         $router->add('GET', '/accounting/journal/create', [AccountingController::class, 'create']);
+        $router->add('POST', '/accounting/journal/save', [AccountingController::class, 'save']);
         $router->add('POST', '/accounting/journal/post', [AccountingController::class, 'post']);
+        $router->add('GET', '/accounting/journal/{id}/edit', [AccountingController::class, 'edit']);
+        $router->add('POST', '/accounting/journal/{id}/post', [AccountingController::class, 'postDraft']);
+        $router->add('POST', '/accounting/journal/{id}/delete', [AccountingController::class, 'deleteDraft']);
+        $router->add('GET', '/accounting/journal/{id}', [AccountingController::class, 'show']);
         $router->add('GET', '/accounting/trial-balance', [AccountingController::class, 'trialBalance']);
         $router->add('GET', '/accounting/ledger/{id}', [AccountingController::class, 'ledger']);
+        $router->add('GET', '/accounting/vat-registers', [AccountingController::class, 'vatRegisters']);
+        $router->add('POST', '/accounting/vat-registers/manual', [AccountingController::class, 'saveVatMovement']);
+        $router->add('POST', '/accounting/vat-registers/sync', [AccountingController::class, 'syncVatDocuments']);
+        $router->add('POST', '/accounting/vat-registers/{id}/delete', [AccountingController::class, 'deleteVatMovement']);
+        $router->add('GET', '/accounting/vat-settlements', [AccountingController::class, 'vatSettlements']);
+        $router->add('POST', '/accounting/vat-settlements/calculate', [AccountingController::class, 'calculateVatSettlement']);
+        $router->add('POST', '/accounting/vat-settlements/{id}/status', [AccountingController::class, 'updateVatSettlementStatus']);
+        $router->add('GET', '/accounting/vat-settlements/{id}', [AccountingController::class, 'showVatSettlement']);
 
         $router->add('GET', '/imports', [ImportController::class, 'index']);
         $router->add('POST', '/imports/upload', [ImportController::class, 'upload']);

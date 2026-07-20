@@ -81,19 +81,31 @@
       });
       accountingForm.querySelector('[data-debit-total]').textContent = debit.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
       accountingForm.querySelector('[data-credit-total]').textContent = credit.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+      const status = accountingForm.querySelector('[data-balance-status]');
+      if (status) {
+        const balanced = debit > 0 && Math.abs(debit - credit) < 0.005;
+        status.textContent = balanced ? 'Quadrata' : `Differenza ${(debit - credit).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}`;
+        status.classList.toggle('balanced', balanced);
+        status.classList.toggle('unbalanced', !balanced);
+      }
     };
-    const addLine = () => {
+    const addLine = (values = {}) => {
       const fragment = template.content.cloneNode(true);
       const row = fragment.querySelector('tr');
       row.querySelectorAll('[data-account-field]').forEach((input) => {
         input.name = `lines[${index}][${input.dataset.accountField}]`;
+        if (Object.hasOwn(values, input.dataset.accountField)) input.value = values[input.dataset.accountField] ?? '';
         input.addEventListener('input', refresh);
+        input.addEventListener('change', refresh);
       });
       row.querySelector('[data-remove-line]').addEventListener('click', () => { row.remove(); refresh(); });
       body.appendChild(fragment);
       index += 1;
     };
     accountingForm.querySelector('[data-add-accounting-line]')?.addEventListener('click', addLine);
-    addLine(); addLine();
+    let existing = [];
+    try { existing = JSON.parse(accountingForm.dataset.existingLines || '[]'); } catch (_) { existing = []; }
+    if (existing.length) existing.forEach((line) => addLine(line)); else { addLine(); addLine(); }
+    refresh();
   }
 })();

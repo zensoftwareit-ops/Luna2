@@ -20,10 +20,10 @@ Legenda: **Operativo** = flusso utilizzabile nella base PHP; **Base pronta** = s
 | SDI invio/ricezione/notifiche | Dipendenza esterna | Scegliere provider o canale accreditato; niente endpoint fittizio |
 | Conservazione a norma | Dipendenza esterna | Necessario provider/accordo di conservazione |
 | Pagamenti, rate e acconti | Base pronta | Schema e import storico; UI operativa e aggiornamento saldo da completare |
-| Piano dei conti e prima nota | Operativo | Scritture manuali e automatiche con quadratura obbligatoria |
+| Piano dei conti e prima nota | Operativo / in estensione | Bozze, modifica, dettaglio, scritture manuali/automatiche e quadratura; causali configurabili da completare |
 | Libro giornale, mastrini, bilancio verifica | Operativo | Filtri periodo, progressivo mastrino e totali Dare/Avere |
 | Conto economico e stato patrimoniale | Base pronta | Dati disponibili; riclassificazione e stampe ufficiali da completare |
-| Registri IVA e liquidazioni | Base pronta | Schema presente; motore per indetraibilità, pro-rata, credito e LIPE da validare |
+| Registri IVA e liquidazioni | Operativo di base | Vendite/acquisti/corrispettivi, detraibilità, liquidazioni e blocco periodo; sezionali, regimi speciali, pro-rata e LIPE restano nel gate P0 |
 | Ratei, risconti, chiusura/apertura | Base pronta | Tipi scrittura presenti; wizard e regole da completare |
 | Cespiti e ammortamenti | Operativo / Base pronta | Registro CRUD; calcolo civilistico/fiscale e scritture automatiche da completare |
 | Banche e riconciliazione | Base pronta | Schema CAMT/CSV e matching da completare |
@@ -48,3 +48,5 @@ Legenda: **Operativo** = flusso utilizzabile nella base PHP; **Base pronta** = s
 6. penetration test, backup/ripristino e prova di rollback cutover.
 
 La parità non va dichiarata sulla sola presenza delle tabelle: il gate si chiude solo con evidenze di quadratura e test utente.
+
+La matrice contabile dettagliata e i criteri di accettazione sono in [ACCOUNTING_PARITY.md](ACCOUNTING_PARITY.md).

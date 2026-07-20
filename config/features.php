@@ -47,9 +47,9 @@ return [
     ],
     'accounting' => [
         'label' => 'Contabilità',
-        'description' => 'Prima nota, mastri, bilanci, scadenze e cespiti.',
+        'description' => 'Prima nota, mastri, registri e liquidazioni IVA, bilanci, scadenze e cespiti.',
         'icon' => 'calculator',
-        'required_tables' => ['chart_of_accounts', 'journal_entries', 'journal_entry_lines', 'tax_deadlines', 'fixed_assets'],
+        'required_tables' => ['chart_of_accounts', 'journal_entries', 'journal_entry_lines', 'vat_movements', 'vat_settlements', 'vat_settlement_details', 'tax_deadlines', 'fixed_assets'],
         'default' => true,
     ],
     'calendar' => [

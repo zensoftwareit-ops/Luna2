@@ -18,42 +18,77 @@ final class AccountingService
 
     public function postManual(array $header, array $lines): int
     {
-        $normalized = $this->normalizeLines($lines);
-        $this->assertBalanced($normalized);
+        return $this->saveManual($header, $lines, null, true);
+    }
+
+    public function saveManual(array $header, array $lines, ?int $entryId = null, bool $post = false): int
+    {
+        $entryDate = trim((string) ($header['entry_date'] ?? ''));
+        $competenceDate = trim((string) ($header['competence_date'] ?? $entryDate));
+        $description = trim((string) ($header['description'] ?? ''));
+        if (!$this->isIsoDate($entryDate) || !$this->isIsoDate($competenceDate)) {
+            throw new InvalidArgumentException('Data registrazione o competenza non valida.');
+        }
+        if ($description === '') {
+            throw new InvalidArgumentException('La descrizione della registrazione è obbligatoria.');
+        }
+        $normalized = $this->normalizeLines($lines, $post ? 2 : 1);
+        $this->assertAccountsBelongToOrganization($normalized);
+        if ($post) {
+            $this->assertBalanced($normalized);
+        }
 
         $ownsTransaction = !$this->db->inTransaction();
         if ($ownsTransaction) {
             $this->db->beginTransaction();
         }
         try {
-            $protocol = $this->nextProtocol((string) ($header['entry_date'] ?? date('Y-m-d')));
-            $statement = $this->db->prepare(
-                "INSERT INTO journal_entries
-                 (organization_id, protocol_number, entry_date, competence_date, entry_type, status, description,
-                  document_number, source_type, source_id, counterparty, total_debit, total_credit, notes,
-                  created_by, updated_by, posted_at, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, 'POSTED', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())"
-            );
             $totalDebit = array_sum(array_column($normalized, 'debit'));
             $totalCredit = array_sum(array_column($normalized, 'credit'));
-            $statement->execute([
-                $this->organizationId,
-                $protocol,
-                $header['entry_date'] ?? date('Y-m-d'),
-                $header['competence_date'] ?? ($header['entry_date'] ?? date('Y-m-d')),
-                $header['entry_type'] ?? 'MANUAL',
-                trim((string) ($header['description'] ?? 'Registrazione manuale')),
-                $header['document_number'] ?: null,
-                $header['source_type'] ?: 'MANUAL',
-                $header['source_id'] ?: null,
-                $header['counterparty'] ?: null,
-                $totalDebit,
-                $totalCredit,
-                $header['notes'] ?: null,
-                $this->userId,
-                $this->userId,
-            ]);
-            $entryId = (int) $this->db->lastInsertId();
+            $status = $post ? 'POSTED' : 'DRAFT';
+            if ($entryId !== null) {
+                $lock = $this->db->prepare(
+                    "SELECT id FROM journal_entries
+                     WHERE id = ? AND organization_id = ? AND status = 'DRAFT' AND source_type = 'MANUAL' FOR UPDATE"
+                );
+                $lock->execute([$entryId, $this->organizationId]);
+                if (!$lock->fetchColumn()) {
+                    throw new InvalidArgumentException('È possibile modificare soltanto una bozza manuale.');
+                }
+                $statement = $this->db->prepare(
+                    "UPDATE journal_entries SET entry_date = ?, competence_date = ?, entry_type = ?, status = ?,
+                     description = ?, document_number = ?, counterparty = ?, total_debit = ?, total_credit = ?,
+                     notes = ?, updated_by = ?, posted_at = IF(? = 'POSTED', NOW(), NULL), updated_at = NOW()
+                     WHERE id = ? AND organization_id = ?"
+                );
+                $statement->execute([
+                    $entryDate, $competenceDate,
+                    $header['entry_type'] ?? 'MANUAL', $status,
+                    $description,
+                    ($header['document_number'] ?? null) ?: null, ($header['counterparty'] ?? null) ?: null,
+                    $totalDebit, $totalCredit, ($header['notes'] ?? null) ?: null, $this->userId, $status,
+                    $entryId, $this->organizationId,
+                ]);
+                $this->db->prepare('DELETE FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?')
+                    ->execute([$entryId, $this->organizationId]);
+            } else {
+                $protocol = $this->nextProtocol($entryDate);
+                $statement = $this->db->prepare(
+                    "INSERT INTO journal_entries
+                     (organization_id, protocol_number, entry_date, competence_date, entry_type, status, description,
+                      document_number, source_type, source_id, counterparty, total_debit, total_credit, notes,
+                      created_by, updated_by, posted_at, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', NULL, ?, ?, ?, ?, ?, ?, IF(? = 'POSTED', NOW(), NULL), NOW(), NOW())"
+                );
+                $statement->execute([
+                    $this->organizationId, $protocol, $entryDate, $competenceDate,
+                    $header['entry_type'] ?? 'MANUAL', $status,
+                    $description,
+                    ($header['document_number'] ?? null) ?: null, ($header['counterparty'] ?? null) ?: null,
+                    $totalDebit, $totalCredit, ($header['notes'] ?? null) ?: null, $this->userId, $this->userId, $status,
+                ]);
+                $entryId = (int) $this->db->lastInsertId();
+            }
             $this->insertLines($entryId, $normalized);
             if ($ownsTransaction) {
                 $this->db->commit();
@@ -65,6 +100,37 @@ final class AccountingService
             }
             throw $exception;
         }
+    }
+
+    public function postDraft(int $entryId): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT l.account_id, l.debit, l.credit, l.description, l.cost_center_id, l.customer_id, l.supplier_id
+             FROM journal_entries e JOIN journal_entry_lines l ON l.journal_entry_id = e.id
+             WHERE e.id = ? AND e.organization_id = ? AND e.status = 'DRAFT' AND e.source_type = 'MANUAL'
+             ORDER BY l.line_number"
+        );
+        $statement->execute([$entryId, $this->organizationId]);
+        $lines = $statement->fetchAll();
+        $this->assertBalanced($lines);
+        $update = $this->db->prepare(
+            "UPDATE journal_entries SET status = 'POSTED', posted_at = NOW(), updated_by = ?, updated_at = NOW()
+             WHERE id = ? AND organization_id = ? AND status = 'DRAFT' AND source_type = 'MANUAL'"
+        );
+        $update->execute([$this->userId, $entryId, $this->organizationId]);
+        if ($update->rowCount() === 0) {
+            throw new InvalidArgumentException('Bozza non trovata.');
+        }
+    }
+
+    public function deleteDraft(int $entryId): bool
+    {
+        $statement = $this->db->prepare(
+            "DELETE FROM journal_entries
+             WHERE id = ? AND organization_id = ? AND status = 'DRAFT' AND source_type = 'MANUAL'"
+        );
+        $statement->execute([$entryId, $this->organizationId]);
+        return $statement->rowCount() > 0;
     }
 
     public function postDocument(int $documentId): ?int
@@ -90,6 +156,7 @@ final class AccountingService
             $existing = $this->db->prepare("SELECT id FROM journal_entries WHERE organization_id = ? AND source_type = 'DOCUMENT' AND source_id = ? LIMIT 1");
             $existing->execute([$this->organizationId, $documentId]);
             if ($id = $existing->fetchColumn()) {
+                (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument($documentId);
                 if ($ownsTransaction) {
                     $this->db->commit();
                 }
@@ -148,6 +215,7 @@ final class AccountingService
             ]);
             $entryId = (int) $this->db->lastInsertId();
             $this->insertLines($entryId, $lines);
+            (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument($documentId);
             if ($ownsTransaction) {
                 $this->db->commit();
             }
@@ -160,7 +228,7 @@ final class AccountingService
         }
     }
 
-    private function normalizeLines(array $lines): array
+    private function normalizeLines(array $lines, int $minimumLines = 2): array
     {
         $normalized = [];
         foreach ($lines as $line) {
@@ -183,10 +251,26 @@ final class AccountingService
                 'supplier_id' => !empty($line['supplier_id']) ? (int) $line['supplier_id'] : null,
             ];
         }
-        if (count($normalized) < 2) {
-            throw new InvalidArgumentException('La registrazione richiede almeno due righe valide.');
+        if (count($normalized) < $minimumLines) {
+            throw new InvalidArgumentException($minimumLines > 1
+                ? 'La registrazione richiede almeno due righe valide.'
+                : 'La bozza richiede almeno una riga valida.');
         }
         return $normalized;
+    }
+
+    private function assertAccountsBelongToOrganization(array $lines): void
+    {
+        $ids = array_values(array_unique(array_map(static fn (array $line): int => (int) $line['account_id'], $lines)));
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $this->db->prepare(
+            "SELECT COUNT(*) FROM chart_of_accounts
+             WHERE organization_id = ? AND active = 1 AND is_postable = 1 AND id IN ({$placeholders})"
+        );
+        $statement->execute(array_merge([$this->organizationId], $ids));
+        if ((int) $statement->fetchColumn() !== count($ids)) {
+            throw new InvalidArgumentException('Uno o più conti non appartengono all’azienda o non sono movimentabili.');
+        }
     }
 
     private function assertBalanced(array $lines): void
@@ -255,5 +339,12 @@ final class AccountingService
             $string = str_replace(',', '.', $string);
         }
         return (float) $string;
+    }
+
+    private function isIsoDate(string $value): bool
+    {
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = DateTimeImmutable::getLastErrors();
+        return $date !== false && ($errors === false || ($errors['warning_count'] === 0 && $errors['error_count'] === 0));
     }
 }
