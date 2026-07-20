@@ -90,8 +90,7 @@ CREATE TABLE IF NOT EXISTS accounting_cause_lines (
     UNIQUE KEY uq_cause_line (cause_id, line_number),
     CONSTRAINT fk_cause_line_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
     CONSTRAINT fk_cause_line_cause FOREIGN KEY (cause_id) REFERENCES accounting_causes(id) ON DELETE CASCADE,
-    CONSTRAINT fk_cause_line_account FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id) ON DELETE SET NULL,
-    CONSTRAINT chk_cause_line_account CHECK (account_id IS NOT NULL OR mapping_key IS NOT NULL)
+    CONSTRAINT fk_cause_line_account FOREIGN KEY (account_id) REFERENCES chart_of_accounts(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS accounting_account_mappings (

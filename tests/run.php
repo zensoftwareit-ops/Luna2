@@ -160,6 +160,8 @@ $migrateBlock = $migrateStart !== false && $bootstrapStart !== false
 $assert($migrateBlock !== '', 'Comando migrate non trovato.');
 $assert(!str_contains($migrateBlock, 'beginTransaction('), 'Le migrazioni DDL MySQL non devono usare una transazione PDO.');
 $assert(!str_contains($migrateBlock, 'commit('), 'Le migrazioni DDL MySQL non devono invocare commit().');
+$assert(str_contains($cli, 'migration_steps') && str_contains($cli, 'columnExists'), 'Le migrazioni devono poter riprendere dopo un DDL parzialmente applicato.');
+$assert(!str_contains($schema, 'chk_cause_line_account'), 'Il CHECK su account_id non Ã¨ compatibile con le versioni MariaDB usate da Plesk.');
 $assert(str_contains($cli, 'random_bytes(18)') && str_contains($cli, 'CREDENZIALI SUPERUSER'), 'Bootstrap sicuro del superuser mancante.');
 $assert(!str_contains($cli, "case 'setup:admin':"), 'Il setup azienda da CLI deve essere sostituito dal setup web riservato.');
 
