@@ -60,26 +60,7 @@ try {
                     throw new RuntimeException("Migrazione {$name} non completata: {$e->getMessage()}", 0, $e);
                 }
             }
-            break;
-
-        case 'setup:admin':
-            $businessName = $argv[2] ?? null;
-            $email = $argv[3] ?? null;
-            $password = $argv[4] ?? null;
-            $name = $argv[5] ?? 'Amministratore';
-            if (!$businessName || !$email || !$password || strlen($password) < 12) {
-                throw new InvalidArgumentException('Uso: php bin/luna setup:admin "Ragione Sociale" email password-lunga [Nome]');
-            }
-            $db = Database::connect();
-            $db->beginTransaction();
-            $db->prepare('INSERT INTO organizations (business_name) VALUES (?)')->execute([$businessName]);
-            $organizationId = (int) $db->lastInsertId();
-            $hash = password_hash($password, PASSWORD_ARGON2ID);
-            $db->prepare("INSERT INTO users (organization_id, name, email, password_hash, role) VALUES (?, ?, ?, ?, 'OWNER')")
-                ->execute([$organizationId, $name, mb_strtolower($email), $hash]);
-            seedCore($db, $organizationId);
-            $db->commit();
-            echo "Azienda #{$organizationId} e amministratore creati.\n";
+            bootstrapSuperuser($db);
             break;
 
         case 'cron:daily':
@@ -92,48 +73,53 @@ try {
 
         default:
             echo "Luna2 CLI\n\n";
-            echo "  storage:init\n  key:generate\n  migrate\n  setup:admin \"Ragione Sociale\" email password [Nome]\n  cron:daily\n";
+            echo "  storage:init\n  key:generate\n  migrate\n  cron:daily\n";
     }
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Errore: ' . $exception->getMessage() . PHP_EOL);
     exit(1);
 }
 
-function seedCore(PDO $db, int $organizationId): void
+function bootstrapSuperuser(PDO $db): void
 {
-    $accounts = [
-        ['1000', 'Crediti verso clienti', 'ASSET', 'TRADE_RECEIVABLES'],
-        ['1100', 'Banca c/c', 'ASSET', 'BANK'],
-        ['1200', 'IVA a credito', 'ASSET', 'VAT_RECEIVABLE'],
-        ['2000', 'Debiti verso fornitori', 'LIABILITY', 'TRADE_PAYABLES'],
-        ['2100', 'IVA a debito', 'LIABILITY', 'VAT_PAYABLE'],
-        ['3000', 'Patrimonio netto', 'EQUITY', 'EQUITY'],
-        ['4000', 'Ricavi vendite e prestazioni', 'REVENUE', 'SALES_REVENUE'],
-        ['5000', 'Costi per acquisti e servizi', 'EXPENSE', 'PURCHASE_COSTS'],
-    ];
-    $statement = $db->prepare('INSERT INTO chart_of_accounts (organization_id, code, name, account_type, system_key, is_postable, active) VALUES (?, ?, ?, ?, ?, 1, 1)');
-    foreach ($accounts as $account) {
-        $statement->execute(array_merge([$organizationId], $account));
+    $existing = $db->query("SELECT email FROM users WHERE role = 'SUPERUSER' ORDER BY id LIMIT 1")->fetchColumn();
+    if ($existing !== false) {
+        echo "Superuser già presente: {$existing}\n";
+        return;
     }
-    $vatCodes = [
-        ['22', 'IVA ordinaria 22%', 22, null, null],
-        ['10', 'IVA ridotta 10%', 10, null, null],
-        ['5', 'IVA ridotta 5%', 5, null, null],
-        ['4', 'IVA ridotta 4%', 4, null, null],
-        ['N1', 'Escluse ex art. 15', 0, 'N1', 'Art. 15 DPR 633/72'],
-        ['N2.2', 'Non soggette - altri casi', 0, 'N2.2', null],
-        ['N3.5', 'Non imponibili - dichiarazioni intento', 0, 'N3.5', null],
-        ['N4', 'Operazioni esenti', 0, 'N4', 'Art. 10 DPR 633/72'],
-        ['N6.7', 'Reverse charge - edilizia', 0, 'N6.7', null],
-    ];
-    $statement = $db->prepare('INSERT INTO vat_codes (organization_id, code, description, rate, nature, legal_reference) VALUES (?, ?, ?, ?, ?, ?)');
-    foreach ($vatCodes as $vatCode) {
-        $statement->execute(array_merge([$organizationId], $vatCode));
+
+    $email = mb_strtolower(trim((string) Env::get('SUPERUSER_EMAIL', 'superuser@luna.local')));
+    $emailInUse = $db->prepare('SELECT COUNT(*) FROM users WHERE email = ?');
+    $emailInUse->execute([$email]);
+    if ((int) $emailInUse->fetchColumn() > 0) {
+        throw new RuntimeException("L'indirizzo SUPERUSER_EMAIL {$email} è già utilizzato da un altro utente.");
     }
-    $db->prepare("INSERT INTO warehouses (organization_id, code, name, active) VALUES (?, 'MAIN', 'Magazzino principale', 1)")->execute([$organizationId]);
-    $stages = [['Nuovo', 10], ['Contattato', 20], ['Qualificato', 40], ['Proposta', 60], ['Negoziazione', 80], ['Vinto', 100]];
-    $statement = $db->prepare('INSERT INTO pipeline_stages (organization_id, name, position, probability, won) VALUES (?, ?, ?, ?, ?)');
-    foreach ($stages as $position => [$name, $probability]) {
-        $statement->execute([$organizationId, $name, $position + 1, $probability, $name === 'Vinto' ? 1 : 0]);
+
+    $password = rtrim(strtr(base64_encode(random_bytes(18)), '+/', '-_'), '=');
+    $hash = password_hash($password, PASSWORD_ARGON2ID);
+    if ($hash === false) {
+        throw new RuntimeException('Impossibile generare la password del superuser.');
     }
+
+    $db->beginTransaction();
+    try {
+        $db->prepare("INSERT INTO organizations (business_name, active) VALUES ('Luna2 Platform', 1)")->execute();
+        $platformOrganizationId = (int) $db->lastInsertId();
+        $db->prepare(
+            "INSERT INTO users (organization_id, name, email, password_hash, role, active)
+             VALUES (?, 'Superuser Luna2', ?, ?, 'SUPERUSER', 1)"
+        )->execute([$platformOrganizationId, $email, $hash]);
+        $db->commit();
+    } catch (Throwable $exception) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        throw $exception;
+    }
+
+    echo "\n=== CREDENZIALI SUPERUSER (mostrate una sola volta) ===\n";
+    echo "Email: {$email}\n";
+    echo "Password: {$password}\n";
+    echo "Conserva ora queste credenziali in un password manager.\n";
+    echo "========================================================\n";
 }

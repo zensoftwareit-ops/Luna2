@@ -11,7 +11,7 @@ final class AuthController extends BaseController
     public function form(): never
     {
         if (Auth::check()) {
-            $this->redirect('/dashboard');
+            $this->redirect(Auth::landingPath());
         }
         $this->view->render('auth/login', ['title' => 'Accedi', 'layout' => false]);
     }
@@ -38,7 +38,7 @@ final class AuthController extends BaseController
         $this->db->prepare('INSERT INTO login_attempts (email, ip_address, successful) VALUES (?, ?, 1)')->execute([$email, $ip]);
         $this->db->prepare('DELETE FROM login_attempts WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)')->execute();
         $this->audit('LOGIN', 'user', Auth::id());
-        $this->redirect('/dashboard');
+        $this->redirect(Auth::landingPath());
     }
 
     public function logout(): never

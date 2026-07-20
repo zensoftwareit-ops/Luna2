@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'name' => 'Luna2',
-    'version' => '3.1.0-php',
+    'version' => '3.2.0-php',
     'locale' => 'it_IT',
     'timezone' => 'Europe/Rome',
     'currency' => 'EUR',

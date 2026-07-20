@@ -12,21 +12,22 @@ final class SettingsController extends BaseController
 {
     public function modules(): never
     {
-        $this->requireRoles(['OWNER', 'ADMIN']);
-        $manager = new ModuleManager($this->db, $this->config['features'], Auth::organizationId());
+        $organizationId = $this->requireManagedOrganization();
+        $manager = new ModuleManager($this->db, $this->config['features'], $organizationId);
         $features = $manager->all();
         $tableStatus = SystemHealth::featureTables($this->db, $features);
-        $this->view->render('settings/modules', compact('features', 'tableStatus') + ['title' => 'Gestione moduli']);
+        $organizationName = Auth::organizationName();
+        $this->view->render('settings/modules', compact('features', 'tableStatus', 'organizationName') + ['title' => 'Gestione moduli']);
     }
 
     public function saveModules(): never
     {
-        $this->requireRoles(['OWNER', 'ADMIN']);
+        $organizationId = $this->requireManagedOrganization();
         $selected = array_values(array_intersect(
             array_keys($this->config['features']),
             array_map('strval', (array) ($_POST['modules'] ?? [])),
         ));
-        $manager = new ModuleManager($this->db, $this->config['features'], Auth::organizationId());
+        $manager = new ModuleManager($this->db, $this->config['features'], $organizationId);
         $manager->update($selected);
         $this->audit('UPDATE_MODULES', 'module_settings', null, ['enabled' => $selected]);
         $this->redirect('/settings/modules', 'Configurazione dei moduli aggiornata.');
@@ -34,7 +35,7 @@ final class SettingsController extends BaseController
 
     public function system(): never
     {
-        $this->requireRoles(['OWNER', 'ADMIN']);
+        $this->requireSuperuser();
         $basePath = dirname(__DIR__, 2);
         $migrations = SystemHealth::migrationStatus($this->db, $basePath);
         $runtime = SystemHealth::runtime($basePath);

@@ -8,6 +8,7 @@ $title = $title ?? 'Luna2';
 $flash = $_SESSION['flash'] ?? null;
 unset($_SESSION['flash']);
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$isSuperuser = Auth::isSuperuser();
 $features = $view->features();
 $enabled = static fn (string $key): bool => (bool) ($features[$key]['enabled'] ?? false);
 $active = static fn (string $prefix): string => str_starts_with($currentPath, $prefix) ? ' active' : '';
@@ -32,14 +33,14 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=3.1.0">
-    <script src="/assets/app.js?v=3.1.0" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=3.2.0">
+    <script src="/assets/app.js?v=3.2.0" defer></script>
 </head>
 <body>
 <div class="app-shell">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
-            <a class="brand" href="/dashboard" aria-label="Luna2 dashboard">
+            <a class="brand" href="<?= $isSuperuser ? '/settings/company' : '/dashboard' ?>" aria-label="Luna2">
                 <span class="brand-mark"><span>L</span></span>
                 <span class="brand-copy"><strong>Luna</strong><small>Gestionale</small></span>
             </a>
@@ -47,6 +48,12 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
         </div>
 
         <nav class="main-nav" aria-label="Menu principale">
+            <?php if ($isSuperuser): ?>
+                <span class="nav-section-label">Piattaforma</span>
+                <a class="nav-link<?= $active('/settings/company') ?>" href="/settings/company"><?= View::icon('briefcase') ?><span>Aziende e utenti</span></a>
+                <a class="nav-link<?= $active('/settings/modules') ?>" href="/settings/modules"><?= View::icon('settings') ?><span>Gestione moduli</span></a>
+                <a class="nav-link<?= $active('/settings/system') ?>" href="/settings/system"><?= View::icon('check') ?><span>Stato del sistema</span></a>
+            <?php else: ?>
             <a class="nav-link<?= $active('/dashboard') ?>" href="/dashboard"><?= View::icon('home') ?><span>Dashboard</span></a>
 
             <?php if ($enabled('sales')): ?>
@@ -107,19 +114,12 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
             <?php if ($enabled('imports')): ?>
                 <a class="nav-link<?= $active('/imports') ?>" href="/imports"><?= View::icon('upload') ?><span>Importazioni</span></a>
             <?php endif; ?>
+            <?php endif; ?>
         </nav>
-
-        <?php if (Auth::isAdmin()): ?>
-            <div class="sidebar-settings">
-                <span class="nav-section-label">Configurazione</span>
-                <a class="nav-link<?= $active('/settings/modules') ?>" href="/settings/modules"><?= View::icon('settings') ?><span>Gestione moduli</span></a>
-                <a class="nav-link<?= $active('/settings/system') ?>" href="/settings/system"><?= View::icon('check') ?><span>Stato del sistema</span></a>
-            </div>
-        <?php endif; ?>
 
         <div class="sidebar-user">
             <span class="avatar"><?= View::e($initials ?: 'U') ?></span>
-            <span class="user-copy"><strong><?= View::e(Auth::user()['name'] ?? '') ?></strong><small><?= View::e(Auth::user()['role'] ?? '') ?></small></span>
+            <span class="user-copy"><strong><?= View::e(Auth::user()['name'] ?? '') ?></strong><small><?= $isSuperuser ? 'Superuser' : View::e(Auth::user()['role'] ?? '') ?></small></span>
             <form method="post" action="/logout">
                 <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
                 <button class="logout-button" type="submit" aria-label="Esci">↗</button>
@@ -131,12 +131,12 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <main class="main-content">
         <header class="topbar">
             <button class="menu-toggle" type="button" data-menu-toggle aria-label="Apri menu"><?= View::icon('menu') ?></button>
-            <div class="topbar-title"><span>Workspace</span><strong><?= View::e($title) ?></strong></div>
+            <div class="topbar-title"><span><?= $isSuperuser ? 'Piattaforma' : 'Workspace' ?><?= Auth::organizationName() !== '' ? ' · ' . View::e(Auth::organizationName()) : '' ?></span><strong><?= View::e($title) ?></strong></div>
             <div class="topbar-actions">
                 <span class="environment-pill"><i></i> Online</span>
-                <?php if ($enabled('sales')): ?>
+                <?php if (!$isSuperuser && $enabled('sales')): ?>
                     <a class="quick-create" href="/documents/quotes/create"><?= View::icon('plus') ?><span>Nuovo</span></a>
-                <?php elseif ($enabled('anagraphics')): ?>
+                <?php elseif (!$isSuperuser && $enabled('anagraphics')): ?>
                     <a class="quick-create" href="/r/customers/create"><?= View::icon('plus') ?><span>Nuovo</span></a>
                 <?php endif; ?>
             </div>

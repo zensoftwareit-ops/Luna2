@@ -1,7 +1,7 @@
 <?php use Luna\Core\View; ?>
 <section class="page-intro compact">
     <div><span class="eyebrow">Diagnostica</span><h1>Stato del sistema</h1><p>Controllo di database, runtime PHP e directory applicative.</p></div>
-    <a class="button ghost" href="/settings/modules"><?= View::icon('settings') ?> Gestione moduli</a>
+    <div class="inline-actions"><a class="button ghost" href="/settings/company"><?= View::icon('briefcase') ?> Aziende e utenti</a><a class="button ghost" href="/settings/modules"><?= View::icon('settings') ?> Gestione moduli</a></div>
 </section>
 
 <div class="health-summary <?= $migrations['pending'] === [] ? 'healthy' : 'attention' ?>">

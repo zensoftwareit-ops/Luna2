@@ -62,11 +62,21 @@ $composer = json_decode((string) file_get_contents($base . '/composer.json'), tr
 $assert(is_array($composer) && isset($composer['require']['php']), 'composer.json non valido.');
 $assert(is_file($base . '/public/index.php') && is_file($base . '/public/.htaccess'), 'Webroot incompleta.');
 $assert(is_file($base . '/docs/DATEV_KOINOS_MIGRATION.md'), 'Piano migrazione Koinos mancante.');
-$assert(is_file($base . '/views/settings/modules.php') && is_file($base . '/views/settings/system.php'), 'Pannello impostazioni incompleto.');
+$assert(is_file($base . '/views/settings/modules.php') && is_file($base . '/views/settings/system.php') && is_file($base . '/views/settings/company.php'), 'Pannello impostazioni incompleto.');
 $application = (string) file_get_contents($base . '/app/Core/Application.php');
 $assert(str_contains($application, "'/settings/modules'"), 'Rotta gestione moduli mancante.');
 $assert(str_contains($application, "'/settings/system'"), 'Rotta stato sistema mancante.');
+$assert(str_contains($application, "'/settings/company'"), 'Rotta setup azienda mancante.');
+$assert(str_contains($application, "'/settings/users'"), 'Rotta gestione utenti mancante.');
 $assert(str_contains($application, 'ErrorReporter::report'), 'Registrazione errori applicativi mancante.');
+$platformController = (string) file_get_contents($base . '/app/Controller/PlatformController.php');
+$settingsController = (string) file_get_contents($base . '/app/Controller/SettingsController.php');
+$auth = (string) file_get_contents($base . '/app/Core/Auth.php');
+$assert(str_contains($platformController, 'requireSuperuser()'), 'Setup piattaforma non protetto dal ruolo superuser.');
+$assert(str_contains($settingsController, 'requireManagedOrganization()'), 'Gestione moduli non vincolata al superuser e a una azienda selezionata.');
+$assert(!str_contains($settingsController, "requireRoles(['OWNER', 'ADMIN'])"), 'OWNER e ADMIN non devono gestire i moduli di piattaforma.');
+$assert(str_contains($auth, "=== 'SUPERUSER'"), 'Ruolo SUPERUSER non gestito dall’autenticazione.');
+$assert(str_contains($schema, "ENUM('SUPERUSER','OWNER','ADMIN'"), 'Migrazione ruolo SUPERUSER mancante.');
 $allViews = '';
 foreach (glob($base . '/views/*.php') ?: [] as $viewFile) {
     $allViews .= file_get_contents($viewFile);
@@ -75,13 +85,15 @@ $assert(!str_contains($allViews, 'javascript:'), 'URL javascript non consentiti 
 
 $cli = (string) file_get_contents($base . '/bin/luna');
 $migrateStart = strpos($cli, "case 'migrate':");
-$setupStart = strpos($cli, "case 'setup:admin':");
-$migrateBlock = $migrateStart !== false && $setupStart !== false
-    ? substr($cli, $migrateStart, $setupStart - $migrateStart)
+$bootstrapStart = strpos($cli, 'bootstrapSuperuser($db)', $migrateStart ?: 0);
+$migrateBlock = $migrateStart !== false && $bootstrapStart !== false
+    ? substr($cli, $migrateStart, $bootstrapStart - $migrateStart)
     : '';
 $assert($migrateBlock !== '', 'Comando migrate non trovato.');
 $assert(!str_contains($migrateBlock, 'beginTransaction('), 'Le migrazioni DDL MySQL non devono usare una transazione PDO.');
 $assert(!str_contains($migrateBlock, 'commit('), 'Le migrazioni DDL MySQL non devono invocare commit().');
+$assert(str_contains($cli, 'random_bytes(18)') && str_contains($cli, 'CREDENZIALI SUPERUSER'), 'Bootstrap sicuro del superuser mancante.');
+$assert(!str_contains($cli, "case 'setup:admin':"), 'Il setup azienda da CLI deve essere sostituito dal setup web riservato.');
 
 $secretPatterns = [
     '/GOCSPX-[A-Za-z0-9_-]+/',

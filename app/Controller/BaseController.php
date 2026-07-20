@@ -50,6 +50,26 @@ abstract class BaseController
         }
     }
 
+    protected function requireSuperuser(): void
+    {
+        if (!Auth::isSuperuser()) {
+            $this->view->render('error', [
+                'title' => 'Accesso riservato',
+                'message' => 'Questa funzione è disponibile esclusivamente al superuser di piattaforma.',
+            ], 403);
+        }
+    }
+
+    protected function requireManagedOrganization(): int
+    {
+        $this->requireSuperuser();
+        $organizationId = Auth::managedOrganizationId();
+        if ($organizationId <= 0) {
+            $this->redirect('/settings/company', 'Crea o seleziona prima un’azienda.', 'error');
+        }
+        return $organizationId;
+    }
+
     protected function requireFeature(string $featureKey): void
     {
         $feature = $this->config['features'][$featureKey] ?? null;
@@ -62,8 +82,8 @@ abstract class BaseController
             $this->view->render('error', [
                 'title' => 'Modulo disattivato',
                 'message' => 'Il modulo “' . $feature['label'] . '” è disattivato per questa azienda.',
-                'actionUrl' => Auth::isAdmin() ? '/settings/modules' : '/dashboard',
-                'actionLabel' => Auth::isAdmin() ? 'Gestisci moduli' : 'Torna alla dashboard',
+                'actionUrl' => Auth::isSuperuser() ? '/settings/modules' : '/dashboard',
+                'actionLabel' => Auth::isSuperuser() ? 'Gestisci moduli' : 'Torna alla dashboard',
             ], 403);
         }
 
@@ -77,8 +97,8 @@ abstract class BaseController
                 'message' => 'Il database non è ancora aggiornato per questo modulo.',
                 'schemaIssue' => true,
                 'missingTables' => $missing,
-                'actionUrl' => Auth::isAdmin() ? '/settings/system' : '/dashboard',
-                'actionLabel' => Auth::isAdmin() ? 'Controlla il sistema' : 'Torna alla dashboard',
+                'actionUrl' => Auth::isSuperuser() ? '/settings/system' : '/dashboard',
+                'actionLabel' => Auth::isSuperuser() ? 'Controlla il sistema' : 'Torna alla dashboard',
             ], 503);
         }
     }

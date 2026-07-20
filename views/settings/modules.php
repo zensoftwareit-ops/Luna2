@@ -1,7 +1,7 @@
 <?php use Luna\Core\Csrf; use Luna\Core\View; ?>
 <section class="page-intro compact">
-    <div><span class="eyebrow">Configurazione azienda</span><h1>Gestione moduli</h1><p>Scegli le aree operative visibili nel menu e disponibili agli utenti.</p></div>
-    <a class="button ghost" href="/settings/system"><?= View::icon('check') ?> Stato del sistema</a>
+    <div><span class="eyebrow">Configurazione · <?= View::e($organizationName) ?></span><h1>Gestione moduli</h1><p>Scegli le aree operative visibili nel menu e disponibili agli utenti di questa azienda.</p></div>
+    <div class="inline-actions"><a class="button ghost" href="/settings/company"><?= View::icon('briefcase') ?> Cambia azienda</a><a class="button ghost" href="/settings/system"><?= View::icon('check') ?> Stato del sistema</a></div>
 </section>
 <form method="post" action="/settings/modules">
     <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">

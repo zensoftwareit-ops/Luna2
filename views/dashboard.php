@@ -15,7 +15,7 @@
     <div class="system-banner">
         <span class="system-banner-icon"><?= View::icon('alert') ?></span>
         <div><strong>Configurazione database incompleta</strong><span><?= count($migrations['pending']) ?> migrazioni da applicare. Alcuni moduli potrebbero non essere disponibili.</span></div>
-        <?php if (Auth::isAdmin()): ?><a href="/settings/system">Controlla ora <?= View::icon('chevron') ?></a><?php endif; ?>
+        <span class="system-owner-note">Richiedi l’intervento del superuser</span>
     </div>
 <?php endif; ?>
 

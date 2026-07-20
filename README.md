@@ -11,11 +11,11 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 - piano dei conti, prima nota Dare/Avere, contabilizzazione fatture, libro giornale, mastrini e bilancio di verifica;
 - schema per IVA, scadenze fiscali, pagamenti, banche, riconciliazione e cespiti;
 - import DATEV Koinos con staging, anteprima, idempotenza, log, quadrature e rollback per CSV/XLSX/XML/ZIP.
-- pannello amministrativo per attivare o disattivare i moduli per azienda;
+- area `SUPERUSER` per creare aziende e utenti, reimpostare gli accessi e configurare i moduli;
 - diagnostica integrata per migrazioni, tabelle, estensioni PHP e permessi storage;
 - log degli errori con codice di riferimento, senza esporre dettagli tecnici agli utenti.
 
-Gli utenti `OWNER` e `ADMIN` trovano nel menu **Configurazione** le pagine **Gestione moduli** e **Stato del sistema**. Se lo schema non è completo, l’interfaccia indica la migrazione o la tabella mancante invece di mostrare un errore generico. I dettagli delle eccezioni sono salvati in `storage/logs/application-YYYY-MM-DD.log`.
+Solo il `SUPERUSER` di piattaforma vede **Aziende e utenti**, **Gestione moduli** e **Stato del sistema**. Gli utenti aziendali, inclusi `OWNER` e `ADMIN`, non possono modificare la composizione del gestionale. Se lo schema non è completo, l’interfaccia indica la migrazione o la tabella mancante invece di mostrare un errore generico. I dettagli delle eccezioni sono salvati in `storage/logs/application-YYYY-MM-DD.log`.
 
 ## Stato del progetto
 
@@ -38,10 +38,9 @@ cp .env.example .env
 composer install --no-dev --optimize-autoloader
 php bin/luna key:generate
 php bin/luna migrate
-php bin/luna setup:admin "Ragione Sociale Srl" admin@example.it "una-password-lunga-e-unica"
 ```
 
-Il comando `key:generate` stampa una riga `APP_KEY=...`: copiarla in `.env`. Non esistono credenziali predefinite.
+Il comando `key:generate` stampa una riga `APP_KEY=...`: copiarla in `.env`. Alla prima esecuzione, `migrate` crea anche il `SUPERUSER` e stampa email e password casuale una sola volta. Conservare subito le credenziali in un password manager; le esecuzioni successive non rigenerano né ristampano la password. Dopo il login il superuser crea l’azienda, gli utenti aziendali e la configurazione dei moduli interamente dall’interfaccia web.
 
 Impostare la document root del dominio su `public/`. Se Plesk non consente di cambiare la document root, il file `.htaccess` nella radice inoltra le richieste a `public/` e blocca le cartelle private; la webroot dedicata resta la configurazione raccomandata.
 

@@ -13,6 +13,9 @@ final class DashboardController extends BaseController
 {
     public function index(): never
     {
+        if (Auth::isSuperuser()) {
+            $this->redirect('/settings/company');
+        }
         $organizationId = Auth::organizationId();
         $manager = new ModuleManager($this->db, $this->config['features'], $organizationId);
         $featureStates = $manager->all();

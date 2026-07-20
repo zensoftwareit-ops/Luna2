@@ -9,6 +9,7 @@ use Luna\Controller\AuthController;
 use Luna\Controller\DashboardController;
 use Luna\Controller\DocumentController;
 use Luna\Controller\ImportController;
+use Luna\Controller\PlatformController;
 use Luna\Controller\ResourceController;
 use Luna\Controller\SettingsController;
 use Throwable;
@@ -61,7 +62,7 @@ final class Application
             exit;
         }, false);
         $router->add('GET', '/', static function (): never {
-            header('Location: ' . (Auth::check() ? '/dashboard' : '/login'));
+            header('Location: ' . (Auth::check() ? Auth::landingPath() : '/login'));
             exit;
         }, false);
         $router->add('GET', '/login', [AuthController::class, 'form'], false);
@@ -99,6 +100,13 @@ final class Application
         $router->add('GET', '/settings/modules', [SettingsController::class, 'modules']);
         $router->add('POST', '/settings/modules', [SettingsController::class, 'saveModules']);
         $router->add('GET', '/settings/system', [SettingsController::class, 'system']);
+        $router->add('GET', '/settings/company', [PlatformController::class, 'index']);
+        $router->add('POST', '/settings/company', [PlatformController::class, 'createCompany']);
+        $router->add('POST', '/settings/company/{id}/select', [PlatformController::class, 'selectCompany']);
+        $router->add('POST', '/settings/users', [PlatformController::class, 'createUser']);
+        $router->add('POST', '/settings/users/{id}/toggle', [PlatformController::class, 'toggleUser']);
+        $router->add('POST', '/settings/users/{id}/reset-password', [PlatformController::class, 'resetUserPassword']);
+        $router->add('POST', '/settings/security/password', [PlatformController::class, 'changePassword']);
     }
 
     public function run(): void
@@ -120,8 +128,8 @@ final class Application
                 'message' => $message,
                 'reference' => $reference,
                 'schemaIssue' => $schemaIssue,
-                'actionUrl' => Auth::isAdmin() ? '/settings/system' : '/dashboard',
-                'actionLabel' => Auth::isAdmin() ? 'Controlla il sistema' : 'Torna alla dashboard',
+                'actionUrl' => Auth::isSuperuser() ? '/settings/system' : '/dashboard',
+                'actionLabel' => Auth::isSuperuser() ? 'Controlla il sistema' : 'Torna alla dashboard',
             ], $schemaIssue ? 503 : 500);
         }
     }

@@ -22,7 +22,7 @@ php bin/luna migrate
 
 Il file `.env` viene creato una sola volta sul server e non è versionato. Le directory `storage/*` devono essere scrivibili dall’utente PHP ma non pubbliche.
 
-Al termine accedere come amministratore a **Configurazione → Stato del sistema**. La pagina deve mostrare tutte le migrazioni applicate e nessuna estensione o directory mancante. Gli errori applicativi sono registrati in `storage/logs/application-YYYY-MM-DD.log` con lo stesso codice di riferimento mostrato a video. Non abilitare `APP_DEBUG` in produzione.
+Al termine accedere come `SUPERUSER` a **Stato del sistema**. La pagina deve mostrare tutte le migrazioni applicate e nessuna estensione o directory mancante. Gli errori applicativi sono registrati in `storage/logs/application-YYYY-MM-DD.log` con lo stesso codice di riferimento mostrato a video. Non abilitare `APP_DEBUG` in produzione.
 
 ## Primo avvio
 
@@ -30,10 +30,16 @@ Al termine accedere come amministratore a **Configurazione → Stato del sistema
 cp .env.example .env
 php bin/luna key:generate
 php bin/luna migrate
-php bin/luna setup:admin "Cliente Srl" amministrazione@cliente.it "password-unica-di-almeno-12-caratteri"
 ```
 
-Completare poi anagrafica fiscale dell’organizzazione nel database/pannello amministrativo prima di generare XML.
+L’output della prima `migrate` contiene le credenziali casuali del `SUPERUSER` e non le mostrerà una seconda volta. In Plesk eseguire quindi la migrazione tramite **Attività pianificate → Esegui uno script PHP**, salvare subito le credenziali mostrate nell’output e rimuovere l’attività temporanea.
+
+Dopo il login aprire **Aziende e utenti** per:
+
+1. creare e inizializzare l’azienda;
+2. creare il primo `OWNER` e gli altri utenti aziendali;
+3. sostituire la password iniziale del superuser;
+4. aprire **Gestione moduli** e scegliere le aree disponibili per l’azienda.
 
 ## Cron
 
