@@ -14,7 +14,7 @@ unset($_SESSION['login_error'], $_SESSION['old_email']);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0b1220">
     <title>Accedi · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=6.0.2">
+    <link rel="stylesheet" href="/assets/app.css?v=6.1.0">
 </head>
 <body class="auth-page">
 <main class="auth-shell">

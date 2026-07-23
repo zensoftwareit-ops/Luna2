@@ -85,6 +85,7 @@ final class Application
         $router->add('GET', '/r/{module}', [ResourceController::class, 'index']);
         $router->add('GET', '/r/{module}/create', [ResourceController::class, 'create']);
         $router->add('GET', '/r/{module}/export', [ResourceController::class, 'export']);
+        $router->add('GET', '/r/{module}/export/{format}', [ResourceController::class, 'export']);
         $router->add('GET', '/r/{module}/{id}/edit', [ResourceController::class, 'edit']);
         $router->add('POST', '/r/{module}/save', [ResourceController::class, 'save']);
         $router->add('POST', '/r/{module}/bulk', [ResourceController::class, 'bulk']);
@@ -113,6 +114,7 @@ final class Application
 
         $router->add('GET', '/documents/{type}', [DocumentController::class, 'index']);
         $router->add('GET', '/documents/{type}/create', [DocumentController::class, 'create']);
+        $router->add('GET', '/documents/{type}/export/{format}', [DocumentController::class, 'export']);
         $router->add('POST', '/documents/{type}/save', [DocumentController::class, 'save']);
         $router->add('GET', '/documents/{type}/{id}', [DocumentController::class, 'view']);
         $router->add('GET', '/documents/{type}/{id}/pdf', [DocumentController::class, 'pdf']);
@@ -175,6 +177,7 @@ final class Application
         $router->add('GET', '/reports/management/{id}/download', [ReportsController::class, 'download']);
 
         $router->add('GET', '/accounting/journal', [AccountingController::class, 'journal']);
+        $router->add('GET', '/accounting/journal/export/{format}', [AccountingController::class, 'exportJournal']);
         $router->add('GET', '/accounting/journal/create', [AccountingController::class, 'create']);
         $router->add('POST', '/accounting/journal/save', [AccountingController::class, 'save']);
         $router->add('POST', '/accounting/journal/post', [AccountingController::class, 'post']);
@@ -183,12 +186,16 @@ final class Application
         $router->add('POST', '/accounting/journal/{id}/delete', [AccountingController::class, 'deleteDraft']);
         $router->add('GET', '/accounting/journal/{id}', [AccountingController::class, 'show']);
         $router->add('GET', '/accounting/trial-balance', [AccountingController::class, 'trialBalance']);
+        $router->add('GET', '/accounting/trial-balance/export/{format}', [AccountingController::class, 'exportTrialBalance']);
         $router->add('GET', '/accounting/ledger/{id}', [AccountingController::class, 'ledger']);
+        $router->add('GET', '/accounting/ledger/{id}/export/{format}', [AccountingController::class, 'exportLedger']);
         $router->add('GET', '/accounting/vat-registers', [AccountingController::class, 'vatRegisters']);
+        $router->add('GET', '/accounting/vat-registers/export/{format}', [AccountingController::class, 'exportVatRegisters']);
         $router->add('POST', '/accounting/vat-registers/manual', [AccountingController::class, 'saveVatMovement']);
         $router->add('POST', '/accounting/vat-registers/sync', [AccountingController::class, 'syncVatDocuments']);
         $router->add('POST', '/accounting/vat-registers/{id}/delete', [AccountingController::class, 'deleteVatMovement']);
         $router->add('GET', '/accounting/vat-settlements', [AccountingController::class, 'vatSettlements']);
+        $router->add('GET', '/accounting/vat-settlements/export/{format}', [AccountingController::class, 'exportVatSettlements']);
         $router->add('POST', '/accounting/vat-settlements/calculate', [AccountingController::class, 'calculateVatSettlement']);
         $router->add('POST', '/accounting/vat-settlements/{id}/status', [AccountingController::class, 'updateVatSettlementStatus']);
         $router->add('GET', '/accounting/vat-settlements/{id}', [AccountingController::class, 'showVatSettlement']);

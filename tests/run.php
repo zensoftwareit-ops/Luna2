@@ -85,6 +85,14 @@ $assert(str_contains($application, "'/accounting/setup'"), 'Rotta configurazione
 $assert(str_contains($application, "'/accounting/treasury'"), 'Rotta tesoreria e partite mancante.');
 $assert(str_contains($application, "'/accounting/compliance'"), 'Rotta adempimenti e chiusure mancante.');
 $assert(str_contains($application, "'/settings/endpoints'"), 'Rotta endpoint fatturazione elettronica mancante.');
+$assert(str_contains($application, "'/r/{module}/export/{format}'"), 'Esportazioni PDF/XLSX/CSV degli archivi mancanti.');
+$assert(str_contains($application, "'/documents/{type}/export/{format}'"), 'Esportazioni documenti filtrati mancanti.');
+$assert(str_contains($application, "'/accounting/ledger/{id}/export/{format}'"), 'Esportazioni mastrino mancanti.');
+$assert(is_file($base . '/app/Service/TabularExportService.php'), 'Servizio esportazioni tabellari mancante.');
+$tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportService.php');
+$assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
+$appJs = (string) file_get_contents($base . '/public/assets/app.js');
+$assert(str_contains($appJs, 'Filtra tabella') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
 $parityRoutes = ['/operations/logistics', '/operations/projects', '/operations/communications', '/operations/hr', '/operations/ecommerce', '/operations/rental', '/operations/calendar', '/reports/management'];
 foreach ($parityRoutes as $route) {
     $assert(str_contains($application, "'{$route}"), "Rotta parità funzionale mancante: {$route}");
@@ -149,11 +157,11 @@ require_once $base . '/vendor/autoload.php';
 $_SESSION = [];
 try {
     $renderedAccounting = '';
-    $renderedAccounting .= $renderAccountingView('journal', ['entries' => [], 'totals' => ['debit' => 0, 'credit' => 0, 'drafts' => 0], 'from' => '2026-01-01', 'to' => '2026-12-31', 'status' => '', 'type' => '', 'search' => '']);
+    $renderedAccounting .= $renderAccountingView('journal', ['entries' => [], 'totals' => ['debit' => 0, 'credit' => 0, 'drafts' => 0], 'from' => '2026-01-01', 'to' => '2026-12-31', 'status' => '', 'type' => '', 'search' => '', 'accountId' => 0, 'accounts' => []]);
     $renderedAccounting .= $renderAccountingView('form', ['accounts' => [], 'entry' => ['entry_date' => '2026-01-01', 'competence_date' => '2026-01-01', 'entry_type' => 'MANUAL'], 'lines' => []]);
     $entry = ['id' => 1, 'protocol_number' => 'GEN-2026-000001', 'description' => 'Test', 'entry_date' => '2026-01-01', 'entry_type' => 'MANUAL', 'counterparty' => null, 'status' => 'DRAFT', 'source_type' => 'MANUAL', 'total_debit' => 0, 'total_credit' => 0, 'document_number' => null, 'notes' => null];
     $renderedAccounting .= $renderAccountingView('entry', ['entry' => $entry, 'lines' => []]);
-    $renderedAccounting .= $renderAccountingView('vat-registers', ['register' => 'SALES', 'year' => 2026, 'month' => 1, 'movements' => [], 'summary' => [], 'totals' => ['taxable' => 0, 'vat' => 0, 'deductible' => 0], 'vatCodes' => []]);
+    $renderedAccounting .= $renderAccountingView('vat-registers', ['register' => 'SALES', 'year' => 2026, 'month' => 1, 'search' => '', 'movements' => [], 'summary' => [], 'totals' => ['taxable' => 0, 'vat' => 0, 'deductible' => 0], 'vatCodes' => []]);
     $renderedAccounting .= $renderAccountingView('vat-settlements', ['settlements' => [], 'year' => 2026]);
     $settlement = ['id' => 1, 'period_type' => 'MONTHLY', 'period_year' => 2026, 'period_number' => 1, 'calculated_at' => '2026-02-01', 'updated_at' => '2026-02-01', 'status' => 'CALCULATED', 'vat_debit' => 0, 'vat_credit' => 0, 'previous_credit' => 0, 'interest_amount' => 0, 'balance' => 0, 'notes' => null];
     $renderedAccounting .= $renderAccountingView('vat-settlement', ['settlement' => $settlement, 'details' => []]);
@@ -217,6 +225,7 @@ try {
     $renderedWorkspace[] = $renderView('resource/index', [
         'slug' => 'customers', 'module' => $resourceModule, 'rows' => [], 'search' => '',
         'filters' => ['active' => ''], 'filterFields' => ['active' => $resourceModule['fields']['active']],
+        'dateFrom' => [], 'dateTo' => [],
         'sort' => 'id', 'direction' => 'DESC', 'perPage' => 50, 'page' => 1, 'pages' => 1,
         'total' => 0, 'savedViews' => [],
     ]);

@@ -176,4 +176,71 @@
     if (existing.length) existing.forEach((line) => addLine(line)); else { addLine(); addLine(); }
     refresh();
   }
+
+  const cleanFilename = (value) => String(value || 'esportazione')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'esportazione';
+  const tableMatrix = (table) => {
+    const ignored = [...table.querySelectorAll('thead th')].map((cell) =>
+      cell.classList.contains('actions-column') || cell.classList.contains('selection-column') || cell.textContent.trim() === '');
+    return [...table.rows].filter((row) => !row.hidden).map((row) => [...row.cells]
+      .filter((_, index) => !ignored[index])
+      .map((cell) => cell.innerText.replace(/\s+/g, ' ').trim()));
+  };
+  const downloadBlob = (content, type, extension, title) => {
+    const blob = new Blob([content], { type });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${cleanFilename(title)}-${new Date().toISOString().slice(0, 10)}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(link.href);
+  };
+  const csvCell = (value) => `"${String(value).replaceAll('"', '""')}"`;
+  const exportVisibleTable = (table, format, title) => {
+    const matrix = tableMatrix(table);
+    if (format === 'csv') {
+      downloadBlob(`\uFEFF${matrix.map((row) => row.map(csvCell).join(';')).join('\r\n')}`, 'text/csv;charset=utf-8', 'csv', title);
+      return;
+    }
+    const rows = matrix.map((row, rowIndex) => `<tr>${row.map((cell) => `<${rowIndex === 0 ? 'th' : 'td'}>${cell.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</${rowIndex === 0 ? 'th' : 'td'}>`).join('')}</tr>`).join('');
+    const workbook = `\uFEFF<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table>${rows}</table></body></html>`;
+    downloadBlob(workbook, 'application/vnd.ms-excel;charset=utf-8', 'xls', title);
+  };
+  if (!document.querySelector('.exportable-toolbar')) {
+    document.querySelectorAll('.card .table-wrap table').forEach((table, index) => {
+      if (table.closest('[data-no-table-export]')) return;
+      const card = table.closest('.card');
+      const title = card?.querySelector('h1,h2')?.textContent.trim()
+        || document.querySelector('.page-intro h1,.topbar-title strong')?.textContent.trim()
+        || `Tabella ${index + 1}`;
+      const tools = document.createElement('div');
+      tools.className = 'table-export-tools';
+      tools.innerHTML = '<label><span>Filtra tabella</span><input type="search" placeholder="Cerca nelle righe…"></label><span>Output</span><button type="button">PDF</button><button type="button">XLS</button><button type="button">CSV</button>';
+      const localSearch = tools.querySelector('input');
+      const [pdfButton, xlsButton, csvButton] = tools.querySelectorAll('button');
+      localSearch.addEventListener('input', () => {
+        const needle = localSearch.value.trim().toLocaleLowerCase('it');
+        [...table.tBodies].flatMap((body) => [...body.rows]).forEach((row) => {
+          row.hidden = needle !== '' && !row.innerText.toLocaleLowerCase('it').includes(needle);
+        });
+      });
+      pdfButton.addEventListener('click', () => {
+        document.body.classList.add('print-table');
+        card?.classList.add('print-target');
+        card?.setAttribute('data-print-title', title);
+        window.print();
+        setTimeout(() => {
+          document.body.classList.remove('print-table');
+          card?.classList.remove('print-target');
+          card?.removeAttribute('data-print-title');
+        }, 300);
+      });
+      xlsButton.addEventListener('click', () => exportVisibleTable(table, 'xls', title));
+      csvButton.addEventListener('click', () => exportVisibleTable(table, 'csv', title));
+      const header = card?.querySelector(':scope > .card-header');
+      if (header) header.appendChild(tools); else card?.insertBefore(tools, card.firstChild);
+    });
+  }
 })();

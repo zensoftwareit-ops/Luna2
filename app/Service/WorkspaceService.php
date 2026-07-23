@@ -247,7 +247,7 @@ final class WorkspaceService
         if ($name === '' || !preg_match('/^[a-zA-Z0-9_-]+$/', $moduleKey)) {
             throw new \InvalidArgumentException('Nome o modulo della vista non valido.');
         }
-        $allowed = ['q', 'filters', 'per_page', 'sort', 'direction'];
+        $allowed = ['q', 'filters', 'date_from', 'date_to', 'per_page', 'sort', 'direction'];
         $query = array_intersect_key($query, array_flip($allowed));
         $this->db->beginTransaction();
         try {

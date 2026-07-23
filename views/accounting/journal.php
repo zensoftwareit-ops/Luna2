@@ -11,15 +11,17 @@
     <article class="<?= $totals['drafts'] ? 'attention' : '' ?>"><span>Bozze da completare</span><strong><?= (int) $totals['drafts'] ?></strong></article>
 </section>
 
-<section class="list-toolbar accounting-toolbar">
+<?php $exportQuery = http_build_query(array_filter(['q'=>$search,'from'=>$from,'to'=>$to,'status'=>$status,'type'=>$type,'account_id'=>$accountId])); ?>
+<section class="list-toolbar accounting-toolbar exportable-toolbar">
     <form method="get" class="search-form filter-form">
         <span class="search-control"><?= View::icon('search') ?><input type="search" name="q" value="<?= View::e($search) ?>" placeholder="Protocollo, descrizione, documento…"></span>
         <label>Dal <input type="date" name="from" value="<?= View::e($from) ?>"></label>
         <label>Al <input type="date" name="to" value="<?= View::e($to) ?>"></label>
         <select name="status"><option value="">Tutti gli stati</option><option value="DRAFT" <?= $status === 'DRAFT' ? 'selected' : '' ?>>Bozze</option><option value="POSTED" <?= $status === 'POSTED' ? 'selected' : '' ?>>Contabilizzate</option><option value="REVERSED" <?= $status === 'REVERSED' ? 'selected' : '' ?>>Stornate</option></select>
+        <select name="account_id"><option value="">Tutti i conti</option><?php foreach ($accounts as $account): ?><option value="<?= (int) $account['id'] ?>" <?= $accountId === (int) $account['id'] ? 'selected' : '' ?>><?= View::e($account['code'] . ' · ' . $account['name']) ?></option><?php endforeach; ?></select>
         <button class="button" type="submit">Filtra</button>
     </form>
-    <div class="inline-actions"><a class="button ghost" href="/accounting/vat-registers">Registri IVA</a><a class="button ghost" href="/accounting/trial-balance">Bilancio di verifica</a></div>
+    <div class="export-actions"><a class="button ghost" href="/accounting/journal/export/pdf?<?= View::e($exportQuery) ?>">PDF</a><a class="button ghost" href="/accounting/journal/export/xlsx?<?= View::e($exportQuery) ?>">XLSX</a><a class="button ghost" href="/accounting/journal/export/csv?<?= View::e($exportQuery) ?>">CSV</a></div>
 </section>
 
 <section class="card data-card">

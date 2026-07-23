@@ -6,6 +6,8 @@ $token = View::e(Csrf::token());
 $currentQuery = [
     'q' => $search,
     'filters' => array_filter($filters, static fn ($value): bool => $value !== '' && $value !== null),
+    'date_from' => array_filter($dateFrom, static fn ($value): bool => $value !== '' && $value !== null),
+    'date_to' => array_filter($dateTo, static fn ($value): bool => $value !== '' && $value !== null),
     'sort' => $sort,
     'direction' => $direction,
     'per_page' => $perPage,
@@ -14,7 +16,15 @@ $url = static function (array $changes = []) use ($slug, $currentQuery): string 
     $query = array_replace_recursive($currentQuery, $changes);
     return '/r/' . rawurlencode($slug) . '?' . http_build_query($query);
 };
-$filterCount = count(array_filter($filters, static fn ($value): bool => $value !== '' && $value !== null));
+$filterCount = count(array_filter($filters, static fn ($value): bool => $value !== '' && $value !== null))
+    + count(array_filter($dateFrom, static fn ($value): bool => $value !== '' && $value !== null))
+    + count(array_filter($dateTo, static fn ($value): bool => $value !== '' && $value !== null));
+$exportQuery = http_build_query(array_filter([
+    'q' => $search,
+    'filters' => $currentQuery['filters'],
+    'date_from' => $currentQuery['date_from'],
+    'date_to' => $currentQuery['date_to'],
+], static fn ($value): bool => $value !== '' && $value !== []));
 ?>
 <section class="page-intro compact">
     <div>
@@ -47,6 +57,8 @@ $filterCount = count(array_filter($filters, static fn ($value): bool => $value !
         <?php foreach ($filters as $field => $value): if ($value === '' || $value === null) continue; ?>
             <input type="hidden" name="filters[<?= View::e($field) ?>]" value="<?= View::e($value) ?>">
         <?php endforeach; ?>
+        <?php foreach ($dateFrom as $field => $value): if ($value === '' || $value === null) continue; ?><input type="hidden" name="date_from[<?= View::e($field) ?>]" value="<?= View::e($value) ?>"><?php endforeach; ?>
+        <?php foreach ($dateTo as $field => $value): if ($value === '' || $value === null) continue; ?><input type="hidden" name="date_to[<?= View::e($field) ?>]" value="<?= View::e($value) ?>"><?php endforeach; ?>
         <input type="hidden" name="sort" value="<?= View::e($sort) ?>">
         <input type="hidden" name="direction" value="<?= View::e($direction) ?>">
         <button class="button" type="submit">Cerca</button>
@@ -56,7 +68,11 @@ $filterCount = count(array_filter($filters, static fn ($value): bool => $value !
             <?= View::icon('settings') ?> Filtri<?= $filterCount ? ' (' . $filterCount . ')' : '' ?>
         </button>
     <?php endif; ?>
-    <a class="button ghost" href="/r/<?= View::e($slug) ?>/export"><?= View::icon('download') ?> CSV completo</a>
+    <div class="export-actions" aria-label="Esporta elenco">
+        <a class="button ghost" href="/r/<?= View::e($slug) ?>/export/pdf?<?= View::e($exportQuery) ?>">PDF</a>
+        <a class="button ghost" href="/r/<?= View::e($slug) ?>/export/xlsx?<?= View::e($exportQuery) ?>">XLSX</a>
+        <a class="button ghost" href="/r/<?= View::e($slug) ?>/export/csv?<?= View::e($exportQuery) ?>">CSV</a>
+    </div>
 </section>
 
 <?php if ($filterFields): ?>
@@ -64,9 +80,14 @@ $filterCount = count(array_filter($filters, static fn ($value): bool => $value !
         <form method="get" class="filter-grid">
             <input type="hidden" name="q" value="<?= View::e($search) ?>">
             <?php foreach ($filterFields as $field => $settings): $value = $filters[$field] ?? ''; ?>
+                <?php if (($settings['type'] ?? '') === 'date'): ?>
+                    <label class="field"><span><?= View::e($settings['label']) ?> dal</span><input type="date" name="date_from[<?= View::e($field) ?>]" value="<?= View::e($dateFrom[$field] ?? '') ?>"></label>
+                    <label class="field"><span><?= View::e($settings['label']) ?> al</span><input type="date" name="date_to[<?= View::e($field) ?>]" value="<?= View::e($dateTo[$field] ?? '') ?>"></label>
+                    <?php continue; ?>
+                <?php endif; ?>
                 <label class="field">
                     <span><?= View::e($settings['label']) ?></span>
-                    <?php if (($settings['type'] ?? '') === 'select'): ?>
+                    <?php if (in_array(($settings['type'] ?? ''), ['select', 'relation'], true)): ?>
                         <select name="filters[<?= View::e($field) ?>]">
                             <option value="">Qualsiasi</option>
                             <?php foreach ($settings['options'] ?? [] as $key => $label): ?>
@@ -75,8 +96,6 @@ $filterCount = count(array_filter($filters, static fn ($value): bool => $value !
                         </select>
                     <?php elseif (($settings['type'] ?? '') === 'checkbox'): ?>
                         <select name="filters[<?= View::e($field) ?>]"><option value="">Qualsiasi</option><option value="1" <?= (string) $value === '1' ? 'selected' : '' ?>>Sì</option><option value="0" <?= (string) $value === '0' ? 'selected' : '' ?>>No</option></select>
-                    <?php else: ?>
-                        <input type="date" name="filters[<?= View::e($field) ?>]" value="<?= View::e($value) ?>">
                     <?php endif; ?>
                 </label>
             <?php endforeach; ?>
@@ -165,6 +184,8 @@ $filterCount = count(array_filter($filters, static fn ($value): bool => $value !
         <form method="get">
             <?php foreach ($currentQuery as $key => $value): if ($key === 'per_page' || is_array($value)) continue; ?><input type="hidden" name="<?= View::e($key) ?>" value="<?= View::e($value) ?>"><?php endforeach; ?>
             <?php foreach ($currentQuery['filters'] ?? [] as $key => $value): ?><input type="hidden" name="filters[<?= View::e($key) ?>]" value="<?= View::e($value) ?>"><?php endforeach; ?>
+            <?php foreach ($currentQuery['date_from'] ?? [] as $key => $value): ?><input type="hidden" name="date_from[<?= View::e($key) ?>]" value="<?= View::e($value) ?>"><?php endforeach; ?>
+            <?php foreach ($currentQuery['date_to'] ?? [] as $key => $value): ?><input type="hidden" name="date_to[<?= View::e($key) ?>]" value="<?= View::e($value) ?>"><?php endforeach; ?>
             <label>Righe <select name="per_page" onchange="this.form.submit()"><?php foreach ([25, 50, 100, 250] as $size): ?><option value="<?= $size ?>" <?= $perPage === $size ? 'selected' : '' ?>><?= $size ?></option><?php endforeach; ?></select></label>
         </form>
     </nav>

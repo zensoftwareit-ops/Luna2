@@ -11,6 +11,7 @@ use Luna\Service\AccountingService;
 use Luna\Service\FatturaPaService;
 use Luna\Service\DocumentNumberService;
 use Luna\Service\DocumentWorkflowService;
+use Luna\Service\TabularExportService;
 use Throwable;
 
 final class DocumentController extends BaseController
@@ -30,20 +31,47 @@ final class DocumentController extends BaseController
     {
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
         $definition = $this->type($type);
-        $search = trim((string) ($_GET['q'] ?? ''));
-        $sql = 'SELECT id, number, document_date, due_date, counterparty_name, subject, taxable_total, vat_total, total, balance_due, status
-                FROM documents WHERE organization_id = :organization AND document_type = :type';
-        $params = ['organization' => Auth::organizationId(), 'type' => $definition['code']];
-        if ($search !== '') {
-            $sql .= ' AND (number LIKE :search OR counterparty_name LIKE :search OR subject LIKE :search)';
-            $params['search'] = '%' . $search . '%';
-        }
-        $sql .= ' ORDER BY document_date DESC, id DESC LIMIT 500';
-        $statement = $this->db->prepare($sql);
-        $statement->execute($params);
-        $documents = $statement->fetchAll();
+        [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, 1500);
+        $table = $definition['counterparty'] === 'customer' ? 'customers' : 'suppliers';
+        $statement = $this->db->prepare("SELECT id, code, business_name FROM {$table} WHERE organization_id = ? ORDER BY business_name");
+        $statement->execute([Auth::organizationId()]);
+        $counterparties = $statement->fetchAll();
+        $this->view->render('documents/index', compact(
+            'type', 'definition', 'documents', 'search', 'from', 'to', 'counterpartyId', 'status', 'counterparties'
+        ) + ['title' => $definition['title']]);
+    }
 
-        $this->view->render('documents/index', compact('type', 'definition', 'documents', 'search') + ['title' => $definition['title']]);
+    public function export(string $type, string $format): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
+        $definition = $this->type($type);
+        [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, null);
+        (new TabularExportService())->stream(
+            $format,
+            $definition['title'],
+            [
+                ['key' => 'number', 'label' => 'Documento'],
+                ['key' => 'document_date', 'label' => 'Data', 'type' => 'date'],
+                ['key' => 'due_date', 'label' => 'Scadenza', 'type' => 'date'],
+                ['key' => 'counterparty_name', 'label' => $definition['counterparty'] === 'customer' ? 'Cliente' : 'Fornitore'],
+                ['key' => 'subject', 'label' => 'Oggetto'],
+                ['key' => 'taxable_total', 'label' => 'Imponibile', 'type' => 'money'],
+                ['key' => 'vat_total', 'label' => 'IVA', 'type' => 'money'],
+                ['key' => 'total', 'label' => 'Totale', 'type' => 'money'],
+                ['key' => 'balance_due', 'label' => 'Residuo', 'type' => 'money'],
+                ['key' => 'status', 'label' => 'Stato'],
+            ],
+            $documents,
+            array_filter([
+                'Ricerca' => $search,
+                'Dal' => $from,
+                'Al' => $to,
+                $definition['counterparty'] === 'customer' ? 'Cliente ID' : 'Fornitore ID' => $counterpartyId ? (string) $counterpartyId : '',
+                'Stato' => $status,
+            ]),
+            Auth::organizationName(),
+            $type,
+        );
     }
 
     public function create(string $type): never
@@ -243,6 +271,42 @@ final class DocumentController extends BaseController
         $definition = self::TYPES[$type] ?? throw new InvalidArgumentException('Tipo documento non valido.');
         $this->requireFeature($definition['feature']);
         return $definition;
+    }
+
+    private function documentList(array $definition, ?int $limit): array
+    {
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $from = (string) ($_GET['from'] ?? date('Y-01-01'));
+        $to = (string) ($_GET['to'] ?? date('Y-12-31'));
+        $counterpartyId = max(0, (int) ($_GET['counterparty_id'] ?? 0));
+        $status = strtoupper(trim((string) ($_GET['status'] ?? '')));
+        $sql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
+                       taxable_total, vat_total, total, balance_due, status
+                FROM documents WHERE organization_id = :organization AND document_type = :type
+                  AND document_date BETWEEN :date_from AND :date_to';
+        $params = [
+            'organization' => Auth::organizationId(), 'type' => $definition['code'],
+            'date_from' => $from, 'date_to' => $to,
+        ];
+        if ($search !== '') {
+            $sql .= ' AND (number LIKE :search OR counterparty_name LIKE :search OR subject LIKE :search)';
+            $params['search'] = '%' . $search . '%';
+        }
+        if ($counterpartyId > 0) {
+            $sql .= ' AND counterparty_id = :counterparty_id';
+            $params['counterparty_id'] = $counterpartyId;
+        }
+        if ($status !== '') {
+            $sql .= ' AND status = :status';
+            $params['status'] = $status;
+        }
+        $sql .= ' ORDER BY document_date DESC, id DESC';
+        if ($limit !== null) {
+            $sql .= ' LIMIT ' . max(1, $limit);
+        }
+        $statement = $this->db->prepare($sql);
+        $statement->execute($params);
+        return [$statement->fetchAll(), $search, $from, $to, $counterpartyId, $status];
     }
 
     private function counterparty(string $type, int $id): array|false

@@ -6,6 +6,7 @@ namespace Luna\Controller;
 
 use InvalidArgumentException;
 use Luna\Core\Auth;
+use Luna\Service\TabularExportService;
 use Luna\Service\WorkspaceService;
 
 final class ResourceController extends BaseController
@@ -17,10 +18,27 @@ final class ResourceController extends BaseController
         $searchInput = $_GET['q'] ?? '';
         $search = is_scalar($searchInput) ? trim((string) $searchInput) : '';
         $filters = is_array($_GET['filters'] ?? null) ? $_GET['filters'] : [];
+        $dateFrom = is_array($_GET['date_from'] ?? null) ? $_GET['date_from'] : [];
+        $dateTo = is_array($_GET['date_to'] ?? null) ? $_GET['date_to'] : [];
         $filterFields = array_filter(
             $module['fields'],
             static fn (array $field): bool => in_array($field['type'] ?? '', ['select', 'date', 'checkbox'], true),
         );
+        foreach (['customer_id' => 'customers', 'supplier_id' => 'suppliers'] as $field => $table) {
+            if (!isset($module['fields'][$field])) {
+                continue;
+            }
+            $options = $this->db->prepare("SELECT id, code, business_name FROM {$table} WHERE organization_id = ? ORDER BY business_name");
+            $options->execute([Auth::organizationId()]);
+            $filterFields[$field] = [
+                'label' => $table === 'customers' ? 'Cliente' : 'Fornitore',
+                'type' => 'relation',
+                'options' => array_column(array_map(
+                    static fn (array $row): array => ['id' => (string) $row['id'], 'label' => trim((string) $row['code'] . ' · ' . (string) $row['business_name'], ' ·')],
+                    $options->fetchAll(),
+                ), 'label', 'id'),
+            ];
+        }
         $sortInput = $_GET['sort'] ?? 'id';
         $sort = is_scalar($sortInput) ? (string) $sortInput : 'id';
         if (!in_array($sort, array_merge(['id'], $module['columns']), true)) {
@@ -48,6 +66,21 @@ final class ResourceController extends BaseController
         }
         foreach ($filterFields as $field => $settings) {
             $value = $filters[$field] ?? null;
+            if (($settings['type'] ?? '') === 'date') {
+                $fromValue = $dateFrom[$field] ?? null;
+                $toValue = $dateTo[$field] ?? null;
+                if (is_scalar($fromValue) && $fromValue !== '') {
+                    $key = 'date_from_' . $field;
+                    $where .= ' AND ' . $this->identifier($field) . " >= :{$key}";
+                    $params[$key] = (string) $fromValue;
+                }
+                if (is_scalar($toValue) && $toValue !== '') {
+                    $key = 'date_to_' . $field;
+                    $where .= ' AND ' . $this->identifier($field) . " <= :{$key}";
+                    $params[$key] = (string) $toValue;
+                }
+                continue;
+            }
             if ($value === null || $value === '' || !is_scalar($value)) {
                 continue;
             }
@@ -71,7 +104,7 @@ final class ResourceController extends BaseController
 
         $this->view->render('resource/index', compact(
             'slug', 'module', 'rows', 'search', 'filters', 'filterFields', 'sort', 'direction',
-            'perPage', 'page', 'pages', 'total', 'savedViews'
+            'dateFrom', 'dateTo', 'perPage', 'page', 'pages', 'total', 'savedViews'
         ) + ['title' => $module['title']]);
     }
 
@@ -172,27 +205,100 @@ final class ResourceController extends BaseController
         $this->redirect('/r/' . $slug, $module['singular'] . ' eliminato.');
     }
 
-    public function export(string $slug): never
+    public function export(string $slug, string $format = 'csv'): never
     {
         $module = $this->module($slug);
         $this->requireModuleReadRole($module);
+        $searchInput = $_GET['q'] ?? '';
+        $search = is_scalar($searchInput) ? trim((string) $searchInput) : '';
+        $filters = is_array($_GET['filters'] ?? null) ? $_GET['filters'] : [];
+        $dateFrom = is_array($_GET['date_from'] ?? null) ? $_GET['date_from'] : [];
+        $dateTo = is_array($_GET['date_to'] ?? null) ? $_GET['date_to'] : [];
         $columns = array_values(array_unique(array_merge(['id'], $module['columns'])));
-        $statement = $this->db->prepare(
-            'SELECT ' . implode(', ', array_map([$this, 'identifier'], $columns))
-            . ' FROM ' . $this->identifier($module['table']) . ' WHERE organization_id = ? ORDER BY id'
-        );
-        $statement->execute([Auth::organizationId()]);
-
-        header('Content-Type: text/csv; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="' . $slug . '-' . date('Ymd-His') . '.csv"');
-        $output = fopen('php://output', 'wb');
-        fwrite($output, "\xEF\xBB\xBF");
-        fputcsv($output, $columns, ';');
-        while ($row = $statement->fetch()) {
-            fputcsv($output, array_map(static fn (string $column): mixed => $row[$column] ?? null, $columns), ';');
+        $where = ' FROM ' . $this->identifier($module['table']) . ' WHERE organization_id = :organization_id';
+        $params = ['organization_id' => Auth::organizationId()];
+        if ($search !== '' && !empty($module['search'])) {
+            $parts = [];
+            foreach ($module['search'] as $index => $column) {
+                $key = 'q' . $index;
+                $parts[] = $this->identifier($column) . " LIKE :{$key}";
+                $params[$key] = '%' . $search . '%';
+            }
+            $where .= ' AND (' . implode(' OR ', $parts) . ')';
         }
-        fclose($output);
-        exit;
+        foreach ($module['fields'] as $field => $settings) {
+            $type = $settings['type'] ?? '';
+            if ($type === 'date') {
+                if (isset($dateFrom[$field]) && is_scalar($dateFrom[$field]) && $dateFrom[$field] !== '') {
+                    $where .= ' AND ' . $this->identifier($field) . ' >= :from_' . $field;
+                    $params['from_' . $field] = (string) $dateFrom[$field];
+                }
+                if (isset($dateTo[$field]) && is_scalar($dateTo[$field]) && $dateTo[$field] !== '') {
+                    $where .= ' AND ' . $this->identifier($field) . ' <= :to_' . $field;
+                    $params['to_' . $field] = (string) $dateTo[$field];
+                }
+                continue;
+            }
+            $value = $filters[$field] ?? null;
+            if ($value === null || $value === '' || !is_scalar($value)) {
+                continue;
+            }
+            $where .= ' AND ' . $this->identifier($field) . ' = :filter_' . $field;
+            $params['filter_' . $field] = $type === 'checkbox' ? (int) (bool) $value : $value;
+        }
+        foreach (['customer_id', 'supplier_id'] as $field) {
+            $value = $filters[$field] ?? null;
+            if (!isset($module['fields'][$field]) || $value === null || $value === '' || !is_scalar($value)) {
+                continue;
+            }
+            $where .= ' AND ' . $this->identifier($field) . ' = :relation_' . $field;
+            $params['relation_' . $field] = (int) $value;
+        }
+        $statement = $this->db->prepare(
+            'SELECT ' . implode(', ', array_map([$this, 'identifier'], $columns)) . $where . ' ORDER BY id'
+        );
+        $statement->execute($params);
+        $definitions = [];
+        foreach ($columns as $column) {
+            $field = $module['fields'][$column] ?? [];
+            $type = match ($field['type'] ?? '') {
+                'decimal' => 'decimal',
+                'number' => 'number',
+                'date' => 'date',
+                'datetime-local' => 'datetime',
+                'checkbox' => 'boolean',
+                default => $column === 'id' ? 'number' : 'text',
+            };
+            $definitions[] = ['key' => $column, 'label' => $field['label'] ?? ucfirst(str_replace('_', ' ', $column)), 'type' => $type];
+        }
+        $filterLabels = [];
+        if ($search !== '') {
+            $filterLabels['Ricerca'] = $search;
+        }
+        foreach ($filters as $field => $value) {
+            if (is_scalar($value) && $value !== '') {
+                $filterLabels[$module['fields'][$field]['label'] ?? ucfirst(str_replace('_', ' ', $field))] = (string) $value;
+            }
+        }
+        foreach ($dateFrom as $field => $value) {
+            if (is_scalar($value) && $value !== '') {
+                $filterLabels[($module['fields'][$field]['label'] ?? $field) . ' dal'] = (string) $value;
+            }
+        }
+        foreach ($dateTo as $field => $value) {
+            if (is_scalar($value) && $value !== '') {
+                $filterLabels[($module['fields'][$field]['label'] ?? $field) . ' al'] = (string) $value;
+            }
+        }
+        (new TabularExportService())->stream(
+            $format,
+            $module['title'],
+            $definitions,
+            $statement->fetchAll(),
+            $filterLabels,
+            Auth::organizationName(),
+            $slug,
+        );
     }
 
     public function bulk(string $slug): never

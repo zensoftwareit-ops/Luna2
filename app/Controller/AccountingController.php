@@ -7,6 +7,7 @@ namespace Luna\Controller;
 use InvalidArgumentException;
 use Luna\Core\Auth;
 use Luna\Service\AccountingService;
+use Luna\Service\TabularExportService;
 use Luna\Service\VatService;
 use RuntimeException;
 
@@ -17,37 +18,33 @@ final class AccountingController extends BaseController
     public function journal(): never
     {
         $this->authorize();
-        $from = (string) ($_GET['from'] ?? date('Y-01-01'));
-        $to = (string) ($_GET['to'] ?? date('Y-12-31'));
-        $status = strtoupper((string) ($_GET['status'] ?? ''));
-        $type = strtoupper((string) ($_GET['type'] ?? ''));
-        $search = trim((string) ($_GET['q'] ?? ''));
-        $sql = 'SELECT id, protocol_number, entry_date, competence_date, entry_type, description, document_number,
-                       counterparty, total_debit, total_credit, status, source_type
-                FROM journal_entries WHERE organization_id = :organization_id AND entry_date BETWEEN :date_from AND :date_to';
-        $params = ['organization_id' => Auth::organizationId(), 'date_from' => $from, 'date_to' => $to];
-        if (in_array($status, ['DRAFT', 'POSTED', 'REVERSED'], true)) {
-            $sql .= ' AND status = :status';
-            $params['status'] = $status;
-        }
-        if ($type !== '') {
-            $sql .= ' AND entry_type = :entry_type';
-            $params['entry_type'] = $type;
-        }
-        if ($search !== '') {
-            $sql .= ' AND (protocol_number LIKE :search OR description LIKE :search OR document_number LIKE :search OR counterparty LIKE :search)';
-            $params['search'] = '%' . $search . '%';
-        }
-        $sql .= ' ORDER BY entry_date DESC, id DESC LIMIT 1500';
-        $statement = $this->db->prepare($sql);
-        $statement->execute($params);
-        $entries = $statement->fetchAll();
+        [$entries, $from, $to, $status, $type, $search, $accountId] = $this->journalDataset(1500);
         $totals = [
             'debit' => array_sum(array_column($entries, 'total_debit')),
             'credit' => array_sum(array_column($entries, 'total_credit')),
             'drafts' => count(array_filter($entries, static fn (array $entry): bool => $entry['status'] === 'DRAFT')),
         ];
-        $this->view->render('accounting/journal', compact('entries', 'totals', 'from', 'to', 'status', 'type', 'search') + ['title' => 'Prima nota']);
+        $accounts = $this->accounts();
+        $this->view->render('accounting/journal', compact(
+            'entries', 'totals', 'from', 'to', 'status', 'type', 'search', 'accountId', 'accounts'
+        ) + ['title' => 'Prima nota']);
+    }
+
+    public function exportJournal(string $format): never
+    {
+        $this->authorize();
+        [$rows, $from, $to, $status, $type, $search, $accountId] = $this->journalDataset(null);
+        $this->exporter()->stream($format, 'Prima nota', [
+            ['key' => 'entry_date', 'label' => 'Data', 'type' => 'date'],
+            ['key' => 'protocol_number', 'label' => 'Protocollo'],
+            ['key' => 'entry_type', 'label' => 'Tipo'],
+            ['key' => 'description', 'label' => 'Descrizione'],
+            ['key' => 'document_number', 'label' => 'Documento'],
+            ['key' => 'counterparty', 'label' => 'Controparte'],
+            ['key' => 'total_debit', 'label' => 'Dare', 'type' => 'money'],
+            ['key' => 'total_credit', 'label' => 'Avere', 'type' => 'money'],
+            ['key' => 'status', 'label' => 'Stato'],
+        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca' => $search, 'Stato' => $status, 'Tipo' => $type, 'Conto ID' => $accountId ? (string) $accountId : '']), Auth::organizationName(), 'prima-nota');
     }
 
     public function create(): never
@@ -127,8 +124,41 @@ final class AccountingController extends BaseController
     public function trialBalance(): never
     {
         $this->authorize();
+        [$accounts, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
+        $totals = ['debit' => array_sum(array_column($accounts, 'debit')), 'credit' => array_sum(array_column($accounts, 'credit'))];
+        $this->view->render('accounting/trial-balance', compact('accounts', 'totals', 'from', 'to', 'search', 'accountType') + ['title' => 'Bilancio di verifica e mastrini']);
+    }
+
+    public function exportTrialBalance(string $format): never
+    {
+        $this->authorize();
+        [$rows, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
+        $this->exporter()->stream($format, 'Bilancio di verifica', [
+            ['key' => 'code', 'label' => 'Conto'],
+            ['key' => 'name', 'label' => 'Descrizione'],
+            ['key' => 'account_type', 'label' => 'Tipo'],
+            ['key' => 'debit', 'label' => 'Dare', 'type' => 'money'],
+            ['key' => 'credit', 'label' => 'Avere', 'type' => 'money'],
+            ['key' => 'balance', 'label' => 'Saldo', 'type' => 'money'],
+        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca conto' => $search, 'Tipo conto' => $accountType]), Auth::organizationName(), 'bilancio-verifica');
+    }
+
+    private function trialBalanceDataset(): array
+    {
         $from = (string) ($_GET['from'] ?? date('Y-01-01'));
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $accountType = strtoupper(trim((string) ($_GET['account_type'] ?? '')));
+        $where = 'a.organization_id = :organization_id';
+        $params = ['date_from' => $from, 'date_to' => $to, 'organization_id' => Auth::organizationId()];
+        if ($search !== '') {
+            $where .= ' AND (a.code LIKE :search OR a.name LIKE :search)';
+            $params['search'] = '%' . $search . '%';
+        }
+        if ($accountType !== '') {
+            $where .= ' AND a.account_type = :account_type';
+            $params['account_type'] = $accountType;
+        }
         $statement = $this->db->prepare(
             "SELECT a.id, a.code, a.name, a.account_type,
                     COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END), 0) AS debit,
@@ -136,59 +166,87 @@ final class AccountingController extends BaseController
                     COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit - l.credit ELSE 0 END), 0) AS balance
              FROM chart_of_accounts a
              LEFT JOIN journal_entry_lines l ON l.account_id = a.id
-             LEFT JOIN journal_entries e ON e.id = l.journal_entry_id AND e.status = 'POSTED' AND e.entry_date BETWEEN ? AND ?
-             WHERE a.organization_id = ?
+             LEFT JOIN journal_entries e ON e.id = l.journal_entry_id AND e.status = 'POSTED'
+                  AND e.entry_date BETWEEN :date_from AND :date_to
+             WHERE {$where}
              GROUP BY a.id, a.code, a.name, a.account_type
              HAVING debit <> 0 OR credit <> 0
              ORDER BY a.code"
         );
-        $statement->execute([$from, $to, Auth::organizationId()]);
-        $accounts = $statement->fetchAll();
-        $totals = ['debit' => array_sum(array_column($accounts, 'debit')), 'credit' => array_sum(array_column($accounts, 'credit'))];
-        $this->view->render('accounting/trial-balance', compact('accounts', 'totals', 'from', 'to') + ['title' => 'Bilancio di verifica']);
+        $statement->execute($params);
+        return [$statement->fetchAll(), $from, $to, $search, $accountType];
     }
 
     public function ledger(string $id): never
     {
         $this->authorize();
+        [$account, $lines, $from, $to, $search] = $this->ledgerDataset((int) $id);
+        $accounts = $this->accounts();
+        $this->view->render('accounting/ledger', compact('account', 'lines', 'from', 'to', 'search', 'accounts') + ['title' => 'Mastrino ' . $account['code']]);
+    }
+
+    public function exportLedger(string $id, string $format): never
+    {
+        $this->authorize();
+        [$account, $rows, $from, $to, $search] = $this->ledgerDataset((int) $id);
+        $this->exporter()->stream($format, 'Mastrino ' . $account['code'] . ' · ' . $account['name'], [
+            ['key' => 'entry_date', 'label' => 'Data', 'type' => 'date'],
+            ['key' => 'protocol_number', 'label' => 'Protocollo'],
+            ['key' => 'entry_description', 'label' => 'Registrazione'],
+            ['key' => 'description', 'label' => 'Descrizione riga'],
+            ['key' => 'document_number', 'label' => 'Documento'],
+            ['key' => 'counterparty', 'label' => 'Controparte'],
+            ['key' => 'debit', 'label' => 'Dare', 'type' => 'money'],
+            ['key' => 'credit', 'label' => 'Avere', 'type' => 'money'],
+            ['key' => 'running_balance', 'label' => 'Saldo progressivo', 'type' => 'money'],
+        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca' => $search]), Auth::organizationName(), 'mastrino-' . $account['code']);
+    }
+
+    private function ledgerDataset(int $id): array
+    {
         $statement = $this->db->prepare('SELECT id, code, name FROM chart_of_accounts WHERE id = ? AND organization_id = ?');
-        $statement->execute([(int) $id, Auth::organizationId()]);
+        $statement->execute([$id, Auth::organizationId()]);
         $account = $statement->fetch();
         if (!$account) {
             $this->redirect('/accounting/trial-balance', 'Conto non trovato.', 'error');
         }
+        $from = (string) ($_GET['from'] ?? date('Y-01-01'));
+        $to = (string) ($_GET['to'] ?? date('Y-12-31'));
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $filter = '';
+        $openingStatement = $this->db->prepare(
+            "SELECT COALESCE(SUM(l.debit - l.credit), 0)
+             FROM journal_entry_lines l JOIN journal_entries e ON e.id = l.journal_entry_id
+             WHERE l.organization_id = ? AND l.account_id = ? AND e.status = 'POSTED' AND e.entry_date < ?"
+        );
+        $openingStatement->execute([Auth::organizationId(), $id, $from]);
+        $openingBalance = (float) $openingStatement->fetchColumn();
+        $params = [
+            'opening_balance' => $openingBalance, 'organization_id' => Auth::organizationId(),
+            'account_id' => $id, 'date_from' => $from, 'date_to' => $to,
+        ];
+        if ($search !== '') {
+            $filter = ' AND (e.protocol_number LIKE :search OR e.description LIKE :search OR e.document_number LIKE :search OR e.counterparty LIKE :search OR l.description LIKE :search)';
+            $params['search'] = '%' . $search . '%';
+        }
         $statement = $this->db->prepare(
             "SELECT e.id AS entry_id, e.entry_date, e.protocol_number, e.description AS entry_description, e.document_number,
-                    l.description, l.debit, l.credit,
-                    SUM(l.debit - l.credit) OVER (ORDER BY e.entry_date, e.id, l.line_number) AS running_balance
+                    e.counterparty, l.description, l.debit, l.credit,
+                    :opening_balance + SUM(l.debit - l.credit) OVER (ORDER BY e.entry_date, e.id, l.line_number) AS running_balance
              FROM journal_entry_lines l JOIN journal_entries e ON e.id = l.journal_entry_id
-             WHERE l.organization_id = ? AND l.account_id = ? AND e.status = 'POSTED'
+             WHERE l.organization_id = :organization_id AND l.account_id = :account_id AND e.status = 'POSTED'
+               AND e.entry_date BETWEEN :date_from AND :date_to {$filter}
              ORDER BY e.entry_date, e.id, l.line_number"
         );
-        $statement->execute([Auth::organizationId(), (int) $id]);
-        $lines = $statement->fetchAll();
-        $this->view->render('accounting/ledger', compact('account', 'lines') + ['title' => 'Mastrino ' . $account['code']]);
+        $statement->execute($params);
+        $account['opening_balance'] = $openingBalance;
+        return [$account, $statement->fetchAll(), $from, $to, $search];
     }
 
     public function vatRegisters(): never
     {
         $this->authorize();
-        $register = strtoupper((string) ($_GET['register'] ?? 'SALES'));
-        $year = (int) ($_GET['year'] ?? date('Y'));
-        $month = (int) ($_GET['month'] ?? date('n'));
-        if (!in_array($register, ['SALES', 'PURCHASES', 'CORRISPETTIVI'], true)) {
-            $register = 'SALES';
-        }
-        $statement = $this->db->prepare(
-            'SELECT id, document_id, source_type, movement_date, protocol_number, counterparty_name, description,
-                    vat_code, taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent,
-                    operation_type, collectability, vat_register_id
-             FROM vat_movements
-             WHERE organization_id = ? AND register_type = ? AND period_year = ? AND period_month = ?
-             ORDER BY movement_date, id'
-        );
-        $statement->execute([Auth::organizationId(), $register, $year, $month]);
-        $movements = $statement->fetchAll();
+        [$movements, $register, $year, $month, $search] = $this->vatMovementsDataset();
         $statement = $this->db->prepare(
             'SELECT COALESCE(vat_code, \'N/D\') AS vat_code, SUM(taxable_amount) AS taxable_amount,
                     SUM(vat_amount) AS vat_amount, SUM(deductible_vat) AS deductible_vat
@@ -209,7 +267,24 @@ final class AccountingController extends BaseController
         $registers = $this->db->prepare('SELECT id, code, name, register_type FROM vat_registers WHERE organization_id = ? AND active = 1 ORDER BY register_type, code');
         $registers->execute([Auth::organizationId()]);
         $registers = $registers->fetchAll();
-        $this->view->render('accounting/vat-registers', compact('register', 'year', 'month', 'movements', 'summary', 'totals', 'vatCodes', 'registers') + ['title' => 'Registri IVA']);
+        $this->view->render('accounting/vat-registers', compact('register', 'year', 'month', 'search', 'movements', 'summary', 'totals', 'vatCodes', 'registers') + ['title' => 'Registri IVA']);
+    }
+
+    public function exportVatRegisters(string $format): never
+    {
+        $this->authorize();
+        [$rows, $register, $year, $month, $search] = $this->vatMovementsDataset();
+        $this->exporter()->stream($format, 'Registro IVA ' . $register, [
+            ['key' => 'movement_date', 'label' => 'Data', 'type' => 'date'],
+            ['key' => 'protocol_number', 'label' => 'Protocollo'],
+            ['key' => 'counterparty_name', 'label' => 'Controparte'],
+            ['key' => 'description', 'label' => 'Descrizione'],
+            ['key' => 'vat_code', 'label' => 'Codice IVA'],
+            ['key' => 'operation_type', 'label' => 'Operazione'],
+            ['key' => 'taxable_amount', 'label' => 'Imponibile', 'type' => 'money'],
+            ['key' => 'vat_amount', 'label' => 'IVA', 'type' => 'money'],
+            ['key' => 'deductible_vat', 'label' => 'IVA detraibile', 'type' => 'money'],
+        ], $rows, array_filter(['Registro' => $register, 'Anno' => (string) $year, 'Mese' => (string) $month, 'Ricerca' => $search]), Auth::organizationName(), 'registro-iva-' . strtolower($register));
     }
 
     public function saveVatMovement(): never
@@ -264,6 +339,30 @@ final class AccountingController extends BaseController
         $this->view->render('accounting/vat-settlements', compact('settlements', 'year') + ['title' => 'Liquidazioni IVA']);
     }
 
+    public function exportVatSettlements(string $format): never
+    {
+        $this->authorize();
+        $year = (int) ($_GET['year'] ?? date('Y'));
+        $statement = $this->db->prepare(
+            'SELECT period_type, period_number, vat_debit, vat_credit, previous_credit,
+                    interest_amount, balance, payment_due_date, payment_date, status
+             FROM vat_settlements WHERE organization_id = ? AND period_year = ? ORDER BY period_type, period_number'
+        );
+        $statement->execute([Auth::organizationId(), $year]);
+        $this->exporter()->stream($format, 'Liquidazioni IVA ' . $year, [
+            ['key' => 'period_type', 'label' => 'Periodicità'],
+            ['key' => 'period_number', 'label' => 'Periodo', 'type' => 'number'],
+            ['key' => 'vat_debit', 'label' => 'IVA a debito', 'type' => 'money'],
+            ['key' => 'vat_credit', 'label' => 'IVA a credito', 'type' => 'money'],
+            ['key' => 'previous_credit', 'label' => 'Credito precedente', 'type' => 'money'],
+            ['key' => 'interest_amount', 'label' => 'Interessi', 'type' => 'money'],
+            ['key' => 'balance', 'label' => 'Saldo', 'type' => 'money'],
+            ['key' => 'payment_due_date', 'label' => 'Scadenza', 'type' => 'date'],
+            ['key' => 'payment_date', 'label' => 'Pagamento', 'type' => 'date'],
+            ['key' => 'status', 'label' => 'Stato'],
+        ], $statement->fetchAll(), ['Anno' => (string) $year], Auth::organizationName(), 'liquidazioni-iva-' . $year);
+    }
+
     public function calculateVatSettlement(): never
     {
         $this->authorize();
@@ -310,6 +409,77 @@ final class AccountingController extends BaseController
     {
         $this->requireFeature('accounting');
         $this->requireRoles(self::ROLES);
+    }
+
+    private function journalDataset(?int $limit): array
+    {
+        $from = (string) ($_GET['from'] ?? date('Y-01-01'));
+        $to = (string) ($_GET['to'] ?? date('Y-12-31'));
+        $status = strtoupper((string) ($_GET['status'] ?? ''));
+        $type = strtoupper((string) ($_GET['type'] ?? ''));
+        $search = trim((string) ($_GET['q'] ?? ''));
+        $accountId = max(0, (int) ($_GET['account_id'] ?? 0));
+        $sql = 'SELECT id, protocol_number, entry_date, competence_date, entry_type, description, document_number,
+                       counterparty, total_debit, total_credit, status, source_type
+                FROM journal_entries e WHERE organization_id = :organization_id AND entry_date BETWEEN :date_from AND :date_to';
+        $params = ['organization_id' => Auth::organizationId(), 'date_from' => $from, 'date_to' => $to];
+        if (in_array($status, ['DRAFT', 'POSTED', 'REVERSED'], true)) {
+            $sql .= ' AND status = :status';
+            $params['status'] = $status;
+        }
+        if ($type !== '') {
+            $sql .= ' AND entry_type = :entry_type';
+            $params['entry_type'] = $type;
+        }
+        if ($search !== '') {
+            $sql .= ' AND (protocol_number LIKE :search OR description LIKE :search OR document_number LIKE :search OR counterparty LIKE :search)';
+            $params['search'] = '%' . $search . '%';
+        }
+        if ($accountId > 0) {
+            $sql .= ' AND EXISTS (SELECT 1 FROM journal_entry_lines fl WHERE fl.journal_entry_id = e.id AND fl.organization_id = e.organization_id AND fl.account_id = :account_id)';
+            $params['account_id'] = $accountId;
+        }
+        $sql .= ' ORDER BY entry_date DESC, id DESC';
+        if ($limit !== null) {
+            $sql .= ' LIMIT ' . max(1, $limit);
+        }
+        $statement = $this->db->prepare($sql);
+        $statement->execute($params);
+        return [$statement->fetchAll(), $from, $to, $status, $type, $search, $accountId];
+    }
+
+    private function vatMovementsDataset(): array
+    {
+        $register = strtoupper((string) ($_GET['register'] ?? 'SALES'));
+        $year = (int) ($_GET['year'] ?? date('Y'));
+        $month = (int) ($_GET['month'] ?? date('n'));
+        $search = trim((string) ($_GET['q'] ?? ''));
+        if (!in_array($register, ['SALES', 'PURCHASES', 'CORRISPETTIVI'], true)) {
+            $register = 'SALES';
+        }
+        $sql = 'SELECT id, document_id, source_type, movement_date, protocol_number, counterparty_name, description,
+                       vat_code, taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent,
+                       operation_type, collectability, vat_register_id
+                FROM vat_movements
+                WHERE organization_id = :organization_id AND register_type = :register_type
+                  AND period_year = :period_year AND period_month = :period_month';
+        $params = [
+            'organization_id' => Auth::organizationId(), 'register_type' => $register,
+            'period_year' => $year, 'period_month' => $month,
+        ];
+        if ($search !== '') {
+            $sql .= ' AND (protocol_number LIKE :search OR counterparty_name LIKE :search OR description LIKE :search OR vat_code LIKE :search)';
+            $params['search'] = '%' . $search . '%';
+        }
+        $sql .= ' ORDER BY movement_date, id';
+        $statement = $this->db->prepare($sql);
+        $statement->execute($params);
+        return [$statement->fetchAll(), $register, $year, $month, $search];
+    }
+
+    private function exporter(): TabularExportService
+    {
+        return new TabularExportService();
     }
 
     private function accounts(): array
