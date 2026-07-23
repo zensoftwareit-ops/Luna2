@@ -12,6 +12,12 @@ use Luna\Controller\ComplianceController;
 use Luna\Controller\DocumentController;
 use Luna\Controller\ImportController;
 use Luna\Controller\IntegrationController;
+use Luna\Controller\LogisticsController;
+use Luna\Controller\ProjectOpsController;
+use Luna\Controller\CommunicationsController;
+use Luna\Controller\HrController;
+use Luna\Controller\OperationsIntegrationController;
+use Luna\Controller\ReportsController;
 use Luna\Controller\PlatformController;
 use Luna\Controller\ResourceController;
 use Luna\Controller\SettingsController;
@@ -88,6 +94,61 @@ final class Application
         $router->add('GET', '/documents/{type}/{id}/pdf', [DocumentController::class, 'pdf']);
         $router->add('GET', '/documents/{type}/{id}/xml', [DocumentController::class, 'xml']);
         $router->add('POST', '/documents/{type}/{id}/status', [DocumentController::class, 'status']);
+        $router->add('POST', '/documents/{type}/{id}/convert', [DocumentController::class, 'convert']);
+
+        $router->add('GET', '/operations/logistics', [LogisticsController::class, 'index']);
+        $router->add('POST', '/operations/logistics/movement', [LogisticsController::class, 'movement']);
+        $router->add('POST', '/operations/logistics/transfers', [LogisticsController::class, 'transfer']);
+        $router->add('POST', '/operations/logistics/transfers/{id}/confirm', [LogisticsController::class, 'confirm']);
+        $router->add('POST', '/operations/logistics/transfers/{id}/receive', [LogisticsController::class, 'receive']);
+        $router->add('POST', '/operations/logistics/transfers/{id}/cancel', [LogisticsController::class, 'cancelTransfer']);
+        $router->add('POST', '/operations/logistics/picks', [LogisticsController::class, 'pick']);
+        $router->add('POST', '/operations/logistics/picks/{id}/scan', [LogisticsController::class, 'scan']);
+        $router->add('POST', '/operations/logistics/picks/{id}/complete', [LogisticsController::class, 'completePick']);
+        $router->add('POST', '/operations/logistics/picks/{id}/cancel', [LogisticsController::class, 'cancelPick']);
+
+        $router->add('GET', '/operations/projects', [ProjectOpsController::class, 'index']);
+        $router->add('POST', '/operations/projects/time', [ProjectOpsController::class, 'time']);
+        $router->add('POST', '/operations/projects/time/{id}/approve', [ProjectOpsController::class, 'approveTime']);
+        $router->add('POST', '/operations/projects/expenses', [ProjectOpsController::class, 'expense']);
+        $router->add('POST', '/operations/projects/milestones', [ProjectOpsController::class, 'milestone']);
+        $router->add('POST', '/operations/projects/milestones/{id}/ready', [ProjectOpsController::class, 'ready']);
+        $router->add('POST', '/operations/projects/{id}/invoice', [ProjectOpsController::class, 'invoice']);
+
+        $router->add('GET', '/operations/communications', [CommunicationsController::class, 'index']);
+        $router->add('POST', '/operations/communications/settings', [CommunicationsController::class, 'settings']);
+        $router->add('POST', '/operations/communications/queue', [CommunicationsController::class, 'queue']);
+        $router->add('POST', '/operations/communications/process', [CommunicationsController::class, 'process']);
+        $router->add('GET', '/mail/o/{token}.gif', [CommunicationsController::class, 'open'], false);
+        $router->add('GET', '/mail/c/{token}', [CommunicationsController::class, 'click'], false);
+
+        $router->add('GET', '/operations/hr', [HrController::class, 'index']);
+        $router->add('POST', '/operations/hr/leave', [HrController::class, 'leave']);
+        $router->add('POST', '/operations/hr/leave/{id}/decide', [HrController::class, 'decide']);
+        $router->add('POST', '/operations/hr/leave/{id}/cancel', [HrController::class, 'cancelLeave']);
+        $router->add('POST', '/operations/hr/balances', [HrController::class, 'saveBalance']);
+        $router->add('POST', '/operations/hr/payroll-configs', [HrController::class, 'savePayrollConfig']);
+        $router->add('POST', '/operations/hr/payroll', [HrController::class, 'createRun']);
+        $router->add('POST', '/operations/hr/payroll/{id}/calculate', [HrController::class, 'calculate']);
+        $router->add('POST', '/operations/hr/payroll/{id}/import', [HrController::class, 'importPayroll']);
+        $router->add('POST', '/operations/hr/payroll/{id}/confirm', [HrController::class, 'confirm']);
+        $router->add('POST', '/operations/hr/payroll/{id}/paid', [HrController::class, 'paid']);
+
+        $router->add('GET', '/operations/ecommerce', [OperationsIntegrationController::class, 'ecommerce']);
+        $router->add('POST', '/operations/ecommerce/channels/{id}/enqueue', [OperationsIntegrationController::class, 'enqueue']);
+        $router->add('POST', '/operations/ecommerce/process', [OperationsIntegrationController::class, 'processCommerce']);
+        $router->add('POST', '/operations/ecommerce/orders/{id}/convert', [OperationsIntegrationController::class, 'convertOrder']);
+        $router->add('POST', '/webhooks/ecommerce/{id}', [OperationsIntegrationController::class, 'webhook'], false, false);
+        $router->add('GET', '/operations/rental', [OperationsIntegrationController::class, 'rental']);
+        $router->add('POST', '/operations/rental/contracts/{id}/meter', [OperationsIntegrationController::class, 'meter']);
+        $router->add('POST', '/operations/rental/tickets/{id}/status', [OperationsIntegrationController::class, 'ticket']);
+        $router->add('POST', '/operations/rental/automate', [OperationsIntegrationController::class, 'automateRental']);
+        $router->add('GET', '/operations/calendar', [OperationsIntegrationController::class, 'calendar']);
+        $router->add('POST', '/operations/calendar/settings', [OperationsIntegrationController::class, 'calendarSettings']);
+        $router->add('POST', '/operations/calendar/{id}/sync', [OperationsIntegrationController::class, 'syncCalendar']);
+        $router->add('GET', '/reports/management', [ReportsController::class, 'index']);
+        $router->add('POST', '/reports/management/generate', [ReportsController::class, 'generate']);
+        $router->add('GET', '/reports/management/{id}/download', [ReportsController::class, 'download']);
 
         $router->add('GET', '/accounting/journal', [AccountingController::class, 'journal']);
         $router->add('GET', '/accounting/journal/create', [AccountingController::class, 'create']);

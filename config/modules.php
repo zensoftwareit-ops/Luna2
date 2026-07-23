@@ -117,99 +117,115 @@ return [
     ],
     'fixed-assets' => [
         'feature' => 'accounting', 'group' => 'ContabilitÃ ', 'title' => 'Cespiti', 'singular' => 'Cespite', 'table' => 'fixed_assets',
-        'title_column' => 'description', 'search' => ['asset_code', 'description', 'cat×]ùÚÚ$z{-®éÜj×QS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™[[ØÛÛ˜XİÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™XY[™×Ù]HUH“Õ•SˆÚ[ÛY]\œÈS•S”ÒQÓ‘Q“Õ•SˆÛİ\˜ÙHS•SJ	ÓPS•PS	Ë	ĞÕTÕÓQT‰Ë	ÔÑT•’PÑIË	ÒSTÔ•	ÊH“Õ•SQUS	ÓPS•PS	Ëˆ›İ\ÈTÒTŠL
-H•SˆÜ™X]YØH’QÒS•S”ÒQÓ‘Q•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆS’TUQHÑVH\WÜ™[[ÛY]\ˆ
-™[[ØÛÛ˜XİÚY™XY[™×Ù]JKˆÓÓ”ÕRS•š×Ü™[[ÛY]\—ÛÜ™È“Ô‘RQÓˆÑVH
-Ü™Ø[š^˜][Û—ÚY
-H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×Ü™[[ÛY]\—ØÛÛ˜Xİ“Ô‘RQÓˆÑVH
-™[[ØÛÛ˜XİÚY
-H‘Q‘T‘SÑTÈ™[[ØÛÛ˜XİÊY
-HÓˆSUHĞTĞĞQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]XÓÓUO]]Xİ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ™[[İXÚÙ]Ù]™[È
-ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™[[İXÚÙ]ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ]™[İ\HS•SJ	ÓÔS‘Q	Ë	ĞTÔÒQÓ‘Q	Ë	ĞÓÓSQS•	Ë	ÔÕUTÉË	ÔÓWĞ”‘PPÒ	Ë	Ô‘TÓÓ‘Q	Ë	ĞÓÔÑQ	ÊH“Õ•SˆÛİ˜[YHTÒTŠNL
-H•Sˆ™]×İ˜[YHTÒTŠNL
-H•Sˆ›İ\ÈV•SˆXİÜ—ÚY’QÒS•S”ÒQÓ‘Q•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆÓÓ”ÕRS•š×Ü™[[İXÚÙ]Ù]™[ÛÜ™È“Ô‘RQÓˆÑVH
-Ü™Ø[š^˜][Û—ÚY
-H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×Ü™[[İXÚÙ]Ù]™[İXÚÙ]“Ô‘RQÓˆÑVH
-™[[İXÚÙ]ÚY
-H‘Q‘T‘SÑTÈ™[[İXÚÙ]ÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×Ü™[[İXÚÙ]Ù]™[ØXİÜˆ“Ô‘RQÓˆÑVH
-XİÜ—ÚY
-H‘Q‘T‘SÑTÈ\Ù\œÊY
-HÓˆSUHÑU•SŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]XÓÓUO]]Xİ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ™[[Ú[›ÚXÙWÛ[šÜÈ
-ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™[[ØÛÛ˜XİÚY’QÒS•S”ÒQÓ‘Q“Õ•SˆØİ[Y[ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ\š[ÙÜİ\UH“Õ•Sˆ\š[ÙÙ[™UH“Õ•Sˆ[[İ[PÒSPS
-MKŠH“Õ•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆS’TUQHÑVH\WÜ™[[Ú[›ÚXÙWÜ\š[Ù
-™[[ØÛÛ˜XİÚY\š[ÙÜİ\\š[ÙÙ[™
-KˆÓÓ”ÕRS•š×Ü™[[Ú[›ÚXÙWÛÜ™È“Ô‘RQÓˆÑVH
-Ü™Ø[š^˜][Û—ÚY
-H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×Ü™[[Ú[›ÚXÙWØÛÛ˜Xİ“Ô‘RQÓˆÑVH
-™[[ØÛÛ˜XİÚY
-H‘Q‘T‘SÑTÈ™[[ØÛÛ˜XİÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×Ü™[[Ú[›ÚXÙWÙØİ[Y[“Ô‘RQÓˆÑVH
-Øİ[Y[ÚY
-H‘Q‘T‘SÑTÈØİ[Y[ÊY
-HÓˆSUHĞTĞĞQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]XÓÓUO]]Xİ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ™\ÜÙ^ÜÈ
-ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™\ÜÚÙ^HTÒTŠL
-H“Õ•Sˆ\š[ÙÙœ›ÛHUH•Sˆ\š[ÙİÈUH•Sˆ\˜[Y]\œ×ÚœÛÛˆ”ÓÓˆ•Sˆš[[˜[YHTÒTŠMJH“Õ•SˆÚXÚÜİ[WÜÚLMˆÒTŠ
-H•Sˆ›İ×ØÛİ[S•S”ÒQÓ‘Q“Õ•SQUSˆÙ[™\˜]YØH’QÒS•S”ÒQÓ‘Q•SˆÙ[™\˜]YØ]UUSQH“Õ•SˆÑVHYÜ™\ÜÙ^Ü
-Ü™Ø[š^˜][Û—ÚY™\ÜÚÙ^KÙ[™\˜]YØ]
-KˆÓÓ”ÕRS•š×Ü™\ÜÙ^ÜÛÜ™È“Ô‘RQÓˆÑVH
-Ü™Ø[š^˜][Û—ÚY
-H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×Ü™\ÜÙ^Üİ\Ù\ˆ“Ô‘RQÓˆÑVH
-Ù[™\˜]YØJH‘Q‘T‘SÑTÈ\Ù\œÊY
-HÓˆSUHÑU•SŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]XÓÓUO]]Xİ[šXÛÙWØÚNÂ‚STˆP“HØ[[™\—ØXØÛİ[ÂˆQÓÓSSˆ[™Ú[İ\›TÒTŠL
-H•SQ•TˆXØÛİ[Ù[XZ[ˆQÓÓSSˆ]]İ\HS•SJ	ÓĞUU‰Ë	ĞTÒPÉË	ĞTÔTÔÕÓÔ‘	Ë	Ğ‘PT‘T‰ÊH“Õ•SQUS	ÓĞUU‰ÈQ•Tˆ[™Ú[İ\›ˆQÓÓSSˆÙXÜ™]Ü™Y™\™[˜ÙHTÒTŠNL
-H•SQ•Tˆ[˜Ü\YØÜ™Y[X[ËˆQÓÓSSˆ^\›˜[ØØ[[™\—ÚYTÒTŠMJH•SQ•TˆÙXÜ™]Ü™Y™\™[˜ÙKˆQÓÓSSˆ\İÙ\œ›ÜˆV•SQ•Tˆ\İÜŞ[˜×Ø]ˆQÓÓSSˆÜ™X]YØH’QÒS•S”ÒQÓ‘Q•SQ•Tˆ\İÙ\œ›Ü‹ˆQÓÓSSˆ\]YØH’QÒS•S”ÒQÓ‘Q•SQ•TˆÜ™X]YØNÂ‚STˆP“HØ[[™\—Ù]™[ÂˆSÑQ–HÓÓSSˆ›İšY\ˆS•SJ	ÓĞĞS	Ë	ÑÓÓÑÓIË	ÒPÓÕQ	Ë	ĞĞSU‰ÊH“Õ•SQUS	ÓĞĞS	ËˆQÓÓSSˆ]YÈTÒTŠMJH•SQ•Tˆ›İšY\—Ù]™[ÚYˆQÓÓSSˆ\İÜŞ[˜ÙYØ]UUSQH•SQ•TˆŞ[˜×Üİ]\ËˆQÓÓSSˆŞ[˜×Ù\œ›ÜˆV•SQ•Tˆ\İÜŞ[˜ÙYØ]ˆQÓÓSSˆ[]YÙ^\›˜[S–RS•
-JH“Õ•SQUSQ•TˆŞ[˜×Ù\œ›ÜÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈØ[[™\—ÜŞ[˜×ÛÙÜÈ
-ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•SˆØ[[™\—ØXØÛİ[ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ\™Xİ[ÛˆS•SJ	ÔTÒ	Ë	ÔS	Ë	Ğ’QT‘PÕSÓS	ÊH“Õ•Sˆİ]\ÈS•SJ	Ô•S“’S‘ÉË	ÔÕPĞÑTÔÉË	ÔT•PS	Ë	ÑT”“Ô‰ÊH“Õ•Sˆ›ØÙ\ÜÙYØÛİ[S•S”ÒQÓ‘Q“Õ•SQUSˆ\œ›Ü—ØÛİ[S•S”ÒQÓ‘Q“Õ•SQUSˆİ\YØ]UUSQH“Õ•Sˆ[™YØ]UUSQH•SˆY\ÜØYÙHV•SˆÓÓ”ÕRS•š×ØØ[[™\—ÜŞ[˜×ÛÙ×ÛÜ™È“Ô‘RQÓˆÑVH
-Ü™Ø[š^˜][Û—ÚY
-H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×ØØ[[™\—ÜŞ[˜×ÛÙ×ØXØÛİ[“Ô‘RQÓˆÑVH
-Ø[[™\—ØXØÛİ[ÚY
-H‘Q‘T‘SÑTÈØ[[™\—ØXØÛİ[ÊY
-HÓˆSUHĞTĞĞQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]XÓÓUO]]Xİ[šXÛÙWØÚNÂ‚STˆP“H^\›ÛÜ[œÂˆQÓÓSSˆØ[İ[][Û—Û[ÙHS•SJ	ĞÓÓ‘’QÕT‘QÔUTÉË	ÒSTÔ•QÔVTÓTÉÊH“Õ•SQUS	ĞÓÓ‘’QÕT‘QÔUTÉÈQ•Tˆ\š[ÙÙ[™ˆQÓÓSSˆØÚ[XWİ™\œÚ[ÛˆTÒTŠL
-H“Õ•SQUS	ÒS•T“SLIÈQ•TˆØ[İ[][Û—Û[ÙKˆQÓÓSSˆÛÛ™š\›YYØH’QÒS•S”ÒQÓ‘Q•SQ•Tˆİ]\ËˆQÓÓSSˆÛÛ™š\›YYØ]UUSQH•SQ•TˆÛÛ™š\›YYØKˆQÓÓSSˆØÚÙYØ]UUSQH•SQ•TˆÛÛ™š\›YYØ]ˆQÓÓSSˆZYØ]UUSQH•SQ•TˆØÚÙYØ]ˆQÓÓSSˆ›Ù™\ÜÚ[Û˜[İ˜[Y][Û—Ü™Y™\™[˜ÙHTÒTŠNL
-H•SQ•TˆZYØ]ˆQÓÓSSˆ˜[Y]YØ]UUSQH•SQ•Tˆ›Ù™\ÜÚ[Û˜[İ˜[Y][Û—Ü™Y™\™[˜ÙKˆQÓÓSSˆ›İ\ÈV•SQ•Tˆ˜[Y]YØ]ˆQÓÓ”ÕRS•š×Ü^\›ÛÜ[—ØÛÛ™š\›Y\ˆ“Ô‘RQÓˆÑVH
-ÛÛ™š\›YYØJH‘Q‘T‘SÑTÈ\Ù\œÊY
-HÓˆSUHÑU•SÂ‚STˆP“H^\›ÛÜ[œÂˆ“ÔS‘V\WÜ^\›ÛÜ\š[ÙˆQS’TUQHÑVH\WÜ^\›ÛÜ\š[ÙÛ[ÙH
-Ü™Ø[š^˜][Û—ÚY\š[ÙÜİ\\š[ÙÙ[™Ø[İ[][Û—Û[ÙJNÂ‚STˆP“H^\›ÛÙ]Z[ÂˆQÓÓSSˆ[\ŞY\—ØÛÛšX][Ûœ×Ø[[İ[PÒSPS
-MKŠH“Õ•SQUSQ•TˆÛÛšX][Ûœ×Ø[[İ[ˆQÓÓSSˆ™Z[X\œÙ[Y[×Ø[[İ[PÒSPS
-MKŠH“Õ•SQUSQ•Tˆ^Ø[[İ[ˆQÓÓSSˆYXİ[Ûœ×Ø[[İ[PÒSPS
-MKŠH“Õ•SQUSQ•Tˆ™Z[X\œÙ[Y[×Ø[[İ[ˆQÓÓSSˆ[\ŞY\—ØÛÜİPÒSPS
-MKŠH“Õ•SQUSQ•Tˆ™]Ø[[İ[ˆQÓÓSSˆÛİ\˜ÙWÜ™Y™\™[˜ÙHTÒTŠNL
-H•SQ•Tˆ[\ŞY\—ØÛÜİÂ‚STˆP“H^\›ÛÙ[\ŞYYWØÛÛ™šYÜÂˆQÓÓSSˆ[\ŞYYWØÛÙHTÒTŠL
-H•SQ•Tˆ\Ù\—ÚYˆQÓÓSSˆİ[™\™İÙYZÛWÚİ\œÈPÒSPS
-ËŠH“Õ•SQUSQ•Tˆ[\ŞYYWØÛÙKˆQÓÓSSˆ[\ŞY\—ØÛÛšX][Û—Ü˜]HPÒSPS
-Ë
-H“Õ•SQUSQ•Tˆ[˜Z[Ü˜]KˆQÓÓSSˆš^YÛ[ÛWØ[[İ[PÒSPS
-MKŠH“Õ•SQUSQ•Tˆ[\ŞY\—ØÛÛšX][Û—Ü˜]KˆQÓÓSSˆXİ]™HS–RS•
-JH“Õ•SQUSHQ•Tˆ˜[YİËˆQÓÓSSˆÜ™X]YØH’QÒS•S”ÒQÓ‘Q•SQ•TˆXİ]™KˆQÓÓSSˆ\]YØH’QÒS•S”ÒQÓ‘Q•SQ•TˆÜ™X]YØNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ^\›ÛØÛÛ\Û™[È
-ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ^\›ÛÙ]Z[ÚY’QÒS•S”ÒQÓ‘Q“Õ•SˆÛÛ\Û™[ØÛÙHTÒTŠL
-H“Õ•Sˆ\ØÜš\[ÛˆTÒTŠMJH“Õ•SˆÛÛ\Û™[İ\HS•SJ	ÑPT“’S‘ÉË	ÑQPÕSÓ‰Ë	ÑSTÖQQWĞÓÓ•’P•USÓ‰Ë	ÑSTÖQT—ĞÓÓ•’P•USÓ‰Ë	ÕV	Ë	Ô‘RSP•T”ÑSQS•	ÊH“Õ•Sˆ]X[]HPÒSPS
-L‹
-H“Õ•SQUSKˆ˜]HPÒSPS
-L‹
-H“Õ•SQUSˆ[[İ[PÒSPS
-MKŠH“Õ•SˆÛİ\˜ÙHS•SJ	ĞĞSÕSUQ	Ë	ÒSTÔ•Q	Ë	ÓPS•PSĞQ•TÕQS•	ÊH“Õ•SQUS	ĞĞSÕSUQ	ËˆS’TUQHÑVH\WÜ^\›ÛØÛÛ\Û™[
-^\›ÛÙ]Z[ÚYÛÛ\Û™[ØÛÙJKˆÓÓ”ÕRS•š×Ü^\›ÛØÛÛ\Û™[ÛÜ™È“Ô‘RQÓˆÑVH
-Ü™Ø[š^˜][Û—ÚY
-H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×Ü^\›ÛØÛÛ\Û™[Ù]Z[“Ô‘RQÓˆÑVH
-^\›ÛÙ]Z[ÚY
-H‘Q‘T‘SÑTÈ^\›ÛÙ]Z[ÊY
-HÓˆSUHĞTĞĞQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]XÓÓUO]]Xİ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ^\›ÛÚ[\ÜÜ›İÜÈ
-ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ^\›ÛÜ[—ÚY’QÒS•S”ÒQÓ‘Q“Õ•SˆÛİ\˜ÙWÙš[HTÒTŠMJH“Õ•SˆÛİ\˜ÙWÜ›İÈS•S”ÒQÓ‘Q“Õ•Sˆ[\ŞYYWØÛÙHTÒTŠL
-H•Sˆ›Ü›X[^™YÚœÛÛˆ”ÓÓˆ“Õ•Sˆİ]\ÈS•SJ	ÔÕQÑQ	Ë	ÒSTÔ•Q	Ë	ÑT”“Ô‰ÊH“Õ•SQUS	ÔÕQÑQ	Ëˆ\œ›Ü—ÛY\ÜØYÙHV•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆÑVHYÜ^\›ÛÚ[\Ü
-Ü™Ø[š^˜][Û—ÚY^\›ÛÜ[—ÚYİ]\ÊKˆÓÓ”ÕRS•š×Ü^\›ÛÚ[\ÜÛÜ™È“Ô‘RQÓˆÑVH
-Ü™Ø[š^˜][Û—ÚY
-H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
-HÓˆSUHĞTĞĞQKˆÓÓ”ÕRS•š×Ü^\›ÛÚ[\ÜÜ[ˆ“Ô‘RQÓˆÑVH
-^\›ÛÜ[—ÚY
-H‘Q‘T‘SÑTÈ^\›ÛÜ[œÊY
-HÓˆSUHĞTĞĞQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]XÓÓUO]]Xİ[šXÛÙWØÚNÂ‚’S”ÑT•S•ÈÛÛ[][šXØ][Û—ÜÙ][™ÜÈ
-Ü™Ø[š^˜][Û—ÚY
-B”ÑSPÕY”“ÓHÜ™Ø[š^˜][ÛœÂ“ÓˆTPĞUHÑVHTUHÜ™Ø[š^˜][Û—ÚYHSQTÊÜ™Ø[š^˜][Û—ÚY
-NÂ
+        'title_column' => 'description', 'search' => ['asset_code', 'description', 'category'],
+        'columns' => ['asset_code', 'description', 'purchase_date', 'purchase_cost', 'depreciation_rate', 'net_book_value', 'status'],
+        'fields' => [
+            'asset_code' => $text('Codice', true), 'description' => $text('Descrizione', true), 'category' => $text('Categoria'),
+            'purchase_date' => $date('Data acquisto', true), 'purchase_cost' => $decimal('Costo storico', true),
+            'depreciation_rate' => $decimal('Aliquota ammortamento %', true), 'accumulated_depreciation' => $decimal('Fondo ammortamento'),
+            'net_book_value' => $decimal('Valore netto'), 'status' => $select('Stato', ['ACTIVE' => 'Attivo', 'DISPOSED' => 'Dismesso', 'SOLD' => 'Venduto'], true),
+        ],
+    ],
+    'calendar-events' => [
+        'feature' => 'calendar', 'group' => 'OperativitÃ ', 'title' => 'Calendario', 'singular' => 'Evento', 'table' => 'calendar_events',
+        'title_column' => 'title', 'search' => ['title', 'location', 'provider'],
+        'columns' => ['title', 'starts_at', 'ends_at', 'location', 'provider', 'sync_status'],
+        'fields' => [
+            'title' => $text('Titolo', true), 'starts_at' => ['label' => 'Inizio', 'type' => 'datetime-local', 'required' => true],
+            'ends_at' => ['label' => 'Fine', 'type' => 'datetime-local'], 'all_day' => ['label' => 'Tutto il giorno', 'type' => 'checkbox'],
+            'location' => $text('Luogo'), 'provider' => $select('Calendario', ['LOCAL' => 'Luna2', 'GOOGLE' => 'Google', 'ICLOUD' => 'iCloud', 'CALDAV' => 'CalDAV'], true),
+            'sync_status' => $select('Sincronizzazione', ['LOCAL' => 'Locale', 'PENDING' => 'Da sincronizzare', 'SYNCED' => 'Sincronizzato', 'ERROR' => 'Errore'], true),
+            'description' => ['label' => 'Descrizione', 'type' => 'textarea'],
+        ],
+    ],
+    'calendar-accounts' => [
+        'feature' => 'calendar', 'group' => 'OperativitÃ ', 'title' => 'Account calendario', 'singular' => 'Account calendario', 'table' => 'calendar_accounts',
+        'title_column' => 'account_email', 'search' => ['provider', 'account_email', 'endpoint_url'], 'columns' => ['user_id', 'provider', 'account_email', 'endpoint_url', 'auth_type', 'active', 'last_sync_at'],
+        'fields' => [
+            'user_id' => ['label' => 'ID utente', 'type' => 'number', 'required' => true], 'provider' => $select('Provider', ['GOOGLE'=>'Google Calendar','ICLOUD'=>'iCloud','CALDAV'=>'CalDAV'], true),
+            'account_email' => ['label'=>'Account email','type'=>'email'], 'endpoint_url' => ['label'=>'Endpoint HTTPS (CalDAV/iCloud)','type'=>'url'],
+            'auth_type' => $select('Autenticazione', ['OAUTH2'=>'OAuth 2.0','BASIC'=>'Basic','APP_PASSWORD'=>'Password specifica app','BEARER'=>'Bearer'], true),
+            'secret_reference' => $text('Riferimento segreto ENV', true), 'external_calendar_id' => $text('ID calendario esterno'), 'active' => ['label'=>'Attivo','type'=>'checkbox','default'=>1],
+        ],
+    ],
+    'time-records' => [
+        'feature' => 'hr', 'group' => 'HR', 'title' => 'Presenze', 'singular' => 'Presenza', 'table' => 'time_records',
+        'title_column' => 'employee_name', 'search' => ['employee_name', 'record_type', 'notes'],
+        'columns' => ['work_date', 'employee_name', 'record_type', 'check_in', 'check_out', 'hours', 'approved'],
+        'fields' => [
+            'work_date' => $date('Data', true), 'employee_name' => $text('Dipendente', true),
+            'record_type' => $select('Tipo', ['WORK' => 'Lavoro', 'HOLIDAY' => 'Ferie', 'SICK' => 'Malattia', 'LEAVE' => 'Permesso', 'OTHER' => 'Altro'], true),
+            'check_in' => ['label' => 'Entrata', 'type' => 'time'], 'check_out' => ['label' => 'Uscita', 'type' => 'time'],
+            'hours' => $decimal('Ore'), 'overtime_hours' => $decimal('Straordinario'), 'approved' => ['label' => 'Approvata', 'type' => 'checkbox'],
+            'notes' => ['label' => 'Note', 'type' => 'textarea'],
+        ],
+    ],
+    'payroll-runs' => [
+        'feature' => 'hr', 'group' => 'HR', 'title' => 'Elaborazioni paghe', 'singular' => 'Elaborazione', 'table' => 'payroll_runs',
+        'title_column' => 'period_label', 'search' => ['period_label', 'status'],
+        'columns' => ['period_label', 'period_start', 'period_end', 'employees_count', 'gross_total', 'net_total', 'status'],
+        'fields' => [
+            'period_label' => $text('Periodo', true), 'period_start' => $date('Dal', true), 'period_end' => $date('Al', true),
+            'employees_count' => ['label' => 'Dipendenti', 'type' => 'number'], 'gross_total' => $decimal('Lordo totale'), 'net_total' => $decimal('Netto totale'),
+            'contributions_total' => $decimal('Contributi'), 'tax_total' => $decimal('Imposte'),
+            'status' => $select('Stato', ['DRAFT' => 'Bozza', 'CALCULATED' => 'Calcolata', 'CONFIRMED' => 'Confermata', 'PAID' => 'Pagata'], true),
+        ],
+    ],
+    'payroll-configs' => [
+        'feature' => 'hr', 'group' => 'HR', 'title' => 'Configurazioni dipendenti', 'singular' => 'Configurazione dipendente', 'table' => 'payroll_employee_configs',
+        'title_column' => 'employee_code', 'search' => ['employee_code'], 'columns' => ['user_id','employee_code','hourly_rate','fixed_monthly_amount','inps_rate','tax_rate','valid_from','valid_to','active'],
+        'fields' => [
+            'user_id'=>['label'=>'ID utente','type'=>'number','required'=>true], 'employee_code'=>$text('Codice dipendente',true), 'standard_weekly_hours'=>$decimal('Ore settimanali'),
+            'hourly_rate'=>$decimal('Tariffa oraria'), 'fixed_monthly_amount'=>$decimal('Lordo mensile fisso'), 'overtime_multiplier'=>$decimal('Moltiplicatore straordinari'),
+            'inps_rate'=>$decimal('Contributi dipendente %'), 'inail_rate'=>$decimal('INAIL %'), 'employer_contribution_rate'=>$decimal('Contributi datore %'), 'tax_rate'=>$decimal('Ritenuta fiscale gestionale %'),
+            'valid_from'=>$date('Valida dal',true), 'valid_to'=>$date('Valida al'), 'active'=>['label'=>'Attiva','type'=>'checkbox','default'=>1],
+        ],
+    ],
+    'leave-balances' => [
+        'feature'=>'hr','group'=>'HR','title'=>'Saldi ferie e permessi','singular'=>'Saldo','table'=>'leave_balances','title_column'=>'leave_type','search'=>['leave_type'],'columns'=>['user_id','balance_year','leave_type','opening_hours','accrued_hours','used_hours','adjusted_hours'],
+        'fields'=>['user_id'=>['label'=>'ID utente','type'=>'number','required'=>true],'balance_year'=>['label'=>'Anno','type'=>'number','required'=>true],'leave_type'=>$select('Tipo',['HOLIDAY'=>'Ferie','PERMIT'=>'Permessi','ROL'=>'ROL','OTHER'=>'Altro'],true),'opening_hours'=>$decimal('Saldo iniziale'),'accrued_hours'=>$decimal('Maturate'),'used_hours'=>$decimal('Usate'),'adjusted_hours'=>$decimal('Rettifiche')],
+    ],
+    'ecommerce-channels' => [
+        'feature' => 'ecommerce', 'group' => 'Integrazioni', 'title' => 'Canali e-commerce', 'singular' => 'Canale', 'table' => 'ecommerce_channels',
+        'title_column' => 'name', 'search' => ['name', 'platform', 'status'], 'columns' => ['name', 'platform', 'status', 'last_sync_at', 'active'],
+        'fields' => [
+            'name' => $text('Nome', true), 'platform' => $select('Piattaforma', ['WOOCOMMERCE' => 'WooCommerce', 'SHOPIFY' => 'Shopify', 'AMAZON' => 'Amazon', 'EBAY' => 'eBay'], true),
+            'base_url' => ['label' => 'URL', 'type' => 'url'], 'secret_reference' => $text('Riferimento credenziali ENV', true), 'webhook_secret_reference' => $text('Riferimento firma webhook ENV'),
+            'settings_json' => ['label'=>'Impostazioni adapter JSON','type'=>'textarea'], 'status' => $select('Stato', ['NEW' => 'Nuovo', 'CONNECTED' => 'Connesso', 'ERROR' => 'Errore', 'DISABLED' => 'Disabilitato'], true),
+            'active' => ['label' => 'Attivo', 'type' => 'checkbox', 'default' => 1],
+        ],
+    ],
+    'ecommerce-orders' => [
+        'feature' => 'ecommerce', 'group' => 'Integrazioni', 'title' => 'Ordini e-commerce', 'singular' => 'Ordine e-commerce', 'table' => 'ecommerce_orders',
+        'title_column' => 'external_order_id', 'search' => ['platform', 'external_order_id', 'customer_email', 'status'],
+        'columns' => ['order_date', 'platform', 'external_order_id', 'customer_email', 'total', 'currency', 'status', 'import_status'],
+        'fields' => [
+            'order_date' => $date('Data', true), 'platform' => $text('Piattaforma', true), 'external_order_id' => $text('ID esterno', true),
+            'customer_email' => ['label' => 'Email cliente', 'type' => 'email'], 'total' => $decimal('Totale'), 'currency' => $text('Valuta'),
+            'status' => $text('Stato esterno'), 'import_status' => $select('Importazione', ['PENDING' => 'Da importare', 'IMPORTED' => 'Importato', 'IGNORED' => 'Ignorato', 'ERROR' => 'Errore'], true),
+        ],
+    ],
+    'rental-contracts' => [
+        'feature' => 'rental', 'group' => 'Noleggio', 'title' => 'Contratti noleggio', 'singular' => 'Contratto', 'table' => 'rental_contracts',
+        'title_column' => 'contract_number', 'search' => ['contract_number', 'customer_name', 'vehicle_plate', 'status'],
+        'columns' => ['contract_number', 'customer_name', 'vehicle_plate', 'start_date', 'end_date', 'monthly_fee', 'status'],
+        'fields' => [
+            'contract_number' => $text('Numero contratto', true), 'customer_name' => $text('Cliente', true), 'vehicle_plate' => $text('Targa'),
+            'start_date' => $date('Inizio', true), 'end_date' => $date('Fine', true), 'monthly_fee' => $decimal('Canone mensile'), 'invoice_day'=>['label'=>'Giorno fatturazione','type'=>'number'], 'next_invoice_date'=>$date('Prossima fattura'),
+            'annual_km' => ['label' => 'Km annui', 'type' => 'number'], 'included_km'=>['label'=>'Km inclusi','type'=>'number'], 'current_km'=>['label'=>'Km attuali','type'=>'number'], 'renewal_notice_days'=>['label'=>'Preavviso rinnovo giorni','type'=>'number'], 'status' => $select('Stato', ['DRAFT' => 'Bozza', 'ACTIVE' => 'Attivo', 'EXPIRING' => 'In scadenza', 'CLOSED' => 'Chiuso', 'CANCELLED' => 'Annullato'], true),
+            'notes' => ['label' => 'Note', 'type' => 'textarea'],
+        ],
+    ],
+    'rental-tickets' => [
+        'feature' => 'rental', 'group' => 'Noleggio', 'title' => 'Ticket noleggio', 'singular' => 'Ticket', 'table' => 'rental_tickets',
+        'title_column' => 'subject', 'search' => ['ticket_number', 'subject', 'customer_name', 'status', 'priority'],
+        'columns' => ['ticket_number', 'opened_at', 'customer_name', 'subject', 'priority', 'status', 'sla_due_at'],
+        'fields' => [
+            'ticket_number' => $text('Numero', true), 'opened_at' => ['label' => 'Aperto il', 'type' => 'datetime-local', 'required' => true],
+            'customer_name' => $text('Cliente', true), 'subject' => $text('Oggetto', true),
+            'priority' => $select('PrioritÃ ', ['LOW' => 'Bassa', 'MEDIUM' => 'Media', 'HIGH' => 'Alta', 'CRITICAL' => 'Critica'], true),
+            'status' => $select('Stato', ['OPEN' => 'Aperto', 'IN_PROGRESS' => 'In lavorazione', 'WAITING' => 'In attesa', 'RESOLVED' => 'Risolto', 'CLOSED' => 'Chiuso'], true),
+            'sla_due_at' => ['label' => 'SLA entro', 'type' => 'datetime-local'], 'description' => ['label' => 'Descrizione', 'type' => 'textarea'],
+        ],
+    ],
+];

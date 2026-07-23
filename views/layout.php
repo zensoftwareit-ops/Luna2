@@ -98,7 +98,57 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 </details>
             <?php endif; ?>
 
-            <?php if ($enuÛMm¢G§²ÚîÆ­yÕ(Auth::user()['name'] ?? '') ?></strong><small><?= $isSuperuser ? 'Superuser' : View::e(Auth::user()['role'] ?? '') ?></small></span>
+            <?php if ($enabled('inventory') || $enabled('projects') || $enabled('calendar')): ?>
+                <details class="nav-group" <?= str_starts_with($currentPath, '/operations/logistics') || str_starts_with($currentPath, '/operations/projects') || str_starts_with($currentPath, '/operations/calendar') ? 'open' : '' ?>>
+                    <summary><?= View::icon('briefcase') ?><span>OperativitÃ </span><?= View::icon('chevron', 'nav-chevron') ?></summary>
+                    <div class="nav-children">
+                        <?php if ($enabled('inventory')): ?><a class="<?= $active('/operations/logistics') ?>" href="/operations/logistics">Logistica e picking</a><?php endif; ?>
+                        <?php if ($enabled('projects')): ?><a class="<?= $active('/operations/projects') ?>" href="/operations/projects">Consuntivazione commesse</a><?php endif; ?>
+                        <?php if ($enabled('calendar')): ?><a class="<?= $active('/operations/calendar') ?>" href="/operations/calendar">Calendari sincronizzati</a><?php endif; ?>
+                    </div>
+                </details>
+            <?php endif; ?>
+
+            <?php if ($enabled('hr')): ?>
+                <a class="nav-link<?= $active('/operations/hr') ?>" href="/operations/hr"><?= View::icon('id-card') ?><span>Ferie e paghe</span></a>
+            <?php endif; ?>
+            <?php if ($enabled('ecommerce')): ?>
+                <a class="nav-link<?= $active('/operations/ecommerce') ?>" href="/operations/ecommerce"><?= View::icon('store') ?><span>Hub e-commerce</span></a>
+            <?php endif; ?>
+            <?php if ($enabled('rental')): ?>
+                <a class="nav-link<?= $active('/operations/rental') ?>" href="/operations/rental"><?= View::icon('car') ?><span>Noleggio e ticket</span></a>
+            <?php endif; ?>
+            <a class="nav-link<?= $active('/operations/communications') ?>" href="/operations/communications"><?= View::icon('receipt') ?><span>Comunicazioni</span></a>
+            <a class="nav-link<?= $active('/reports/management') ?>" href="/reports/management"><?= View::icon('download') ?><span>Report direzionali</span></a>
+
+            <?php foreach ($groups as $group => $modules): ?>
+                <?php
+                $first = reset($modules);
+                $groupIcon = $features[$first['feature']]['icon'] ?? 'box';
+                $groupOpen = false;
+                foreach (array_keys($modules) as $slug) {
+                    $groupOpen = $groupOpen || str_starts_with($currentPath, '/r/' . $slug);
+                }
+                ?>
+                <details class="nav-group" <?= $groupOpen ? 'open' : '' ?>>
+                    <summary><?= View::icon($groupIcon) ?><span><?= View::e($group) ?></span><?= View::icon('chevron', 'nav-chevron') ?></summary>
+                    <div class="nav-children">
+                        <?php foreach ($modules as $slug => $moduleConfig): ?>
+                            <a class="<?= $active('/r/' . $slug) ?>" href="/r/<?= View::e($slug) ?>"><?= View::e($moduleConfig['title']) ?></a>
+                        <?php endforeach; ?>
+                    </div>
+                </details>
+            <?php endforeach; ?>
+
+            <?php if ($enabled('imports')): ?>
+                <a class="nav-link<?= $active('/imports') ?>" href="/imports"><?= View::icon('upload') ?><span>Importazioni</span></a>
+            <?php endif; ?>
+            <?php endif; ?>
+        </nav>
+
+        <div class="sidebar-user">
+            <span class="avatar"><?= View::e($initials ?: 'U') ?></span>
+            <span class="user-copy"><strong><?= View::e(Auth::user()['name'] ?? '') ?></strong><small><?= $isSuperuser ? 'Superuser' : View::e(Auth::user()['role'] ?? '') ?></small></span>
             <form method="post" action="/logout">
                 <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
                 <button class="logout-button" type="submit" aria-label="Esci">â†—</button>

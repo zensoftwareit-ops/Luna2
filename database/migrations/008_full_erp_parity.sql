@@ -245,4 +245,297 @@ CREATE TABLE IF NOT EXISTS outbound_emails (
     UNIQUE KEY uq_outbound_tracking_token (tracking_token),
     KEY idx_outbound_queue (status, next_attempt_at),
     CONSTRAINT fk_outbound_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
-    CONSTRAINT fk_outbound_document FORMwï¾m¢G§²ÚîÆ­yÖ–æS£ÒçW&–öBÖÆ&VÇ¶föçB×6—¦S£ƒ¶6öÆ÷#§f"‚ÒÖ×WFVB“¶föçB×vV–v‡C£sÒç7FGW2×÷7FVBÂç7FGW2×7V&Ö—GFVBÂç7FGW2×–BÂç7FGW2Ö6Æ7VÆFVG¶&6¶w&÷VæC¢6Sfc†Vc¶6öÆ÷#¢3vSÒç7FGW2×&WfW'6VG¶&6¶w&÷VæC¢6ffV&VC¶6öÆ÷#¢6#S&c6GÒæ66÷VçF–ærÖÆ–æW2Ö6&BFfö÷BF‡¶&6¶w&÷VæC¢6c†ff3¶6öÆ÷#§f"‚ÒÖ–æ²×6ögB“¶föçB×6—¦S£‡Òæ66÷VçF–ærÖÆ–æW2Ö6&B¶FFÖ&Ææ6R×7FGW5×¶föçB×6—¦S£—‡Òæ66÷VçF–ærÖÆ–æW2Ö6&B¶FFÖ&Ææ6R×7FGW5Òæ&Ææ6VG¶6öÆ÷#§f"‚Ò×7V66W72—Òæ66÷VçF–ærÖÆ–æW2Ö6&B¶FFÖ&Ææ6R×7FGW5ÒçVæ&Ææ6VG¶6öÆ÷#§f"‚ÒÖFævW"—Òæ66÷VçF–ærÖ7F–öç7·÷6—F–öã§7F–6·“¶&÷GFöÓ£·¢Ö–æFWƒ£#¶&÷&FW#£‚6öÆ–Bf"‚ÒÖÆ–æR“¶&÷&FW"×&F—W3£'ƒ¶&÷‚×6†F÷s£Ów‚#'‚&v&ƒRÃ#2ÃC"Âãb“¶Ö&v–â×F÷£G‡Òæ66÷VçF–ærÖæ÷FW·FF–æs£—‚#‡Òæ66÷VçF–ærÖæ÷FR¶Ö&v–ã£g‚¶6öÆ÷#§f"‚ÒÖ–æ²×6ögB—Òæ66÷VçF–ær×F'7¶F—7Æ“¦fÆWƒ¶v£Wƒ¶&6¶w&÷VæC¢6S–VVcS¶&÷&FW"×&F—W3£ƒ·FF–æs£Gƒ·v–GFƒ¦Ö‚Ö6öçFVçC¶Ö‚×v–GFƒ£S¶Ö&v–âÖ&÷GFöÓ£g‡Òæ66÷VçF–ær×F'2·FF–æs£‡‚Gƒ¶&÷&FW"×&F—W3£‡ƒ¶6öÆ÷#§f"‚ÒÖ×WFVB“¶föçB×6—¦S£ƒ¶föçB×vV–v‡C£sSÒæ66÷VçF–ær×F'2æ7F—fW¶&6¶w&÷VæC¢6ffc¶6öÆ÷#§f"‚ÒÖ&ÇVRÓs“¶&÷‚×6†F÷s§f"‚Ò×6†F÷r×6Ò—ÒçfBÖw&–G¶Ö&v–âÖ&÷GFöÓ£#‡ÒçfB×7VÖÖ'—¶Æ–vâ×6VÆc§7F'GÒçfBÖÖçVÂ×æVÇ¶Ö&v–â×F÷£'‡Òæf–VÆB6ÖÆÇ¶föçB×6—¦S£—ƒ¶6öÆ÷#§f"‚ÒÖ×WFVB“¶föçB×vV–v‡C£SÒææWWG&ÂÖ&ææW'¶&6¶w&÷VæC¢6cVc†f3¶&÷&FW"Ö6öÆ÷#¢6F6SFVS¶6öÆ÷#¢3C3S3fÒææWWG&ÂÖ&ææW"ç7—7FVÒÖ&ææW"Ö–6öç¶&6¶w&÷VæC¢6SvVFcS¶6öÆ÷#¢3S#cCvÒææWWG&ÂÖ&ææW"F—b7ç¶6öÆ÷#¢3cCsC†'Òç6WGFÆVÖVçBÖf÷&×¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ"ÆÖ–æÖ‚ƒÃg"’—Òç6WGFÆVÖVçB×7FGW7¶föçB×6—¦S£ƒ·FF–æs£w‚‡Òç6WGFÆVÖVçBÖ·—7¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒRÆÖ–æÖ‚ƒÃg"’—Òç6WGFÆVÖVçBÖ7F–öç7¶F—7Æ“¦fÆWƒ¶Æ–vâÖ—FV×3¦6VçFW#¶§W7F–g’Ö6öçFVçC§76RÖ&WGvVVã¶v£#ƒ·FF–æs£#‡Òç6WGFÆVÖVçBÖ7F–öç2ƒ'¶föçB×6—¦S£gƒ¶Ö&v–ã£'‚Òç6WGFÆVÖVçBÖ7F–öç2¶Ö&v–ã£G‚¶6öÆ÷#§f"‚ÒÖ×WFVB“¶föçB×6—¦S£‡Òç6WGFÆVÖVçBÖ7F–öç2f÷&×¶Ö&v–ã£ÒæVçG'’Ö·—7¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒBÃg"—Ğ ¢ò¢WF†VçF–6F–öâ¢ğ¢æWF‚×vW¶&6¶w&÷VæC¢6ffgÒæWF‚×6†VÆÇ¶Ö–âÖ†V–v‡C£fƒ¶F—7Æ“¦w&–C¶w&–B×FV×ÆFRÖ6öÇVÖç3¦Ö–æÖ‚ƒC3‚ÃC"R’g'ÒæWF‚×f—7VÇ·÷6—F–öã§&VÆF—fS¶÷fW&fÆ÷s¦†–FFVã¶&6¶w&÷VæC§&F–ÂÖw&F–VçB†6—&6ÆRBRRRÂ336SsÇG&ç7&VçB3"R’Ç&F–ÂÖw&F–VçB†6—&6ÆRB“R“RÂ3S&cSBÇG&ç7&VçB3‚R’Çf"‚ÒÖæg’Ó“S“¶6öÆ÷#¢6ffgÒæWF‚×f—7VÂÖw&–G·÷6—F–öã¦'6öÇWFS¶–ç6WC£¶÷6—G“¢ã“¶&6¶w&÷VæBÖ–ÖvS¦Æ–æV"Öw&F–VçB‡&v&ƒ#SRÃ#SRÃ#SRÂã#R’‚ÇG&ç7&VçB‚’ÆÆ–æV"Öw&F–VçBƒ“FVrÇ&v&ƒ#SRÃ#SRÃ#SRÂã#R’‚ÇG&ç7&VçB‚“¶&6¶w&÷VæB×6—¦S£C‡‚C‡ƒ¶Ö6²Ö–ÖvS¦Æ–æV"Öw&F–VçBƒ3VFVrÂ3ÇG&ç7&VçBsRR—ÒæWF‚×f—7VÃ¦gFW'¶6öçFVçC¢"#·÷6—F–öã¦'6öÇWFS·v–GFƒ£3ƒ¶†V–v‡C£3ƒ¶&÷&FW#£‚6öÆ–B&v&ƒ“‚ÃcBÃ#SRÂã#"“¶&÷&FW"×&F—W3£SS·&–v‡C¢Óƒƒ·F÷£#bS¶&÷‚×6†F÷s£c‚&v&ƒsbÃ3’Ã#3"ÂãB’Ã#‚&v&ƒsbÃ3’Ã#3"Âã#R—ÒæWF‚×f—7VÂÖ6öçFVçG·÷6—F–öã§&VÆF—fS·¢Ö–æFWƒ£#¶†V–v‡C£S·FF–æs£C‡‚SGƒ¶F—7Æ“¦fÆWƒ¶fÆW‚ÖF—&V7F–öã¦6öÇVÖã¶§W7F–g’Ö6öçFVçC§76RÖ&WGvVVçÒæWF‚ÖÆöv÷¶F—7Æ“¦fÆWƒ¶Æ–vâÖ—FV×3¦6VçFW#¶v£ƒ¶föçB×6—¦S£#‡ÒæWF‚×f—7VÂÖ6öçFVçBƒ¶föçB×6—¦S£C'ƒ¶Æ–æRÖ†V–v‡C£ã#¶ÆWGFW"×76–æs¢ÒãCVVÓ¶Ö&v–ã£'‚‡‡ÒæWF‚×f—7VÂÖ6öçFVçB¶Ö‚×v–GFƒ£CCƒ¶6öÆ÷#¢3–V#3c¶föçB×6—¦S£W‡ÒæWF‚Ö÷fW&Æ–æW¶6öÆ÷#¢3fV†fc·FW‡B×G&ç6f÷&Ó§WW&66S¶ÆWGFW"×76–æs¢ãFVÓ¶föçB×6—¦S£ƒ¶föçB×vV–v‡C£ƒÒæWF‚×f—7VÂÖ6öçFVçCç6ÖÆÇ¶6öÆ÷#¢3c3sƒ“#¶föçB×6—¦S£‡ÒæWF‚Öf÷&Ò×æVÇ¶F—7Æ“¦w&–C·Æ6RÖ—FV×3¦6VçFW#·FF–æs£3gƒ¶&6¶w&÷VæC¢6ffgÒæWF‚Ö6&G·v–GFƒ¦Ö–âƒC‚ÃR—ÒæWF‚Ö6&BÖ†VBƒ'¶föçB×6—¦S£3ƒ¶ÆWGFW"×76–æs¢Òã3VVÓ¶Ö&v–ã£—‚W‡ÒæWF‚Ö6&BÖ†VB¶6öÆ÷#§f"‚ÒÖ×WFVB“¶Ö&v–ã£#W‡ÒæÖö&–ÆRÖWF‚ÖÆöv÷¶F—7Æ“¦æöæWÒç7F6²Öf÷&×¶F—7Æ“¦w&–C¶v£g‡Òç7F6²Öf÷&ÒÆ&VÇ¶föçB×6—¦S£‡Òç7F6²Öf÷&Ò–çWG¶†V–v‡C£CWƒ¶&6¶w&÷VæC¢6f&f6fWÒæWF‚×7V&Ö—G¶†V–v‡C£Cgƒ¶Ö&v–â×F÷£Wƒ·v–GFƒ£S¶§W7F–g’Ö6öçFVçC§76RÖ&WGvVVã·FF–æs£w‡ÒæWF‚×6V7W&—G—·FW‡BÖÆ–vã¦6VçFW#¶6öÆ÷#§f"‚ÒÖ×WFVBÖÆ–v‡B“¶föçB×6—¦S£—ƒ¶Ö&v–â×F÷£#‡Ğ ¢ò¢ÆVv7’Ö6ö×F–&ÆR6ö×öæVçG2¢ğ¢çGvòÖ6öÇVÖç7¶F—7Æ“¦w&–C¶w&–B×FV×ÆFRÖ6öÇVÖç3£ãFg"g#¶v£#‡ÒæÖWG&–2Öw&–Bæ6ö×7G¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒRÆÖ–æÖ‚ƒÃg"’—ÒæV×G’×7FFW·FW‡BÖÆ–vã¦6VçFW#·FF–æs£f‚#‡ÒæV×G’Ö–6öç¶F—7Æ“¦–æÆ–æRÖw&–C·Æ6RÖ—FV×3¦6VçFW#·v–GFƒ£cƒ¶†V–v‡C£cƒ¶&÷&FW"×&F—W3£SS¶&6¶w&÷VæC§f"‚ÒÖFævW"Ö&r“¶6öÆ÷#§f"‚ÒÖFævW"“¶föçB×6—¦S£3ƒ¶föçB×vV–v‡C£ƒÒæ§6öâ×&Wf–Ww·v†—FR×76S§&R×w&¶Ö‚×v–GFƒ£s#ƒ¶Ö‚Ö†V–v‡C£##ƒ¶÷fW&fÆ÷s¦WFó¶föçB×6—¦S£ƒ¶Ö&v–ã£Òæ–æÆ–æRÖf÷&×¶Æ–vâÖ—FV×3¦VæGĞ ¤ÖVF–†Ö‚×v–GFƒ£3ƒ‚—²æÖWG&–2Öw&–G¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ2Ãg"—ÒæÖöGVÆRÖw&–G¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ"Ãg"—×Ğ¤ÖVF–†Ö‚×v–GFƒ£ƒ‚—²ç7âÓrÂç7âÓW¶w&–BÖ6öÇVÖã£òÓÒæf÷&ÒÖw&–G¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ"ÆÖ–æÖ‚ƒÃg"’—ÒæWF‚×6†VÆÇ¶w&–B×FV×ÆFRÖ6öÇVÖç3£3ƒ‚g'ÒæWF‚×f—7VÂÖ6öçFVçG·FF–æs£C‡ÒæWF‚×f—7VÂÖ6öçFVçBƒ¶föçB×6—¦S£3G‡Òç6WGFÆVÖVçBÖ·—7¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ2Ãg"—×Ğ¤ÖVF–†Ö‚×v–GFƒ£ƒS‚—²æ×6†VÆÇ¶F—7Æ“¦&Æö6·Òç6–FV&'·G&ç6f÷&Ó§G&ç6ÆFU‚‚ÓRR“·G&ç6—F–öã§G&ç6f÷&Òã'2V6S¶&÷‚×6†F÷s£#‚C‚&v&ƒRÃ"Ã#2Âã#"—Òç6–FV&"æ÷Vç·G&ç6f÷&Ó§G&ç6ÆFU‚ƒ—Òç6–FV&"Ö6Æ÷6W¶F—7Æ“¦&Æö6·Òç6–FV&"Ö&6¶G&÷·÷6—F–öã¦f—†VC¶–ç6WC£¶&÷&FW#£¶&6¶w&÷VæC§&v&ƒ‚ÃRÃ#‚ÂãR“·¢Ö–æFWƒ£3WÒæÖVçRÖ÷Vâç6–FV&"Ö&6¶G&÷¶F—7Æ“¦&Æö6·ÒæÖ–âÖ6öçFVçG¶Ö–âÖ†V–v‡C£f‡ÒæÖVçR×FövvÆW¶F—7Æ“¦w&–C·Æ6RÖ—FV×3¦6VçFW'ÒçF÷&'¶†V–v‡C£cGƒ·FF–æs£g‡ÒçvW·FF–æs£#'‚w‚C‡Òç7F–6·’×6fW¶ÆVgC£·FF–æs£‚w‡Òç6WGF–æw2Öw&–G¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'ÒæWF‚×6†VÆÇ¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'ÒæWF‚×f—7VÇ¶F—7Æ“¦æöæWÒæÖö&–ÆRÖWF‚ÖÆöv÷¶F—7Æ“¦fÆWƒ¶Æ–vâÖ—FV×3¦6VçFW#¶v£—ƒ¶föçB×6—¦S£‡ƒ¶föçB×vV–v‡C£sS¶Ö&v–âÖ&÷GFöÓ£3g‡ÒæÖöGVÆRÖw&–G¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'Òæ7&VFVçF–Ç2Ö6&G¶w&–B×FV×ÆFRÖ6öÇVÖç3£S‚g'Òæ7&VFVçF–Ç2Ö6&BFÇ¶w&–BÖ6öÇVÖã£òÓÒæ÷&væ—¦F–öâ×7v—F6†W'¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'Òæ÷&væ—¦F–öâÖÆ—7G¶§W7F–g’Ö6öçFVçC¦fÆW‚×7F'G×Ğ¤ÖVF–†Ö‚×v–GFƒ£cC‚—²çvRÖ–çG&òÂçvRÖ–çG&òæ6ö×7G¶Æ–vâÖ—FV×3¦fÆW‚×7F'C¶fÆW‚ÖF—&V7F–öã¦6öÇVÖçÒçvRÖ–çG&òƒÂæF6†&ö&BÖ–çG&òƒ¶föçB×6—¦S£#W‡Òæ–çG&òÖ7F–öç2Âæ–æÆ–æRÖ7F–öç7·v–GFƒ£WÒæ–çG&òÖ7F–öç2æ'WGFöâÂæ–æÆ–æRÖ7F–öç2æ'WGFöç¶fÆWƒ£ÒæÖWG&–2Öw&–BÂæÖWG&–2Öw&–Bæ6ö×7G¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ"Ãg"—ÒæÖWG&–7¶Ö–âÖ†V–v‡C£ƒ·FF–æs£G‡ÒæÖWG&–27G&öæw¶föçB×6—¦S£g‡Òæf÷&ÒÖw&–G¶w&–B×FV×ÆFRÖ6öÇVÖç3£g#·FF–æs£w‡ÒægVÆÂ×v–GF‡¶w&–BÖ6öÇVÖã¦WF÷ÒæÆ—7B×FööÆ&"ÂçvRÖ7F–öç7¶Æ–vâÖ—FV×3§7G&WF6ƒ¶fÆW‚ÖF—&V7F–öã¦6öÇVÖçÒç6V&6‚Öf÷&×·v–GFƒ£S¶fÆW‚×w&§w&Òç6V&6‚Ö6öçG&öÇ¶Ö–â×v–GFƒ£¶fÆWƒ£ÒçF÷&"Ö7F–öç2æVçf—&öæÖVçB×–ÆÇ¶F—7Æ“¦æöæWÒçV–6²Ö7&VFR7ç¶F—7Æ“¦æöæWÒæ6öçFVçBÖw&–G¶F—7Æ“¦&Æö6·Òç6WGF–æw2Öw&–G¶F—7Æ“¦&Æö6·Òç6WGF–æw2Ö6&G¶Ö&v–âÖ&÷GFöÓ£W‡Òç7F–6·’×6fSæF—g¶F—7Æ“¦æöæWÒç7F–6·’×6fW¶§W7F–g’Ö6öçFVçC¦fÆW‚ÖVæGÒæW'&÷"×æVÇ·FF–æs£#‡‚#ƒ¶Ö&v–ã£'f‚WF÷ÒæW'&÷"Ö7F–öç7¶fÆW‚ÖF—&V7F–öã¦6öÇVÖã·v–GFƒ£WÒæFö7VÖVçBÖ†VG¶Æ–vâÖ—FV×3¦fÆW‚×7F'C¶fÆW‚ÖF—&V7F–öã¦6öÇVÖã¶v£‡‡ÒæFö7VÖVçB×F÷FÇ·FW‡BÖÆ–vã¦ÆVgGÒæ6ö×7BÖÆ—7G¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'Òæ7&VFVçF–Ç2Ö6&G¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'Òæ7&VFVçF–Ç2Ö6&BFÇ¶w&–BÖ6öÇVÖã¦WF÷Òæ7&VFVçF–Ç2Ö6&BFÂF—g¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'Òæ÷&væ—¦F–öâÖ6†—·v–GFƒ£WÒæ÷&væ—¦F–öâÖÆ—7BÂæ÷&væ—¦F–öâÖÆ—7Bf÷&×·v–GFƒ£WÒç6WGW×æVÃç7VÖÖ'—¶w&–B×FV×ÆFRÖ6öÇVÖç3£C'‚Ö–æÖ‚ƒÃg"’g‡Òæ66÷VçF–ærÖ·—2ÂæVçG'’Ö·—2Âç6WGFÆVÖVçBÖ·—7¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ"Ãg"—Òç6WGFÆVÖVçBÖf÷&×¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'Òç6WGFÆVÖVçBÖ7F–öç7¶Æ–vâÖ—FV×3¦fÆW‚×7F'C¶fÆW‚ÖF—&V7F–öã¦6öÇVÖçÒæ66÷VçF–ær×F'7·v–GFƒ£S¶÷fW&fÆ÷s¦WF÷Òæ66÷VçF–ær×F'2¶fÆWƒ£·FW‡BÖÆ–vã¦6VçFW#·v†—FR×76S¦æ÷w&Òç7—7FVÒÖ&ææW'¶w&–B×FV×ÆFRÖ6öÇVÖç3£C'‚g'Òç7—7FVÒÖ÷væW"Öæ÷FW¶w&–BÖ6öÇVÖã£òÓÒæf–ÇFW"Öf÷&Òç6V&6‚Ö6öçG&öÇ¶fÆW‚Ö&6—3£W×Ğ¤ÖVF–†Ö‚×v–GFƒ£C#‚—²æÖWG&–2Öw&–BÂæÖWG&–2Öw&–Bæ6ö×7G¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'ÒæWF‚Öf÷&Ò×æVÇ·FF–æs£#W‡ÒæWF‚Ö6&BÖ†VBƒ'¶föçB×6—¦S£#w‡ÒæÖöGVÆRÖ6&G¶w&–B×FV×ÆFRÖ6öÇVÖç3£C'‚Ö–æÖ‚ƒÃg"’WF÷ÒçF÷&"×F—FÆR7ç¶F—7Æ“¦æöæW×Ğ ¢ò¢66÷VçF–ærv÷&·76RBã¢ğ¢æÖ–ærÖw&–G¶F—7Æ“¦w&–C¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ"ÆÖ–æÖ‚ƒÃg"’“¶v£‡ƒ·FF–æs£‡‚#‚#‡ÒæÖ–ær×&÷w¶F—7Æ“¦w&–C¶w&–B×FV×ÆFRÖ6öÇVÖç3¦Ö–æÖ‚ƒS‚Âã†g"’Ö–æÖ‚ƒ##‚Ãã&g"’WFó¶Æ–vâÖ—FV×3¦6VçFW#¶v£ƒ·FF–æs£‚¶&÷&FW"Ö&÷GFöÓ£‚6öÆ–Bf"‚ÒÖÆ–æR×6ögB—ÒæÖ–ær×&÷rÆ&VÇ¶F—7Æ“¦w&–GÒæÖ–ær×&÷rÆ&VÂ7G&öæw¶föçB×6—¦S£‡ÒæÖ–ær×&÷rÆ&VÂ6ÖÆÇ¶föçB×6—¦S£‡ƒ¶6öÆ÷#§f"‚ÒÖ×WFVB“¶föçBÖfÖ–Ç“§V’ÖÖöæ÷76RÆÖöæ÷76WÒæÖ–ær×&÷r6VÆV7BÂæ6ö×7BÖ7F–öâ6VÆV7G¶†V–v‡C£3‡ƒ¶&÷&FW#£‚6öÆ–B6CFF6Ss¶&÷&FW"×&F—W3£—ƒ¶&6¶w&÷VæC¢6ffc·FF–æs£w‚—ƒ¶6öÆ÷#§f"‚ÒÖ–æ²—Òç6–ævÆRÖ6&BÖf÷&×¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVBƒ"ÆÖ–æÖ‚ƒÃg"’—Òæ6ö×Æ–æ6RÖ7F–öç7¶F—7Æ“¦w&–C¶w&–B×FV×ÆFRÖ6öÇVÖç3£g"g#¶v£'ƒ·FF–æs£g‚#ƒ¶&÷&FW"Ö&÷GFöÓ£‚6öÆ–Bf"‚ÒÖÆ–æR×6ögB—Òæ6ö×7BÖ7F–öç¶F—7Æ“¦fÆWƒ¶Æ–vâÖ—FV×3¦VæC¶§W7F–g’Ö6öçFVçC§76RÖ&WGvVVã¶v£Gƒ·FF–æs£7ƒ¶&÷&FW#£‚6öÆ–Bf"‚ÒÖÆ–æR“¶&÷&FW"×&F—W3£ƒ¶&6¶w&÷VæC¢6ff&fGÒæ6ö×7BÖ7F–öãç7âÂæ6ö×7BÖ7F–öâÆ&VÇ¶F—7Æ“¦w&–C¶v£7ƒ¶föçB×6—¦S£‡Òæ6ö×7BÖ7F–öâ6ÖÆÇ¶6öÆ÷#§f"‚ÒÖ×WFVB—Òç7FFVÖVçB×7VÖÖ'—¶F—7Æ“¦w&–C¶w&–B×FV×ÆFRÖ6öÇVÖç3§&WVB†WFòÖf—BÆÖ–æÖ‚ƒƒ‚Ãg"’“¶v£ƒ·FF–æs£g‚#ƒ¶&÷&FW"Ö&÷GFöÓ£‚6öÆ–Bf"‚ÒÖÆ–æR×6ögB—Òç7FFVÖVçB×7VÖÖ'’'F–6ÆW¶F—7Æ“¦w&–C¶v£Gƒ·FF–æs£'ƒ¶&÷&FW#£‚6öÆ–Bf"‚ÒÖÆ–æR“¶&÷&FW"×&F—W3£‡Òç7FFVÖVçB×7VÖÖ'’7ç¶föçB×6—¦S£‡ƒ¶6öÆ÷#§f"‚ÒÖ×WFVB“¶föçB×vV–v‡C£sSÒç7FFVÖVçB×7VÖÖ'’7G&öæw¶föçB×6—¦S£W‡ÒæVÖ&VFFVBÖw&–G·FF–æs£#‡ÒæVÖ&VFFVBÖw&–CæF—g¶&÷&FW#£‚6öÆ–Bf"‚ÒÖÆ–æR“¶&÷&FW"×&F—W3£'ƒ¶÷fW&fÆ÷s¦†–FFVçÒæVÖ&VFFVBÖw&–Bf÷&×¶†V–v‡C£WĞ¤ÖVF–†Ö‚×v–GFƒ£ƒ‚—²æÖ–ærÖw&–G¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'×Ğ¤ÖVF–†Ö‚×v–GFƒ£cC‚—²ç6–ævÆRÖ6&BÖf÷&×¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'ÒæÖ–ær×&÷w¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'Òæ6ö×Æ–æ6RÖ7F–öç7¶w&–B×FV×ÆFRÖ6öÇVÖç3£g'Òæ6ö×7BÖ7F–öç¶Æ–vâÖ—FV×3§7G&WF6ƒ¶fÆW‚ÖF—&V7F–öã¦6öÇVÖç×Ğ
+    CONSTRAINT fk_outbound_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS email_events (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    outbound_email_id BIGINT UNSIGNED NOT NULL,
+    event_type ENUM('OPEN','CLICK','DOWNLOAD','DELIVERED','BOUNCE','COMPLAINT') NOT NULL,
+    target_url VARCHAR(1000) NULL,
+    ip_hash CHAR(64) NULL,
+    user_agent_hash CHAR(64) NULL,
+    occurred_at DATETIME NOT NULL,
+    KEY idx_email_event (organization_id, outbound_email_id, event_type, occurred_at),
+    CONSTRAINT fk_email_event_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_email_event_message FOREIGN KEY (outbound_email_id) REFERENCES outbound_emails(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS leave_balances (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    balance_year SMALLINT UNSIGNED NOT NULL,
+    leave_type ENUM('HOLIDAY','PERMIT','ROL','OTHER') NOT NULL,
+    opening_hours DECIMAL(8,2) NOT NULL DEFAULT 0,
+    accrued_hours DECIMAL(8,2) NOT NULL DEFAULT 0,
+    used_hours DECIMAL(8,2) NOT NULL DEFAULT 0,
+    adjusted_hours DECIMAL(8,2) NOT NULL DEFAULT 0,
+    created_by BIGINT UNSIGNED NULL,
+    updated_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_leave_balance (organization_id, user_id, balance_year, leave_type),
+    CONSTRAINT fk_leave_balance_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_leave_balance_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS leave_requests (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    leave_type ENUM('HOLIDAY','PERMIT','ROL','SICK','OTHER') NOT NULL,
+    starts_at DATETIME NOT NULL,
+    ends_at DATETIME NOT NULL,
+    requested_hours DECIMAL(8,2) NOT NULL,
+    reason TEXT NULL,
+    status ENUM('DRAFT','SUBMITTED','APPROVED','REJECTED','CANCELLED') NOT NULL DEFAULT 'DRAFT',
+    approval_request_id BIGINT UNSIGNED NULL,
+    submitted_at DATETIME NULL,
+    decided_at DATETIME NULL,
+    decided_by BIGINT UNSIGNED NULL,
+    decision_notes TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_leave_request_period (organization_id, user_id, starts_at, ends_at, status),
+    CONSTRAINT fk_leave_request_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_leave_request_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_leave_request_approval FOREIGN KEY (approval_request_id) REFERENCES approval_requests(id) ON DELETE SET NULL,
+    CONSTRAINT fk_leave_request_decider FOREIGN KEY (decided_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS approval_history (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    approval_request_id BIGINT UNSIGNED NOT NULL,
+    action ENUM('CREATE','SUBMIT','APPROVE','REJECT','CANCEL','REOPEN') NOT NULL,
+    actor_id BIGINT UNSIGNED NULL,
+    notes TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_approval_history_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_approval_history_request FOREIGN KEY (approval_request_id) REFERENCES approval_requests(id) ON DELETE CASCADE,
+    CONSTRAINT fk_approval_history_actor FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE ecommerce_channels
+    ADD COLUMN secret_reference VARCHAR(190) NULL AFTER encrypted_credentials,
+    ADD COLUMN webhook_secret_reference VARCHAR(190) NULL AFTER secret_reference,
+    ADD COLUMN settings_json JSON NULL AFTER webhook_secret_reference,
+    ADD COLUMN sync_cursor TEXT NULL AFTER settings_json,
+    ADD COLUMN last_success_at DATETIME NULL AFTER last_sync_at,
+    ADD COLUMN last_error TEXT NULL AFTER last_success_at;
+
+CREATE TABLE IF NOT EXISTS ecommerce_order_lines (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    ecommerce_order_id BIGINT UNSIGNED NOT NULL,
+    external_line_id VARCHAR(190) NULL,
+    external_product_id VARCHAR(190) NULL,
+    product_id BIGINT UNSIGNED NULL,
+    sku VARCHAR(100) NULL,
+    description VARCHAR(500) NOT NULL,
+    quantity DECIMAL(15,4) NOT NULL,
+    unit_price DECIMAL(15,4) NOT NULL,
+    tax_amount DECIMAL(15,2) NOT NULL DEFAULT 0,
+    total_amount DECIMAL(15,2) NOT NULL,
+    raw_data_json JSON NULL,
+    CONSTRAINT fk_ecommerce_order_line_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ecommerce_order_line_order FOREIGN KEY (ecommerce_order_id) REFERENCES ecommerce_orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ecommerce_order_line_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS ecommerce_sync_queue (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    ecommerce_channel_id BIGINT UNSIGNED NOT NULL,
+    operation ENUM('PULL_ORDERS','PULL_PRODUCTS','PUSH_STOCK','PUSH_PRICES','ACK_ORDER','PROCESS_WEBHOOK') NOT NULL,
+    entity_type VARCHAR(50) NULL,
+    entity_id BIGINT UNSIGNED NULL,
+    payload_json JSON NULL,
+    status ENUM('QUEUED','RUNNING','RETRY','DONE','FAILED','CANCELLED') NOT NULL DEFAULT 'QUEUED',
+    attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    available_at DATETIME NOT NULL,
+    locked_at DATETIME NULL,
+    error_message TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_ecommerce_queue (status, available_at),
+    CONSTRAINT fk_ecommerce_queue_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ecommerce_queue_channel FOREIGN KEY (ecommerce_channel_id) REFERENCES ecommerce_channels(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE rental_contracts
+    ADD COLUMN invoice_day TINYINT UNSIGNED NULL AFTER monthly_fee,
+    ADD COLUMN next_invoice_date DATE NULL AFTER invoice_day,
+    ADD COLUMN included_km INT UNSIGNED NULL AFTER annual_km,
+    ADD COLUMN current_km INT UNSIGNED NOT NULL DEFAULT 0 AFTER included_km,
+    ADD COLUMN renewal_notice_days SMALLINT UNSIGNED NOT NULL DEFAULT 60 AFTER current_km;
+
+ALTER TABLE rental_tickets
+    ADD COLUMN assigned_to BIGINT UNSIGNED NULL AFTER status,
+    ADD COLUMN response_due_at DATETIME NULL AFTER sla_due_at,
+    ADD COLUMN resolved_at DATETIME NULL AFTER response_due_at,
+    ADD COLUMN sla_breached TINYINT(1) NOT NULL DEFAULT 0 AFTER resolved_at,
+    ADD CONSTRAINT fk_rental_ticket_assignee FOREIGN KEY (assigned_to) REFERENCES users(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS rental_meter_readings (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    rental_contract_id BIGINT UNSIGNED NOT NULL,
+    reading_date DATE NOT NULL,
+    kilometers INT UNSIGNED NOT NULL,
+    source ENUM('MANUAL','CUSTOMER','SERVICE','IMPORT') NOT NULL DEFAULT 'MANUAL',
+    notes VARCHAR(500) NULL,
+    created_by BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_rental_meter (rental_contract_id, reading_date),
+    CONSTRAINT fk_rental_meter_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rental_meter_contract FOREIGN KEY (rental_contract_id) REFERENCES rental_contracts(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rental_ticket_events (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    rental_ticket_id BIGINT UNSIGNED NOT NULL,
+    event_type ENUM('OPENED','ASSIGNED','COMMENT','STATUS','SLA_BREACH','RESOLVED','CLOSED') NOT NULL,
+    old_value VARCHAR(190) NULL,
+    new_value VARCHAR(190) NULL,
+    notes TEXT NULL,
+    actor_id BIGINT UNSIGNED NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_rental_ticket_event_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rental_ticket_event_ticket FOREIGN KEY (rental_ticket_id) REFERENCES rental_tickets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rental_ticket_event_actor FOREIGN KEY (actor_id) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS rental_invoice_links (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    rental_contract_id BIGINT UNSIGNED NOT NULL,
+    document_id BIGINT UNSIGNED NOT NULL,
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+    amount DECIMAL(15,2) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_rental_invoice_period (rental_contract_id, period_start, period_end),
+    CONSTRAINT fk_rental_invoice_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rental_invoice_contract FOREIGN KEY (rental_contract_id) REFERENCES rental_contracts(id) ON DELETE CASCADE,
+    CONSTRAINT fk_rental_invoice_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS report_exports (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    report_key VARCHAR(100) NOT NULL,
+    period_from DATE NULL,
+    period_to DATE NULL,
+    parameters_json JSON NULL,
+    filename VARCHAR(255) NOT NULL,
+    checksum_sha256 CHAR(64) NULL,
+    row_count INT UNSIGNED NOT NULL DEFAULT 0,
+    generated_by BIGINT UNSIGNED NULL,
+    generated_at DATETIME NOT NULL,
+    KEY idx_report_export (organization_id, report_key, generated_at),
+    CONSTRAINT fk_report_export_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_report_export_user FOREIGN KEY (generated_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE calendar_accounts
+    ADD COLUMN endpoint_url VARCHAR(500) NULL AFTER account_email,
+    ADD COLUMN auth_type ENUM('OAUTH2','BASIC','APP_PASSWORD','BEARER') NOT NULL DEFAULT 'OAUTH2' AFTER endpoint_url,
+    ADD COLUMN secret_reference VARCHAR(190) NULL AFTER encrypted_credentials,
+    ADD COLUMN external_calendar_id VARCHAR(255) NULL AFTER secret_reference,
+    ADD COLUMN last_error TEXT NULL AFTER last_sync_at,
+    ADD COLUMN created_by BIGINT UNSIGNED NULL AFTER last_error,
+    ADD COLUMN updated_by BIGINT UNSIGNED NULL AFTER created_by;
+
+ALTER TABLE calendar_events
+    MODIFY COLUMN provider ENUM('LOCAL','GOOGLE','ICLOUD','CALDAV') NOT NULL DEFAULT 'LOCAL',
+    ADD COLUMN etag VARCHAR(255) NULL AFTER provider_event_id,
+    ADD COLUMN last_synced_at DATETIME NULL AFTER sync_status,
+    ADD COLUMN sync_error TEXT NULL AFTER last_synced_at,
+    ADD COLUMN deleted_external TINYINT(1) NOT NULL DEFAULT 0 AFTER sync_error;
+
+CREATE TABLE IF NOT EXISTS calendar_sync_logs (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    calendar_account_id BIGINT UNSIGNED NOT NULL,
+    direction ENUM('PUSH','PULL','BIDIRECTIONAL') NOT NULL,
+    status ENUM('RUNNING','SUCCESS','PARTIAL','ERROR') NOT NULL,
+    processed_count INT UNSIGNED NOT NULL DEFAULT 0,
+    error_count INT UNSIGNED NOT NULL DEFAULT 0,
+    started_at DATETIME NOT NULL,
+    ended_at DATETIME NULL,
+    message TEXT NULL,
+    CONSTRAINT fk_calendar_sync_log_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_calendar_sync_log_account FOREIGN KEY (calendar_account_id) REFERENCES calendar_accounts(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE payroll_runs
+    ADD COLUMN calculation_mode ENUM('CONFIGURED_RATES','IMPORTED_PAYSLIPS') NOT NULL DEFAULT 'CONFIGURED_RATES' AFTER period_end,
+    ADD COLUMN schema_version VARCHAR(50) NOT NULL DEFAULT 'INTERNAL-1' AFTER calculation_mode,
+    ADD COLUMN confirmed_by BIGINT UNSIGNED NULL AFTER status,
+    ADD COLUMN confirmed_at DATETIME NULL AFTER confirmed_by,
+    ADD COLUMN locked_at DATETIME NULL AFTER confirmed_at,
+    ADD COLUMN paid_at DATETIME NULL AFTER locked_at,
+    ADD COLUMN professional_validation_reference VARCHAR(190) NULL AFTER paid_at,
+    ADD COLUMN validated_at DATETIME NULL AFTER professional_validation_reference,
+    ADD COLUMN notes TEXT NULL AFTER validated_at,
+    ADD CONSTRAINT fk_payroll_run_confirmer FOREIGN KEY (confirmed_by) REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE payroll_runs
+    DROP INDEX uq_payroll_period,
+    ADD UNIQUE KEY uq_payroll_period_mode (organization_id, period_start, period_end, calculation_mode);
+
+ALTER TABLE payroll_details
+    ADD COLUMN employer_contributions_amount DECIMAL(15,2) NOT NULL DEFAULT 0 AFTER contributions_amount,
+    ADD COLUMN reimbursements_amount DECIMAL(15,2) NOT NULL DEFAULT 0 AFTER tax_amount,
+    ADD COLUMN deductions_amount DECIMAL(15,2) NOT NULL DEFAULT 0 AFTER reimbursements_amount,
+    ADD COLUMN employer_cost DECIMAL(15,2) NOT NULL DEFAULT 0 AFTER net_amount,
+    ADD COLUMN source_reference VARCHAR(190) NULL AFTER employer_cost;
+
+ALTER TABLE payroll_employee_configs
+    ADD COLUMN employee_code VARCHAR(50) NULL AFTER user_id,
+    ADD COLUMN standard_weekly_hours DECIMAL(7,2) NOT NULL DEFAULT 40 AFTER employee_code,
+    ADD COLUMN employer_contribution_rate DECIMAL(7,4) NOT NULL DEFAULT 0 AFTER inail_rate,
+    ADD COLUMN fixed_monthly_amount DECIMAL(15,2) NOT NULL DEFAULT 0 AFTER employer_contribution_rate,
+    ADD COLUMN active TINYINT(1) NOT NULL DEFAULT 1 AFTER valid_to,
+    ADD COLUMN created_by BIGINT UNSIGNED NULL AFTER active,
+    ADD COLUMN updated_by BIGINT UNSIGNED NULL AFTER created_by;
+
+CREATE TABLE IF NOT EXISTS payroll_components (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    payroll_detail_id BIGINT UNSIGNED NOT NULL,
+    component_code VARCHAR(50) NOT NULL,
+    description VARCHAR(255) NOT NULL,
+    component_type ENUM('EARNING','DEDUCTION','EMPLOYEE_CONTRIBUTION','EMPLOYER_CONTRIBUTION','TAX','REIMBURSEMENT') NOT NULL,
+    quantity DECIMAL(12,4) NOT NULL DEFAULT 1,
+    rate DECIMAL(12,4) NOT NULL DEFAULT 0,
+    amount DECIMAL(15,2) NOT NULL,
+    source ENUM('CALCULATED','IMPORTED','MANUAL_ADJUSTMENT') NOT NULL DEFAULT 'CALCULATED',
+    UNIQUE KEY uq_payroll_component (payroll_detail_id, component_code),
+    CONSTRAINT fk_payroll_component_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_payroll_component_detail FOREIGN KEY (payroll_detail_id) REFERENCES payroll_details(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS payroll_import_rows (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    organization_id BIGINT UNSIGNED NOT NULL,
+    payroll_run_id BIGINT UNSIGNED NOT NULL,
+    source_file VARCHAR(255) NOT NULL,
+    source_row INT UNSIGNED NOT NULL,
+    employee_code VARCHAR(50) NULL,
+    normalized_json JSON NOT NULL,
+    status ENUM('STAGED','IMPORTED','ERROR') NOT NULL DEFAULT 'STAGED',
+    error_message TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_payroll_import (organization_id, payroll_run_id, status),
+    CONSTRAINT fk_payroll_import_org FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+    CONSTRAINT fk_payroll_import_run FOREIGN KEY (payroll_run_id) REFERENCES payroll_runs(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO communication_settings (organization_id)
+SELECT id FROM organizations
+ON DUPLICATE KEY UPDATE organization_id = VALUES(organization_id);

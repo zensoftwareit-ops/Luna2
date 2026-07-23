@@ -182,47 +182,62 @@ foreach (['open_items', 'vat_movements', 'fixed_assets', 'bank_transactions'] as
 }
 $assert(str_contains($importService, 'fondo_ammortamento') && str_contains($importService, 'tax_net_value'), 'L\'import cespiti deve preservare fondi e valori netti storici.');
 $assert(str_contains($importService, 'SAVEPOINT import_fixed_asset_row'), 'L\'import cespiti deve isolare gli errori per riga.');
-$assert(!str_contains($importService, 'Numero documento, data o importo non validi.'), 'I pagamenti storici senza docuß_w¶‰žËkºwµçOÏˆˆ™YH‹ØXØÛÝ[[™ËÚ›Ý\›˜[”š[XH›ÝOØO‚ˆHÛ\ÜÏHÏH	XÝ]™J	ËØXØÛÝ[[™ËÝ˜]\™YÚ\Ý\œÉÊHÏˆˆ™YH‹ØXØÛÝ[[™ËÝ˜]\™YÚ\Ý\œÈ”™YÚ\ÝšHUOØO‚ˆHÛ\ÜÏHÏH	XÝ]™J	ËØXØÛÝ[[™ËÝ˜]\Ù][Y[ÉÊHÏˆˆ™YH‹ØXØÛÝ[[™ËÝ˜]\Ù][Y[È“\]ZY^š[ÛšHUOØO‚ˆHÛ\ÜÏHÏH	XÝ]™J	ËØXØÛÝ[[™ËÝ™X\Ý\žIÊHÏˆˆ™YH‹ØXØÛÝ[[™ËÝ™X\Ý\žH•\ÛÜ™\šXHH\]OØO‚ˆHÛ\ÜÏHÏH	XÝ]™J	ËØXØÛÝ[[™ËÝšX[X˜[[˜ÙIÊHÏˆˆ™YH‹ØXØÛÝ[[™ËÝšX[X˜[[˜ÙHš[[˜Ú[ÈH™\šYšXØOØO‚ˆHÛ\ÜÏHÏH	XÝ]™J	ËØXØÛÝ[[™ËØÛÛ\X[˜ÙIÊHÏˆˆ™YH‹ØXØÛÝ[[™ËØÛÛ\X[˜ÙHY[\[Y[HHÚ]\Ý\™OØO‚ˆHÛ\ÜÏHÏH	XÝ]™J	ËØXØÛÝ[[™ËÜÙ]\	ÊHÏˆˆ™YH‹ØXØÛÝ[[™ËÜÙ]\”X[›ÈZHÛÛHHØ]\Ø[OØO‚ˆHÛ\ÜÏHÏH	XÝ]™J	ËÜ‹Ý^YXY[™\ÉÊHÏˆˆ™YH‹Ü‹Ý^YXY[™\È”ØØY[ž™Hš\ØØ[OØO‚ˆÜYˆ
-[—Ø\œ˜^J
-Ýš[™ÊH
-]]Ž\Ù\Š
-VÉÜ›ÛI×HÏÈ	ÉÊKÉÓÕÓ‘T‰Ë	ÐQRS‰×KYJJNˆÏHÛ\ÜÏHÏH	XÝ]™J	ËÜÙ][™ÜËÙ[™Ú[ÉÊHÏˆˆ™YH‹ÜÙ][™ÜËÙ[™Ú[È‘[™Ú[KZ[›ÚXÙOØOÜ[™YŽÈÏ‚ˆÙ]‚ˆÙ]Z[Ï‚ˆÜ[™YŽÈÏ‚‚ˆÜYˆ
-	[˜X›Y
-	Ú[™[ÜžIÊH	[˜X›Y
-	Ü›Ú™XÝÉÊH	[˜X›Y
-	ØØ[[™\‰ÊJNˆÏ‚ˆ]Z[ÈÛ\ÜÏH›˜]‹YÜ›Ý\ˆÏHÝ—ÜÝ\×ÝÚ]
-	Ý\œ™[]	ËÛÜ\˜][ÛœËÛÙÚ\ÝXÜÉÊHÝ—ÜÝ\×ÝÚ]
-	Ý\œ™[]	ËÛÜ\˜][ÛœËÜ›Ú™XÝÉÊHÝ—ÜÝ\×ÝÚ]
-	Ý\œ™[]	ËÛÜ\˜][ÛœËØØ[[™\‰ÊHÈ	ÛÜ[‰Èˆ	ÉÈÏ‚ˆÝ[[X\žOÏHšY]ÎŽšXÛÛŠ	ØœšYY˜Ø\ÙIÊHÏÜ[“Ü\˜]]š]0èÜÜ[ÏHšY]ÎŽšXÛÛŠ	ØÚ]œ›Û‰Ë	Û˜]‹XÚ]œ›Û‰ÊHÏÜÝ[[X\žO‚ˆ]ˆÛ\ÜÏH›˜]‹XÚ[™[ˆ‚ˆÜYˆ
-	[˜X›Y
-	Ú[™[ÜžIÊJNˆÏHÛ\ÜÏHÏH	XÝ]™J	ËÛÜ\˜][ÛœËÛÙÚ\ÝXÜÉÊHÏˆˆ™YH‹ÛÜ\˜][ÛœËÛÙÚ\ÝXÜÈ“ÙÚ\ÝXØHHXÚÚ[™ÏØOÜ[™YŽÈÏ‚ˆÜYˆ
-	[˜X›Y
-	Ü›Ú™XÝÉÊJNˆÏHÛ\ÜÏHÏH	XÝ]™J	ËÛÜ\˜][ÛœËÜ›Ú™XÝÉÊHÏˆˆ™YH‹ÛÜ\˜][ÛœËÜ›Ú™XÝÈÛÛœÝ[]˜^š[Û™HÛÛ[Y\ÜÙOØOÜ[™YŽÈÏ‚ˆÜYˆ
-	[˜X›Y
-	ØØ[[™\‰ÊJNˆÏHÛ\ÜÏHÏH	XÝ]™J	ËÛÜ\˜][ÛœËØØ[[™\‰ÊHÏˆˆ™YH‹ÛÜ\˜][ÛœËØØ[[™\ˆØ[[™\šHÚ[˜Ü›Ûš^ž˜]OØOÜ[™YŽÈÏ‚ˆÙ]‚ˆÙ]Z[Ï‚ˆÜ[™YŽÈÏ‚‚ˆÜYˆ
-	[˜X›Y
-	Ú‰ÊJNˆÏ‚ˆHÛ\ÜÏH›˜]‹[[šÏÏH	XÝ]™J	ËÛÜ\˜][ÛœËÚ‰ÊHÏˆˆ™YH‹ÛÜ\˜][ÛœËÚˆÏHšY]ÎŽšXÛÛŠ	ÚYXØ\™	ÊHÏÜ[‘™\šYHHYÚOÜÜ[ØO‚ˆÜ[™YŽÈÏ‚ˆÜYˆ
-	[˜X›Y
-	ÙXÛÛ[Y\˜ÙIÊJNˆÏ‚ˆHÛ\ÜÏH›˜]‹[[šÏÏH	XÝ]™J	ËÛÜ\˜][ÛœËÙXÛÛ[Y\˜ÙIÊHÏˆˆ™YH‹ÛÜ\˜][ÛœËÙXÛÛ[Y\˜ÙHÏHšY]ÎŽšXÛÛŠ	ÜÝÜ™IÊHÏÜ[’XˆKXÛÛ[Y\˜ÙOÜÜ[ØO‚ˆÜ[™YŽÈÏ‚ˆÜYˆ
-	[˜X›Y
-	Ü™[[	ÊJNˆÏ‚ˆHÛ\ÜÏH›˜]‹[[šÏÏH	XÝ]™J	ËÛÜ\˜][ÛœËÜ™[[	ÊHÏˆˆ™YH‹ÛÜ\˜][ÛœËÜ™[[ÏHšY]ÎŽšXÛÛŠ	ØØ\‰ÊHÏÜ[“›ÛYÙÚ[ÈHXÚÙ]ÜÜ[ØO‚ˆÜ[™YŽÈÏ‚ˆHÛ\ÜÏH›˜]‹[[šÏÏH	XÝ]™J	ËÛÜ\˜][ÛœËØÛÛ[][šXØ][ÛœÉÊHÏˆˆ™YH‹ÛÜ\˜][ÛœËØÛÛ[][šXØ][ÛœÈÏHšY]ÎŽšXÛÛŠ	Ü™XÙZ\	ÊHÏÜ[ÛÛ][šXØ^š[ÛšOÜÜ[ØO‚ˆHÛ\ÜÏH›˜]‹[[šÏÏH	XÝ]™J	ËÜ™\ÜËÛX[˜YÙ[Y[	ÊHÏˆˆ™YH‹Ü™\ÜËÛX[˜YÙ[Y[ÏHšY]ÎŽšXÛÛŠ	ÙÝÛ›ØY	ÊHÏÜ[”™\Ü\™^š[Û˜[OÜÜ[ØO‚‚ˆÜ›Ü™XXÚ
-	Ü›Ý\È\È	Ü›Ý\Oˆ	[Ù[\ÊNˆÏ‚ˆÜˆ	š\œÝH™\Ù]
-	[Ù[\ÊNÂˆ	Ü›Ý\XÛÛˆH	™X]\™\ÖÉš\œÝÉÙ™X]\™I×WVÉÚXÛÛ‰×HÏÈ	Ø›Þ	ÎÂˆ	Ü›Ý\Ü[ˆH˜[ÙNÂˆ›Ü™XXÚ
-\œ˜^WÚÙ^\Ê	[Ù[\ÊH\È	ÛYÊHÂˆ	Ü›Ý\Ü[ˆH	Ü›Ý\Ü[ˆÝ—ÜÝ\×ÝÚ]
-	Ý\œ™[]	ËÜ‹ÉÈˆ	ÛYÊNÂˆBˆÏ‚ˆ]Z[ÈÛ\ÜÏH›˜]‹YÜ›Ý\ˆÏH	Ü›Ý\Ü[ˆÈ	ÛÜ[‰Èˆ	ÉÈÏ‚ˆÝ[[X\žOÏHšY]ÎŽšXÛÛŠ	Ü›Ý\XÛÛŠHÏÜ[ÏHšY]ÎŽ™J	Ü›Ý\
-HÏÜÜ[ÏHšY]ÎŽšXÛÛŠ	ØÚ]œ›Û‰Ë	Û˜]‹XÚ]œ›Û‰ÊHÏÜÝ[[X\žO‚ˆ]ˆÛ\ÜÏH›˜]‹XÚ[™[ˆ‚ˆÜ›Ü™XXÚ
-	[Ù[\È\È	ÛYÈOˆ	[Ù[PÛÛ™šYÊNˆÏ‚ˆHÛ\ÜÏHÏH	XÝ]™J	ËÜ‹ÉÈˆ	ÛYÊHÏˆˆ™YH‹Ü‹ÏÏHšY]ÎŽ™J	ÛYÊHÏˆÏHšY]ÎŽ™J	[Ù[PÛÛ™šYÖÉÝ]I×JHÏØO‚ˆÜ[™›Ü™XXÚÈÏ‚ˆÙ]‚ˆÙ]Z[Ï‚ˆÜ[™›Ü™XXÚÈÏ‚‚ˆÜYˆ
-	[˜X›Y
-	Ú[\ÜÉÊJNˆÏ‚ˆHÛ\ÜÏH›˜]‹[[šÏÏH	XÝ]™J	ËÚ[\ÜÉÊHÏˆˆ™YH‹Ú[\ÜÈÏHšY]ÎŽšXÛÛŠ	Ý\ØY	ÊHÏÜ[’[\Ü^š[ÛšOÜÜ[ØO‚ˆÜ[™YŽÈÏ‚ˆÜ[™YŽÈÏ‚ˆÛ˜]‚‚ˆ]ˆÛ\ÜÏHœÚYX˜\‹]\Ù\ˆ‚ˆÜ[ˆÛ\ÜÏH˜]˜]\ˆÏHšY]ÎŽ™J	[š]X[ÈÎˆ	ÕIÊHÏÜÜ[‚ˆÜ[ˆÛ\ÜÏH\Ù\‹XÛÜHÝ›Û™ÏÏHšY]ÎŽ™J]]Ž\Ù\Š
-VÉÛ˜[YI×HÏÈ	ÉÊHÏÜÝ›Û™ÏÛX[ÏH	\ÔÝ\\\Ù\ˆÈ	ÔÝ\\\Ù\‰ÈˆšY]ÎŽ™J]]Ž\Ù\Š
-VÉÜ›ÛI×HÏÈ	ÉÊHÏÜÛX[ÜÜ[‚ˆ›Ü›HY]ÙHœÜÝˆXÝ[ÛH‹ÛÙÛÝ]‚ˆ[œ]\OHšY[ˆˆ˜[YOH—ÝÚÙ[ˆˆ˜[YOHÏHšY]ÎŽ™JÜÜ™ŽŽÚÙ[Š
-JHÏˆ‚ˆ]ÛˆÛ\ÜÏH›ÙÛÝ]X]Ûˆˆ\OHœÝX›Z]ˆ\šXK[X™[H‘\ØÚH¸¡¥ÏØ]Û‚ˆÙ›Ü›O‚ˆÙ]‚ˆØ\ÚYO‚ˆ]ÛˆÛ\ÜÏHœÚYX˜\‹X˜XÚÙ›Üˆ\OH˜]Ûˆˆ]K[Y[KXÛÜÙH\šXK[X™[HÚ]YHY[HØ]Û‚‚ˆXZ[ˆÛ\ÜÏH›XZ[‹XÛÛ[‚ˆXY\ˆÛ\ÜÏHÜ˜\ˆ‚ˆ]ÛˆÛ\ÜÏH›Y[K]ÙÙÛHˆ\OH˜]Ûˆˆ]K[Y[K]ÙÙÛH\šXK[X™[H\šHY[HÏHšY]ÎŽšXÛÛŠ	ÛY[IÊHÏØ]Û‚ˆ]ˆÛ\ÜÏHÜ˜\‹]]HÜ[ÏH	\ÔÝ\\\Ù\ˆÈ	ÔX]Y›Ü›XIÈˆ	ÕÛÜšÜÜXÙIÈÏÏH]]Ž›Ü™Ø[š^˜][Û“˜[YJ
-HOOH	ÉÈÈ	È0­È	ÈˆšY]ÎŽ™J]]Ž›Ü™Ø[š^˜][Û“˜[YJ
-JHˆ	ÉÈÏÜÜ[Ý›Û™ÏÏHšY]ÎŽ™J	]JHÏÜÝ›Û™ÏÙ]‚ˆ]ˆÛ\ÜÏHÜ˜\‹XXÝ[ÛœÈ‚ˆÜ[ˆÛ\ÜÏH™[š\›Û›Y[\[OÚOˆÛ›[™OÜÜ[‚ˆÜYˆ
-I\ÔÝ\\\Ù\ˆ	‰ˆ	[˜X›Y
-	ÜØ[\ÉÊJNˆÏ‚ˆHÛ\ÜÏHœ]ZXÚËXÜ™X]Hˆ™YH‹ÙØÝ[Y[ËÜ][Ý\ËØÜ™X]HÏHšY]ÎŽšXÛÛŠ	Ü\ÉÊHÏÜ[“[Ý›ÏÜÜ[ØO‚ˆÜ[ÙZYˆ
-I\ÔÝ\\\Ù\ˆ	‰ˆ	[˜X›Y
-	Ø[˜YÜ˜\XÜÉÊJNˆÏ‚ˆHÛ\ÜÏHœ]ZXÚËXÜ™X]Hˆ™YH‹Ü‹ØÝ\ÝÛY\œËØÜ™X]HÏHšY]ÎŽšXÛÛŠ	Ü\ÉÊHÏÜ[“[Ý›ÏÜÜ[ØO‚ˆÜ[™YŽÈÏ‚ˆÙ]‚ˆÚXY\‚ˆ]ˆÛ\ÜÏHœYÙH‚ˆÜYˆ
-	›\Ú
-NˆÏ‚ˆ]ˆÛ\ÜÏH˜[\[\OÏHšY]ÎŽ™J	›\ÚÉÝ\I×HÏÈ	ÜÝXØÙ\ÜÉÊHÏˆˆ›ÛOHœÝ]\È‚ˆÏHšY]ÎŽšXÛÛŠ
-	›\ÚÉÝ\I×HÏÈ	ÜÝXØÙ\ÜÉÊHOOH	Ù\œ›Ü‰ÈÈ	Ø[\	Èˆ	ØÚXÚÉÊHÏ‚ˆÜ[ÏHšY]ÎŽ™J	›\ÚÉÛY\ÜØYÙI×HÏÈ	ÉÊHÏÜÜ[‚ˆÙ]‚ˆÜ[™YŽÈÏ‚ˆÏH	ÛÛ[Ï‚ˆÙ]‚ˆÛXZ[‚Ù]‚Ø›ÙO‚Ú[‚
+$assert(!str_contains($importService, 'Numero documento, data o importo non validi.'), 'I pagamenti storici senza documento devono poter essere importati.');
+$assert(str_contains($schema, 'code_conflict') && str_contains($schema, 'L2S.'), 'Il seed contabile non deve sovrascrivere codici del piano dei conti esistente.');
+$allViews = '';
+foreach (glob($base . '/views/*.php') ?: [] as $viewFile) {
+    $allViews .= file_get_contents($viewFile);
+}
+$assert(!str_contains($allViews, 'javascript:'), 'URL javascript non consentiti nelle viste.');
+
+$cli = (string) file_get_contents($base . '/bin/luna');
+$migrateStart = strpos($cli, "case 'migrate':");
+$bootstrapStart = strpos($cli, 'bootstrapSuperuser($db)', $migrateStart ?: 0);
+$migrateBlock = $migrateStart !== false && $bootstrapStart !== false
+    ? substr($cli, $migrateStart, $bootstrapStart - $migrateStart)
+    : '';
+$assert($migrateBlock !== '', 'Comando migrate non trovato.');
+$assert(!str_contains($migrateBlock, 'beginTransaction('), 'Le migrazioni DDL MySQL non devono usare una transazione PDO.');
+$assert(!str_contains($migrateBlock, 'commit('), 'Le migrazioni DDL MySQL non devono invocare commit().');
+$assert(str_contains($cli, 'migration_steps') && str_contains($cli, 'columnExists'), 'Le migrazioni devono poter riprendere dopo un DDL parzialmente applicato.');
+$assert(!str_contains($schema, 'chk_cause_line_account'), 'Il CHECK su account_id non ÃƒÂ¨ compatibile con le versioni MariaDB usate da Plesk.');
+$assert(str_contains($schema, 'professional_validation_reference') && str_contains($schema, 'IMPORTED_PAYSLIPS'), 'Il payroll deve richiedere validazione professionale e supportare cedolini importati.');
+$payrollService=(string)file_get_contents($base.'/app/Service/PayrollService.php');
+$ecommerceService=(string)file_get_contents($base.'/app/Service/EcommerceService.php');
+$leaveService=(string)file_get_contents($base.'/app/Service/LeaveService.php');
+$inventoryService=(string)file_get_contents($base.'/app/Service/InventoryService.php');
+$assert(str_contains($payrollService,"calculation_mode']!=='IMPORTED_PAYSLIPS'")&&str_contains($payrollService,'Quadratura netto non valida'),'Il payroll di produzione deve accettare solo cedolini importati e quadrati.');
+$assert(str_contains($ecommerceService,'/orders/2026-01-01/orders')&&!str_contains($ecommerceService,'AWS4-HMAC-SHA256'),'Adapter Amazon non aggiornato a Orders 2026 e autenticazione LWA.');
+$assert(str_contains($ecommerceService,"'PULL_PRODUCTS' =>")&&str_contains($ecommerceService,"'PUSH_PRICES' =>")&&str_contains($ecommerceService,"'ACK_ORDER' =>"),'Operazioni adapter e-commerce incomplete.');
+$assert(str_contains($leaveService,'function cancel(')&&str_contains($inventoryService,'function cancelPick(')&&str_contains($inventoryService,'function cancelTransfer('),'Workflow di annullamento operativo incompleto.');
+$assert(str_contains((string) file_get_contents($base . '/app/Service/SecretResolver.php'), 'ENV:'), 'I segreti delle integrazioni devono essere risolti da ambiente.');
+$assert(str_contains($cli, 'random_bytes(18)') && str_contains($cli, 'CREDENZIALI SUPERUSER'), 'Bootstrap sicuro del superuser mancante.');
+$assert(!str_contains($cli, "case 'setup:admin':"), 'Il setup azienda da CLI deve essere sostituito dal setup web riservato.');
+
+$secretPatterns = [
+    '/GOCSPX-[A-Za-z0-9_-]+/',
+    '/DefaultCalendarSecretKey/i',
+    '/calendar\.google\.clientSecret\s*=\s*[^\s]/i',
+    '/DB_PASSWORD\s*=\s*(?!change-me\b)[^\s]+/i',
+];
+foreach ($iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS)) as $file) {
+    if (!$file->isFile()
+        || realpath($file->getPathname()) === realpath(__FILE__)
+        || str_contains($file->getPathname(), DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR)) {
+        continue;
+    }
+    $content = file_get_contents($file->getPathname());
+    if ($content === false) {
+        continue;
+    }
+    foreach ($secretPatterns as $pattern) {
+        $assert(!preg_match($pattern, $content), 'Possibile segreto in ' . $file->getPathname());
+    }
+}
+
+echo sprintf("Controlli superati: %d\n", $passes);
+if ($failures !== []) {
+    fwrite(STDERR, "Controlli falliti:\n- " . implode("\n- ", $failures) . "\n");
+    exit(1);
+}
+echo "Tutti i controlli sono passati.\n";

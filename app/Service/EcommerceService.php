@@ -159,73 +159,257 @@ final class EcommerceService
                 'method' => 'POST', 'url' => $base . '/admin/api/' . ($settings['api_version'] ?? '2026-07') . '/graphql.json',
                 'options' => ['headers' => ['X-Shopify-Access-Token' => $credentials['access_token'] ?? ''], 'json' => ['query' => '{ products(first: 100) { nodes { id title variants(first: 100) { nodes { id title sku price inventoryQuantity inventoryItem { id } } } } } }']],
             ], static function (array $payload): array {
-             #^´ï›h‘éì¶»§q«^t[˜ÙVÉÜ™\Ù\™YÜ]X[]I×NÂˆ	\ËO™‹Oœ™\\™J	ÕTUH[™[ÜžWØ˜[[˜Ù\ÈÑU]X[]HHË™\Ù\™YÜ]X[]HHË]™\˜YÙWØÛÜÝHË\]YØ]H“ÕÊ
-HÒT‘HYHÉÊBˆO™^XÝ]JÉ™]Ô]X[]K	™\Ù\™Y	]™\˜YÙPÛÜÝ	˜[[˜ÙVÉÚY	×WJNÂˆ	\ËO™‹Oœ™\\™J	ÒS”ÑT•S•È[™[ÜžWÛ[Ý™[Y[È
-[Ý™[Y[Ý]ZYÜ™Ø[š^˜][Û—ÚY[Ý™[Y[Ù]K›ÙXÝÚY›ÙXÝØÛÙKØ\™ZÝ\ÙWÚYØ\™ZÝ\ÙWØÛÙK[Ý™[Y[Ý\K]X[]K[š]ØÛÜÝ™X\ÛÛ‹ØÝ[Y[Ý\KØÝ[Y[Û[X™\‹ÛÝ\˜ÙWÝ\KÛÝ\˜ÙWÚY™]™\œÙYÛ[Ý™[Y[ÚYÜ™X]YØžK\]YØžKÜ™X]YØ]\]YØ]
-HSQTÈ
-ËËËËËËËËËËËËËËËËËË“ÕÊ
-K“ÕÊ
-JIÊBˆO™^XÝ]JÉ]ZY	\ËO›Ü™Ø[š^˜][Û’Y	]VÉÛ[Ý™[Y[Ù]I×HÏÈ]J	ÖK[KY	ÊK	›ÙXÝY	›ÙXÝÉØÛÙI×K	Ø\™ZÝ\ÙRY	Ø\™ZÝ\ÙVÉØÛÙI×K	\K	]X[]K	[š]ÛÜÝ
-Ýš[™ÊH
-	]VÉÜ™X\ÛÛ‰×HÏÈ	Ó[Ýš[Y[ÈX[X[IÊK	]VÉÙØÝ[Y[Ý\I×HÏÈ[	]VÉÙØÝ[Y[Û[X™\‰×HÏÈ[	]VÉÜÛÝ\˜ÙWÝ\I×HÏÈ[	]VÉÜÛÝ\˜ÙWÚY	×HÏÈ[	]VÉÜ™]™\œÙYÛ[Ý™[Y[ÚY	×HÏÈ[	\ËO\Ù\’Y	\ËO\Ù\’YJNÂˆ™]\›ˆ
-[
-H	\ËO™‹O›\Ý[œÙ\Y
+                $result = [];
+                foreach ($payload['data']['products']['nodes'] ?? [] as $product) {
+                    foreach ($product['variants']['nodes'] ?? [] as $variant) {
+                        $variant['_product_id'] = $product['id'] ?? null;
+                        $variant['_product_title'] = $product['title'] ?? '';
+                        $result[] = $variant;
+                    }
+                }
+                return $result;
+            }],
+            'EBAY' => [[
+                'method' => 'GET', 'url' => $base . '/sell/inventory/v1/inventory_item',
+                'options' => ['headers' => ['Authorization' => 'Bearer ' . ($credentials['access_token'] ?? ''), 'Accept-Language' => $settings['locale'] ?? 'it-IT'], 'query' => ['limit' => 200]],
+            ], static fn (array $payload): array => $payload['inventoryItems'] ?? []],
+            'AMAZON' => $this->amazonProductRequest($channel, $credentials, $settings),
+            default => throw new InvalidArgumentException('Piattaforma non supportata.'),
+        };
+    }
 
-NÂˆB‚ˆš]˜]H[˜Ý[Ûˆ˜[[˜ÙJ[	Ø\™ZÝ\ÙRY[	›ÙXÝY›ÛÛ	ØÚÊNˆ\œ˜^BˆÂˆ	ÝY™š^H	ØÚÈÈ	È“ÔˆTUIÈˆ	ÉÎÂˆ	˜[[˜ÙHH	\ËO›Û™J	ÔÑSPÕ
-ˆ”“ÓH[™[ÜžWØ˜[[˜Ù\ÈÒT‘HÜ™Ø[š^˜][Û—ÚYHÈS‘Ø\™ZÝ\ÙWÚYHÈS‘›ÙXÝÚYHÉÈˆ	ÝY™š^É\ËO›Ü™Ø[š^˜][Û’Y	Ø\™ZÝ\ÙRY	›ÙXÝYJNÂˆYˆ
-I˜[[˜ÙJHÂˆ	\ËO™‹Oœ™\\™J	ÒS”ÑT•S•È[™[ÜžWØ˜[[˜Ù\È
-Ü™Ø[š^˜][Û—ÚYØ\™ZÝ\ÙWÚY›ÙXÝÚY]X[]K™\Ù\™YÜ]X[]KZ[š[][WÜÝØÚË]™\˜YÙWØÛÜÝ\]YØ]
-HSQTÈ
-ËËË“ÕÊ
-JIÊBˆO™^XÝ]JÉ\ËO›Ü™Ø[š^˜][Û’Y	Ø\™ZÝ\ÙRY	›ÙXÝYJNÂˆ	˜[[˜ÙHH	\ËO›Û™J	ÔÑSPÕ
-ˆ”“ÓH[™[ÜžWØ˜[[˜Ù\ÈÒT‘HÜ™Ø[š^˜][Û—ÚYHÈS‘Ø\™ZÝ\ÙWÚYHÈS‘›ÙXÝÚYHÉÈˆ	ÝY™š^É\ËO›Ü™Ø[š^˜][Û’Y	Ø\™ZÝ\ÙRY	›ÙXÝYJNÂˆBˆ™]\›ˆ	˜[[˜ÙNÂˆB‚ˆš]˜]H[˜Ý[ÛˆØ\™ZÝ\ÙJ[	Y
-Nˆ\œ˜^BˆÂˆ	Ø\™ZÝ\ÙHH	\ËO›Û™J	ÔÑSPÕYÛÙH”“ÓHØ\™ZÝ\Ù\ÈÒT‘HYHÈS‘Ü™Ø[š^˜][Û—ÚYHÈS‘XÝ]™HHIËÉY	\ËO›Ü™Ø[š^˜][Û’YJNÂˆYˆ
-IØ\™ZÝ\ÙJHÂˆ›ÝÈ™]È[˜[Y\™Ý[Y[^Ù\[ÛŠ	ÓXYØ^žš[›È›Ûˆ˜[YË‰ÊNÂˆBˆ™]\›ˆ	Ø\™ZÝ\ÙNÂˆB‚ˆš]˜]H[˜Ý[Ûˆ˜[œÙ™\Š[	Y›ÛÛ	ØÚÊNˆ\œ˜^BˆÂˆ	˜[œÙ™\ˆH	\ËO›Û™J	ÔÑSPÕ
-ˆ”“ÓH[™[ÜžWÝ˜[œÙ™\œÈÒT‘HYHÈS‘Ü™Ø[š^˜][Û—ÚYHÉÈˆ
-	ØÚÈÈ	È“ÔˆTUIÈˆ	ÉÊKÉY	\ËO›Ü™Ø[š^˜][Û’YJNÂˆYˆ
-I˜[œÙ™\ŠHÂˆ›ÝÈ™]È[˜[Y\™Ý[Y[^Ù\[ÛŠ	Õ˜\Ù™\š[Y[È›Ûˆ›Ý˜]Ë‰ÊNÂˆBˆ™]\›ˆ	˜[œÙ™\ŽÂˆB‚ˆš]˜]H[˜Ý[Ûˆ™^Ü\˜][Û˜[[X™\ŠÝš[™È	™Yš^Ýš[™È	]JNˆÝš[™ÂˆÂˆ	YX\ˆHÝXœÝŠ	]K
-NÂˆ	Ù^HH	ÓÔËIÈˆ	™Yš^ˆ	ËIÈˆ	YX\ŽÂˆ	Ù\]Y[˜ÙHH	\ËO›Û™J	ÔÑSPÕY™^Ý˜[YKY[™È”“ÓHØÝ[Y[ÜÙ\]Y[˜Ù\ÈÒT‘HÜ™Ø[š^˜][Û—ÚYHÈS‘Ù\]Y[˜ÙWÚÙ^HHÈ“ÔˆTUIËÉ\ËO›Ü™Ø[š^˜][Û’Y	Ù^WJNÂˆYˆ
-IÙ\]Y[˜ÙJHÂˆ	\ËO™‹Oœ™\\™J	ÒS”ÑT•S•ÈØÝ[Y[ÜÙ\]Y[˜Ù\È
-Ü™Ø[š^˜][Û—ÚYÙ\]Y[˜ÙWÚÙ^K™Yš^™^Ý˜[YKY[™ËÜ™X]YØ]\]YØ]
-HSQTÈ
-ËËË‹K“ÕÊ
-K“ÕÊ
-JIÊKO™^XÝ]JÉ\ËO›Ü™Ø[š^˜][Û’Y	Ù^K	™Yš^ˆ	ËIÈˆ	YX\ˆˆ	ËI×JNÂˆ™]\›ˆ	™Yš^ˆ	ËIÈˆ	YX\ˆˆ	ËLIÎÂˆBˆ	\ËO™‹Oœ™\\™J	ÕTUHØÝ[Y[ÜÙ\]Y[˜Ù\ÈÑU™^Ý˜[YHH™^Ý˜[YH
-ÈHÒT‘HYHÉÊKO™^XÝ]JÉÙ\]Y[˜ÙVÉÚY	×WJNÂˆ™]\›ˆ	™Yš^ˆ	ËIÈˆ	YX\ˆˆ	ËIÈˆÝ—ÜY
+    private function amazonProductRequest(array $channel, array $credentials, array $settings): array
+    {
+        $sellerId = trim((string) ($settings['seller_id'] ?? ''));
+        if ($sellerId === '') {
+            throw new InvalidArgumentException('Configura seller_id nelle impostazioni JSON del canale Amazon.');
+        }
+        $url = rtrim((string) $channel['base_url'], '/') . '/listings/2021-08-01/items/' . rawurlencode($sellerId);
+        return [[
+            'method' => 'GET', 'url' => $url,
+            'options' => ['headers' => ['x-amz-access-token' => $this->amazonAccessToken($credentials), 'Accept' => 'application/json'], 'query' => [
+                'marketplaceIds' => $settings['marketplace_id'] ?? 'APJ6JRA9NG5V4',
+                'includedData' => 'summaries,offers,fulfillmentAvailability', 'pageSize' => 20,
+            ]],
+        ], static fn (array $payload): array => $payload['items'] ?? []];
+    }
 
-Ýš[™ÊH	Ù\]Y[˜ÙVÉÛ™^Ý˜[YI×K
-[
-H	Ù\]Y[˜ÙVÉÜY[™É×K	Ì	ËÕ—ÔQÓQ•
-NÂˆB‚ˆš]˜]H[˜Ý[Ûˆ]ZY›ÜŠÝš[™È	ØÛÜK[	\™[[	[™JNˆÝš[™ÂˆÂˆ	^H\Ú
-	ÜÚLM‰Ë[\ÙJ	ß	ËÉ\ËO›Ü™Ø[š^˜][Û’Y	ØÛÜK	\™[	[™WJJNÂˆ™]\›ˆÝXœÝŠ	^
-Hˆ	ËIÈˆÝXœÝŠ	^
-Hˆ	ËM	ÈˆÝXœÝŠ	^LËÊHˆ	ËXIÈˆÝXœÝŠ	^MËÊHˆ	ËIÈˆÝXœÝŠ	^ŒLŠNÂˆB‚ˆš]˜]H[˜Ý[Ûˆ]ZY
+    private function normalizeProduct(string $platform, array $product): array
+    {
+        if ($platform === 'SHOPIFY') {
+            return ['external_id'=>(string)($product['id']??''),'sku'=>(string)($product['sku']??''),'name'=>trim((string)($product['_product_title']??'').' Â· '.(string)($product['title']??''),' Â·'),'price'=>(float)($product['price']??0),'quantity'=>(float)($product['inventoryQuantity']??0),'raw'=>$product];
+        }
+        if ($platform === 'EBAY') {
+            return ['external_id'=>(string)($product['sku']??''),'sku'=>(string)($product['sku']??''),'name'=>(string)($product['product']['title']??$product['sku']??'Articolo eBay'),'price'=>null,'quantity'=>(float)($product['availability']['shipToLocationAvailability']['quantity']??0),'raw'=>$product];
+        }
+        if ($platform === 'AMAZON') {
+            $summary = $product['summaries'][0] ?? []; $offer = $product['offers'][0] ?? []; $availability = $product['fulfillmentAvailability'][0] ?? [];
+            return ['external_id'=>(string)($product['sku']??''),'sku'=>(string)($product['sku']??''),'name'=>(string)($summary['itemName']??$product['sku']??'Articolo Amazon'),'price'=>(float)($offer['price']['amount']??0),'quantity'=>(float)($availability['quantity']??0),'raw'=>$product];
+        }
+        return ['external_id'=>(string)($product['id']??''),'sku'=>(string)($product['sku']??''),'name'=>(string)($product['name']??'Articolo WooCommerce'),'price'=>(float)($product['price']??0),'quantity'=>(float)($product['stock_quantity']??0),'raw'=>$product];
+    }
 
-NˆÝš[™ÂˆÂˆ	ž]\ÈH˜[™ÛWØž]\ÊMŠNÂˆ	ž]\ÖÍ—HHÚŠ
-Ü™
-	ž]\ÖÍ—JH	ˆŠH
-NÂˆ	ž]\ÖÎHHÚŠ
-Ü™
-	ž]\ÖÎJH	ˆÙŠH
-NÂˆ™]\›ˆœÜš[Š	É\É\ËI\ËI\ËI\ËI\É\É\ÉËÝ—ÜÜ]
-š[Œš^
-	ž]\ÊK
-JNÂˆB‚ˆš]˜]H[˜Ý[ÛˆÛ™JÝš[™È	Ü[\œ˜^H	\˜[\ÊNˆ\œ˜^_˜[ÙBˆÂˆ	Ý][Y[H	\ËO™‹Oœ™\\™J	Ü[
-NÂˆ	Ý][Y[O™^XÝ]J	\˜[\ÊNÂˆ™]\›ˆ	Ý][Y[O™™]Ú
+    private function orderRequest(array $channel): array
+    {
+        $credentials = $this->credentials($channel);
+        $settings = json_decode((string) ($channel['settings_json'] ?? '{}'), true) ?: [];
+        $base = rtrim((string) $channel['base_url'], '/');
+        if (!str_starts_with($base, 'https://')) { throw new InvalidArgumentException('Lâ€™endpoint e-commerce deve usare HTTPS.'); }
+        return match ($channel['platform']) {
+            'WOOCOMMERCE' => [[
+                'method' => 'GET', 'url' => $base . '/wp-json/wc/v3/orders',
+                'options' => ['auth' => [$credentials['consumer_key'] ?? '', $credentials['consumer_secret'] ?? ''], 'query' => ['per_page' => 100, 'after' => $channel['sync_cursor'] ?: null]],
+            ], fn (array $payload): array => $payload],
+            'SHOPIFY' => [[
+                'method' => 'POST', 'url' => $base . '/admin/api/' . ($settings['api_version'] ?? '2026-07') . '/graphql.json',
+                'options' => ['headers' => ['X-Shopify-Access-Token' => $credentials['access_token'] ?? ''], 'json' => ['query' => '{ orders(first: 100, sortKey: CREATED_AT, reverse: true) { nodes { id name createdAt displayFinancialStatus email currencyCode totalPriceSet { shopMoney { amount currencyCode } } lineItems(first: 100) { nodes { id title sku quantity originalUnitPriceSet { shopMoney { amount } } discountedTotalSet { shopMoney { amount } } } } } } }']],
+            ], static fn (array $payload): array => $payload['data']['orders']['nodes'] ?? []],
+            'EBAY' => [[
+                'method' => 'GET', 'url' => $base . '/sell/fulfillment/v1/order',
+                'options' => ['headers' => ['Authorization' => 'Bearer ' . ($credentials['access_token'] ?? ''), 'X-EBAY-C-MARKETPLACE-ID' => $settings['marketplace_id'] ?? 'EBAY_IT'], 'query' => ['limit' => 200]],
+            ], static fn (array $payload): array => $payload['orders'] ?? []],
+            'AMAZON' => $this->amazonOrderRequest($channel, $credentials, $settings),
+            default => throw new InvalidArgumentException('Piattaforma non supportata.'),
+        };
+    }
 
-NÂˆB‚ˆš]˜]H[˜Ý[Ûˆ[
-Ýš[™È	Ü[\œ˜^H	\˜[\ÊNˆ\œ˜^BˆÂˆ	Ý][Y[H	\ËO™‹Oœ™\\™J	Ü[
-NÂˆ	Ý][Y[O™^XÝ]J	\˜[\ÊNÂˆ™]\›ˆ	Ý][Y[O™™]Ú[
+    private function amazonOrderRequest(array $channel, array $credentials, array $settings): array
+    {
+        $path = '/orders/2026-01-01/orders';
+        $query = http_build_query([
+            'marketplaceIds' => $settings['marketplace_id'] ?? 'APJ6JRA9NG5V4',
+            'createdAfter' => $channel['sync_cursor'] ?: gmdate('Y-m-d\TH:i:s\Z', strtotime('-7 days')),
+            'includedData' => 'BUYER,PROCEEDS,FULFILLMENT',
+            'maxResultsPerPage' => 100,
+        ], '', '&', PHP_QUERY_RFC3986);
+        $url = rtrim((string) $channel['base_url'], '/') . $path . '?' . $query;
+        return [[
+            'method' => 'GET',
+            'url' => $url,
+            'options' => ['headers' => ['x-amz-access-token' => $this->amazonAccessToken($credentials), 'Accept' => 'application/json']],
+        ], static fn (array $payload): array => $payload['orders'] ?? []];
+    }
 
-NÂˆB‚ˆš]˜]H[˜Ý[Ûˆ˜[œØXÝ[ÛŠØ[X›H	Ø[˜XÚÊNˆZ^YˆÂˆ	ÝÛœÈHI\ËO™‹Oš[•˜[œØXÝ[ÛŠ
-NÂˆYˆ
-	ÝÛœÊHÂˆ	\ËO™‹O˜™YÚ[•˜[œØXÝ[ÛŠ
-NÂˆBˆžHÂˆ	™\Ý[H	Ø[˜XÚÊ
-NÂˆYˆ
-	ÝÛœÊHÂˆ	\ËO™‹O˜ÛÛ[Z]
+    private function amazonAccessToken(array $credentials): string
+    {
+        if (!empty($credentials['access_token'])) {
+            return (string) $credentials['access_token'];
+        }
+        foreach (['refresh_token', 'client_id', 'client_secret'] as $required) {
+            if (empty($credentials[$required])) {
+                throw new InvalidArgumentException('Credenziali Amazon incomplete: servono refresh_token, client_id e client_secret.');
+            }
+        }
+        $response = (new Client(['timeout' => 20, 'connect_timeout' => 10, 'http_errors' => true]))->post('https://api.amazon.com/auth/o2/token', [
+            'form_params' => [
+                'grant_type' => 'refresh_token',
+                'refresh_token' => $credentials['refresh_token'],
+                'client_id' => $credentials['client_id'],
+                'client_secret' => $credentials['client_secret'],
+            ],
+        ]);
+        $payload = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (empty($payload['access_token'])) {
+            throw new InvalidArgumentException('Amazon LWA non ha restituito un access token.');
+        }
+        return (string) $payload['access_token'];
+    }
 
-NÂˆBˆ™]\›ˆ	™\Ý[ÂˆHØ]Ú
-›ÝØX›H	^Ù\[ÛŠHÂˆYˆ
-	ÝÛœÈ	‰ˆ	\ËO™‹Oš[•˜[œØXÝ[ÛŠ
-JHÂˆ	\ËO™‹Oœ›Û˜XÚÊ
-NÂˆBˆ›ÝÈ	^Ù\[ÛŽÂˆBˆBŸB
+    private function pushStock(array $channel, array $payload): void
+    {
+        if (empty($payload['product_id'])) { throw new InvalidArgumentException('Prodotto mancante per sincronizzazione giacenza.'); }
+        $product = $this->one('SELECT p.*, COALESCE(SUM(b.quantity - b.reserved_quantity),0) available FROM products p LEFT JOIN inventory_balances b ON b.product_id = p.id WHERE p.id = ? AND p.organization_id = ? GROUP BY p.id', [(int) $payload['product_id'], $this->organizationId]);
+        if (!$product) { throw new InvalidArgumentException('Prodotto non trovato.'); }
+        $mapping = $this->one('SELECT * FROM ecommerce_products WHERE ecommerce_channel_id = ? AND product_id = ? AND organization_id = ?', [$channel['id'], $product['id'], $this->organizationId]);
+        if (!$mapping) { throw new InvalidArgumentException('Prodotto non mappato sul canale.'); }
+        $credentials = $this->credentials($channel); $settings = json_decode((string)($channel['settings_json']??'{}'),true)?:[]; $base = rtrim((string) $channel['base_url'], '/');
+        $client = new Client(['timeout' => 30, 'connect_timeout' => 10]);
+        if ($channel['platform'] === 'WOOCOMMERCE') {
+            $client->put($base . '/wp-json/wc/v3/products/' . rawurlencode((string) $mapping['external_product_id']), ['auth' => [$credentials['consumer_key'] ?? '', $credentials['consumer_secret'] ?? ''], 'json' => ['stock_quantity' => (int) floor((float) $product['available']), 'manage_stock' => true]]);
+        } elseif ($channel['platform'] === 'SHOPIFY') {
+            $raw=json_decode((string)($mapping['raw_data_json']??'{}'),true)?:[];$inventoryItem=(string)($raw['inventoryItem']['id']??'');$location=(string)($settings['location_id']??'');
+            if($inventoryItem===''||$location===''){throw new InvalidArgumentException('Shopify richiede inventoryItem e location_id nelle impostazioni del canale.');}
+            $this->shopifyGraphql($client,$channel,$credentials,'mutation SetInventory($input: InventorySetQuantitiesInput!) { inventorySetQuantities(input: $input) { userErrors { field message } } }',['input'=>['name'=>'available','reason'=>'correction','referenceDocumentUri'=>'gid://luna2/Product/'.$product['id'],'quantities'=>[['inventoryItemId'=>$inventoryItem,'locationId'=>$location,'quantity'=>(int)floor((float)$product['available'])]]]]);
+        } elseif ($channel['platform'] === 'EBAY') {
+            $raw=json_decode((string)($mapping['raw_data_json']??'{}'),true)?:[];$raw['availability']['shipToLocationAvailability']['quantity']=(int)floor((float)$product['available']);unset($raw['sku']);
+            $client->put($base.'/sell/inventory/v1/inventory_item/'.rawurlencode((string)$mapping['sku']),['headers'=>['Authorization'=>'Bearer '.($credentials['access_token']??''),'Content-Language'=>$settings['locale']??'it-IT'],'json'=>$raw]);
+        } elseif ($channel['platform'] === 'AMAZON') {
+            $this->amazonPatchListing($client,$channel,$credentials,$settings,(string)$mapping['sku'],'/attributes/fulfillment_availability',[['fulfillment_channel_code'=>$settings['fulfillment_channel_code']??'DEFAULT','quantity'=>(int)floor((float)$product['available'])]],$mapping);
+        } else {
+            throw new InvalidArgumentException('Piattaforma non supportata.');
+        }
+        $this->markChannelHealthy((int)$channel['id']);
+    }
+
+    private function pushPrice(array $channel, array $payload): void
+    {
+        [$product,$mapping]=$this->mappedProduct($channel,$payload);$price=round((float)$product['sale_price'],4);$credentials=$this->credentials($channel);$settings=json_decode((string)($channel['settings_json']??'{}'),true)?:[];$base=rtrim((string)$channel['base_url'],'/');$client=new Client(['timeout'=>30,'connect_timeout'=>10,'http_errors'=>true]);
+        if($channel['platform']==='WOOCOMMERCE'){$client->put($base.'/wp-json/wc/v3/products/'.rawurlencode((string)$mapping['external_product_id']),['auth'=>[$credentials['consumer_key']??'',$credentials['consumer_secret']??''],'json'=>['regular_price'=>number_format($price,2,'.','')]]);
+        }elseif($channel['platform']==='SHOPIFY'){$raw=json_decode((string)($mapping['raw_data_json']??'{}'),true)?:[];$productGid=(string)($raw['_product_id']??'');if($productGid===''){throw new InvalidArgumentException('Mapping Shopify senza product GID. Riesegui PULL_PRODUCTS.');}$this->shopifyGraphql($client,$channel,$credentials,'mutation Price($productId: ID!, $variants: [ProductVariantsBulkInput!]!) { productVariantsBulkUpdate(productId: $productId, variants: $variants) { userErrors { field message } } }',['productId'=>$productGid,'variants'=>[['id'=>(string)$mapping['external_product_id'],'price'=>(string)$price]]]);
+        }elseif($channel['platform']==='AMAZON'){$this->amazonPatchListing($client,$channel,$credentials,$settings,(string)$mapping['sku'],'/attributes/purchasable_offer',[['audience'=>'ALL','currency'=>$settings['currency']??'EUR','our_price'=>[['schedule'=>[['value_with_tax'=>$price]]]]]],$mapping);
+        }elseif($channel['platform']==='EBAY'){$offers=$client->get($base.'/sell/inventory/v1/offer',['headers'=>['Authorization'=>'Bearer '.($credentials['access_token']??'')],'query'=>['sku'=>$mapping['sku'],'marketplace_id'=>$settings['marketplace_id']??'EBAY_IT','limit'=>20]]);$data=json_decode((string)$offers->getBody(),true,512,JSON_THROW_ON_ERROR);$offer=$data['offers'][0]??null;if(!$offer||empty($offer['offerId'])){throw new InvalidArgumentException('Nessuna offerta eBay pubblicata per lo SKU.');}$offerId=$offer['offerId'];unset($offer['offerId'],$offer['listing'],$offer['status']);$offer['pricingSummary']['price']=['value'=>number_format($price,2,'.',''),'currency'=>$settings['currency']??'EUR'];$client->put($base.'/sell/inventory/v1/offer/'.rawurlencode((string)$offerId),['headers'=>['Authorization'=>'Bearer '.($credentials['access_token']??''),'Content-Language'=>$settings['locale']??'it-IT'],'json'=>$offer]);
+        }else{throw new InvalidArgumentException('Piattaforma non supportata.');}
+        $this->db->prepare('UPDATE ecommerce_products SET price=?,sync_status=\'SYNCED\',updated_at=NOW() WHERE id=?')->execute([$price,$mapping['id']]);$this->markChannelHealthy((int)$channel['id']);
+    }
+
+    private function acknowledgeOrder(array $channel,array $payload): void
+    {
+        $id=(int)($payload['ecommerce_order_id']??$payload['_entity_id']??0);$order=$this->one('SELECT * FROM ecommerce_orders WHERE id=? AND ecommerce_channel_id=? AND organization_id=?',[$id,$channel['id'],$this->organizationId]);if(!$order){throw new InvalidArgumentException('Ordine e-commerce da confermare non trovato.');}
+        $credentials=$this->credentials($channel);$settings=json_decode((string)($channel['settings_json']??'{}'),true)?:[];$base=rtrim((string)$channel['base_url'],'/');$client=new Client(['timeout'=>30,'connect_timeout'=>10,'http_errors'=>true]);
+        if($channel['platform']==='WOOCOMMERCE'){$client->put($base.'/wp-json/wc/v3/orders/'.rawurlencode((string)$order['external_order_id']),['auth'=>[$credentials['consumer_key']??'',$credentials['consumer_secret']??''],'json'=>['meta_data'=>[['key'=>'luna2_imported_at','value'=>date(DATE_ATOM)]]]]);
+        }elseif($channel['platform']==='SHOPIFY'){$this->shopifyGraphql($client,$channel,$credentials,'mutation Ack($id: ID!, $tags: [String!]!) { tagsAdd(id: $id, tags: $tags) { userErrors { field message } } }',['id'=>$order['external_order_id'],'tags'=>['Luna2-importato']]);
+        }else{$this->db->prepare("INSERT INTO ecommerce_sync_logs (organization_id,ecommerce_channel_id,sync_type,status,started_at,ended_at,processed_count,error_count,message,created_at) VALUES (?,?,'ACK_ORDER','SUCCESS',NOW(),NOW(),1,0,?,NOW())")->execute([$this->organizationId,$channel['id'],'Ordine '.$order['external_order_id'].' acquisito in Luna2; il provider non espone un ack non distruttivo.']);}
+        $this->markChannelHealthy((int)$channel['id']);
+    }
+
+    private function mappedProduct(array $channel,array $payload): array
+    {
+        $id=(int)($payload['product_id']??$payload['_entity_id']??0);if($id<=0){throw new InvalidArgumentException('Prodotto mancante per la sincronizzazione.');}$product=$this->one('SELECT p.*,COALESCE(SUM(b.quantity-b.reserved_quantity),0) available FROM products p LEFT JOIN inventory_balances b ON b.product_id=p.id WHERE p.id=? AND p.organization_id=? GROUP BY p.id',[$id,$this->organizationId]);if(!$product){throw new InvalidArgumentException('Prodotto non trovato.');}$mapping=$this->one('SELECT * FROM ecommerce_products WHERE ecommerce_channel_id=? AND product_id=? AND organization_id=?',[$channel['id'],$id,$this->organizationId]);if(!$mapping){throw new InvalidArgumentException('Prodotto non mappato sul canale. Esegui prima PULL_PRODUCTS.');}return [$product,$mapping];
+    }
+
+    private function shopifyGraphql(Client $client,array $channel,array $credentials,string $query,array $variables): array
+    {
+        $settings=json_decode((string)($channel['settings_json']??'{}'),true)?:[];$response=$client->post(rtrim((string)$channel['base_url'],'/').'/admin/api/'.($settings['api_version']??'2026-07').'/graphql.json',['headers'=>['X-Shopify-Access-Token'=>$credentials['access_token']??''],'json'=>['query'=>$query,'variables'=>$variables]]);$data=json_decode((string)$response->getBody(),true,512,JSON_THROW_ON_ERROR);$errors=$data['errors']??[];foreach((array)($data['data']??[]) as $result){foreach((array)($result['userErrors']??[]) as $error){$errors[]=$error;}}if($errors!==[]){throw new InvalidArgumentException('Shopify: '.json_encode($errors,JSON_UNESCAPED_UNICODE));}return $data;
+    }
+
+    private function amazonPatchListing(Client $client,array $channel,array $credentials,array $settings,string $sku,string $path,array $value,array $mapping): void
+    {
+        $seller=trim((string)($settings['seller_id']??''));$marketplace=(string)($settings['marketplace_id']??'APJ6JRA9NG5V4');$raw=json_decode((string)($mapping['raw_data_json']??'{}'),true)?:[];$productType=(string)($raw['summaries'][0]['productType']??$settings['product_type']??'PRODUCT');if($seller===''||$sku===''){throw new InvalidArgumentException('Amazon richiede seller_id e SKU mappato.');}$client->patch(rtrim((string)$channel['base_url'],'/').'/listings/2021-08-01/items/'.rawurlencode($seller).'/'.rawurlencode($sku),['headers'=>['x-amz-access-token'=>$this->amazonAccessToken($credentials),'Accept'=>'application/json'],'query'=>['marketplaceIds'=>$marketplace],'json'=>['productType'=>$productType,'patches'=>[['op'=>'replace','path'=>$path,'value'=>$value]]]]);
+    }
+
+    private function markChannelHealthy(int $channelId): void{$this->db->prepare("UPDATE ecommerce_channels SET status='CONNECTED',last_success_at=NOW(),last_error=NULL,updated_at=NOW() WHERE id=? AND organization_id=?")->execute([$channelId,$this->organizationId]);}
+
+    private function processWebhookPayload(array $channel, array $payload): void
+    {
+        $this->upsertExternalOrder($channel, $payload);
+    }
+
+    private function upsertExternalOrder(array $channel, array $payload): void
+    {
+        $normalized = $this->normalizeOrder((string) $channel['platform'], $payload);
+        if ($normalized['external_id'] === '') { throw new InvalidArgumentException('ID ordine esterno mancante.'); }
+        $this->db->prepare('INSERT INTO ecommerce_orders (organization_id, ecommerce_channel_id, order_date, platform, external_order_id, customer_email, total, currency, status, import_status, raw_data_json, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'PENDING\', ?, ?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE customer_email = VALUES(customer_email), total = VALUES(total), currency = VALUES(currency), status = VALUES(status), raw_data_json = VALUES(raw_data_json), updated_at = NOW(), id = LAST_INSERT_ID(id)')
+            ->execute([$this->organizationId, $channel['id'], $normalized['date'], $channel['platform'], $normalized['external_id'], $normalized['email'] ?: null, $normalized['total'], $normalized['currency'], $normalized['status'], json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), $this->userId ?: null, $this->userId ?: null]);
+        $orderId = (int) $this->db->lastInsertId();
+        $this->db->prepare('DELETE FROM ecommerce_order_lines WHERE ecommerce_order_id = ?')->execute([$orderId]);
+        $insert = $this->db->prepare('INSERT INTO ecommerce_order_lines (organization_id, ecommerce_order_id, external_line_id, external_product_id, product_id, sku, description, quantity, unit_price, tax_amount, total_amount, raw_data_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        foreach ($normalized['lines'] as $line) {
+            $product = $this->one('SELECT id FROM products WHERE organization_id = ? AND (sku = ? OR code = ? OR ean = ?) LIMIT 1', [$this->organizationId, $line['sku'], $line['sku'], $line['sku']]);
+            $insert->execute([$this->organizationId, $orderId, $line['id'], $line['product_id'], $product['id'] ?? null, $line['sku'] ?: null, $line['description'], $line['quantity'], $line['unit_price'], $line['tax'], $line['total'], json_encode($line['raw'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+        }
+    }
+
+    private function normalizeOrder(string $platform, array $p): array
+    {
+        if ($platform === 'SHOPIFY') {
+            $nodes = $p['lineItems']['nodes'] ?? [];
+            return ['external_id' => (string) ($p['id'] ?? ''), 'date' => substr((string) ($p['createdAt'] ?? date('c')), 0, 10), 'email' => (string) ($p['email'] ?? ''), 'total' => (float) ($p['totalPriceSet']['shopMoney']['amount'] ?? 0), 'currency' => (string) ($p['currencyCode'] ?? 'EUR'), 'status' => (string) ($p['displayFinancialStatus'] ?? ''), 'lines' => array_map(static fn (array $l): array => ['id' => (string) ($l['id'] ?? ''), 'product_id' => '', 'sku' => (string) ($l['sku'] ?? ''), 'description' => (string) ($l['title'] ?? ''), 'quantity' => (float) ($l['quantity'] ?? 0), 'unit_price' => (float) ($l['originalUnitPriceSet']['shopMoney']['amount'] ?? 0), 'tax' => 0, 'total' => (float) ($l['discountedTotalSet']['shopMoney']['amount'] ?? 0), 'raw' => $l], $nodes)];
+        }
+        if ($platform === 'AMAZON') {
+            $lines=[];
+            foreach((array)($p['orderItems']??[]) as $line){$tax=0.0;foreach((array)($line['proceeds']['breakdowns']??[]) as $breakdown){if(($breakdown['type']??'')==='TAX'){$tax+=(float)($breakdown['subtotal']['amount']??0);}}$quantity=(float)($line['quantityOrdered']??1);$total=(float)($line['proceeds']['proceedsTotal']['amount']??0);$unit=(float)($line['product']['price']['unitPrice']['amount']??($quantity>0?($total-$tax)/$quantity:0));$lines[]=['id'=>(string)($line['orderItemId']??''),'product_id'=>(string)($line['product']['asin']??''),'sku'=>(string)($line['product']['sellerSku']??''),'description'=>(string)($line['product']['title']??'Articolo Amazon'),'quantity'=>$quantity,'unit_price'=>$unit,'tax'=>$tax,'total'=>$total,'raw'=>$line];}
+            return ['external_id'=>(string)($p['orderId']??''),'date'=>substr((string)($p['createdTime']??date('c')),0,10),'email'=>(string)($p['buyer']['buyerEmail']??''),'total'=>(float)($p['proceeds']['grandTotal']['amount']??array_sum(array_column($lines,'total'))),'currency'=>(string)($p['proceeds']['grandTotal']['currencyCode']??($lines[0]['raw']['proceeds']['proceedsTotal']['currencyCode']??'EUR')),'status'=>(string)($p['fulfillment']['fulfillmentStatus']??''),'lines'=>$lines];
+        }
+        $lines = $p['line_items'] ?? $p['lineItems'] ?? $p['orderFulfillmentStatus']['lineItems'] ?? [];
+        return ['external_id' => (string) ($p['id'] ?? $p['orderId'] ?? $p['AmazonOrderId'] ?? ''), 'date' => substr((string) ($p['date_created_gmt'] ?? $p['creationDate'] ?? $p['PurchaseDate'] ?? date('c')), 0, 10), 'email' => (string) ($p['billing']['email'] ?? $p['buyer']['buyerRegistrationAddress']['email'] ?? $p['BuyerInfo']['BuyerEmail'] ?? ''), 'total' => (float) ($p['total'] ?? $p['pricingSummary']['total']['value'] ?? $p['OrderTotal']['Amount'] ?? 0), 'currency' => (string) ($p['currency'] ?? $p['pricingSummary']['total']['currency'] ?? $p['OrderTotal']['CurrencyCode'] ?? 'EUR'), 'status' => (string) ($p['status'] ?? $p['orderFulfillmentStatus'] ?? $p['OrderStatus'] ?? ''), 'lines' => array_map(static fn (array $l): array => ['id' => (string) ($l['id'] ?? $l['lineItemId'] ?? ''), 'product_id' => (string) ($l['product_id'] ?? $l['legacyItemId'] ?? ''), 'sku' => (string) ($l['sku'] ?? $l['lineItemSKU'] ?? ''), 'description' => (string) ($l['name'] ?? $l['title'] ?? 'Articolo'), 'quantity' => (float) ($l['quantity'] ?? 1), 'unit_price' => (float) ($l['price'] ?? $l['lineItemCost']['value'] ?? 0), 'tax' => (float) ($l['total_tax'] ?? 0), 'total' => (float) ($l['total'] ?? $l['lineItemCost']['value'] ?? 0), 'raw' => $l], is_array($lines) ? $lines : [])];
+    }
+
+    private function verifySignature(array $channel, string $body, array $headers, array $credentials): bool
+    {
+        $header = static function (array $headers, string $name): string { foreach ($headers as $key => $value) { if (strcasecmp((string) $key, $name) === 0) { return is_array($value) ? (string) reset($value) : (string) $value; } } return ''; };
+        $secret = $credentials['webhook_secret'] ?? SecretResolver::resolve($channel['webhook_secret_reference'] ?? null);
+        if ($channel['platform'] === 'WOOCOMMERCE') { return hash_equals(base64_encode(hash_hmac('sha256', $body, $secret, true)), $header($headers, 'X-WC-Webhook-Signature')); }
+        if ($channel['platform'] === 'SHOPIFY') { return hash_equals(base64_encode(hash_hmac('sha256', $body, $secret, true)), $header($headers, 'X-Shopify-Hmac-Sha256')); }
+        return $secret !== '' && hash_equals(hash_hmac('sha256', $body, $secret), $header($headers, 'X-Luna-Signature'));
+    }
+
+    private function credentials(array $channel, bool $optional = false): array
+    {
+        try { $json = SecretResolver::resolve($channel['secret_reference'] ?? null); }
+        catch (Throwable $e) { if ($optional) { return []; } throw $e; }
+        $credentials = json_decode($json, true);
+        if (!is_array($credentials)) { throw new InvalidArgumentException('Il segreto del canale deve contenere JSON valido.'); }
+        return $credentials;
+    }
+
+    private function resolveCustomer(string $email): array
+    {
+        $customer = $email !== '' ? $this->one('SELECT * FROM customers WHERE organization_id = ? AND email = ? LIMIT 1', [$this->organizationId, $email]) : false;
+        if ($customer) { return $customer; }
+        $code = 'ECOM-' . strtoupper(substr(hash('sha256', $email ?: uniqid('', true)), 0, 10));
+        $name = $email !== '' ? $email : 'Cliente e-commerce';
+        $this->db->prepare('INSERT INTO customers (organization_id, code, business_name, email, country_code, active, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, \'IT\', 1, ?, ?, NOW(), NOW())')
+            ->execute([$this->organizationId, $code, $name, $email ?: null, $this->userId ?: null, $this->userId ?: null]);
+        return ['id' => (int) $this->db->lastInsertId(), 'business_name' => $name];
+    }
+
+    private function channel(int $id): array
+    {
+        $channel = $this->one('SELECT * FROM ecommerce_channels WHERE id = ? AND organization_id = ? AND active = 1', [$id, $this->organizationId]);
+        if (!$channel) { throw new InvalidArgumentException('Canale e-commerce non valido.'); }
+        return $channel;
+    }
+
+    private function one(string $sql, array $params): array|false { $s = $this->db->prepare($sql); $s->execute($params); return $s->fetch(); }
+    private function all(string $sql, array $params): array { $s = $this->db->prepare($sql); $s->execute($params); return $s->fetchAll(); }
+}
