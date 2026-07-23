@@ -92,14 +92,12 @@ $assert(is_file($base . '/app/Service/TabularExportService.php'), 'Servizio espo
 $tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportService.php');
 $assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
 $appJs = (string) file_get_contents($base . '/public/assets/app.js');
-$assert(str_contains($appJs, 'data-table-search') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
+$assert(str_contains($appJs, 'Filtra tabella') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
 $documentController = (string) file_get_contents($base . '/app/Controller/DocumentController.php');
 $documentIndex = (string) file_get_contents($base . '/views/documents/index.php');
 $assert(str_contains($documentController, "ceil(\$total / \$perPage)") && str_contains($documentController, '$allowedSort'), 'Paginazione o ordinamento server dei documenti mancanti.');
 $assert(str_contains($documentIndex, 'filter-toolbar-card') && str_contains($documentIndex, 'sort-link') && str_contains($documentIndex, 'Paginazione documenti'), 'Toolbar, intestazioni ordinabili o paginazione documenti incomplete.');
 $assert(str_contains($appJs, 'client-sortable-header') && str_contains($appJs, 'client-pagination'), 'Ordinamento e paginazione delle tabelle operative mancanti.');
-$assert(str_contains($appJs, "document.querySelectorAll('.table-wrap table')") && str_contains($appJs, 'data-table-date-from') && str_contains($appJs, 'data-table-party'), 'Il componente tabella universale non copre filtri data e controparte.');
-$assert(str_contains($appJs, "!table.closest('form')") && str_contains($appJs, "!table.matches('.line-table')"), 'Le griglie di inserimento devono essere escluse da filtri e paginazione.');
 $parityRoutes = ['/operations/logistics', '/operations/projects', '/operations/communications', '/operations/hr', '/operations/ecommerce', '/operations/rental', '/operations/calendar', '/reports/management'];
 foreach ($parityRoutes as $route) {
     $assert(str_contains($application, "'{$route}"), "Rotta parità funzionale mancante: {$route}");

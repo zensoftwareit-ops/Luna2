@@ -183,7 +183,7 @@
   const tableMatrix = (table) => {
     const ignored = [...table.querySelectorAll('thead th')].map((cell) =>
       cell.classList.contains('actions-column') || cell.classList.contains('selection-column') || cell.textContent.trim() === '');
-    return [...table.rows].filter((row) => row.closest('thead') || row.dataset.filterMatch !== '0').map((row) => [...row.cells]
+    return [...table.rows].filter((row) => !row.hidden).map((row) => [...row.cells]
       .filter((_, index) => !ignored[index])
       .map((cell) => cell.innerText.replace(/\s+/g, ' ').trim()));
   };
@@ -208,89 +208,42 @@
     const workbook = `\uFEFF<html xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table>${rows}</table></body></html>`;
     downloadBlob(workbook, 'application/vnd.ms-excel;charset=utf-8', 'xls', title);
   };
-  const dataTables = [...document.querySelectorAll('.table-wrap table')].filter((table) =>
-    !table.closest('form') && !table.matches('.line-table') && !table.closest('[data-no-table-tools]'));
-  const parseTableDate = (value) => {
-    const text = String(value || '').trim();
-    const italian = text.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    if (italian) return Date.UTC(Number(italian[3]), Number(italian[2]) - 1, Number(italian[1]));
-    const iso = text.match(/(\d{4})-(\d{2})-(\d{2})/);
-    return iso ? Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])) : null;
-  };
-  dataTables.filter((table) => !table.matches('.server-table,.selectable-table')).forEach((table, index) => {
-      const wrap = table.closest('.table-wrap');
+  if (!document.querySelector('.exportable-toolbar')) {
+    document.querySelectorAll('.card .table-wrap table').forEach((table, index) => {
+      if (table.closest('[data-no-table-export]')) return;
       const card = table.closest('.card');
-      const printContainer = card || table.closest('section') || wrap;
       const title = card?.querySelector('h1,h2')?.textContent.trim()
         || document.querySelector('.page-intro h1,.topbar-title strong')?.textContent.trim()
         || `Tabella ${index + 1}`;
-      const headers = [...(table.tHead?.rows[0]?.cells || [])].map((cell) => cell.textContent.replace(/\s+/g, ' ').trim());
-      const dateIndex = headers.findIndex((label) => /data|scadenza|periodo|inizio|fine|apert|generat|creat|aggiornat/i.test(label));
-      const partyIndex = headers.findIndex((label) => /cliente|fornitore|controparte|azienda/i.test(label));
-      const parties = partyIndex < 0 ? [] : [...new Set([...table.tBodies].flatMap((body) => [...body.rows])
-        .map((row) => row.cells[partyIndex]?.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'it'));
       const tools = document.createElement('div');
       tools.className = 'table-export-tools';
-      tools.innerHTML = '<div class="table-filter-fields"><label><span>Ricerca</span><input data-table-search type="search" placeholder="Cerca nelle righe…"></label></div><div class="table-output-actions"><span>Output</span><button type="button">PDF</button><button type="button">XLS</button><button type="button">CSV</button></div>';
-      const fields = tools.querySelector('.table-filter-fields');
-      if (dateIndex >= 0) fields.insertAdjacentHTML('beforeend', '<label><span>Dal</span><input data-table-date-from type="date"></label><label><span>Al</span><input data-table-date-to type="date"></label>');
-      if (partyIndex >= 0 && parties.length > 0 && parties.length <= 100) {
-        const select = document.createElement('select');
-        select.dataset.tableParty = '1';
-        select.innerHTML = '<option value="">Tutte</option>';
-        parties.forEach((partyName) => {
-          const option = document.createElement('option');
-          option.value = partyName;
-          option.textContent = partyName;
-          select.appendChild(option);
-        });
-        const label = document.createElement('label');
-        label.innerHTML = `<span>${headers[partyIndex]}</span>`;
-        label.appendChild(select);
-        fields.appendChild(label);
-      }
-      const localSearch = tools.querySelector('[data-table-search]');
-      const dateFrom = tools.querySelector('[data-table-date-from]');
-      const dateTo = tools.querySelector('[data-table-date-to]');
-      const party = tools.querySelector('[data-table-party]');
+      tools.innerHTML = '<label><span>Filtra tabella</span><input type="search" placeholder="Cerca nelle righe…"></label><span>Output</span><button type="button">PDF</button><button type="button">XLS</button><button type="button">CSV</button>';
+      const localSearch = tools.querySelector('input');
       const [pdfButton, xlsButton, csvButton] = tools.querySelectorAll('button');
-      const applyFilters = () => {
+      localSearch.addEventListener('input', () => {
         const needle = localSearch.value.trim().toLocaleLowerCase('it');
-        const fromTime = dateFrom?.value ? Date.parse(`${dateFrom.value}T00:00:00Z`) : null;
-        const toTime = dateTo?.value ? Date.parse(`${dateTo.value}T23:59:59Z`) : null;
         [...table.tBodies].flatMap((body) => [...body.rows]).forEach((row) => {
-          const textMatch = needle === '' || row.innerText.toLocaleLowerCase('it').includes(needle);
-          const rowTime = dateIndex >= 0 ? parseTableDate(row.cells[dateIndex]?.innerText) : null;
-          const dateMatch = (fromTime === null || (rowTime !== null && rowTime >= fromTime))
-            && (toTime === null || (rowTime !== null && rowTime <= toTime));
-          const rowParty = partyIndex >= 0 ? row.cells[partyIndex]?.innerText.replace(/\s+/g, ' ').trim() : '';
-          const partyMatch = !party?.value || rowParty === party.value;
-          row.dataset.filterMatch = textMatch && dateMatch && partyMatch ? '1' : '0';
+          row.dataset.filterMatch = needle === '' || row.innerText.toLocaleLowerCase('it').includes(needle) ? '1' : '0';
         });
         table.dispatchEvent(new CustomEvent('tablefilter'));
-      };
-      [localSearch, dateFrom, dateTo, party].filter(Boolean).forEach((control) => {
-        const eventName = control.tagName === 'INPUT' && control.type === 'search' ? 'input' : 'change';
-        control.addEventListener(eventName, applyFilters);
       });
       pdfButton.addEventListener('click', () => {
         document.body.classList.add('print-table');
-        printContainer?.classList.add('print-target');
-        printContainer?.setAttribute('data-print-title', title);
-        [...table.tBodies].flatMap((body) => [...body.rows]).forEach((row) => { row.hidden = row.dataset.filterMatch === '0'; });
+        card?.classList.add('print-target');
+        card?.setAttribute('data-print-title', title);
         window.print();
         setTimeout(() => {
           document.body.classList.remove('print-table');
-          printContainer?.classList.remove('print-target');
-          printContainer?.removeAttribute('data-print-title');
-          table.dispatchEvent(new CustomEvent('tablefilter'));
+          card?.classList.remove('print-target');
+          card?.removeAttribute('data-print-title');
         }, 300);
       });
       xlsButton.addEventListener('click', () => exportVisibleTable(table, 'xls', title));
       csvButton.addEventListener('click', () => exportVisibleTable(table, 'csv', title));
-      wrap?.insertAdjacentElement('beforebegin', tools);
-      applyFilters();
-  });
+      const header = card?.querySelector(':scope > .card-header');
+      if (header) header.appendChild(tools); else card?.insertBefore(tools, card.firstChild);
+    });
+  }
 
   const sortableValue = (cell) => {
     const value = (cell?.dataset.sortValue || cell?.innerText || '').replace(/\s+/g, ' ').trim();
@@ -300,7 +253,7 @@
     if (numeric !== '' && /^-?\d+(?:\.\d+)?$/.test(numeric)) return Number(numeric);
     return value.toLocaleLowerCase('it');
   };
-  dataTables.filter((table) => !table.matches('.server-table,.selectable-table')).forEach((table) => {
+  document.querySelectorAll('.card table:not(.server-table):not(.selectable-table)').forEach((table) => {
     const body = table.tBodies[0];
     const rows = body ? [...body.rows].filter((row) => !row.querySelector('.table-empty')) : [];
     const headers = [...(table.tHead?.rows[0]?.cells || [])];
@@ -323,6 +276,7 @@
       pager.querySelector('[data-client-page]').textContent = `Pagina ${page} di ${pages} · ${filtered.length} righe`;
       pager.querySelector('[data-client-prev]').disabled = page <= 1;
       pager.querySelector('[data-client-next]').disabled = page >= pages;
+      pager.hidden = filtered.length <= pageSize && pageSize === 25;
     };
     headers.forEach((header, index) => {
       if (header.classList.contains('actions-column') || header.classList.contains('selection-column') || header.textContent.trim() === '') return;
