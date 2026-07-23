@@ -39,7 +39,7 @@ final class ComplianceWorkspaceService
     public function all(): array
     {
         $statement = $this->db->prepare(
-            'SELECT f.*, u.name AS created_by_name, v.name AS validated_by_name, e.name AS endpoint_name
+            'SELECT f.*, u.name AS created_by_name, v.name AS validated_by_name, e.display_name AS endpoint_name
              FROM compliance_filing_runs f
              LEFT JOIN users u ON u.id = f.created_by
              LEFT JOIN users v ON v.id = f.validated_by
