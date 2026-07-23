@@ -260,6 +260,25 @@ $css = (string) file_get_contents($base . '/public/assets/app.css');
 $assert(substr_count($css, '{') === substr_count($css, '}'), 'Parentesi CSS non bilanciate.');
 $assert(str_contains($css, '.topbar-search') && str_contains($css, '.professional-section') && str_contains($css, '@media(prefers-reduced-motion:reduce)'), 'Design system professionale o accessibilitÃ  CSS incompleti.');
 
+$assert(
+    str_contains($css, '.page :where(input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),select,textarea)')
+    && str_contains($css, 'input[type="file"]::file-selector-button')
+    && str_contains($css, '.inline-form>input:not([type="hidden"])'),
+    'Il design system deve coprire tutti i controlli visibili, i file e i form compatti.'
+);
+$documentFormView = (string) file_get_contents($base . '/views/documents/form.php');
+$assert(
+    substr_count($documentFormView, 'class="field') >= 8
+    && !preg_match('/<label(?:\s+class="full-width")?>\s*<span>/', $documentFormView),
+    'Tutti i campi della testata documenti devono usare lo stile field.'
+);
+$importIndexView = (string) file_get_contents($base . '/views/imports/index.php');
+$assert(
+    str_contains($importIndexView, '<label class="field"><span>Tipo dati *')
+    && str_contains($importIndexView, '<label class="field"><span>File *'),
+    'Il form import deve applicare lo stile field anche a select e file.'
+);
+
 $endpointService = (string) file_get_contents($base . '/app/Service/EndpointConfigService.php');
 $assert(!preg_match('/\bcurl_|file_get_contents\s*\(\s*\$baseUrl|new\s+(?:Client|HttpClient)\b/', $endpointService), 'La configurazione endpoint non deve effettuare chiamate di rete.');
 $endpointView = (string) file_get_contents($base . '/views/settings/endpoints.php');
