@@ -60,6 +60,17 @@ return [
         ],
         'default' => true,
     ],
+    'professional' => [
+        'label' => 'Centro professionale',
+        'description' => 'Qualità dati, stampe numerate, fascicoli adempimenti e import bancari.',
+        'icon' => 'lock',
+        'required_tables' => [
+            'workspace_notifications', 'saved_views', 'onboarding_progress', 'bulk_operations',
+            'official_print_runs', 'compliance_filing_runs', 'bank_statement_imports',
+            'bank_reconciliation_suggestions',
+        ],
+        'default' => true,
+    ],
     'calendar' => [
         'label' => 'Calendario',
         'description' => 'Agenda operativa ed eventi sincronizzati.',

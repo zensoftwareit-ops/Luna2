@@ -8,6 +8,7 @@ use Luna\Core\Auth;
 use Luna\Core\ModuleManager;
 use Luna\Core\SystemHealth;
 use Throwable;
+use Luna\Service\WorkspaceService;
 
 final class DashboardController extends BaseController
 {
@@ -65,6 +66,11 @@ final class DashboardController extends BaseController
         }
 
         $migrations = SystemHealth::migrationStatus($this->db, dirname(__DIR__, 2));
-        $this->view->render('dashboard', compact('metrics', 'recentDocuments', 'deadlines', 'warnings', 'migrations', 'featureStates') + ['title' => 'Dashboard']);
+        $workspace = new WorkspaceService($this->db, $organizationId, Auth::id());
+        $onboarding = $workspace->onboarding();
+        $quality = $workspace->dataQuality();
+        $this->view->render('dashboard', compact(
+            'metrics', 'recentDocuments', 'deadlines', 'warnings', 'migrations', 'featureStates', 'onboarding', 'quality'
+        ) + ['title' => 'Dashboard']);
     }
 }

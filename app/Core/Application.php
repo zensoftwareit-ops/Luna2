@@ -22,6 +22,8 @@ use Luna\Controller\PlatformController;
 use Luna\Controller\ResourceController;
 use Luna\Controller\SettingsController;
 use Luna\Controller\TreasuryController;
+use Luna\Controller\WorkspaceController;
+use Luna\Controller\ProfessionalController;
 use Throwable;
 
 final class Application
@@ -85,7 +87,29 @@ final class Application
         $router->add('GET', '/r/{module}/export', [ResourceController::class, 'export']);
         $router->add('GET', '/r/{module}/{id}/edit', [ResourceController::class, 'edit']);
         $router->add('POST', '/r/{module}/save', [ResourceController::class, 'save']);
+        $router->add('POST', '/r/{module}/bulk', [ResourceController::class, 'bulk']);
         $router->add('POST', '/r/{module}/{id}/delete', [ResourceController::class, 'delete']);
+
+        $router->add('GET', '/workspace/search', [WorkspaceController::class, 'search']);
+        $router->add('GET', '/workspace/notifications', [WorkspaceController::class, 'notifications']);
+        $router->add('POST', '/workspace/notifications/read-all', [WorkspaceController::class, 'readAllNotifications']);
+        $router->add('POST', '/workspace/notifications/{id}/read', [WorkspaceController::class, 'readNotification']);
+        $router->add('GET', '/workspace/onboarding', [WorkspaceController::class, 'onboarding']);
+        $router->add('POST', '/workspace/onboarding/{key}', [WorkspaceController::class, 'onboardingStep']);
+        $router->add('POST', '/workspace/views', [WorkspaceController::class, 'saveView']);
+        $router->add('POST', '/workspace/views/{id}/delete', [WorkspaceController::class, 'deleteView']);
+
+        $router->add('GET', '/professional', [ProfessionalController::class, 'index']);
+        $router->add('POST', '/professional/prints', [ProfessionalController::class, 'generatePrint']);
+        $router->add('POST', '/professional/prints/{id}/validate', [ProfessionalController::class, 'validatePrint']);
+        $router->add('POST', '/professional/prints/{id}/lock', [ProfessionalController::class, 'lockPrint']);
+        $router->add('GET', '/professional/prints/{id}/download', [ProfessionalController::class, 'downloadPrint']);
+        $router->add('POST', '/professional/filings', [ProfessionalController::class, 'createFiling']);
+        $router->add('POST', '/professional/filings/{id}/status', [ProfessionalController::class, 'transitionFiling']);
+        $router->add('GET', '/professional/filings/{id}/download', [ProfessionalController::class, 'downloadFiling']);
+        $router->add('POST', '/professional/bank-statements', [ProfessionalController::class, 'importBankStatement']);
+        $router->add('POST', '/professional/reconciliation/suggest', [ProfessionalController::class, 'suggestReconciliation']);
+        $router->add('POST', '/professional/reconciliation/{id}/review', [ProfessionalController::class, 'reviewSuggestion']);
 
         $router->add('GET', '/documents/{type}', [DocumentController::class, 'index']);
         $router->add('GET', '/documents/{type}/create', [DocumentController::class, 'create']);

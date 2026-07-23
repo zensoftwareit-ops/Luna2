@@ -8,6 +8,7 @@ use Luna\Service\CalendarService;
 use Luna\Service\EcommerceService;
 use Luna\Service\MailService;
 use Luna\Service\RentalService;
+use Luna\Service\WorkspaceService;
 
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
@@ -90,14 +91,15 @@ try {
             $documents = $db->exec("UPDATE documents SET status = 'OVERDUE', updated_at = NOW() WHERE due_date < CURRENT_DATE() AND balance_due > 0 AND status IN ('ISSUED','RECEIVED','PARTIALLY_PAID')");
             $rental = $db->exec("UPDATE rental_deadlines SET status = 'OVERDUE', updated_at = NOW() WHERE due_date < CURRENT_DATE() AND status = 'OPEN'");
             $organizations = $db->query('SELECT id FROM organizations WHERE active = 1')->fetchAll(PDO::FETCH_COLUMN);
-            $jobs = ['mail_sent' => 0, 'commerce' => 0, 'calendar' => 0, 'rental_invoices' => 0, 'errors' => 0];
+            $jobs = ['mail_sent' => 0, 'commerce' => 0, 'calendar' => 0, 'rental_invoices' => 0, 'notifications' => 0, 'errors' => 0];
             foreach ($organizations as $organizationId) {
                 try { $result = (new MailService($db, (int) $organizationId))->processQueue(50); $jobs['mail_sent'] += $result['sent']; } catch (Throwable) { $jobs['errors']++; }
                 try { $result = (new EcommerceService($db, (int) $organizationId))->processQueue(25); $jobs['commerce'] += $result['processed']; } catch (Throwable) { $jobs['errors']++; }
                 try { $result = (new CalendarService($db, (int) $organizationId))->syncAll(); $jobs['calendar'] += $result['ok']; $jobs['errors'] += $result['failed']; } catch (Throwable) { $jobs['errors']++; }
                 try { $result = (new RentalService($db, (int) $organizationId))->runAutomations(); $jobs['rental_invoices'] += $result['invoices']; } catch (Throwable) { $jobs['errors']++; }
+                try { $jobs['notifications'] += (new WorkspaceService($db, (int) $organizationId, 0))->refreshOperationalNotifications(); } catch (Throwable) { $jobs['errors']++; }
             }
-            echo "Scadenze: fiscali {$tax}, documenti {$documents}, noleggio {$rental}. Job: mail {$jobs['mail_sent']}, e-commerce {$jobs['commerce']}, calendari {$jobs['calendar']}, fatture noleggio {$jobs['rental_invoices']}, errori {$jobs['errors']}.\n";
+            echo "Scadenze: fiscali {$tax}, documenti {$documents}, noleggio {$rental}. Job: mail {$jobs['mail_sent']}, e-commerce {$jobs['commerce']}, calendari {$jobs['calendar']}, fatture noleggio {$jobs['rental_invoices']}, notifiche {$jobs['notifications']}, errori {$jobs['errors']}.\n";
             break;
 
         default:

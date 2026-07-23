@@ -10,6 +10,7 @@ unset($_SESSION['flash']);
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $isSuperuser = Auth::isSuperuser();
 $features = $view->features();
+$workspace = $view->workspaceSummary();
 $enabled = static fn (string $key): bool => (bool) ($features[$key]['enabled'] ?? false);
 $active = static fn (string $prefix): string => str_starts_with($currentPath, $prefix) ? ' active' : '';
 $groups = [];
@@ -34,16 +35,17 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=5.0.0">
-    <script src="/assets/app.js?v=5.0.0" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=6.0.0">
+    <script src="/assets/app.js?v=6.0.0" defer></script>
 </head>
 <body>
+<a class="skip-link" href="#main-page">Vai al contenuto</a>
 <div class="app-shell">
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
             <a class="brand" href="<?= $isSuperuser ? '/settings/company' : '/dashboard' ?>" aria-label="Luna2">
                 <span class="brand-mark"><span>L</span></span>
-                <span class="brand-copy"><strong>Luna</strong><small>Gestionale</small></span>
+                <span class="brand-copy"><strong>Luna<span>2</span></strong><small>Business workspace</small></span>
             </a>
             <button class="sidebar-close" type="button" data-menu-close aria-label="Chiudi menu">×</button>
         </div>
@@ -56,6 +58,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 <a class="nav-link<?= $active('/settings/system') ?>" href="/settings/system"><?= View::icon('check') ?><span>Stato del sistema</span></a>
             <?php else: ?>
             <a class="nav-link<?= $active('/dashboard') ?>" href="/dashboard"><?= View::icon('home') ?><span>Dashboard</span></a>
+            <?php if ($enabled('professional')): ?><a class="nav-link<?= $active('/professional') ?>" href="/professional"><?= View::icon('lock') ?><span>Centro professionale</span></a><?php endif; ?>
 
             <?php if ($enabled('sales')): ?>
                 <details class="nav-group" <?= str_starts_with($currentPath, '/documents/') && !str_contains($currentPath, 'purchase-') ? 'open' : '' ?>>
@@ -143,6 +146,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
             <?php if ($enabled('imports')): ?>
                 <a class="nav-link<?= $active('/imports') ?>" href="/imports"><?= View::icon('upload') ?><span>Importazioni</span></a>
             <?php endif; ?>
+            <a class="nav-link<?= $active('/workspace/onboarding') ?>" href="/workspace/onboarding"><?= View::icon('check') ?><span>Prontezza operativa</span><small class="nav-progress"><?= (int) $workspace['readiness'] ?>%</small></a>
             <?php endif; ?>
         </nav>
 
@@ -162,7 +166,32 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
             <button class="menu-toggle" type="button" data-menu-toggle aria-label="Apri menu"><?= View::icon('menu') ?></button>
             <div class="topbar-title"><span><?= $isSuperuser ? 'Piattaforma' : 'Workspace' ?><?= Auth::organizationName() !== '' ? ' · ' . View::e(Auth::organizationName()) : '' ?></span><strong><?= View::e($title) ?></strong></div>
             <div class="topbar-actions">
-                <span class="environment-pill"><i></i> Online</span>
+                <?php if (!$isSuperuser): ?>
+                    <form class="topbar-search" action="/workspace/search" method="get" role="search">
+                        <?= View::icon('search') ?><input type="search" name="q" placeholder="Cerca ovunque…" aria-label="Ricerca globale" autocomplete="off"><kbd>/</kbd>
+                    </form>
+                    <details class="topbar-popover notification-popover">
+                        <summary class="icon-button" aria-label="Notifiche"><?= View::icon('bell') ?><?php if ($workspace['unread']): ?><span class="notification-count"><?= min(99, (int) $workspace['unread']) ?></span><?php endif; ?></summary>
+                        <div class="popover-panel">
+                            <div class="popover-head"><div><span class="section-kicker">Workspace</span><strong>Notifiche</strong></div><a href="/workspace/notifications">Vedi tutte</a></div>
+                            <div class="popover-list">
+                                <?php foreach ($workspace['notifications'] as $notification): ?><a href="<?= View::e($notification['action_url'] ?: '/workspace/notifications') ?>" class="<?= empty($notification['read_at']) ? 'unread' : '' ?>"><span class="notification-dot severity-<?= View::e(strtolower((string) $notification['severity'])) ?>"></span><span><strong><?= View::e($notification['title']) ?></strong><small><?= View::e($notification['message']) ?></small></span></a><?php endforeach; ?>
+                                <?php if (!$workspace['notifications']): ?><div class="popover-empty"><?= View::icon('check') ?><span>Nessuna attività urgente.</span></div><?php endif; ?>
+                            </div>
+                        </div>
+                    </details>
+                    <details class="topbar-popover help-popover">
+                        <summary class="icon-button" aria-label="Guida contestuale"><?= View::icon('help') ?></summary>
+                        <div class="popover-panel compact-panel">
+                            <div class="popover-head"><div><span class="section-kicker">Assistenza</span><strong>Guida rapida</strong></div></div>
+                            <a class="help-link" href="/workspace/onboarding"><?= View::icon('check') ?><span><strong>Configurazione guidata</strong><small>Controlla la prontezza aziendale</small></span></a>
+                            <a class="help-link" href="/professional#quality"><?= View::icon('alert') ?><span><strong>Qualità dati</strong><small>Verifica anomalie e quadrature</small></span></a>
+                            <a class="help-link" href="/imports"><?= View::icon('upload') ?><span><strong>Migrazione Koinos</strong><small>Carica, valida e riconcilia</small></span></a>
+                        </div>
+                    </details>
+                <?php else: ?>
+                    <span class="environment-pill"><i></i> Piattaforma operativa</span>
+                <?php endif; ?>
                 <?php if (!$isSuperuser && $enabled('sales')): ?>
                     <a class="quick-create" href="/documents/quotes/create"><?= View::icon('plus') ?><span>Nuovo</span></a>
                 <?php elseif (!$isSuperuser && $enabled('anagraphics')): ?>
@@ -170,7 +199,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 <?php endif; ?>
             </div>
         </header>
-        <div class="page">
+        <div class="page" id="main-page" tabindex="-1">
             <?php if ($flash): ?>
                 <div class="alert alert-<?= View::e($flash['type'] ?? 'success') ?>" role="status">
                     <?= View::icon(($flash['type'] ?? 'success') === 'error' ? 'alert' : 'check') ?>

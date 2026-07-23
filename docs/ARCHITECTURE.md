@@ -11,6 +11,8 @@ Luna2 PHP è una monolite modulare: un solo deploy Plesk, un solo database per i
 - le viste non eseguono query e fanno escaping dell’output;
 - le migrazioni sono SQL esplicito e rieseguibile;
 - file, import e credenziali non sono mai nella webroot.
+- ricerca, notifiche, viste salvate e onboarding sono servizi tenant-aware del workspace;
+- stampe, dossier e originali bancari sono archiviati in `storage/private` con checksum.
 
 ## Modello dati
 

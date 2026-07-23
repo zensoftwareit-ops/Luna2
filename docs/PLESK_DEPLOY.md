@@ -49,9 +49,17 @@ Creare da **Attività pianificate → Aggiungi attività → Esegui un comando**
 /opt/plesk/php/8.4/bin/php /percorso/luna2-php/bin/luna cron:daily
 ```
 
-Il task elabora in modo idempotente e-mail, code marketplace, calendari, ticket/SLA, rinnovi e fatture ricorrenti. Il futuro adapter SDI resta separato e verrà attivato solo dopo la scelta del provider.
+Il task elabora in modo idempotente e-mail, code marketplace, calendari, ticket/SLA, rinnovi, fatture ricorrenti e notifiche del workspace. Il futuro adapter SDI resta separato e verrà attivato solo dopo la scelta del provider.
 
-Per questa release eseguire `migrate` sul database esistente: non cancellarlo. Deve comparire `008_full_erp_parity.sql`; al termine controllare **Stato del sistema**. Le credenziali e gli esempi di collaudo sono in [ERP_PARITY_RELEASE.md](ERP_PARITY_RELEASE.md).
+Per questa release eseguire `migrate` sul database esistente: non cancellarlo. Devono comparire `008_full_erp_parity.sql` e `009_professional_workspace.sql`; al termine controllare **Stato del sistema**. La `009` aggiunge soltanto strutture incrementali per workspace, stampe, fascicoli e import bancari. Le credenziali e gli esempi di collaudo sono in [ERP_PARITY_RELEASE.md](ERP_PARITY_RELEASE.md).
+
+Dopo la migrazione accedere con un utente aziendale `OWNER`, `ADMIN` o `ACCOUNTANT` e aprire **Centro professionale**. Verificare:
+
+1. checklist e controlli qualità;
+2. generazione di una stampa di prova;
+3. presenza dei conti bancari configurati;
+4. caricamento di un estratto conto campione;
+5. comparsa delle notifiche dopo l’esecuzione del task pianificato.
 
 ## Backup e rollback
 

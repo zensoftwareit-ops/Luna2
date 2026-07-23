@@ -89,6 +89,14 @@ $parityRoutes = ['/operations/logistics', '/operations/projects', '/operations/c
 foreach ($parityRoutes as $route) {
     $assert(str_contains($application, "'{$route}"), "Rotta parità funzionale mancante: {$route}");
 }
+$workspaceRoutes = [
+    '/workspace/search', '/workspace/notifications', '/workspace/onboarding', '/workspace/views',
+    '/professional', '/professional/prints', '/professional/filings', '/professional/bank-statements',
+    '/professional/reconciliation/suggest',
+];
+foreach ($workspaceRoutes as $route) {
+    $assert(str_contains($application, "'{$route}"), "Rotta workspace professionale mancante: {$route}");
+}
 $parityServices = ['DocumentWorkflowService','InventoryService','ProjectService','MailService','LeaveService','EcommerceService','RentalService','CalendarService','PayrollService','ManagementReportService'];
 foreach ($parityServices as $service) {
     $assert(is_file($base . '/app/Service/' . $service . '.php'), "Servizio parità mancante: {$service}");
@@ -120,6 +128,14 @@ $advancedAccountingTables = [
 foreach ($advancedAccountingTables as $table) {
     $assert(isset($tableSchemas[$table]), "Tabella contabile avanzata mancante: {$table}");
 }
+$professionalTables = [
+    'user_preferences', 'saved_views', 'workspace_notifications', 'onboarding_progress', 'bulk_operations',
+    'official_print_runs', 'compliance_filing_runs', 'bank_statement_imports', 'bank_reconciliation_suggestions',
+];
+foreach ($professionalTables as $table) {
+    $assert(isset($tableSchemas[$table]), "Tabella workspace professionale mancante: {$table}");
+}
+$assert(str_contains($tableSchemas['bank_transactions'] ?? '', 'bank_statement_import_id ALTERED'), 'Collegamento tra movimenti ed estratti conto mancante.');
 $assert(str_contains($schema, "normal_balance ENUM('DEBIT','CREDIT')") && str_contains($schema, 'statement_section'), 'Classificazione avanzata del piano dei conti mancante.');
 $assert(str_contains($schema, 'secret_reference') && !str_contains($schema, 'secret_value'), 'Gli endpoint devono memorizzare riferimenti e non segreti.');
 $assert(is_file($base . '/views/accounting/vat-registers.php') && is_file($base . '/views/accounting/vat-settlements.php') && is_file($base . '/views/accounting/vat-settlement.php'), 'Interfaccia IVA incompleta.');
@@ -172,6 +188,77 @@ try {
 } catch (Throwable $exception) {
     $assert(false, 'Errore rendering pannelli operativi: ' . $exception->getMessage());
 }
+try {
+    $_SERVER['REQUEST_URI'] = '/r/customers';
+    $renderedWorkspace = [];
+    $renderedWorkspace[] = $renderView('workspace/search', ['query' => 'rossi', 'results' => []]);
+    $renderedWorkspace[] = $renderView('workspace/notifications', ['notifications' => []]);
+    $renderedWorkspace[] = $renderView('workspace/onboarding', [
+        'onboarding' => ['percentage' => 0, 'completed' => 0, 'total' => 1, 'steps' => [[
+            'key' => 'company', 'title' => 'Profilo aziendale', 'description' => 'Dati fiscali',
+            'url' => '/settings/company', 'automatic' => true, 'manual' => false, 'completed' => false, 'notes' => null,
+        ]]],
+        'quality' => [['label' => 'Scritture contabili quadrate', 'count' => 0, 'ok' => true, 'url' => '/accounting/journal', 'severity' => 'danger']],
+    ]);
+    $renderedWorkspace[] = $renderView('professional/index', [
+        'prints' => [], 'filings' => [], 'imports' => [], 'suggestions' => [],
+        'quality' => [['label' => 'Scritture contabili quadrate', 'count' => 0, 'ok' => true, 'url' => '/accounting/journal', 'severity' => 'danger']],
+        'bankAccounts' => [], 'endpoints' => [],
+        'printTypes' => ['JOURNAL' => 'Libro giornale'], 'filingTypes' => ['F24' => 'Deleghe F24'],
+    ]);
+    $resourceModule = [
+        'group' => 'Anagrafiche', 'title' => 'Clienti', 'singular' => 'Cliente',
+        'columns' => ['business_name', 'active'],
+        'fields' => [
+            'business_name' => ['label' => 'Ragione sociale', 'type' => 'text'],
+            'active' => ['label' => 'Attivo', 'type' => 'checkbox'],
+        ],
+    ];
+    $renderedWorkspace[] = $renderView('resource/index', [
+        'slug' => 'customers', 'module' => $resourceModule, 'rows' => [], 'search' => '',
+        'filters' => ['active' => ''], 'filterFields' => ['active' => $resourceModule['fields']['active']],
+        'sort' => 'id', 'direction' => 'DESC', 'perPage' => 50, 'page' => 1, 'pages' => 1,
+        'total' => 0, 'savedViews' => [],
+    ]);
+    $joinedWorkspace = implode("\n", $renderedWorkspace);
+    $assert(str_contains($joinedWorkspace, 'Centro professionale') && str_contains($joinedWorkspace, 'Prontezza operativa'), 'Rendering workspace professionale incompleto.');
+    $assert(str_contains($joinedWorkspace, 'Operazione massiva') && str_contains($joinedWorkspace, 'Ricerca globale'), 'Rendering UX archivi o ricerca incompleto.');
+    if (class_exists(DOMDocument::class)) {
+        foreach ($renderedWorkspace as $index => $html) {
+            $dom = new DOMDocument();
+            $previous = libxml_use_internal_errors(true);
+            $loaded = $dom->loadHTML('<!doctype html><html><body><main>' . $html . '</main></body></html>', LIBXML_NONET);
+            libxml_clear_errors();
+            libxml_use_internal_errors($previous);
+            $assert($loaded, "HTML non analizzabile nella vista workspace {$index}.");
+            $ids = [];
+            foreach ($dom->getElementsByTagName('*') as $element) {
+                if ($element->hasAttribute('id')) {
+                    $id = $element->getAttribute('id');
+                    $assert(!isset($ids[$id]), "ID HTML duplicato {$id} nella vista workspace {$index}.");
+                    $ids[$id] = true;
+                }
+            }
+        }
+    }
+} catch (Throwable $exception) {
+    $assert(false, 'Errore rendering workspace professionale: ' . $exception->getMessage());
+}
+$workspaceService = (string) file_get_contents($base . '/app/Service/WorkspaceService.php');
+$complianceWorkspaceService = (string) file_get_contents($base . '/app/Service/ComplianceWorkspaceService.php');
+$officialPrintService = (string) file_get_contents($base . '/app/Service/OfficialPrintService.php');
+$assert(!str_contains($workspaceService, "status = 'COMMITTED'") && !str_contains($workspaceService, "'INVALID','FAILED','PARTIAL'"), 'Stati import non compatibili con lo schema.');
+$assert(!str_contains($complianceWorkspaceService, 'api_endpoint_configs WHERE id = ? AND organization_id = ? AND active = 1'), 'Gli endpoint professionali devono usare il campo enabled.');
+$assert(!str_contains($complianceWorkspaceService, 'lipe_communications WHERE organization_id = ? AND period_year'), 'Il fascicolo LIPE usa colonne non presenti.');
+$assert(!str_contains($complianceWorkspaceService, 'reverse_charge = 1') && !str_contains($officialPrintService, 'civil_accumulated_depreciation'), 'Query professionali non allineate allo schema contabile.');
+$professionalServices = ['WorkspaceService', 'BankStatementService', 'OfficialPrintService', 'ComplianceWorkspaceService'];
+foreach ($professionalServices as $service) {
+    $assert(is_file($base . '/app/Service/' . $service . '.php'), "Servizio workspace professionale mancante: {$service}");
+}
+$css = (string) file_get_contents($base . '/public/assets/app.css');
+$assert(substr_count($css, '{') === substr_count($css, '}'), 'Parentesi CSS non bilanciate.');
+$assert(str_contains($css, '.topbar-search') && str_contains($css, '.professional-section') && str_contains($css, '@media(prefers-reduced-motion:reduce)'), 'Design system professionale o accessibilitÃ  CSS incompleti.');
+
 $endpointService = (string) file_get_contents($base . '/app/Service/EndpointConfigService.php');
 $assert(!preg_match('/\bcurl_|file_get_contents\s*\(\s*\$baseUrl|new\s+(?:Client|HttpClient)\b/', $endpointService), 'La configurazione endpoint non deve effettuare chiamate di rete.');
 $endpointView = (string) file_get_contents($base . '/views/settings/endpoints.php');

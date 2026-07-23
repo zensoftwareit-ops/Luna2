@@ -10,7 +10,7 @@ Le note ufficiali DATEV mostrano che la gestione contabile comprende, oltre alla
 - [Portale DATEV Koinos](https://www.datev.it/)
 - [DK Konto e riconciliazione bancaria](https://dkkonto.datev.it/)
 
-## Operativo in Luna2 4.0
+## Operativo in Luna2 6.0
 
 | Funzione | Copertura |
 |---|---|
@@ -24,8 +24,8 @@ Le note ufficiali DATEV mostrano che la gestione contabile comprende, oltre alla
 | Blocco periodo IVA | Liquidazioni definitive/pagate impediscono la modifica dei movimenti; riapertura esplicita e auditata |
 | Storico esistente | Sincronizzazione idempotente dei documenti già emessi/ricevuti nei registri IVA |
 | Piano dei conti avanzato | Gerarchia, saldo naturale, conti movimentabili, classificazione civilistica/fiscale e mappature degli automatismi |
-| Tesoreria | Partite, scadenze, incassi/pagamenti, riconciliazione bancaria parziale/totale e storni controllati |
-| Adempimenti | Rettifiche, prospetti di raccordo LIPE/IVA annuale versionati e non trasmissibili, revisione e blocco solo senza anomalie |
+| Tesoreria | Partite, scadenze, incassi/pagamenti, estratti CSV/CAMT.053/MT940, riconciliazione assistita parziale/totale e storni controllati |
+| Adempimenti | Rettifiche, prospetti LIPE/IVA annuale, dossier di controllo versionati e non telematici, revisione e blocco solo senza anomalie |
 | Bilancio e chiusure | Conto economico/stato patrimoniale riclassificati, ratei/risconti, chiusura e apertura anche per esercizi non solari |
 | Cespiti e ritenute | Quote civilistiche/fiscali, scritture automatiche, ritenute e scadenza del versamento |
 
@@ -44,8 +44,8 @@ Le note ufficiali DATEV mostrano che la gestione contabile comprende, oltre alla
 | P1 | Ritenute, professionisti e principio di cassa | Workflow implementato; aliquote e casistiche del cliente da validare col consulente |
 | P1 | Regime del margine e altri regimi speciali | Implementare soltanto quelli effettivamente utilizzati |
 | P1 | Cespiti civilistici/fiscali e ammortamenti | Workflow implementato; registro e scritture annuali devono quadrare con Koinos |
-| P1 | Banche e riconciliazione | Matching manuale implementato; saldi e movimenti devono coincidere con gli estratti conto |
-| P1 | Stampe ufficiali e conservazione | PDF numerati, auditati e conservati secondo il processo concordato |
+| P1 | Banche e riconciliazione | Import e matching assistito implementati; saldi, duplicati e movimenti devono coincidere con gli estratti conto |
+| P1 | Stampe ufficiali e conservazione | PDF numerati, hash, validazione e blocco implementati; conservazione a norma da concordare col provider |
 
 ## Evidenze richieste al primo cliente
 

@@ -21,6 +21,10 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 - adapter WooCommerce, Shopify, Amazon SP-API ed eBay per ordini, catalogo, stock e prezzi;
 - automazioni noleggio/ticket, calendari Google/iCloud/CalDAV e report direzionale XLSX a otto fogli;
 - payroll controllato: simulazioni separate dal percorso di produzione basato su cedolini certificati e validazione professionale;
+- centro professionale con qualità dati, stampe numerate e validate, fascicoli fiscali controllati e archivio con checksum;
+- import estratti conto CSV, CAMT.053 e MT940 con deduplica e proposte motivate di riconciliazione;
+- ricerca globale, notifiche operative, viste salvate, filtri avanzati, paginazione e operazioni massive sugli archivi;
+- checklist di avviamento aziendale con controlli automatici e passaggi di collaudo espliciti;
 - area `SUPERUSER` per creare aziende e utenti, reimpostare gli accessi e configurare i moduli;
 - diagnostica integrata per migrazioni, tabelle, estensioni PHP e permessi storage;
 - log degli errori con codice di riferimento, senza esporre dettagli tecnici agli utenti.
@@ -29,7 +33,7 @@ Solo il `SUPERUSER` di piattaforma vede **Aziende e utenti**, **Gestione moduli*
 
 ## Stato del progetto
 
-Questa è la release candidate funzionalmente completa della riscrittura PHP. Il via libera al primo cliente resta subordinato alla quadratura di un export DATEV reale, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma e formato proprietario Koinos restano dipendenze esterne. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo della release in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
+Questa è la release candidate 6.0 della riscrittura PHP. Il via libera al primo cliente resta subordinato alla quadratura di un export DATEV reale, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo della release in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
 
 ## Requisiti
 
@@ -89,7 +93,7 @@ Gli URL del futuro servizio si configurano in **Contabilità → Endpoint e-invo
 composer test
 ```
 
-Il test esegue il lint di tutti i file PHP, controlla che ogni modulo configurato abbia tabella e colonne nelle migrazioni e cerca credenziali accidentalmente versionate.
+Il test esegue il lint di tutti i file PHP, controlla schema e rotte, renderizza le viste principali, verifica i contratti HTML/CSS e cerca credenziali accidentalmente versionate.
 
 ## Struttura
 

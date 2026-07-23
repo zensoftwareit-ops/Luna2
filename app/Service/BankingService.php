@@ -80,8 +80,9 @@ final class BankingService
         $statement = $this->db->prepare(
             "INSERT INTO bank_transactions
              (organization_id, bank_account_id, booking_date, value_date, amount, currency, description,
-              counterparty, reference, external_id, import_hash, reconciliation_status, reconciled_amount, notes, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNMATCHED', 0, ?, NOW())"
+              counterparty, reference, external_id, import_hash, reconciliation_status, reconciled_amount, notes,
+              bank_statement_import_id, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'UNMATCHED', 0, ?, ?, NOW())"
         );
         try {
             $statement->execute([
@@ -89,6 +90,7 @@ final class BankingService
                 !empty($data['value_date']) ? $this->date((string) $data['value_date']) : null,
                 $amount, $bank['currency'], $description, $this->nullable($data['counterparty'] ?? null),
                 $this->nullable($data['reference'] ?? null), $externalId, $hash, $this->nullable($data['notes'] ?? null),
+                !empty($data['bank_statement_import_id']) ? (int) $data['bank_statement_import_id'] : null,
             ]);
         } catch (Throwable $exception) {
             if (str_contains(strtolower($exception->getMessage()), 'duplicate')) {

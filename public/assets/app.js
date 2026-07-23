@@ -22,6 +22,74 @@
 
   document.querySelector('[data-history-back]')?.addEventListener('click', () => window.history.back());
 
+  const globalSearch = document.querySelector('.topbar-search input[type="search"]');
+  document.addEventListener('keydown', (event) => {
+    const target = event.target;
+    const isTyping = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target?.isContentEditable;
+    if (event.key === '/' && !isTyping && globalSearch) {
+      event.preventDefault();
+      globalSearch.focus();
+      globalSearch.select();
+    }
+  });
+
+  document.querySelector('[data-filter-toggle]')?.addEventListener('click', () => {
+    document.querySelector('[data-filter-panel]')?.classList.toggle('open');
+  });
+
+  const rowSelectors = [...document.querySelectorAll('[data-row-select]')];
+  const selectAll = document.querySelector('[data-select-all]');
+  const selectionCount = document.querySelector('[data-selection-count]');
+  const bulkSubmit = document.querySelector('[data-bulk-submit]');
+  const refreshSelection = () => {
+    const selected = rowSelectors.filter((input) => input.checked).length;
+    if (selectionCount) selectionCount.textContent = `${selected} selezionat${selected === 1 ? 'o' : 'i'}`;
+    if (bulkSubmit) bulkSubmit.disabled = selected === 0;
+    if (selectAll) {
+      selectAll.checked = selected > 0 && selected === rowSelectors.length;
+      selectAll.indeterminate = selected > 0 && selected < rowSelectors.length;
+    }
+  };
+  selectAll?.addEventListener('change', () => {
+    rowSelectors.forEach((input) => { input.checked = selectAll.checked; });
+    refreshSelection();
+  });
+  rowSelectors.forEach((input) => input.addEventListener('change', refreshSelection));
+  refreshSelection();
+
+  document.querySelectorAll('.topbar-popover').forEach((popover) => {
+    popover.addEventListener('toggle', () => {
+      if (!popover.open) return;
+      document.querySelectorAll('.topbar-popover[open]').forEach((other) => {
+        if (other !== popover) other.removeAttribute('open');
+      });
+    });
+  });
+  document.addEventListener('click', (event) => {
+    document.querySelectorAll('.topbar-popover[open]').forEach((popover) => {
+      if (!popover.contains(event.target)) popover.removeAttribute('open');
+    });
+  });
+
+  document.querySelectorAll('.file-drop input[type="file"]').forEach((input) => {
+    input.addEventListener('change', () => {
+      const label = input.closest('.file-drop');
+      const strong = label?.querySelector('strong');
+      if (strong && input.files?.[0]) strong.textContent = input.files[0].name;
+      label?.classList.toggle('has-file', Boolean(input.files?.length));
+    });
+  });
+
+  document.querySelectorAll('form').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      if (event.defaultPrevented) return;
+      const button = form.querySelector('button[type="submit"]:focus');
+      if (!button || button.dataset.noBusy !== undefined) return;
+      button.classList.add('is-busy');
+      button.setAttribute('aria-busy', 'true');
+    });
+  });
+
   document.querySelectorAll('.module-checkbox').forEach((checkbox) => {
     const refresh = () => {
       const card = checkbox.closest('.module-card');

@@ -8,7 +8,7 @@ Dopo il pull del branch `luna2-php`, eseguire da **Plesk → Siti web e domini �
 /opt/plesk/php/8.4/bin/php /var/www/vhosts/DOMINIO/httpdocs/bin/luna migrate
 ```
 
-La migrazione `008_full_erp_parity.sql` è incrementale: non cancellare il database esistente. Poi aprire **Stato del sistema** e verificare che tutte le migrazioni risultino applicate.
+Le migrazioni `008_full_erp_parity.sql` e `009_professional_workspace.sql` sono incrementali: non cancellare il database esistente. La `009` aggiunge centro professionale, notifiche, viste salvate, checklist, stampe controllate e import bancari. Poi aprire **Stato del sistema** e verificare che tutte le migrazioni risultino applicate.
 
 Il task ricorrente consigliato, ogni 5 minuti, è:
 
@@ -16,7 +16,20 @@ Il task ricorrente consigliato, ogni 5 minuti, è:
 /opt/plesk/php/8.4/bin/php /var/www/vhosts/DOMINIO/httpdocs/bin/luna cron:daily
 ```
 
-Il comando è idempotente e gestisce code e-mail/e-commerce, calendari, SLA e fatture ricorrenti. Il nome storico `cron:daily` non impedisce una frequenza più alta.
+Il comando è idempotente e gestisce code e-mail/e-commerce, calendari, SLA, fatture ricorrenti e notifiche operative. Il nome storico `cron:daily` non impedisce una frequenza più alta.
+
+## Centro professionale
+
+L’area è disponibile a `OWNER`, `ADMIN` e `ACCOUNTANT` quando i moduli **Contabilità** e **Centro professionale** sono attivi. Comprende:
+
+- controlli di qualità e collegamento alla checklist di avviamento;
+- libro giornale, bilancio di verifica, registri IVA e registro cespiti in PDF numerato con checksum;
+- validazione esplicita e blocco delle stampe;
+- dossier JSON di controllo per F24, Intrastat, CU, 770, IVA annuale, LIPE, XBRL, Redditi e IRAP;
+- import estratti conto CSV, CAMT.053 e MT940;
+- suggerimenti di riconciliazione basati su importo, data, controparte e riferimento.
+
+I dossier fiscali sono artefatti di controllo: non sono file telematici ministeriali e non effettuano invii. Lo stato `SUBMITTED` registra esclusivamente un invio compiuto tramite un endpoint esterno configurato.
 
 ## Segreti degli adapter
 
@@ -57,3 +70,7 @@ Il file accetta separatore virgola o punto e virgola e numeri sia italiani sia i
 - esportare e riaprire il report direzionale XLSX;
 - sincronizzare un evento in entrambe le direzioni;
 - importare un cedolino campione e verificarne la quadratura.
+- generare, validare, scaricare e bloccare una stampa contabile campione;
+- creare un dossier fiscale, risolverne le anomalie e provarne il workflow fino a `READY`;
+- importare un estratto conto campione, verificare duplicati e accettare/scartare le proposte di riconciliazione;
+- controllare ricerca globale, filtri, viste salvate, operazioni massive e responsive su desktop/mobile.

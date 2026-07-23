@@ -6,6 +6,7 @@ namespace Luna\Controller;
 
 use InvalidArgumentException;
 use Luna\Core\Auth;
+use Luna\Service\WorkspaceService;
 
 final class ResourceController extends BaseController
 {
@@ -13,10 +14,27 @@ final class ResourceController extends BaseController
     {
         $module = $this->module($slug);
         $this->requireModuleReadRole($module);
-        $search = trim((string) ($_GET['q'] ?? ''));
+        $searchInput = $_GET['q'] ?? '';
+        $search = is_scalar($searchInput) ? trim((string) $searchInput) : '';
+        $filters = is_array($_GET['filters'] ?? null) ? $_GET['filters'] : [];
+        $filterFields = array_filter(
+            $module['fields'],
+            static fn (array $field): bool => in_array($field['type'] ?? '', ['select', 'date', 'checkbox'], true),
+        );
+        $sortInput = $_GET['sort'] ?? 'id';
+        $sort = is_scalar($sortInput) ? (string) $sortInput : 'id';
+        if (!in_array($sort, array_merge(['id'], $module['columns']), true)) {
+            $sort = 'id';
+        }
+        $directionInput = $_GET['direction'] ?? 'DESC';
+        $direction = is_scalar($directionInput) && strtoupper((string) $directionInput) === 'ASC' ? 'ASC' : 'DESC';
+        $perPageInput = $_GET['per_page'] ?? 50;
+        $perPage = is_scalar($perPageInput) ? (int) $perPageInput : 50;
+        $perPage = in_array($perPage, [25, 50, 100, 250], true) ? $perPage : 50;
+        $pageInput = $_GET['page'] ?? 1;
+        $page = max(1, is_scalar($pageInput) ? (int) $pageInput : 1);
         $columns = array_values(array_unique(array_merge(['id'], $module['columns'])));
-        $sql = 'SELECT ' . implode(', ', array_map([$this, 'identifier'], $columns))
-            . ' FROM ' . $this->identifier($module['table']) . ' WHERE organization_id = :organization_id';
+        $where = ' FROM ' . $this->identifier($module['table']) . ' WHERE organization_id = :organization_id';
         $params = ['organization_id' => Auth::organizationId()];
 
         if ($search !== '' && !empty($module['search'])) {
@@ -26,14 +44,35 @@ final class ResourceController extends BaseController
                 $parts[] = $this->identifier($column) . " LIKE :{$key}";
                 $params[$key] = '%' . $search . '%';
             }
-            $sql .= ' AND (' . implode(' OR ', $parts) . ')';
+            $where .= ' AND (' . implode(' OR ', $parts) . ')';
         }
-        $sql .= ' ORDER BY id DESC LIMIT 250';
+        foreach ($filterFields as $field => $settings) {
+            $value = $filters[$field] ?? null;
+            if ($value === null || $value === '' || !is_scalar($value)) {
+                continue;
+            }
+            $key = 'filter_' . $field;
+            $where .= ' AND ' . $this->identifier($field) . " = :{$key}";
+            $params[$key] = ($settings['type'] ?? '') === 'checkbox' ? (int) (bool) $value : $value;
+        }
+        $count = $this->db->prepare('SELECT COUNT(*)' . $where);
+        $count->execute($params);
+        $total = (int) $count->fetchColumn();
+        $pages = max(1, (int) ceil($total / $perPage));
+        $page = min($page, $pages);
+        $offset = ($page - 1) * $perPage;
+        $sql = 'SELECT ' . implode(', ', array_map([$this, 'identifier'], $columns)) . $where
+            . ' ORDER BY ' . $this->identifier($sort) . ' ' . $direction
+            . ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
         $statement = $this->db->prepare($sql);
         $statement->execute($params);
         $rows = $statement->fetchAll();
+        $savedViews = (new WorkspaceService($this->db, Auth::organizationId(), Auth::id()))->savedViews($slug);
 
-        $this->view->render('resource/index', compact('slug', 'module', 'rows', 'search') + ['title' => $module['title']]);
+        $this->view->render('resource/index', compact(
+            'slug', 'module', 'rows', 'search', 'filters', 'filterFields', 'sort', 'direction',
+            'perPage', 'page', 'pages', 'total', 'savedViews'
+        ) + ['title' => $module['title']]);
     }
 
     public function create(string $slug): never
@@ -156,6 +195,60 @@ final class ResourceController extends BaseController
         exit;
     }
 
+    public function bulk(string $slug): never
+    {
+        $module = $this->module($slug);
+        $this->requireModuleWriteRole($module);
+        $ids = array_values(array_unique(array_filter(
+            array_map('intval', is_array($_POST['ids'] ?? null) ? $_POST['ids'] : []),
+            static fn (int $id): bool => $id > 0,
+        )));
+        $ids = array_slice($ids, 0, 250);
+        $operation = (string) ($_POST['operation'] ?? '');
+        if ($ids === []) {
+            $this->redirect('/r/' . $slug, 'Selezionare almeno un record.', 'error');
+        }
+        if (!in_array($operation, ['export', 'activate', 'deactivate'], true)) {
+            $this->redirect('/r/' . $slug, 'Operazione massiva non disponibile.', 'error');
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $tenantParams = array_merge($ids, [Auth::organizationId()]);
+        if ($operation === 'export') {
+            $columns = array_values(array_unique(array_merge(['id'], $module['columns'])));
+            $statement = $this->db->prepare(
+                'SELECT ' . implode(', ', array_map([$this, 'identifier'], $columns))
+                . ' FROM ' . $this->identifier($module['table'])
+                . " WHERE id IN ({$placeholders}) AND organization_id = ? ORDER BY id"
+            );
+            $statement->execute($tenantParams);
+            $this->recordBulk($slug, $operation, $ids, count($ids), 0);
+            header('Content-Type: text/csv; charset=UTF-8');
+            header('Content-Disposition: attachment; filename="' . $slug . '-selezione-' . date('Ymd-His') . '.csv"');
+            $output = fopen('php://output', 'wb');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, $columns, ';');
+            while ($row = $statement->fetch()) {
+                fputcsv($output, array_map(static fn (string $column): mixed => $row[$column] ?? null, $columns), ';');
+            }
+            fclose($output);
+            exit;
+        }
+
+        if (!isset($module['fields']['active'])) {
+            $this->redirect('/r/' . $slug, 'Questo archivio non supporta attivazione e disattivazione massive.', 'error');
+        }
+        $statement = $this->db->prepare(
+            'UPDATE ' . $this->identifier($module['table']) . ' SET active = ?, updated_at = NOW()'
+            . " WHERE id IN ({$placeholders}) AND organization_id = ?"
+        );
+        $statement->execute(array_merge([$operation === 'activate' ? 1 : 0], $tenantParams));
+        $processed = $statement->rowCount();
+        $this->recordBulk($slug, $operation, $ids, $processed, count($ids) - $processed);
+        $this->audit(strtoupper($operation), $module['table'], null, ['ids' => $ids]);
+        $this->redirect('/r/' . $slug, "{$processed} record aggiornati.");
+    }
+
     private function module(string $slug): array
     {
         $module = $this->config['modules'][$slug] ?? null;
@@ -216,5 +309,25 @@ final class ResourceController extends BaseController
             default => ['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'HR', 'VIEWER'],
         };
         $this->requireRoles($roles);
+    }
+
+    private function recordBulk(string $slug, string $operation, array $ids, int $processed, int $failed): void
+    {
+        try {
+            $statement = $this->db->prepare(
+                "INSERT INTO bulk_operations
+                 (organization_id, user_id, module_key, operation, selection_json, status,
+                  processed_count, failed_count, result_json, started_at, completed_at, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())"
+            );
+            $statement->execute([
+                Auth::organizationId(), Auth::id(), $slug, strtoupper($operation),
+                json_encode($ids, JSON_THROW_ON_ERROR),
+                $failed > 0 ? 'PARTIAL' : 'COMPLETED', $processed, $failed,
+                json_encode(['processed' => $processed, 'failed' => $failed], JSON_THROW_ON_ERROR),
+            ]);
+        } catch (\Throwable) {
+            // La funzione principale non deve fallire se il registro massivo non è ancora migrato.
+        }
     }
 }

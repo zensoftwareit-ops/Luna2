@@ -11,6 +11,25 @@
     </div>
 </section>
 
+<?php $qualityIssues = array_sum(array_map(static fn (array $row): int => $row['ok'] ? 0 : (int) $row['count'], $quality)); ?>
+<section class="workspace-health-strip">
+    <a href="/workspace/onboarding" class="workspace-health-item">
+        <span class="health-ring" style="--progress:<?= (int) $onboarding['percentage'] ?>"><?= (int) $onboarding['percentage'] ?>%</span>
+        <span><strong>Configurazione aziendale</strong><small><?= (int) $onboarding['completed'] ?> di <?= (int) $onboarding['total'] ?> passaggi verificati</small></span>
+        <?= View::icon('chevron') ?>
+    </a>
+    <a href="/professional#quality" class="workspace-health-item <?= $qualityIssues ? 'attention' : '' ?>">
+        <span class="health-symbol"><?= $qualityIssues ? View::icon('alert') : View::icon('check') ?></span>
+        <span><strong>Qualità dei dati</strong><small><?= $qualityIssues ? $qualityIssues . ' elementi da controllare' : 'Nessuna anomalia rilevata' ?></small></span>
+        <?= View::icon('chevron') ?>
+    </a>
+    <a href="/workspace/search" class="workspace-health-item">
+        <span class="health-symbol"><?= View::icon('search') ?></span>
+        <span><strong>Ricerca globale</strong><small>Trova rapidamente qualsiasi informazione</small></span>
+        <?= View::icon('chevron') ?>
+    </a>
+</section>
+
 <?php if ($migrations['pending'] !== []): ?>
     <div class="system-banner">
         <span class="system-banner-icon"><?= View::icon('alert') ?></span>

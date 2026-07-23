@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Luna\Core;
 
+use Luna\Service\WorkspaceService;
 use PDO;
 use RuntimeException;
 
 final class View
 {
     private ?ModuleManager $moduleManager = null;
+    private ?array $workspaceSummary = null;
 
     public function __construct(
         private readonly string $basePath,
@@ -73,6 +75,23 @@ final class View
         return $this->modules()->enabled($key);
     }
 
+    public function workspaceSummary(): array
+    {
+        if ($this->workspaceSummary !== null) {
+            return $this->workspaceSummary;
+        }
+        if (!Auth::check() || Auth::isSuperuser()) {
+            return $this->workspaceSummary = ['unread' => 0, 'notifications' => [], 'readiness' => 100];
+        }
+        $service = new WorkspaceService($this->db, Auth::organizationId(), Auth::id());
+        $onboarding = $service->onboarding();
+        return $this->workspaceSummary = [
+            'unread' => $service->unreadCount(),
+            'notifications' => array_slice($service->notifications(6), 0, 6),
+            'readiness' => (int) ($onboarding['percentage'] ?? 0),
+        ];
+    }
+
     public static function icon(string $name, string $class = ''): string
     {
         $paths = [
@@ -98,6 +117,11 @@ final class View
             'chevron' => '<path d="m9 18 6-6-6-6"/>',
             'check' => '<path d="m5 12 4 4L19 6"/>',
             'alert' => '<path d="M10.3 3.7 2.2 18a2 2 0 0 0 1.7 3h16.2a2 2 0 0 0 1.7-3L13.7 3.7a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4M12 17h.01"/>',
+            'bell' => '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/>',
+            'help' => '<circle cx="12" cy="12" r="9"/><path d="M9.7 9a2.5 2.5 0 1 1 3.8 2.1c-.9.5-1.5 1.1-1.5 2.4M12 17h.01"/>',
+            'lock' => '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
+            'bank' => '<path d="M3 10h18M5 10v8M9 10v8M15 10v8M19 10v8M3 18h18M2 22h20M12 2 2 7h20L12 2Z"/>',
+            'filter' => '<path d="M4 5h16M7 12h10M10 19h4"/>',
         ];
         $path = $paths[$name] ?? $paths['chevron'];
         return '<svg class="icon ' . self::e($class) . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $path . '</svg>';
