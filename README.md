@@ -15,6 +15,12 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 - prospetti di raccordo LIPE e IVA annuale, esplicitamente non trasmissibili fino alla validazione del futuro servizio;
 - endpoint e-invoice configurabili senza memorizzare segreti né eseguire chiamate esterne;
 - import DATEV Koinos con staging, anteprima, idempotenza, log, quadrature e rollback per CSV/XLSX/XML/ZIP.
+- conversioni guidate e parziali preventivo → ordine → DDT → fattura con tracciamento delle quantità residue;
+- giacenze atomiche, trasferimenti, picking barcode, impegni e annullamenti controllati;
+- consuntivazione e fatturazione commesse, e-mail con coda/tracking e workflow ferie;
+- adapter WooCommerce, Shopify, Amazon SP-API ed eBay per ordini, catalogo, stock e prezzi;
+- automazioni noleggio/ticket, calendari Google/iCloud/CalDAV e report direzionale XLSX a otto fogli;
+- payroll controllato: simulazioni separate dal percorso di produzione basato su cedolini certificati e validazione professionale;
 - area `SUPERUSER` per creare aziende e utenti, reimpostare gli accessi e configurare i moduli;
 - diagnostica integrata per migrazioni, tabelle, estensioni PHP e permessi storage;
 - log degli errori con codice di riferimento, senza esporre dettagli tecnici agli utenti.
@@ -23,7 +29,7 @@ Solo il `SUPERUSER` di piattaforma vede **Aziende e utenti**, **Gestione moduli*
 
 ## Stato del progetto
 
-Questa è la nuova fondazione eseguibile, non ancora il via libera alla produzione del primo cliente. Le funzioni che richiedono contratti o dati esterni (canale SDI, conservazione a norma, OAuth calendario, credenziali marketplace e formato proprietario dell’archivio Koinos) sono deliberatamente separate. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md).
+Questa è la release candidate funzionalmente completa della riscrittura PHP. Il via libera al primo cliente resta subordinato alla quadratura di un export DATEV reale, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma e formato proprietario Koinos restano dipendenze esterne. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo della release in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
 
 ## Requisiti
 
@@ -48,10 +54,10 @@ Il comando `key:generate` stampa una riga `APP_KEY=...`: copiarla in `.env`. All
 
 Impostare la document root del dominio su `public/`. Se Plesk non consente di cambiare la document root, il file `.htaccess` nella radice inoltra le richieste a `public/` e blocca le cartelle private; la webroot dedicata resta la configurazione raccomandata.
 
-Configurare un task pianificato giornaliero:
+Configurare in Plesk un task pianificato ogni 5 minuti (il comando è idempotente):
 
 ```bash
-php /var/www/vhosts/example.it/luna2-php/bin/luna cron:daily
+/opt/plesk/php/8.4/bin/php /var/www/vhosts/example.it/luna2-php/bin/luna cron:daily
 ```
 
 ## Import DATEV Koinos

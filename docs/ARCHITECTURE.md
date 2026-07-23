@@ -37,4 +37,4 @@ Le integrazioni sono adapter, non dipendenze del dominio:
 
 ## Estensioni previste
 
-I workflow non ancora completi si aggiungono come servizi e controller dedicati. I CRUD configurabili sono utili per le anagrafiche, ma non sostituiscono servizi per liquidazioni IVA, ammortamenti, riconciliazione, payroll, SDI e marketplace.
+I workflow specialistici sono implementati come servizi e controller dedicati. I CRUD configurabili restano riservati alle anagrafiche e non sostituiscono i servizi transazionali per IVA, ammortamenti, riconciliazione, payroll controllato, marketplace e il futuro adapter SDI.

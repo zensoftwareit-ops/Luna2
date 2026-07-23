@@ -41,15 +41,17 @@ Dopo il login aprire **Aziende e utenti** per:
 3. sostituire la password iniziale del superuser;
 4. aprire **Gestione moduli** e scegliere le aree disponibili per l’azienda.
 
-## Cron
+## Automazioni
 
-Task giornaliero:
+Creare da **Attività pianificate → Aggiungi attività → Esegui un comando** un task ogni 5 minuti:
 
 ```bash
-php /percorso/luna2-php/bin/luna cron:daily
+/opt/plesk/php/8.4/bin/php /percorso/luna2-php/bin/luna cron:daily
 ```
 
-I worker per email, SDI, marketplace e calendari saranno aggiunti come task separati quando i provider sono configurati.
+Il task elabora in modo idempotente e-mail, code marketplace, calendari, ticket/SLA, rinnovi e fatture ricorrenti. Il futuro adapter SDI resta separato e verrà attivato solo dopo la scelta del provider.
+
+Per questa release eseguire `migrate` sul database esistente: non cancellarlo. Deve comparire `008_full_erp_parity.sql`; al termine controllare **Stato del sistema**. Le credenziali e gli esempi di collaudo sono in [ERP_PARITY_RELEASE.md](ERP_PARITY_RELEASE.md).
 
 ## Backup e rollback
 

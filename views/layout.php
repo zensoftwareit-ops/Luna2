@@ -13,8 +13,9 @@ $features = $view->features();
 $enabled = static fn (string $key): bool => (bool) ($features[$key]['enabled'] ?? false);
 $active = static fn (string $prefix): string => str_starts_with($currentPath, $prefix) ? ' active' : '';
 $groups = [];
+$operationalSlugs = ['inventory-movements', 'projects', 'calendar-events', 'calendar-accounts', 'payroll-runs', 'payroll-configs', 'leave-balances', 'ecommerce-channels', 'ecommerce-orders', 'rental-contracts', 'rental-tickets'];
 foreach ($config['modules'] as $slug => $moduleConfig) {
-    if (!$enabled((string) $moduleConfig['feature']) || $moduleConfig['group'] === 'ContabilitÃ ') {
+    if (!$enabled((string) $moduleConfig['feature']) || $moduleConfig['group'] === 'ContabilitÃ ' || in_array($slug, $operationalSlugs, true)) {
         continue;
     }
     $groups[$moduleConfig['group']][$slug] = $moduleConfig;
@@ -33,8 +34,8 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> Â· Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=4.0.0">
-    <script src="/assets/app.js?v=4.0.0" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=5.0.0">
+    <script src="/assets/app.js?v=5.0.0" defer></script>
 </head>
 <body>
 <div class="app-shell">
@@ -97,34 +98,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 </details>
             <?php endif; ?>
 
-            <?php foreach ($groups as $group => $modules): ?>
-                <?php
-                $first = reset($modules);
-                $groupIcon = $features[$first['feature']]['icon'] ?? 'box';
-                $groupOpen = false;
-                foreach (array_keys($modules) as $slug) {
-                    $groupOpen = $groupOpen || str_starts_with($currentPath, '/r/' . $slug);
-                }
-                ?>
-                <details class="nav-group" <?= $groupOpen ? 'open' : '' ?>>
-                    <summary><?= View::icon($groupIcon) ?><span><?= View::e($group) ?></span><?= View::icon('chevron', 'nav-chevron') ?></summary>
-                    <div class="nav-children">
-                        <?php foreach ($modules as $slug => $moduleConfig): ?>
-                            <a class="<?= $active('/r/' . $slug) ?>" href="/r/<?= View::e($slug) ?>"><?= View::e($moduleConfig['title']) ?></a>
-                        <?php endforeach; ?>
-                    </div>
-                </details>
-            <?php endforeach; ?>
-
-            <?php if ($enabled('imports')): ?>
-                <a class="nav-link<?= $active('/imports') ?>" href="/imports"><?= View::icon('upload') ?><span>Importazioni</span></a>
-            <?php endif; ?>
-            <?php endif; ?>
-        </nav>
-
-        <div class="sidebar-user">
-            <span class="avatar"><?= View::e($initials ?: 'U') ?></span>
-            <span class="user-copy"><strong><?= View::e(Auth::user()['name'] ?? '') ?></strong><small><?= $isSuperuser ? 'Superuser' : View::e(Auth::user()['role'] ?? '') ?></small></span>
+            <?php if ($enuÛMm¢G§²ÚîÆ­yÕ(Auth::user()['name'] ?? '') ?></strong><small><?= $isSuperuser ? 'Superuser' : View::e(Auth::user()['role'] ?? '') ?></small></span>
             <form method="post" action="/logout">
                 <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
                 <button class="logout-button" type="submit" aria-label="Esci">â†—</button>

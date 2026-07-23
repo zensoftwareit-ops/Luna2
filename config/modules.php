@@ -117,90 +117,99 @@ return [
     ],
     'fixed-assets' => [
         'feature' => 'accounting', 'group' => 'ContabilitÃ ', 'title' => 'Cespiti', 'singular' => 'Cespite', 'table' => 'fixed_assets',
-        'title_column' => 'description', 'search' => ['asset_code', 'description', 'category'],
-        'columns' => ['asset_code', 'description', 'purchase_date', 'purchase_cost', 'depreciation_rate', 'net_book_value', 'status'],
-        'fields' => [
-            'asset_code' => $text('Codice', true), 'description' => $text('Descrizione', true), 'category' => $text('Categoria'),
-            'purchase_date' => $date('Data acquisto', true), 'purchase_cost' => $decimal('Costo storico', true),
-            'depreciation_rate' => $decimal('Aliquota ammortamento %', true), 'accumulated_depreciation' => $decimal('Fondo ammortamento'),
-            'net_book_value' => $decimal('Valore netto'), 'status' => $select('Stato', ['ACTIVE' => 'Attivo', 'DISPOSED' => 'Dismesso', 'SOLD' => 'Venduto'], true),
-        ],
-    ],
-    'calendar-events' => [
-        'feature' => 'calendar', 'group' => 'OperativitÃ ', 'title' => 'Calendario', 'singular' => 'Evento', 'table' => 'calendar_events',
-        'title_column' => 'title', 'search' => ['title', 'location', 'provider'],
-        'columns' => ['title', 'starts_at', 'ends_at', 'location', 'provider', 'sync_status'],
-        'fields' => [
-            'title' => $text('Titolo', true), 'starts_at' => ['label' => 'Inizio', 'type' => 'datetime-local', 'required' => true],
-            'ends_at' => ['label' => 'Fine', 'type' => 'datetime-local'], 'all_day' => ['label' => 'Tutto il giorno', 'type' => 'checkbox'],
-            'location' => $text('Luogo'), 'provider' => $select('Calendario', ['LOCAL' => 'Luna2', 'GOOGLE' => 'Google', 'ICLOUD' => 'iCloud'], true),
-            'sync_status' => $select('Sincronizzazione', ['LOCAL' => 'Locale', 'PENDING' => 'Da sincronizzare', 'SYNCED' => 'Sincronizzato', 'ERROR' => 'Errore'], true),
-            'description' => ['label' => 'Descrizione', 'type' => 'textarea'],
-        ],
-    ],
-    'time-records' => [
-        'feature' => 'hr', 'group' => 'HR', 'title' => 'Presenze', 'singular' => 'Presenza', 'table' => 'time_records',
-        'title_column' => 'employee_name', 'search' => ['employee_name', 'record_type', 'notes'],
-        'columns' => ['work_date', 'employee_name', 'record_type', 'check_in', 'check_out', 'hours', 'approved'],
-        'fields' => [
-            'work_date' => $date('Data', true), 'employee_name' => $text('Dipendente', true),
-            'record_type' => $select('Tipo', ['WORK' => 'Lavoro', 'HOLIDAY' => 'Ferie', 'SICK' => 'Malattia', 'LEAVE' => 'Permesso', 'OTHER' => 'Altro'], true),
-            'check_in' => ['label' => 'Entrata', 'type' => 'time'], 'check_out' => ['label' => 'Uscita', 'type' => 'time'],
-            'hours' => $decimal('Ore'), 'overtime_hours' => $decimal('Straordinario'), 'approved' => ['label' => 'Approvata', 'type' => 'checkbox'],
-            'notes' => ['label' => 'Note', 'type' => 'textarea'],
-        ],
-    ],
-    'payroll-runs' => [
-        'feature' => 'hr', 'group' => 'HR', 'title' => 'Elaborazioni paghe', 'singular' => 'Elaborazione', 'table' => 'payroll_runs',
-        'title_column' => 'period_label', 'search' => ['period_label', 'status'],
-        'columns' => ['period_label', 'period_start', 'period_end', 'employees_count', 'gross_total', 'net_total', 'status'],
-        'fields' => [
-            'period_label' => $text('Periodo', true), 'period_start' => $date('Dal', true), 'period_end' => $date('Al', true),
-            'employees_count' => ['label' => 'Dipendenti', 'type' => 'number'], 'gross_total' => $decimal('Lordo totale'), 'net_total' => $decimal('Netto totale'),
-            'contributions_total' => $decimal('Contributi'), 'tax_total' => $decimal('Imposte'),
-            'status' => $select('Stato', ['DRAFT' => 'Bozza', 'CALCULATED' => 'Calcolata', 'CONFIRMED' => 'Confermata', 'PAID' => 'Pagata'], true),
-        ],
-    ],
-    'ecommerce-channels' => [
-        'feature' => 'ecommerce', 'group' => 'Integrazioni', 'title' => 'Canali e-commerce', 'singular' => 'Canale', 'table' => 'ecommerce_channels',
-        'title_column' => 'name', 'search' => ['name', 'platform', 'status'], 'columns' => ['name', 'platform', 'status', 'last_sync_at', 'active'],
-        'fields' => [
-            'name' => $text('Nome', true), 'platform' => $select('Piattaforma', ['WOOCOMMERCE' => 'WooCommerce', 'SHOPIFY' => 'Shopify', 'AMAZON' => 'Amazon', 'EBAY' => 'eBay'], true),
-            'base_url' => ['label' => 'URL', 'type' => 'url'], 'status' => $select('Stato', ['NEW' => 'Nuovo', 'CONNECTED' => 'Connesso', 'ERROR' => 'Errore', 'DISABLED' => 'Disabilitato'], true),
-            'active' => ['label' => 'Attivo', 'type' => 'checkbox', 'default' => 1],
-        ],
-    ],
-    'ecommerce-orders' => [
-        'feature' => 'ecommerce', 'group' => 'Integrazioni', 'title' => 'Ordini e-commerce', 'singular' => 'Ordine e-commerce', 'table' => 'ecommerce_orders',
-        'title_column' => 'external_order_id', 'search' => ['platform', 'external_order_id', 'customer_email', 'status'],
-        'columns' => ['order_date', 'platform', 'external_order_id', 'customer_email', 'total', 'currency', 'status', 'import_status'],
-        'fields' => [
-            'order_date' => $date('Data', true), 'platform' => $text('Piattaforma', true), 'external_order_id' => $text('ID esterno', true),
-            'customer_email' => ['label' => 'Email cliente', 'type' => 'email'], 'total' => $decimal('Totale'), 'currency' => $text('Valuta'),
-            'status' => $text('Stato esterno'), 'import_status' => $select('Importazione', ['PENDING' => 'Da importare', 'IMPORTED' => 'Importato', 'IGNORED' => 'Ignorato', 'ERROR' => 'Errore'], true),
-        ],
-    ],
-    'rental-contracts' => [
-        'feature' => 'rental', 'group' => 'Noleggio', 'title' => 'Contratti noleggio', 'singular' => 'Contratto', 'table' => 'rental_contracts',
-        'title_column' => 'contract_number', 'search' => ['contract_number', 'customer_name', 'vehicle_plate', 'status'],
-        'columns' => ['contract_number', 'customer_name', 'vehicle_plate', 'start_date', 'end_date', 'monthly_fee', 'status'],
-        'fields' => [
-            'contract_number' => $text('Numero contratto', true), 'customer_name' => $text('Cliente', true), 'vehicle_plate' => $text('Targa'),
-            'start_date' => $date('Inizio', true), 'end_date' => $date('Fine', true), 'monthly_fee' => $decimal('Canone mensile'),
-            'annual_km' => ['label' => 'Km annui', 'type' => 'number'], 'status' => $select('Stato', ['DRAFT' => 'Bozza', 'ACTIVE' => 'Attivo', 'EXPIRING' => 'In scadenza', 'CLOSED' => 'Chiuso', 'CANCELLED' => 'Annullato'], true),
-            'notes' => ['label' => 'Note', 'type' => 'textarea'],
-        ],
-    ],
-    'rental-tickets' => [
-        'feature' => 'rental', 'group' => 'Noleggio', 'title' => 'Ticket noleggio', 'singular' => 'Ticket', 'table' => 'rental_tickets',
-        'title_column' => 'subject', 'search' => ['ticket_number', 'subject', 'customer_name', 'status', 'priority'],
-        'columns' => ['ticket_number', 'opened_at', 'customer_name', 'subject', 'priority', 'status', 'sla_due_at'],
-        'fields' => [
-            'ticket_number' => $text('Numero', true), 'opened_at' => ['label' => 'Aperto il', 'type' => 'datetime-local', 'required' => true],
-            'customer_name' => $text('Cliente', true), 'subject' => $text('Oggetto', true),
-            'priority' => $select('PrioritÃ ', ['LOW' => 'Bassa', 'MEDIUM' => 'Media', 'HIGH' => 'Alta', 'CRITICAL' => 'Critica'], true),
-            'status' => $select('Stato', ['OPEN' => 'Aperto', 'IN_PROGRESS' => 'In lavorazione', 'WAITING' => 'In attesa', 'RESOLVED' => 'Risolto', 'CLOSED' => 'Chiuso'], true),
-            'sla_due_at' => ['label' => 'SLA entro', 'type' => 'datetime-local'], 'description' => ['label' => 'Descrizione', 'type' => 'textarea'],
-        ],
-    ],
-];
+        'title_column' => 'description', 'search' => ['asset_code', 'description', 'cat×]ùÚÚ$z{-®éÜj×QS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™[[ØÛÛ˜XÝÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™XY[™×Ù]HUH“Õ•SˆÚ[ÛY]\œÈS•S”ÒQÓ‘Q“Õ•SˆÛÝ\˜ÙHS•SJ	ÓPS•PS	Ë	ÐÕTÕÓQT‰Ë	ÔÑT•’PÑIË	ÒSTÔ•	ÊH“Õ•SQUS	ÓPS•PS	Ëˆ›Ý\ÈTÒTŠL
+H•SˆÜ™X]YØžH’QÒS•S”ÒQÓ‘Q•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆS’TUQHÑVH\WÜ™[[ÛY]\ˆ
+™[[ØÛÛ˜XÝÚY™XY[™×Ù]JKˆÓÓ”ÕRS•š×Ü™[[ÛY]\—ÛÜ™È“Ô‘RQÓˆÑVH
+Ü™Ø[š^˜][Û—ÚY
+H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ü™[[ÛY]\—ØÛÛ˜XÝ“Ô‘RQÓˆÑVH
+™[[ØÛÛ˜XÝÚY
+H‘Q‘T‘SÑTÈ™[[ØÛÛ˜XÝÊY
+HÓˆSUHÐTÐÐQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ™[[ÝXÚÙ]Ù]™[È
+ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™[[ÝXÚÙ]ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ]™[Ý\HS•SJ	ÓÔS‘Q	Ë	ÐTÔÒQÓ‘Q	Ë	ÐÓÓSQS•	Ë	ÔÕUTÉË	ÔÓWÐ”‘PPÒ	Ë	Ô‘TÓÓ‘Q	Ë	ÐÓÔÑQ	ÊH“Õ•SˆÛÝ˜[YHTÒTŠNL
+H•Sˆ™]×Ý˜[YHTÒTŠNL
+H•Sˆ›Ý\ÈV•SˆXÝÜ—ÚY’QÒS•S”ÒQÓ‘Q•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆÓÓ”ÕRS•š×Ü™[[ÝXÚÙ]Ù]™[ÛÜ™È“Ô‘RQÓˆÑVH
+Ü™Ø[š^˜][Û—ÚY
+H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ü™[[ÝXÚÙ]Ù]™[ÝXÚÙ]“Ô‘RQÓˆÑVH
+™[[ÝXÚÙ]ÚY
+H‘Q‘T‘SÑTÈ™[[ÝXÚÙ]ÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ü™[[ÝXÚÙ]Ù]™[ØXÝÜˆ“Ô‘RQÓˆÑVH
+XÝÜ—ÚY
+H‘Q‘T‘SÑTÈ\Ù\œÊY
+HÓˆSUHÑU•SŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ™[[Ú[›ÚXÙWÛ[šÜÈ
+ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™[[ØÛÛ˜XÝÚY’QÒS•S”ÒQÓ‘Q“Õ•SˆØÝ[Y[ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ\š[ÙÜÝ\UH“Õ•Sˆ\š[ÙÙ[™UH“Õ•Sˆ[[Ý[PÒSPS
+MKŠH“Õ•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆS’TUQHÑVH\WÜ™[[Ú[›ÚXÙWÜ\š[Ù
+™[[ØÛÛ˜XÝÚY\š[ÙÜÝ\\š[ÙÙ[™
+KˆÓÓ”ÕRS•š×Ü™[[Ú[›ÚXÙWÛÜ™È“Ô‘RQÓˆÑVH
+Ü™Ø[š^˜][Û—ÚY
+H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ü™[[Ú[›ÚXÙWØÛÛ˜XÝ“Ô‘RQÓˆÑVH
+™[[ØÛÛ˜XÝÚY
+H‘Q‘T‘SÑTÈ™[[ØÛÛ˜XÝÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ü™[[Ú[›ÚXÙWÙØÝ[Y[“Ô‘RQÓˆÑVH
+ØÝ[Y[ÚY
+H‘Q‘T‘SÑTÈØÝ[Y[ÊY
+HÓˆSUHÐTÐÐQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ™\ÜÙ^ÜÈ
+ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ™\ÜÚÙ^HTÒTŠL
+H“Õ•Sˆ\š[ÙÙœ›ÛHUH•Sˆ\š[ÙÝÈUH•Sˆ\˜[Y]\œ×ÚœÛÛˆ”ÓÓˆ•Sˆš[[˜[YHTÒTŠMJH“Õ•SˆÚXÚÜÝ[WÜÚLMˆÒTŠ
+H•Sˆ›Ý×ØÛÝ[S•S”ÒQÓ‘Q“Õ•SQUSˆÙ[™\˜]YØžH’QÒS•S”ÒQÓ‘Q•SˆÙ[™\˜]YØ]UUSQH“Õ•SˆÑVHYÜ™\ÜÙ^Ü
+Ü™Ø[š^˜][Û—ÚY™\ÜÚÙ^KÙ[™\˜]YØ]
+KˆÓÓ”ÕRS•š×Ü™\ÜÙ^ÜÛÜ™È“Ô‘RQÓˆÑVH
+Ü™Ø[š^˜][Û—ÚY
+H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ü™\ÜÙ^ÜÝ\Ù\ˆ“Ô‘RQÓˆÑVH
+Ù[™\˜]YØžJH‘Q‘T‘SÑTÈ\Ù\œÊY
+HÓˆSUHÑU•SŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚STˆP“HØ[[™\—ØXØÛÝ[ÂˆQÓÓSSˆ[™Ú[Ý\›TÒTŠL
+H•SQ•TˆXØÛÝ[Ù[XZ[ˆQÓÓSSˆ]]Ý\HS•SJ	ÓÐUU‰Ë	ÐTÒPÉË	ÐTÔTÔÕÓÔ‘	Ë	Ð‘PT‘T‰ÊH“Õ•SQUS	ÓÐUU‰ÈQ•Tˆ[™Ú[Ý\›ˆQÓÓSSˆÙXÜ™]Ü™Y™\™[˜ÙHTÒTŠNL
+H•SQ•Tˆ[˜Üž\YØÜ™Y[X[ËˆQÓÓSSˆ^\›˜[ØØ[[™\—ÚYTÒTŠMJH•SQ•TˆÙXÜ™]Ü™Y™\™[˜ÙKˆQÓÓSSˆ\ÝÙ\œ›ÜˆV•SQ•Tˆ\ÝÜÞ[˜×Ø]ˆQÓÓSSˆÜ™X]YØžH’QÒS•S”ÒQÓ‘Q•SQ•Tˆ\ÝÙ\œ›Ü‹ˆQÓÓSSˆ\]YØžH’QÒS•S”ÒQÓ‘Q•SQ•TˆÜ™X]YØžNÂ‚STˆP“HØ[[™\—Ù]™[ÂˆSÑQ–HÓÓSSˆ›ÝšY\ˆS•SJ	ÓÐÐS	Ë	ÑÓÓÑÓIË	ÒPÓÕQ	Ë	ÐÐSU‰ÊH“Õ•SQUS	ÓÐÐS	ËˆQÓÓSSˆ]YÈTÒTŠMJH•SQ•Tˆ›ÝšY\—Ù]™[ÚYˆQÓÓSSˆ\ÝÜÞ[˜ÙYØ]UUSQH•SQ•TˆÞ[˜×ÜÝ]\ËˆQÓÓSSˆÞ[˜×Ù\œ›ÜˆV•SQ•Tˆ\ÝÜÞ[˜ÙYØ]ˆQÓÓSSˆ[]YÙ^\›˜[S–RS•
+JH“Õ•SQUSQ•TˆÞ[˜×Ù\œ›ÜŽÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈØ[[™\—ÜÞ[˜×ÛÙÜÈ
+ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•SˆØ[[™\—ØXØÛÝ[ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ\™XÝ[ÛˆS•SJ	ÔTÒ	Ë	ÔS	Ë	Ð’QT‘PÕSÓS	ÊH“Õ•SˆÝ]\ÈS•SJ	Ô•S“’S‘ÉË	ÔÕPÐÑTÔÉË	ÔT•PS	Ë	ÑT”“Ô‰ÊH“Õ•Sˆ›ØÙ\ÜÙYØÛÝ[S•S”ÒQÓ‘Q“Õ•SQUSˆ\œ›Ü—ØÛÝ[S•S”ÒQÓ‘Q“Õ•SQUSˆÝ\YØ]UUSQH“Õ•Sˆ[™YØ]UUSQH•SˆY\ÜØYÙHV•SˆÓÓ”ÕRS•š×ØØ[[™\—ÜÞ[˜×ÛÙ×ÛÜ™È“Ô‘RQÓˆÑVH
+Ü™Ø[š^˜][Û—ÚY
+H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×ØØ[[™\—ÜÞ[˜×ÛÙ×ØXØÛÝ[“Ô‘RQÓˆÑVH
+Ø[[™\—ØXØÛÝ[ÚY
+H‘Q‘T‘SÑTÈØ[[™\—ØXØÛÝ[ÊY
+HÓˆSUHÐTÐÐQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚STˆP“H^\›ÛÜ[œÂˆQÓÓSSˆØ[Ý[][Û—Û[ÙHS•SJ	ÐÓÓ‘’QÕT‘QÔUTÉË	ÒSTÔ•QÔVTÓTÉÊH“Õ•SQUS	ÐÓÓ‘’QÕT‘QÔUTÉÈQ•Tˆ\š[ÙÙ[™ˆQÓÓSSˆØÚ[XWÝ™\œÚ[ÛˆTÒTŠL
+H“Õ•SQUS	ÒS•T“SLIÈQ•TˆØ[Ý[][Û—Û[ÙKˆQÓÓSSˆÛÛ™š\›YYØžH’QÒS•S”ÒQÓ‘Q•SQ•TˆÝ]\ËˆQÓÓSSˆÛÛ™š\›YYØ]UUSQH•SQ•TˆÛÛ™š\›YYØžKˆQÓÓSSˆØÚÙYØ]UUSQH•SQ•TˆÛÛ™š\›YYØ]ˆQÓÓSSˆZYØ]UUSQH•SQ•TˆØÚÙYØ]ˆQÓÓSSˆ›Ù™\ÜÚ[Û˜[Ý˜[Y][Û—Ü™Y™\™[˜ÙHTÒTŠNL
+H•SQ•TˆZYØ]ˆQÓÓSSˆ˜[Y]YØ]UUSQH•SQ•Tˆ›Ù™\ÜÚ[Û˜[Ý˜[Y][Û—Ü™Y™\™[˜ÙKˆQÓÓSSˆ›Ý\ÈV•SQ•Tˆ˜[Y]YØ]ˆQÓÓ”ÕRS•š×Ü^\›ÛÜ[—ØÛÛ™š\›Y\ˆ“Ô‘RQÓˆÑVH
+ÛÛ™š\›YYØžJH‘Q‘T‘SÑTÈ\Ù\œÊY
+HÓˆSUHÑU•SÂ‚STˆP“H^\›ÛÜ[œÂˆ“ÔS‘V\WÜ^\›ÛÜ\š[ÙˆQS’TUQHÑVH\WÜ^\›ÛÜ\š[ÙÛ[ÙH
+Ü™Ø[š^˜][Û—ÚY\š[ÙÜÝ\\š[ÙÙ[™Ø[Ý[][Û—Û[ÙJNÂ‚STˆP“H^\›ÛÙ]Z[ÂˆQÓÓSSˆ[\ÞY\—ØÛÛšX][Ûœ×Ø[[Ý[PÒSPS
+MKŠH“Õ•SQUSQ•TˆÛÛšX][Ûœ×Ø[[Ý[ˆQÓÓSSˆ™Z[X\œÙ[Y[×Ø[[Ý[PÒSPS
+MKŠH“Õ•SQUSQ•Tˆ^Ø[[Ý[ˆQÓÓSSˆYXÝ[Ûœ×Ø[[Ý[PÒSPS
+MKŠH“Õ•SQUSQ•Tˆ™Z[X\œÙ[Y[×Ø[[Ý[ˆQÓÓSSˆ[\ÞY\—ØÛÜÝPÒSPS
+MKŠH“Õ•SQUSQ•Tˆ™]Ø[[Ý[ˆQÓÓSSˆÛÝ\˜ÙWÜ™Y™\™[˜ÙHTÒTŠNL
+H•SQ•Tˆ[\ÞY\—ØÛÜÝÂ‚STˆP“H^\›ÛÙ[\ÞYYWØÛÛ™šYÜÂˆQÓÓSSˆ[\ÞYYWØÛÙHTÒTŠL
+H•SQ•Tˆ\Ù\—ÚYˆQÓÓSSˆÝ[™\™ÝÙYZÛWÚÝ\œÈPÒSPS
+ËŠH“Õ•SQUSQ•Tˆ[\ÞYYWØÛÙKˆQÓÓSSˆ[\ÞY\—ØÛÛšX][Û—Ü˜]HPÒSPS
+Ë
+H“Õ•SQUSQ•Tˆ[˜Z[Ü˜]KˆQÓÓSSˆš^YÛ[ÛWØ[[Ý[PÒSPS
+MKŠH“Õ•SQUSQ•Tˆ[\ÞY\—ØÛÛšX][Û—Ü˜]KˆQÓÓSSˆXÝ]™HS–RS•
+JH“Õ•SQUSHQ•Tˆ˜[YÝËˆQÓÓSSˆÜ™X]YØžH’QÒS•S”ÒQÓ‘Q•SQ•TˆXÝ]™KˆQÓÓSSˆ\]YØžH’QÒS•S”ÒQÓ‘Q•SQ•TˆÜ™X]YØžNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ^\›ÛØÛÛ\Û™[È
+ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ^\›ÛÙ]Z[ÚY’QÒS•S”ÒQÓ‘Q“Õ•SˆÛÛ\Û™[ØÛÙHTÒTŠL
+H“Õ•Sˆ\ØÜš\[ÛˆTÒTŠMJH“Õ•SˆÛÛ\Û™[Ý\HS•SJ	ÑPT“’S‘ÉË	ÑQPÕSÓ‰Ë	ÑSTÖQQWÐÓÓ•’P•USÓ‰Ë	ÑSTÖQT—ÐÓÓ•’P•USÓ‰Ë	ÕV	Ë	Ô‘RSP•T”ÑSQS•	ÊH“Õ•Sˆ]X[]HPÒSPS
+L‹
+H“Õ•SQUSKˆ˜]HPÒSPS
+L‹
+H“Õ•SQUSˆ[[Ý[PÒSPS
+MKŠH“Õ•SˆÛÝ\˜ÙHS•SJ	ÐÐSÕSUQ	Ë	ÒSTÔ•Q	Ë	ÓPS•PSÐQ•TÕQS•	ÊH“Õ•SQUS	ÐÐSÕSUQ	ËˆS’TUQHÑVH\WÜ^\›ÛØÛÛ\Û™[
+^\›ÛÙ]Z[ÚYÛÛ\Û™[ØÛÙJKˆÓÓ”ÕRS•š×Ü^\›ÛØÛÛ\Û™[ÛÜ™È“Ô‘RQÓˆÑVH
+Ü™Ø[š^˜][Û—ÚY
+H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ü^\›ÛØÛÛ\Û™[Ù]Z[“Ô‘RQÓˆÑVH
+^\›ÛÙ]Z[ÚY
+H‘Q‘T‘SÑTÈ^\›ÛÙ]Z[ÊY
+HÓˆSUHÐTÐÐQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚Ô‘PUHP“HQˆ“ÕVTÕÈ^\›ÛÚ[\ÜÜ›ÝÜÈ
+ˆY’QÒS•S”ÒQÓ‘QUU×ÒSÔ‘SQS•’SPT–HÑVKˆÜ™Ø[š^˜][Û—ÚY’QÒS•S”ÒQÓ‘Q“Õ•Sˆ^\›ÛÜ[—ÚY’QÒS•S”ÒQÓ‘Q“Õ•SˆÛÝ\˜ÙWÙš[HTÒTŠMJH“Õ•SˆÛÝ\˜ÙWÜ›ÝÈS•S”ÒQÓ‘Q“Õ•Sˆ[\ÞYYWØÛÙHTÒTŠL
+H•Sˆ›Ü›X[^™YÚœÛÛˆ”ÓÓˆ“Õ•SˆÝ]\ÈS•SJ	ÔÕQÑQ	Ë	ÒSTÔ•Q	Ë	ÑT”“Ô‰ÊH“Õ•SQUS	ÔÕQÑQ	Ëˆ\œ›Ü—ÛY\ÜØYÙHV•SˆÜ™X]YØ]SQTÕST“Õ•SQUSÕT”‘S•ÕSQTÕSTˆÑVHYÜ^\›ÛÚ[\Ü
+Ü™Ø[š^˜][Û—ÚY^\›ÛÜ[—ÚYÝ]\ÊKˆÓÓ”ÕRS•š×Ü^\›ÛÚ[\ÜÛÜ™È“Ô‘RQÓˆÑVH
+Ü™Ø[š^˜][Û—ÚY
+H‘Q‘T‘SÑTÈÜ™Ø[š^˜][ÛœÊY
+HÓˆSUHÐTÐÐQKˆÓÓ”ÕRS•š×Ü^\›ÛÚ[\ÜÜ[ˆ“Ô‘RQÓˆÑVH
+^\›ÛÜ[—ÚY
+H‘Q‘T‘SÑTÈ^\›ÛÜ[œÊY
+HÓˆSUHÐTÐÐQBŠHS‘ÒS‘OR[››ÑˆQUSÒT”ÑU]]ŽXÓÓUO]]ŽXÝ[šXÛÙWØÚNÂ‚’S”ÑT•S•ÈÛÛ[][šXØ][Û—ÜÙ][™ÜÈ
+Ü™Ø[š^˜][Û—ÚY
+B”ÑSPÕY”“ÓHÜ™Ø[š^˜][ÛœÂ“ÓˆTPÐUHÑVHTUHÜ™Ø[š^˜][Û—ÚYHSQTÊÜ™Ø[š^˜][Û—ÚY
+NÂ

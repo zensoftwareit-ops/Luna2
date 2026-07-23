@@ -77,6 +77,18 @@ final class ResourceController extends BaseController
             $values[$field] = $value;
         }
 
+        $tenantForeignKeys = ['user_id' => 'users', 'customer_id' => 'customers', 'supplier_id' => 'suppliers', 'product_id' => 'products', 'warehouse_id' => 'warehouses', 'project_id' => 'projects'];
+        foreach ($tenantForeignKeys as $field => $table) {
+            if (empty($values[$field])) {
+                continue;
+            }
+            $check = $this->db->prepare("SELECT 1 FROM `{$table}` WHERE id = ? AND organization_id = ?");
+            $check->execute([(int) $values[$field], Auth::organizationId()]);
+            if (!$check->fetchColumn()) {
+                $errors[] = ($module['fields'][$field]['label'] ?? $field) . ' non appartiene allâ€™azienda attiva.';
+            }
+        }
+
         if ($errors !== []) {
             $_SESSION['form_errors'] = $errors;
             $_SESSION['form_old'] = $values + ['id' => $id];
@@ -204,5 +216,4 @@ final class ResourceController extends BaseController
             default => ['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'HR', 'VIEWER'],
         };
         $this->requireRoles($roles);
-    }
-}
+ :ç®m¢G§²ÚîÆ­yÙ¥…É¥„±„Á…¥¹„”É¥ÁÉ½Ù„¸t°€ÐÄä¤ì(€€€€€€€€€€€ô((€€€€€€€€€€€€‘Á…É…µ•Ñ•ÉÌ€ô…ÉÉ…å}™¥±Ñ•È ‘µ…Ñ¡•Ì°€¥Í}ÍÑÉ¥¹œœ°IIe}%1QI}UM}-d¤ì(€€€€€€€€€€€€‘¡…¹‘±•È€ô€‘É½ÕÑ•l¡…¹‘±•Ètì(€€€€€€€€€€€¥˜€ ‘¡…¹‘±•È¥¹ÍÑ…¹•½˜±½ÍÕÉ”¤ì(€€€€€€€€€€€€€€€€‘¡…¹‘±•È ¸¸¹…ÉÉ…å}Ù…±Õ•Ì ‘Á…É…µ•Ñ•ÉÌ¤¤ì(€€€€€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€€€€€ô((€€€€€€€€€€€l‘±…ÍÌ°€‘…Ñ¥½¹t€ô€‘¡…¹‘±•Èì(€€€€€€€€€€€€‘½¹ÑÉ½±±•È€ô¹•Ü€‘±…ÍÌ ‘Ñ¡¥Ì´ù‘ˆ°€‘Ñ¡¥Ì´ùÙ¥•Ü°€‘Ñ¡¥Ì´ù½¹™¥œ¤ì(€€€€€€€€€€€€‘½¹ÑÉ½±±•È´ùì‘…Ñ¥½¹ô ¸¸¹…ÉÉ…å}Ù…±Õ•Ì ‘Á…É…µ•Ñ•ÉÌ¤¤ì(€€€€€€€€€€€É•ÑÕÉ¸ì(€€€€€€€ô((€€€€€€€€‘Ñ¡¥Ì´ùÙ¥•Ü´ùÉ•¹‘•È •ÉÉ½Èœ°lÑ¥Ñ±”œ€ôø€A…¥¹„¹½¸ÑÉ½Ù…Ñ„œ°€µ•ÍÍ…”œ€ôø€1„É¥Í½ÉÍ„É¥¡¥•ÍÑ„¹½¸•Í¥ÍÑ”¸t°€ÐÀÐ¤ì(€€€ô)ô(
