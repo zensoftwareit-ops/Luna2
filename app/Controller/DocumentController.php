@@ -31,13 +31,17 @@ final class DocumentController extends BaseController
     {
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
         $definition = $this->type($type);
-        [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, 1500);
+        [
+            $documents, $search, $from, $to, $counterpartyId, $status,
+            $sort, $direction, $perPage, $page, $pages, $total,
+        ] = $this->documentList($definition, true);
         $table = $definition['counterparty'] === 'customer' ? 'customers' : 'suppliers';
         $statement = $this->db->prepare("SELECT id, code, business_name FROM {$table} WHERE organization_id = ? ORDER BY business_name");
         $statement->execute([Auth::organizationId()]);
         $counterparties = $statement->fetchAll();
         $this->view->render('documents/index', compact(
-            'type', 'definition', 'documents', 'search', 'from', 'to', 'counterpartyId', 'status', 'counterparties'
+            'type', 'definition', 'documents', 'search', 'from', 'to', 'counterpartyId', 'status', 'counterparties',
+            'sort', 'direction', 'perPage', 'page', 'pages', 'total'
         ) + ['title' => $definition['title']]);
     }
 
@@ -45,7 +49,7 @@ final class DocumentController extends BaseController
     {
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
         $definition = $this->type($type);
-        [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, null);
+        [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, false);
         (new TabularExportService())->stream(
             $format,
             $definition['title'],
@@ -273,40 +277,59 @@ final class DocumentController extends BaseController
         return $definition;
     }
 
-    private function documentList(array $definition, ?int $limit): array
+    private function documentList(array $definition, bool $paginate): array
     {
         $search = trim((string) ($_GET['q'] ?? ''));
         $from = (string) ($_GET['from'] ?? date('Y-01-01'));
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
         $counterpartyId = max(0, (int) ($_GET['counterparty_id'] ?? 0));
         $status = strtoupper(trim((string) ($_GET['status'] ?? '')));
-        $sql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
-                       taxable_total, vat_total, total, balance_due, status
-                FROM documents WHERE organization_id = :organization AND document_type = :type
-                  AND document_date BETWEEN :date_from AND :date_to';
+        $allowedSort = ['number', 'counterparty_name', 'subject', 'document_date', 'due_date', 'taxable_total', 'vat_total', 'total', 'balance_due', 'status'];
+        $sort = in_array((string) ($_GET['sort'] ?? ''), $allowedSort, true) ? (string) $_GET['sort'] : 'document_date';
+        $direction = strtoupper((string) ($_GET['direction'] ?? 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
+        $perPage = in_array((int) ($_GET['per_page'] ?? 50), [25, 50, 100, 250], true) ? (int) $_GET['per_page'] : 50;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $where = ' FROM documents WHERE organization_id = :organization AND document_type = :type
+                   AND document_date BETWEEN :date_from AND :date_to';
         $params = [
             'organization' => Auth::organizationId(), 'type' => $definition['code'],
             'date_from' => $from, 'date_to' => $to,
         ];
         if ($search !== '') {
-            $sql .= ' AND (number LIKE :search OR counterparty_name LIKE :search OR subject LIKE :search)';
+            $where .= ' AND (number LIKE :search OR counterparty_name LIKE :search OR subject LIKE :search)';
             $params['search'] = '%' . $search . '%';
         }
         if ($counterpartyId > 0) {
-            $sql .= ' AND counterparty_id = :counterparty_id';
+            $where .= ' AND counterparty_id = :counterparty_id';
             $params['counterparty_id'] = $counterpartyId;
         }
         if ($status !== '') {
-            $sql .= ' AND status = :status';
+            $where .= ' AND status = :status';
             $params['status'] = $status;
         }
-        $sql .= ' ORDER BY document_date DESC, id DESC';
-        if ($limit !== null) {
-            $sql .= ' LIMIT ' . max(1, $limit);
+        $total = 0;
+        $pages = 1;
+        $offset = 0;
+        if ($paginate) {
+            $count = $this->db->prepare('SELECT COUNT(*)' . $where);
+            $count->execute($params);
+            $total = (int) $count->fetchColumn();
+            $pages = max(1, (int) ceil($total / $perPage));
+            $page = min($page, $pages);
+            $offset = ($page - 1) * $perPage;
+        }
+        $sql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
+                       taxable_total, vat_total, total, balance_due, status' . $where
+            . ' ORDER BY `' . $sort . '` ' . $direction . ', id ' . $direction;
+        if ($paginate) {
+            $sql .= ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
         }
         $statement = $this->db->prepare($sql);
         $statement->execute($params);
-        return [$statement->fetchAll(), $search, $from, $to, $counterpartyId, $status];
+        return [
+            $statement->fetchAll(), $search, $from, $to, $counterpartyId, $status,
+            $sort, $direction, $perPage, $page, $pages, $total,
+        ];
     }
 
     private function counterparty(string $type, int $id): array|false

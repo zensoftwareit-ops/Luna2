@@ -223,8 +223,9 @@
       localSearch.addEventListener('input', () => {
         const needle = localSearch.value.trim().toLocaleLowerCase('it');
         [...table.tBodies].flatMap((body) => [...body.rows]).forEach((row) => {
-          row.hidden = needle !== '' && !row.innerText.toLocaleLowerCase('it').includes(needle);
+          row.dataset.filterMatch = needle === '' || row.innerText.toLocaleLowerCase('it').includes(needle) ? '1' : '0';
         });
+        table.dispatchEvent(new CustomEvent('tablefilter'));
       });
       pdfButton.addEventListener('click', () => {
         document.body.classList.add('print-table');
@@ -243,4 +244,65 @@
       if (header) header.appendChild(tools); else card?.insertBefore(tools, card.firstChild);
     });
   }
+
+  const sortableValue = (cell) => {
+    const value = (cell?.dataset.sortValue || cell?.innerText || '').replace(/\s+/g, ' ').trim();
+    const italianDate = value.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (italianDate) return Date.UTC(Number(italianDate[3]), Number(italianDate[2]) - 1, Number(italianDate[1]));
+    const numeric = value.replace(/[€%\s]/g, '').replace(/\./g, '').replace(',', '.');
+    if (numeric !== '' && /^-?\d+(?:\.\d+)?$/.test(numeric)) return Number(numeric);
+    return value.toLocaleLowerCase('it');
+  };
+  document.querySelectorAll('.card table:not(.server-table):not(.selectable-table)').forEach((table) => {
+    const body = table.tBodies[0];
+    const rows = body ? [...body.rows].filter((row) => !row.querySelector('.table-empty')) : [];
+    const headers = [...(table.tHead?.rows[0]?.cells || [])];
+    if (!body || rows.length === 0 || headers.length === 0) return;
+    let page = 1;
+    let pageSize = 25;
+    let sortIndex = -1;
+    let sortDirection = 1;
+    const pager = document.createElement('nav');
+    pager.className = 'client-pagination';
+    pager.setAttribute('aria-label', 'Paginazione tabella');
+    pager.innerHTML = '<span data-client-page></span><div><button class="button ghost compact-button" type="button" data-client-prev>Precedente</button><button class="button ghost compact-button" type="button" data-client-next>Successiva</button></div><label>Righe <select><option>25</option><option>50</option><option>100</option><option>250</option></select></label>';
+    table.closest('.table-wrap')?.insertAdjacentElement('afterend', pager);
+    const render = () => {
+      const filtered = rows.filter((row) => row.dataset.filterMatch !== '0');
+      const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      page = Math.min(page, pages);
+      rows.forEach((row) => { row.hidden = true; });
+      filtered.slice((page - 1) * pageSize, page * pageSize).forEach((row) => { row.hidden = false; });
+      pager.querySelector('[data-client-page]').textContent = `Pagina ${page} di ${pages} · ${filtered.length} righe`;
+      pager.querySelector('[data-client-prev]').disabled = page <= 1;
+      pager.querySelector('[data-client-next]').disabled = page >= pages;
+      pager.hidden = filtered.length <= pageSize && pageSize === 25;
+    };
+    headers.forEach((header, index) => {
+      if (header.classList.contains('actions-column') || header.classList.contains('selection-column') || header.textContent.trim() === '') return;
+      header.classList.add('client-sortable-header');
+      header.tabIndex = 0;
+      header.setAttribute('role', 'button');
+      header.setAttribute('aria-label', `Ordina per ${header.textContent.trim()}`);
+      const sort = () => {
+        if (sortIndex === index) sortDirection *= -1; else { sortIndex = index; sortDirection = 1; }
+        rows.sort((a, b) => {
+          const left = sortableValue(a.cells[index]);
+          const right = sortableValue(b.cells[index]);
+          return (typeof left === 'number' && typeof right === 'number' ? left - right : String(left).localeCompare(String(right), 'it', { numeric: true })) * sortDirection;
+        }).forEach((row) => body.appendChild(row));
+        headers.forEach((cell) => cell.removeAttribute('data-sort-direction'));
+        header.dataset.sortDirection = sortDirection === 1 ? 'asc' : 'desc';
+        page = 1;
+        render();
+      };
+      header.addEventListener('click', sort);
+      header.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); sort(); } });
+    });
+    pager.querySelector('[data-client-prev]').addEventListener('click', () => { page -= 1; render(); });
+    pager.querySelector('[data-client-next]').addEventListener('click', () => { page += 1; render(); });
+    pager.querySelector('select').addEventListener('change', (event) => { pageSize = Number(event.target.value); page = 1; render(); });
+    table.addEventListener('tablefilter', () => { page = 1; render(); });
+    render();
+  });
 })();
