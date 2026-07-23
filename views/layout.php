@@ -35,8 +35,8 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=6.0.0">
-    <script src="/assets/app.js?v=6.0.0" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=6.0.1">
+    <script src="/assets/app.js?v=6.0.1" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-page">Vai al contenuto</a>
@@ -44,8 +44,10 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-head">
             <a class="brand" href="<?= $isSuperuser ? '/settings/company' : '/dashboard' ?>" aria-label="Luna2">
-                <span class="brand-mark"><span>L</span></span>
-                <span class="brand-copy"><strong>Luna<span>2</span></strong><small>Business workspace</small></span>
+                <span class="brand-copy">
+                    <img class="brand-logo logo-on-dark" src="/assets/logo-luna2.png?v=1" width="748" height="202" alt="">
+                    <small>Business workspace</small>
+                </span>
             </a>
             <button class="sidebar-close" type="button" data-menu-close aria-label="Chiudi menu">×</button>
         </div>

@@ -14,21 +14,21 @@ unset($_SESSION['login_error'], $_SESSION['old_email']);
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#0b1220">
     <title>Accedi · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=6.0.0">
+    <link rel="stylesheet" href="/assets/app.css?v=6.0.1">
 </head>
 <body class="auth-page">
 <main class="auth-shell">
     <section class="auth-visual">
         <div class="auth-visual-grid"></div>
         <div class="auth-visual-content">
-            <span class="auth-logo"><span class="brand-mark">L</span><strong>Luna</strong></span>
+            <span class="auth-logo"><img class="auth-logo-image logo-on-dark" src="/assets/logo-luna2.png?v=1" width="748" height="202" alt="Luna2"></span>
             <div><span class="auth-overline">Business workspace</span><h1>Il lavoro quotidiano,<br>finalmente ordinato.</h1><p>Vendite, contabilità e operatività in un’unica piattaforma essenziale.</p></div>
             <small>© <?= date('Y') ?> Luna2 · Zen Software</small>
         </div>
     </section>
     <section class="auth-form-panel">
         <div class="auth-card">
-            <div class="auth-card-head"><span class="mobile-auth-logo"><span class="brand-mark">L</span> Luna</span><span class="eyebrow">Area riservata</span><h2>Bentornato</h2><p>Inserisci le credenziali per accedere al workspace.</p></div>
+            <div class="auth-card-head"><span class="mobile-auth-logo"><img class="mobile-auth-logo-image" src="/assets/logo-luna2.png?v=1" width="748" height="202" alt="Luna2"></span><span class="eyebrow">Area riservata</span><h2>Bentornato</h2><p>Inserisci le credenziali per accedere al workspace.</p></div>
             <?php if ($error): ?><div class="alert alert-error"><?= View::icon('alert') ?><span><?= View::e($error) ?></span></div><?php endif; ?>
             <form method="post" action="/login" class="stack-form">
                 <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
