@@ -68,4 +68,164 @@ final class EcommerceService
 
     public function acceptWebhook(int $channelId, string $eventType, string $externalId, string $rawBody, array $headers): int
     {
-        $channel = $this->channel($channelIvÛ~º¶‰žËkºwµçB–b‚‚†fÆöB’F&Ææ6U²v÷Væ–æuö†÷W'2uÒ²†fÆöB’F&Ææ6U²v67'VVEö†÷W'2uÒ²†fÆöB’F&Ææ6U²vF§W7FVEö†÷W'2uÒÒ†fÆöB’F&Ææ6U²wW6VEö†÷W'2uÒ’²ãRÂ†fÆöB’FÆVfU²w&WVW7FVEö†÷W'2uÒ’°¢F‡&÷ræWr–çfÆ–D&wVÖVçDW†6WF–öâ‚u6ÆFòfW&–R÷W&ÖW76’–ç7Vff–6–VçFRâr“°¢Ð¢GF†—2ÓæF"Óç&W&R‚uUDDRÆVfUö&Ææ6W24UBW6VEö†÷W'2ÒW6VEö†÷W'2²òt„U$R–BÒòr’ÓæW†V7WFR…²FÆVfU²w&WVW7FVEö†÷W'2uÒÂF&Ææ6U²v–BuÕÒ“°¢Ð¢–b‚F&÷fR—²GW6W#ÒGF†—2ÓæöæR‚u4TÄT5BæÖRe$ôÒW6W'2t„U$R–CÓòäB÷&væ—¦F–öåö–CÓòrÅ²FÆVfU²wW6W%ö–BuÒÂGF†—2Óæ÷&væ—¦F–öä–EÒ“²G&V6÷&EG—SÖÖF6‚‚FÆVfU²vÆVfU÷G—RuÒ—²t„ôÄ”D’sÓât„ôÄ”D’rÂu4”4²sÓâu4”4²rÂtõD„U"sÓâtõD„U"rÆFVfVÇCÓâtÄTdRwÓ²FFFW3ÒGF†—2Óçv÷&´FFW2†æWrFFUF–ÖT–Ö×WF&ÆR‚‡7G&–ær’FÆVfU²w7F'G5öBuÒ’ÆæWrFFUF–ÖT–Ö×WF&ÆR‚‡7G&–ær’FÆVfU²vVæG5öBuÒ’“²G&VÖ–æ–æsÒ†fÆöB’FÆVfU²w&WVW7FVEö†÷W'2uÓ¶f÷&V6‚‚FFFW22F–æFWƒÓâFFFR—²FF—4ÆVgCÖ6÷VçB‚FFFW2’ÒF–æFWƒ²FF”†÷W'3×&÷VæB‚G&VÖ–æ–æròFF—4ÆVgBÃ"“²G&VÖ–æ–æs×&÷VæB‚G&VÖ–æ–ærÒFF”†÷W'2Ã"“²GF†—2ÓæF"Óç&W&R‚t”å4U%B”åDòF–ÖU÷&V6÷&G2†÷&væ—¦F–öåö–BÇW6W%ö–BÇv÷&µöFFRÆV×Æ÷–VUöæÖRÇ&V6÷&E÷G—RÆ†÷W'2Æ&÷fVBÆæ÷FW2Æ7&VFVEö'’ÇWFFVEö'’Æ7&VFVEöBÇWFFVEöB’dÅTU2ƒòÃòÃòÃòÃòÃòÃÃòÃòÃòÄäõr‚’Ääõr‚’’ôâEUÄ”4DR´U’UDDR†÷W'3ÕdÅTU2††÷W'2’Æ&÷fVCÓÆæ÷FW3ÕdÅTU2†æ÷FW2’ÇWFFVEö'“ÕdÅTU2‡WFFVEö'’’ÇWFFVEöCÔäõr‚’r’ÓæW†V7WFR…²GF†—2Óæ÷&væ—¦F–öä–BÂFÆVfU²wW6W%ö–BuÒÂFFFRÂGW6W%²væÖRuÓóòtF—VæFVçFRrÂG&V6÷&EG—RÂFF”†÷W'2Âu&–6†–W7F2râFÆVfT–BÂGF†—2Óæ7F÷$–BÂGF†—2Óæ7F÷$–EÒ“·×Ð¢GF†—2ÓæF"Óç&W&R‚uUDDRÆVfU÷&WVW7G24UB7FGW2ÒòÂFV6–FVEöBÒäõr‚’ÂFV6–FVEö'’ÒòÂFV6—6–öåöæ÷FW2ÒòÂWFFVEöBÒäõr‚’t„U$R–BÒòr’ÓæW†V7WFR…²G7FGW2ÂGF†—2Óæ7F÷$–BÂFæ÷FW2ÂFÆVfT–EÒ“°¢GF†—2ÓæF"Óç&W&R‚uUDDR&÷fÅ÷&WVW7G24UB7FGW2ÒòÂ&÷fW%ö–BÒòÂFV6–FVEöBÒäõr‚’ÂFV6—6–öåöæ÷FW2ÒòÂWFFVEöBÒäõr‚’t„U$R–BÒòr’ÓæW†V7WFR…²G7FGW2ÂGF†—2Óæ7F÷$–BÂFæ÷FW2ÂFÆVfU²v&÷fÅ÷&WVW7Eö–BuÕÒ“°¢GF†—2Óæ†—7F÷'’‚†–çB’FÆVfU²v&÷fÅ÷&WVW7Eö–BuÒÂF&÷fRòt$õdRr¢u$T¤T5BrÂFæ÷FW2“°¢GF†—2ÓæF"Óæ6öÖÖ—B‚“°¢Ò6F6‚…F‡&÷v&ÆRFW†6WF–öâ’°¢–b‚GF†—2ÓæF"Óæ–åG&ç67F–öâ‚’’²GF†—2ÓæF"Óç&öÆÄ&6²‚“²Ð¢F‡&÷rFW†6WF–öã°¢Ð¢Ð ¢V&Æ–2gVæ7F–öâ6æ6VÂ†–çBFÆVfT–BÆ&ööÂF6äÖævSÖfÇ6R“¢fö–@¢°¢GF†—2ÓæF"Óæ&Vv–åG&ç67F–öâ‚“·G'—²FÆVfSÒGF†—2ÓæöæR‚u4TÄT5B¢e$ôÒÆVfU÷&WVW7G2t„U$R–CÓòäB÷&væ—¦F–öåö–CÓòdõ"UDDRrÅ²FÆVfT–BÂGF†—2Óæ÷&væ—¦F–öä–EÒ“¶–b‚FÆVfWÇÂ–åö'&’‚FÆVfU²w7FGW2uÒÅ²u5T$Ô•EDTBrÂt$õdTBuÒÇG'VR’—·F‡&÷ræWr–çfÆ–D&wVÖVçDW†6WF–öâ‚u&–6†–W7FæöâæçVÆÆ&–ÆRâr“·Ö–b‚†–çB’FÆVfU²wW6W%ö–BuÒÓÒGF†—2Óæ7F÷$–BbbF6äÖævR—·F‡&÷ræWr–çfÆ–D&wVÖVçDW†6WF–öâ‚tæöâVö’æçVÆÆ&RÆ&–6†–W7FF’VâÇG&òWFVçFRâr“·Ö–b‚FÆVfU²w7FGW2uÓÓÓÒt$õdTBr—¶–b†–åö'&’‚FÆVfU²vÆVfU÷G—RuÒÅ²t„ôÄ”D’rÂuU$Ô•BrÂu$ôÂrÂtõD„U"uÒÇG'VR’—²G–V#Ò†–çB—7V'7G"‚‡7G&–ær’FÆVfU²w7F'G5öBuÒÃÃB“²GF†—2ÓæF"Óç&W&R‚uUDDRÆVfUö&Ææ6W24UBW6VEö†÷W'3Ôu$TDU5BƒÇW6VEö†÷W'2Óò’t„U$R÷&væ—¦F–öåö–CÓòäBW6W%ö–CÓòäB&Ææ6U÷–V#ÓòäBÆVfU÷G—SÓòr’ÓæW†V7WFR…²FÆVfU²w&WVW7FVEö†÷W'2uÒÂGF†—2Óæ÷&væ—¦F–öä–BÂFÆVfU²wW6W%ö–BuÒÂG–V"ÂFÆVfU²vÆVfU÷G—RuÕÒ“·ÒGF†—2ÓæF"Óç&W&R‚tDTÄUDRe$ôÒF–ÖU÷&V6÷&G2t„U$R÷&væ—¦F–öåö–CÓòäBW6W%ö–CÓòäBæ÷FW3Óòr’ÓæW†V7WFR…²GF†—2Óæ÷&væ—¦F–öä–BÂFÆVfU²wW6W%ö–BuÒÂu&–6†–W7F2râFÆVfT–EÒ“·ÒGF†—2ÓæF"Óç&W&R‚%UDDRÆVfU÷&WVW7G24UB7FGW3Òt4ä4TÄÄTBrÆFV6–FVEöCÔäõr‚’ÆFV6–FVEö'“ÓòÆFV6—6–öåöæ÷FW3ÒtæçVÆÆFrÇWFFVEöCÔäõr‚’t„U$R–CÓò"’ÓæW†V7WFR…²GF†—2Óæ7F÷$–BÂFÆVfT–EÒ“²GF†—2ÓæF"Óç&W&R‚%UDDR&÷fÅ÷&WVW7G24UB7FGW3Òt4ä4TÄÄTBrÆ&÷fW%ö–CÓòÆFV6–FVEöCÔäõr‚’ÆFV6—6–öåöæ÷FW3ÒtæçVÆÆFrÇWFFVEöCÔäõr‚’t„U$R–CÓò"’ÓæW†V7WFR…²GF†—2Óæ7F÷$–BÂFÆVfU²v&÷fÅ÷&WVW7Eö–BuÕÒ“²GF†—2Óæ†—7F÷'’‚†–çB’FÆVfU²v&÷fÅ÷&WVW7Eö–BuÒÂt4ä4TÂrÂu&–6†–W7FæçVÆÆFr“²GF†—2ÓæF"Óæ6öÖÖ—B‚“·Ö6F6‚…F‡&÷v&ÆRFW†6WF–öâ—¶–b‚GF†—2ÓæF"Óæ–åG&ç67F–öâ‚’—²GF†—2ÓæF"Óç&öÆÄ&6²‚“·×F‡&÷rFW†6WF–öã·Ð¢Ð ¢&—fFRgVæ7F–öâv÷&´FFW2„FFUF–ÖT–Ö×WF&ÆRG7F'BÄFFUF–ÖT–Ö×WF&ÆRFVæB“¢'&—²FFFW3ÕµÓ²F7W'6÷#ÒG7F'BÓç6WEF–ÖRƒÃ“²FÆ7CÒFVæBÓç6WEF–ÖRƒÃ“·v†–ÆR‚F7W'6÷#ÃÒFÆ7B—¶–b‚†–çB’F7W'6÷"Óæf÷&ÖB‚târ“ÃÓR—²FFFW5µÓÒF7W'6÷"Óæf÷&ÖB‚u’ÖÒÖBr“·ÒF7W'6÷#ÒF7W'6÷"ÓæÖöF–g’‚r³F’r“·×&WGW&âFFFW3·Ð ¢&—fFRgVæ7F–öâ†—7F÷'’†–çBF&÷fÄ–BÂ7G&–ærF7F–öâÂ÷7G&–ærFæ÷FW2“¢fö–@¢°¢GF†—2ÓæF"Óç&W&R‚t”å4U%B”åDò&÷fÅö†—7F÷'’†÷&væ—¦F–öåö–BÂ&÷fÅ÷&WVW7Eö–BÂ7F–öâÂ7F÷%ö–BÂæ÷FW2Â7&VFVEöB’dÅTU2ƒòÂòÂòÂòÂòÂäõr‚’’r¢ÓæW†V7WFR…²GF†—2Óæ÷&væ—¦F–öä–BÂF&÷fÄ–BÂF7F–öâÂGF†—2Óæ7F÷$–Bó¢çVÆÂÂFæ÷FW5Ò“°¢Ð ¢&—fFRgVæ7F–öâöæR‡7G&–ærG7ÂÂ'&’G&×2“¢'&—ÆfÇ6P¢°¢G7FFVÖVçBÒGF†—2ÓæF"Óç&W&R‚G7Â“²G7FFVÖVçBÓæW†V7WFR‚G&×2“²&WGW&âG7FFVÖVçBÓæfWF6‚‚“°¢Ð§Ð
+        $channel = $this->channel($channelId);
+        $credentials = $this->credentials($channel, true);
+        $valid = $this->verifySignature($channel, $rawBody, $headers, $credentials);
+        $this->db->prepare("INSERT INTO webhook_events (organization_id, channel_id, provider, event_type, external_id, signature_valid, payload_json, status, received_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'RECEIVED', NOW()) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)")
+            ->execute([$this->organizationId, $channelId, $channel['platform'], $eventType, $externalId ?: hash('sha256', $rawBody), $valid ? 1 : 0, $rawBody]);
+        $id = (int) $this->db->lastInsertId();
+        if (!$valid) {
+            $this->db->prepare("UPDATE webhook_events SET status = 'ERROR', error_message = 'Firma webhook non valida' WHERE id = ?")->execute([$id]);
+            throw new InvalidArgumentException('Firma webhook non valida.');
+        }
+        $this->enqueue($channelId, 'PROCESS_WEBHOOK', 'webhook_events', $id, json_decode($rawBody, true) ?: []);
+        return $id;
+    }
+
+    public function convertOrder(int $ecommerceOrderId): int
+    {
+        $this->db->beginTransaction();
+        try {
+            $order = $this->one('SELECT * FROM ecommerce_orders WHERE id = ? AND organization_id = ? FOR UPDATE', [$ecommerceOrderId, $this->organizationId]);
+            if (!$order) { throw new InvalidArgumentException('Ordine e-commerce non trovato.'); }
+            if ($order['luna_document_id']) { $this->db->commit(); return (int) $order['luna_document_id']; }
+            $lines = $this->all('SELECT * FROM ecommerce_order_lines WHERE ecommerce_order_id = ? AND organization_id = ? ORDER BY id', [$ecommerceOrderId, $this->organizationId]);
+            if ($lines === []) { throw new InvalidArgumentException('Ordine senza righe.'); }
+            $customer = $this->resolveCustomer((string) $order['customer_email']);
+            $taxable = round(array_sum(array_map(static fn (array $line): float => (float) $line['total_amount'] - (float) $line['tax_amount'], $lines)), 2);
+            $vat = round(array_sum(array_column($lines, 'tax_amount')), 2);
+            $number = (new DocumentNumberService($this->db, $this->organizationId))->next('SALES_ORDER', (string) $order['order_date']);
+            $this->db->prepare("INSERT INTO documents (organization_id, document_type, number, fiscal_year, document_date, counterparty_type, counterparty_id, counterparty_name, subject, currency, taxable_total, vat_total, total, balance_due, status, fulfillment_status, notes, external_key, created_by, updated_by, created_at, updated_at) VALUES (?, 'SALES_ORDER', ?, ?, ?, 'CUSTOMER', ?, ?, ?, ?, ?, ?, ?, ?, 'CONFIRMED', 'OPEN', ?, ?, ?, ?, NOW(), NOW())")
+                ->execute([$this->organizationId, $number, (int) substr((string) $order['order_date'], 0, 4), $order['order_date'], $customer['id'], $customer['business_name'], 'Ordine ' . $order['platform'] . ' #' . $order['external_order_id'], $order['currency'], $taxable, $vat, $order['total'], $order['total'], 'Import automatico canale e-commerce', hash('sha256', $order['platform'] . '|' . $order['external_order_id']), $this->userId ?: null, $this->userId ?: null]);
+            $documentId = (int) $this->db->lastInsertId();
+            $insert = $this->db->prepare('INSERT INTO document_lines (organization_id, document_id, line_number, product_id, product_code, description, quantity, unit, unit_price, taxable_amount, vat_rate, vat_amount, total_amount, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())');
+            foreach ($lines as $index => $line) {
+                $taxableLine = round((float) $line['total_amount'] - (float) $line['tax_amount'], 2);
+                $rate = $taxableLine > 0 ? round((float) $line['tax_amount'] / $taxableLine * 100, 2) : 0;
+                $insert->execute([$this->organizationId, $documentId, $index + 1, $line['product_id'], $line['sku'], $line['description'], $line['quantity'], 'NR', $line['unit_price'], $taxableLine, $rate, $line['tax_amount'], $line['total_amount']]);
+            }
+            $this->db->prepare("UPDATE ecommerce_orders SET import_status = 'IMPORTED', luna_document_id = ?, updated_at = NOW() WHERE id = ?")->execute([$documentId, $ecommerceOrderId]);
+            $this->db->commit();
+            return $documentId;
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) { $this->db->rollBack(); }
+            throw $exception;
+        }
+    }
+
+    private function pullOrders(array $channel): void
+    {
+        [$request, $extract] = $this->orderRequest($channel);
+        $response = (new Client(['timeout' => 30, 'connect_timeout' => 10, 'http_errors' => true]))->request($request['method'], $request['url'], $request['options']);
+        $payload = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (!empty($payload['errors'])) { throw new InvalidArgumentException('Errore adapter: ' . json_encode($payload['errors'], JSON_UNESCAPED_UNICODE)); }
+        $orders = $extract($payload);
+        foreach ($orders as $external) { $this->upsertExternalOrder($channel, $external); }
+        $this->db->prepare("UPDATE ecommerce_channels SET status = 'CONNECTED', last_sync_at = NOW(), last_success_at = NOW(), last_error = NULL WHERE id = ?")->execute([$channel['id']]);
+    }
+
+    private function pullProducts(array $channel): void
+    {
+        [$request, $extract] = $this->productRequest($channel);
+        $response = (new Client(['timeout' => 30, 'connect_timeout' => 10, 'http_errors' => true]))->request($request['method'], $request['url'], $request['options']);
+        $payload = json_decode((string) $response->getBody(), true, 512, JSON_THROW_ON_ERROR);
+        if (!empty($payload['errors'])) { throw new InvalidArgumentException('Errore adapter: ' . json_encode($payload['errors'], JSON_UNESCAPED_UNICODE)); }
+        foreach ($extract($payload) as $external) {
+            $product = $this->normalizeProduct((string) $channel['platform'], $external);
+            if ($product['external_id'] === '') {
+                continue;
+            }
+            $local = $product['sku'] !== '' ? $this->one('SELECT id FROM products WHERE organization_id = ? AND (sku = ? OR code = ? OR ean = ?) LIMIT 1', [$this->organizationId, $product['sku'], $product['sku'], $product['sku']]) : false;
+            $this->db->prepare('INSERT INTO ecommerce_products (organization_id, ecommerce_channel_id, platform, external_product_id, product_id, sku, name, price, quantity, sync_status, raw_data_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW()) ON DUPLICATE KEY UPDATE ecommerce_channel_id=VALUES(ecommerce_channel_id), product_id=COALESCE(product_id,VALUES(product_id)), sku=VALUES(sku), name=VALUES(name), price=VALUES(price), quantity=VALUES(quantity), sync_status=VALUES(sync_status), raw_data_json=VALUES(raw_data_json), updated_at=NOW()')
+                ->execute([$this->organizationId, $channel['id'], $channel['platform'], $product['external_id'], $local['id'] ?? null, $product['sku'] ?: null, $product['name'], $product['price'], $product['quantity'], 'SYNCED', json_encode($product['raw'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+        }
+        $this->db->prepare("UPDATE ecommerce_channels SET status = 'CONNECTED', last_sync_at = NOW(), last_success_at = NOW(), last_error = NULL WHERE id = ?")->execute([$channel['id']]);
+    }
+
+    private function productRequest(array $channel): array
+    {
+        $credentials = $this->credentials($channel);
+        $settings = json_decode((string) ($channel['settings_json'] ?? '{}'), true) ?: [];
+        $base = rtrim((string) $channel['base_url'], '/');
+        if (!str_starts_with($base, 'https://')) {
+            throw new InvalidArgumentException('Lâ€™endpoint e-commerce deve usare HTTPS.');
+        }
+        return match ($channel['platform']) {
+            'WOOCOMMERCE' => [[
+                'method' => 'GET', 'url' => $base . '/wp-json/wc/v3/products',
+                'options' => ['auth' => [$credentials['consumer_key'] ?? '', $credentials['consumer_secret'] ?? ''], 'query' => ['per_page' => 100]],
+            ], static fn (array $payload): array => $payload],
+            'SHOPIFY' => [[
+                'method' => 'POST', 'url' => $base . '/admin/api/' . ($settings['api_version'] ?? '2026-07') . '/graphql.json',
+                'options' => ['headers' => ['X-Shopify-Access-Token' => $credentials['access_token'] ?? ''], 'json' => ['query' => '{ products(first: 100) { nodes { id title variants(first: 100) { nodes { id title sku price inventoryQuantity inventoryItem { id } } } } } }']],
+            ], static function (array $payload): array {
+             #^´ï›h‘éì¶»§q«^t[˜ÙVÉÜ™\Ù\™YÜ]X[]I×NÂˆ	\ËO™‹Oœ™\\™J	ÕTUH[™[ÜžWØ˜[[˜Ù\ÈÑU]X[]HHË™\Ù\™YÜ]X[]HHË]™\˜YÙWØÛÜÝHË\]YØ]H“ÕÊ
+HÒT‘HYHÉÊBˆO™^XÝ]JÉ™]Ô]X[]K	™\Ù\™Y	]™\˜YÙPÛÜÝ	˜[[˜ÙVÉÚY	×WJNÂˆ	\ËO™‹Oœ™\\™J	ÒS”ÑT•S•È[™[ÜžWÛ[Ý™[Y[È
+[Ý™[Y[Ý]ZYÜ™Ø[š^˜][Û—ÚY[Ý™[Y[Ù]K›ÙXÝÚY›ÙXÝØÛÙKØ\™ZÝ\ÙWÚYØ\™ZÝ\ÙWØÛÙK[Ý™[Y[Ý\K]X[]K[š]ØÛÜÝ™X\ÛÛ‹ØÝ[Y[Ý\KØÝ[Y[Û[X™\‹ÛÝ\˜ÙWÝ\KÛÝ\˜ÙWÚY™]™\œÙYÛ[Ý™[Y[ÚYÜ™X]YØžK\]YØžKÜ™X]YØ]\]YØ]
+HSQTÈ
+ËËËËËËËËËËËËËËËËËË“ÕÊ
+K“ÕÊ
+JIÊBˆO™^XÝ]JÉ]ZY	\ËO›Ü™Ø[š^˜][Û’Y	]VÉÛ[Ý™[Y[Ù]I×HÏÈ]J	ÖK[KY	ÊK	›ÙXÝY	›ÙXÝÉØÛÙI×K	Ø\™ZÝ\ÙRY	Ø\™ZÝ\ÙVÉØÛÙI×K	\K	]X[]K	[š]ÛÜÝ
+Ýš[™ÊH
+	]VÉÜ™X\ÛÛ‰×HÏÈ	Ó[Ýš[Y[ÈX[X[IÊK	]VÉÙØÝ[Y[Ý\I×HÏÈ[	]VÉÙØÝ[Y[Û[X™\‰×HÏÈ[	]VÉÜÛÝ\˜ÙWÝ\I×HÏÈ[	]VÉÜÛÝ\˜ÙWÚY	×HÏÈ[	]VÉÜ™]™\œÙYÛ[Ý™[Y[ÚY	×HÏÈ[	\ËO\Ù\’Y	\ËO\Ù\’YJNÂˆ™]\›ˆ
+[
+H	\ËO™‹O›\Ý[œÙ\Y
+
+NÂˆB‚ˆš]˜]H[˜Ý[Ûˆ˜[[˜ÙJ[	Ø\™ZÝ\ÙRY[	›ÙXÝY›ÛÛ	ØÚÊNˆ\œ˜^BˆÂˆ	ÝY™š^H	ØÚÈÈ	È“ÔˆTUIÈˆ	ÉÎÂˆ	˜[[˜ÙHH	\ËO›Û™J	ÔÑSPÕ
+ˆ”“ÓH[™[ÜžWØ˜[[˜Ù\ÈÒT‘HÜ™Ø[š^˜][Û—ÚYHÈS‘Ø\™ZÝ\ÙWÚYHÈS‘›ÙXÝÚYHÉÈˆ	ÝY™š^É\ËO›Ü™Ø[š^˜][Û’Y	Ø\™ZÝ\ÙRY	›ÙXÝYJNÂˆYˆ
+I˜[[˜ÙJHÂˆ	\ËO™‹Oœ™\\™J	ÒS”ÑT•S•È[™[ÜžWØ˜[[˜Ù\È
+Ü™Ø[š^˜][Û—ÚYØ\™ZÝ\ÙWÚY›ÙXÝÚY]X[]K™\Ù\™YÜ]X[]KZ[š[][WÜÝØÚË]™\˜YÙWØÛÜÝ\]YØ]
+HSQTÈ
+ËËË“ÕÊ
+JIÊBˆO™^XÝ]JÉ\ËO›Ü™Ø[š^˜][Û’Y	Ø\™ZÝ\ÙRY	›ÙXÝYJNÂˆ	˜[[˜ÙHH	\ËO›Û™J	ÔÑSPÕ
+ˆ”“ÓH[™[ÜžWØ˜[[˜Ù\ÈÒT‘HÜ™Ø[š^˜][Û—ÚYHÈS‘Ø\™ZÝ\ÙWÚYHÈS‘›ÙXÝÚYHÉÈˆ	ÝY™š^É\ËO›Ü™Ø[š^˜][Û’Y	Ø\™ZÝ\ÙRY	›ÙXÝYJNÂˆBˆ™]\›ˆ	˜[[˜ÙNÂˆB‚ˆš]˜]H[˜Ý[ÛˆØ\™ZÝ\ÙJ[	Y
+Nˆ\œ˜^BˆÂˆ	Ø\™ZÝ\ÙHH	\ËO›Û™J	ÔÑSPÕYÛÙH”“ÓHØ\™ZÝ\Ù\ÈÒT‘HYHÈS‘Ü™Ø[š^˜][Û—ÚYHÈS‘XÝ]™HHIËÉY	\ËO›Ü™Ø[š^˜][Û’YJNÂˆYˆ
+IØ\™ZÝ\ÙJHÂˆ›ÝÈ™]È[˜[Y\™Ý[Y[^Ù\[ÛŠ	ÓXYØ^žš[›È›Ûˆ˜[YË‰ÊNÂˆBˆ™]\›ˆ	Ø\™ZÝ\ÙNÂˆB‚ˆš]˜]H[˜Ý[Ûˆ˜[œÙ™\Š[	Y›ÛÛ	ØÚÊNˆ\œ˜^BˆÂˆ	˜[œÙ™\ˆH	\ËO›Û™J	ÔÑSPÕ
+ˆ”“ÓH[™[ÜžWÝ˜[œÙ™\œÈÒT‘HYHÈS‘Ü™Ø[š^˜][Û—ÚYHÉÈˆ
+	ØÚÈÈ	È“ÔˆTUIÈˆ	ÉÊKÉY	\ËO›Ü™Ø[š^˜][Û’YJNÂˆYˆ
+I˜[œÙ™\ŠHÂˆ›ÝÈ™]È[˜[Y\™Ý[Y[^Ù\[ÛŠ	Õ˜\Ù™\š[Y[È›Ûˆ›Ý˜]Ë‰ÊNÂˆBˆ™]\›ˆ	˜[œÙ™\ŽÂˆB‚ˆš]˜]H[˜Ý[Ûˆ™^Ü\˜][Û˜[[X™\ŠÝš[™È	™Yš^Ýš[™È	]JNˆÝš[™ÂˆÂˆ	YX\ˆHÝXœÝŠ	]K
+NÂˆ	Ù^HH	ÓÔËIÈˆ	™Yš^ˆ	ËIÈˆ	YX\ŽÂˆ	Ù\]Y[˜ÙHH	\ËO›Û™J	ÔÑSPÕY™^Ý˜[YKY[™È”“ÓHØÝ[Y[ÜÙ\]Y[˜Ù\ÈÒT‘HÜ™Ø[š^˜][Û—ÚYHÈS‘Ù\]Y[˜ÙWÚÙ^HHÈ“ÔˆTUIËÉ\ËO›Ü™Ø[š^˜][Û’Y	Ù^WJNÂˆYˆ
+IÙ\]Y[˜ÙJHÂˆ	\ËO™‹Oœ™\\™J	ÒS”ÑT•S•ÈØÝ[Y[ÜÙ\]Y[˜Ù\È
+Ü™Ø[š^˜][Û—ÚYÙ\]Y[˜ÙWÚÙ^K™Yš^™^Ý˜[YKY[™ËÜ™X]YØ]\]YØ]
+HSQTÈ
+ËËË‹K“ÕÊ
+K“ÕÊ
+JIÊKO™^XÝ]JÉ\ËO›Ü™Ø[š^˜][Û’Y	Ù^K	™Yš^ˆ	ËIÈˆ	YX\ˆˆ	ËI×JNÂˆ™]\›ˆ	™Yš^ˆ	ËIÈˆ	YX\ˆˆ	ËLIÎÂˆBˆ	\ËO™‹Oœ™\\™J	ÕTUHØÝ[Y[ÜÙ\]Y[˜Ù\ÈÑU™^Ý˜[YHH™^Ý˜[YH
+ÈHÒT‘HYHÉÊKO™^XÝ]JÉÙ\]Y[˜ÙVÉÚY	×WJNÂˆ™]\›ˆ	™Yš^ˆ	ËIÈˆ	YX\ˆˆ	ËIÈˆÝ—ÜY
+
+Ýš[™ÊH	Ù\]Y[˜ÙVÉÛ™^Ý˜[YI×K
+[
+H	Ù\]Y[˜ÙVÉÜY[™É×K	Ì	ËÕ—ÔQÓQ•
+NÂˆB‚ˆš]˜]H[˜Ý[Ûˆ]ZY›ÜŠÝš[™È	ØÛÜK[	\™[[	[™JNˆÝš[™ÂˆÂˆ	^H\Ú
+	ÜÚLM‰Ë[\ÙJ	ß	ËÉ\ËO›Ü™Ø[š^˜][Û’Y	ØÛÜK	\™[	[™WJJNÂˆ™]\›ˆÝXœÝŠ	^
+Hˆ	ËIÈˆÝXœÝŠ	^
+Hˆ	ËM	ÈˆÝXœÝŠ	^LËÊHˆ	ËXIÈˆÝXœÝŠ	^MËÊHˆ	ËIÈˆÝXœÝŠ	^ŒLŠNÂˆB‚ˆš]˜]H[˜Ý[Ûˆ]ZY
+
+NˆÝš[™ÂˆÂˆ	ž]\ÈH˜[™ÛWØž]\ÊMŠNÂˆ	ž]\ÖÍ—HHÚŠ
+Ü™
+	ž]\ÖÍ—JH	ˆŠH
+NÂˆ	ž]\ÖÎHHÚŠ
+Ü™
+	ž]\ÖÎJH	ˆÙŠH
+NÂˆ™]\›ˆœÜš[Š	É\É\ËI\ËI\ËI\ËI\É\É\ÉËÝ—ÜÜ]
+š[Œš^
+	ž]\ÊK
+JNÂˆB‚ˆš]˜]H[˜Ý[ÛˆÛ™JÝš[™È	Ü[\œ˜^H	\˜[\ÊNˆ\œ˜^_˜[ÙBˆÂˆ	Ý][Y[H	\ËO™‹Oœ™\\™J	Ü[
+NÂˆ	Ý][Y[O™^XÝ]J	\˜[\ÊNÂˆ™]\›ˆ	Ý][Y[O™™]Ú
+
+NÂˆB‚ˆš]˜]H[˜Ý[Ûˆ[
+Ýš[™È	Ü[\œ˜^H	\˜[\ÊNˆ\œ˜^BˆÂˆ	Ý][Y[H	\ËO™‹Oœ™\\™J	Ü[
+NÂˆ	Ý][Y[O™^XÝ]J	\˜[\ÊNÂˆ™]\›ˆ	Ý][Y[O™™]Ú[
+
+NÂˆB‚ˆš]˜]H[˜Ý[Ûˆ˜[œØXÝ[ÛŠØ[X›H	Ø[˜XÚÊNˆZ^YˆÂˆ	ÝÛœÈHI\ËO™‹Oš[•˜[œØXÝ[ÛŠ
+NÂˆYˆ
+	ÝÛœÊHÂˆ	\ËO™‹O˜™YÚ[•˜[œØXÝ[ÛŠ
+NÂˆBˆžHÂˆ	™\Ý[H	Ø[˜XÚÊ
+NÂˆYˆ
+	ÝÛœÊHÂˆ	\ËO™‹O˜ÛÛ[Z]
+
+NÂˆBˆ™]\›ˆ	™\Ý[ÂˆHØ]Ú
+›ÝØX›H	^Ù\[ÛŠHÂˆYˆ
+	ÝÛœÈ	‰ˆ	\ËO™‹Oš[•˜[œØXÝ[ÛŠ
+JHÂˆ	\ËO™‹Oœ›Û˜XÚÊ
+NÂˆBˆ›ÝÈ	^Ù\[ÛŽÂˆBˆBŸB
