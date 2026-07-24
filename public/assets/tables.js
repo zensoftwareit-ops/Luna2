@@ -34,7 +34,6 @@
     const rows = [...table.tBodies]
       .flatMap((body) => [...body.rows])
       .filter((row) => !row.querySelector('.table-empty') && row.cells.length > 1);
-    if (rows.length === 0) return;
 
     table.dataset.lunaTable = 'ready';
     rows.forEach((row, index) => {
@@ -156,5 +155,11 @@
     render();
   };
 
-  document.querySelectorAll('.table-wrap > table').forEach(enhance);
+  document.querySelectorAll('.table-wrap > table').forEach((table) => {
+    try {
+      enhance(table);
+    } catch (error) {
+      console.error('Luna2: inizializzazione tabella non riuscita.', error);
+    }
+  });
 })();

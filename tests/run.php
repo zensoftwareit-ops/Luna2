@@ -98,16 +98,20 @@ $tableCss = (string) file_get_contents($base . '/public/assets/tables.css');
 $layoutView = (string) file_get_contents($base . '/views/layout.php');
 $assert(
     str_contains($layoutView, '/assets/tables.css?v=1.0.0')
-    && str_contains($layoutView, '/assets/tables.js?v=1.0.0'),
+    && str_contains($layoutView, '/assets/tables.js?v=1.0.1'),
     'Asset tabellari isolati non caricati dal layout.'
 );
 $assert(
-    str_contains($tableJs, "document.querySelectorAll('.table-wrap > table').forEach(enhance)")
+    str_contains($tableJs, "document.querySelectorAll('.table-wrap > table').forEach((table)")
     && str_contains($tableJs, "table.matches('.line-table,.selectable-table,[data-no-table-controls]')")
     && str_contains($tableJs, "table.closest('form')")
     && str_contains($tableJs, "aria-sort")
     && str_contains($tableJs, "data-luna-size"),
     'Ordinamento e paginazione sicuri delle tabelle dati incompleti.'
+);
+$assert(
+    !str_contains($tableJs, "if (rows.length === 0) return;"),
+    'Le intestazioni devono restare ordinabili anche quando la tabella dati è vuota.'
 );
 $assert(
     substr_count($tableCss, '{') === substr_count($tableCss, '}')
