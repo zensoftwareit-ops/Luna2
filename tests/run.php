@@ -93,6 +93,14 @@ $tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportS
 $assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
 $appJs = (string) file_get_contents($base . '/public/assets/app.js');
 $assert(str_contains($appJs, 'Filtra tabella') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
+$assert(
+    str_contains($appJs, "document.querySelectorAll('.table-wrap > table').forEach(enhanceDataTable)")
+    && str_contains($appJs, "table.matches('.line-table,.selectable-table,[data-no-table-controls]')")
+    && str_contains($appJs, "table.closest('form')")
+    && str_contains($appJs, "aria-sort")
+    && str_contains($appJs, "data-table-size"),
+    'Ordinamento e paginazione sicuri delle tabelle dati incompleti.'
+);
 $parityRoutes = ['/operations/logistics', '/operations/projects', '/operations/communications', '/operations/hr', '/operations/ecommerce', '/operations/rental', '/operations/calendar', '/reports/management'];
 foreach ($parityRoutes as $route) {
     $assert(str_contains($application, "'{$route}"), "Rotta parità funzionale mancante: {$route}");
@@ -267,6 +275,12 @@ foreach ($professionalServices as $service) {
 }
 $css = (string) file_get_contents($base . '/public/assets/app.css');
 $assert(substr_count($css, '{') === substr_count($css, '}'), 'Parentesi CSS non bilanciate.');
+$assert(
+    str_contains($css, '.exportable-toolbar{display:grid')
+    && str_contains($css, '.sortable-header[aria-sort="ascending"]')
+    && str_contains($css, '.table-pagination{display:grid'),
+    'Allineamento filtri o componenti visivi delle tabelle incompleti.'
+);
 $assert(str_contains($css, '.topbar-search') && str_contains($css, '.professional-section') && str_contains($css, '@media(prefers-reduced-motion:reduce)'), 'Design system professionale o accessibilitÃ  CSS incompleti.');
 
 $assert(

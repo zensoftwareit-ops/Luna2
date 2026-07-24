@@ -183,7 +183,7 @@
   const tableMatrix = (table) => {
     const ignored = [...table.querySelectorAll('thead th')].map((cell) =>
       cell.classList.contains('actions-column') || cell.classList.contains('selection-column') || cell.textContent.trim() === '');
-    return [...table.rows].filter((row) => !row.hidden).map((row) => [...row.cells]
+    return [...table.rows].filter((row) => row.closest('thead') || row.dataset.filterMatch !== '0').map((row) => [...row.cells]
       .filter((_, index) => !ignored[index])
       .map((cell) => cell.innerText.replace(/\s+/g, ' ').trim()));
   };
@@ -223,8 +223,9 @@
       localSearch.addEventListener('input', () => {
         const needle = localSearch.value.trim().toLocaleLowerCase('it');
         [...table.tBodies].flatMap((body) => [...body.rows]).forEach((row) => {
-          row.hidden = needle !== '' && !row.innerText.toLocaleLowerCase('it').includes(needle);
+          row.dataset.filterMatch = needle === '' || row.innerText.toLocaleLowerCase('it').includes(needle) ? '1' : '0';
         });
+        table.dispatchEvent(new CustomEvent('luna:table-filter'));
       });
       pdfButton.addEventListener('click', () => {
         document.body.classList.add('print-table');
@@ -243,4 +244,110 @@
       if (header) header.appendChild(tools); else card?.insertBefore(tools, card.firstChild);
     });
   }
+
+  const tableSortValue = (cell) => {
+    const raw = cell?.innerText.replace(/\s+/g, ' ').trim() || '';
+    const dateMatch = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (dateMatch) return { type: 'number', value: Date.UTC(Number(dateMatch[3]), Number(dateMatch[2]) - 1, Number(dateMatch[1])) };
+    const isoDate = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoDate) return { type: 'number', value: Date.UTC(Number(isoDate[1]), Number(isoDate[2]) - 1, Number(isoDate[3])) };
+    const normalized = raw.replace(/[€%\s]/g, '').replace(/\./g, '').replace(',', '.');
+    if (normalized !== '' && /^-?\d+(?:\.\d+)?$/.test(normalized)) {
+      return { type: 'number', value: Number(normalized) };
+    }
+    return { type: 'text', value: raw.toLocaleLowerCase('it') };
+  };
+
+  const enhanceDataTable = (table) => {
+    if (table.dataset.tableEnhanced === '1'
+      || table.matches('.line-table,.selectable-table,[data-no-table-controls]')
+      || table.closest('form')
+      || !table.tHead
+      || table.tBodies.length === 0) return;
+
+    const rows = [...table.tBodies].flatMap((body) => [...body.rows]);
+    const dataRows = rows.filter((row) => !row.querySelector('.table-empty') && !row.hasAttribute('data-table-placeholder'));
+    if (dataRows.length === 0) return;
+
+    table.dataset.tableEnhanced = '1';
+    dataRows.forEach((row, index) => {
+      row.dataset.tableOriginalIndex = String(index);
+      if (row.dataset.filterMatch === undefined) row.dataset.filterMatch = '1';
+    });
+
+    let page = 1;
+    let perPage = 25;
+    let sortIndex = -1;
+    let sortDirection = 'asc';
+
+    const wrap = table.closest('.table-wrap');
+    const pager = document.createElement('nav');
+    pager.className = 'table-pagination';
+    pager.setAttribute('aria-label', 'Paginazione tabella');
+    pager.innerHTML = '<span data-table-summary></span><div><button type="button" data-table-prev aria-label="Pagina precedente">‹</button><span data-table-page></span><button type="button" data-table-next aria-label="Pagina successiva">›</button></div><label>Righe <select data-table-size><option>25</option><option>50</option><option>100</option><option>250</option></select></label>';
+    wrap.insertAdjacentElement('afterend', pager);
+
+    const summary = pager.querySelector('[data-table-summary]');
+    const pageLabel = pager.querySelector('[data-table-page]');
+    const previous = pager.querySelector('[data-table-prev]');
+    const next = pager.querySelector('[data-table-next]');
+    const size = pager.querySelector('[data-table-size]');
+
+    const render = () => {
+      const matching = dataRows.filter((row) => row.dataset.filterMatch !== '0');
+      const pages = Math.max(1, Math.ceil(matching.length / perPage));
+      page = Math.min(Math.max(1, page), pages);
+      const start = (page - 1) * perPage;
+      const current = new Set(matching.slice(start, start + perPage));
+      dataRows.forEach((row) => { row.hidden = !current.has(row); });
+      summary.textContent = `${matching.length} righe`;
+      pageLabel.textContent = `${page} / ${pages}`;
+      previous.disabled = page <= 1;
+      next.disabled = page >= pages;
+      pager.classList.toggle('is-compact', matching.length <= perPage);
+    };
+
+    [...table.tHead.rows[0].cells].forEach((header, index) => {
+      if (header.classList.contains('actions-column')
+        || header.classList.contains('selection-column')
+        || header.textContent.trim() === ''
+        || header.querySelector('a,button,input,select')) return;
+      header.classList.add('sortable-header');
+      header.tabIndex = 0;
+      header.setAttribute('role', 'button');
+      header.setAttribute('aria-sort', 'none');
+      const sort = () => {
+        sortDirection = sortIndex === index && sortDirection === 'asc' ? 'desc' : 'asc';
+        sortIndex = index;
+        [...table.tHead.rows[0].cells].forEach((cell) => cell.setAttribute('aria-sort', cell === header ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'));
+        dataRows.sort((left, right) => {
+          const a = tableSortValue(left.cells[index]);
+          const b = tableSortValue(right.cells[index]);
+          const compared = a.type === 'number' && b.type === 'number'
+            ? a.value - b.value
+            : String(a.value).localeCompare(String(b.value), 'it', { numeric: true, sensitivity: 'base' });
+          const stable = compared || Number(left.dataset.tableOriginalIndex) - Number(right.dataset.tableOriginalIndex);
+          return sortDirection === 'asc' ? stable : -stable;
+        });
+        dataRows.forEach((row) => row.parentElement.appendChild(row));
+        page = 1;
+        render();
+      };
+      header.addEventListener('click', sort);
+      header.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          sort();
+        }
+      });
+    });
+
+    previous.addEventListener('click', () => { page -= 1; render(); });
+    next.addEventListener('click', () => { page += 1; render(); });
+    size.addEventListener('change', () => { perPage = Number(size.value) || 25; page = 1; render(); });
+    table.addEventListener('luna:table-filter', () => { page = 1; render(); });
+    render();
+  };
+
+  document.querySelectorAll('.table-wrap > table').forEach(enhanceDataTable);
 })();
