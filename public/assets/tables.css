@@ -1,0 +1,169 @@
+/*
+ * Luna2 table enhancements.
+ * Isolated from app.css so these rules cannot alter the application shell.
+ */
+.page .list-toolbar.exportable-toolbar {
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.page .list-toolbar.exportable-toolbar .filter-form {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: flex-end;
+  gap: 10px;
+  min-width: 0;
+}
+
+.page .list-toolbar.exportable-toolbar .filter-form > .search-control {
+  flex: 1 1 300px;
+  align-self: flex-end;
+  height: 40px;
+}
+
+.page .list-toolbar.exportable-toolbar .filter-form > label {
+  display: grid;
+  flex: 0 1 180px;
+  gap: 4px;
+  min-width: 110px;
+  margin: 0;
+}
+
+.page .list-toolbar.exportable-toolbar .filter-form > label > input,
+.page .list-toolbar.exportable-toolbar .filter-form > label > select,
+.page .list-toolbar.exportable-toolbar .filter-form > .button,
+.page .list-toolbar.exportable-toolbar > .export-actions .button {
+  height: 40px;
+  min-height: 40px;
+}
+
+.page .list-toolbar.exportable-toolbar > .export-actions {
+  align-self: flex-end;
+}
+
+.luna-sortable {
+  position: relative;
+  padding-right: 29px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.luna-sortable::after {
+  content: "↕";
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  color: #b1bccb;
+  font-size: 11px;
+  transform: translateY(-50%);
+}
+
+.luna-sortable:hover,
+.luna-sortable:focus-visible {
+  color: var(--blue-600);
+  background: #f3f7fd;
+  outline: 0;
+}
+
+.luna-sortable[aria-sort="ascending"]::after {
+  content: "↑";
+  color: var(--blue-600);
+}
+
+.luna-sortable[aria-sort="descending"]::after {
+  content: "↓";
+  color: var(--blue-600);
+}
+
+.luna-table-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line-soft);
+  background: #fff;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.luna-table-pagination[hidden] {
+  display: none;
+}
+
+.luna-table-pagination > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.luna-table-pagination > label {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 7px;
+}
+
+.luna-table-pagination button,
+.luna-table-pagination select {
+  height: 32px;
+  border: 1px solid #d6dee9;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 700;
+}
+
+.luna-table-pagination button {
+  width: 32px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.luna-table-pagination button:hover:not(:disabled) {
+  border-color: #9db6d7;
+  background: #f1f6ff;
+  color: var(--blue-600);
+}
+
+.luna-table-pagination button:disabled {
+  cursor: default;
+  opacity: .4;
+}
+
+.luna-table-pagination select {
+  min-width: 68px;
+  padding: 5px 24px 5px 9px;
+}
+
+@media (max-width: 850px) {
+  .page .list-toolbar.exportable-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page .list-toolbar.exportable-toolbar .filter-form {
+    width: 100%;
+  }
+
+  .page .list-toolbar.exportable-toolbar .filter-form > label {
+    flex: 1 1 140px;
+  }
+
+  .page .list-toolbar.exportable-toolbar > .export-actions {
+    align-self: stretch;
+    width: 100%;
+  }
+
+  .luna-table-pagination {
+    grid-template-columns: 1fr auto;
+  }
+
+  .luna-table-pagination > label {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}

@@ -93,6 +93,30 @@ $tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportS
 $assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
 $appJs = (string) file_get_contents($base . '/public/assets/app.js');
 $assert(str_contains($appJs, 'Filtra tabella') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
+$tableJs = (string) file_get_contents($base . '/public/assets/tables.js');
+$tableCss = (string) file_get_contents($base . '/public/assets/tables.css');
+$layoutView = (string) file_get_contents($base . '/views/layout.php');
+$assert(
+    str_contains($layoutView, '/assets/tables.css?v=1.0.0')
+    && str_contains($layoutView, '/assets/tables.js?v=1.0.0'),
+    'Asset tabellari isolati non caricati dal layout.'
+);
+$assert(
+    str_contains($tableJs, "document.querySelectorAll('.table-wrap > table').forEach(enhance)")
+    && str_contains($tableJs, "table.matches('.line-table,.selectable-table,[data-no-table-controls]')")
+    && str_contains($tableJs, "table.closest('form')")
+    && str_contains($tableJs, "aria-sort")
+    && str_contains($tableJs, "data-luna-size"),
+    'Ordinamento e paginazione sicuri delle tabelle dati incompleti.'
+);
+$assert(
+    substr_count($tableCss, '{') === substr_count($tableCss, '}')
+    && str_contains($tableCss, '.page .list-toolbar.exportable-toolbar')
+    && str_contains($tableCss, '.luna-table-pagination')
+    && !str_contains($tableCss, '.topbar')
+    && !str_contains($tableCss, '.sidebar'),
+    'CSS tabellare non isolato o incompleto.'
+);
 $parityRoutes = ['/operations/logistics', '/operations/projects', '/operations/communications', '/operations/hr', '/operations/ecommerce', '/operations/rental', '/operations/calendar', '/reports/management'];
 foreach ($parityRoutes as $route) {
     $assert(str_contains($application, "'{$route}"), "Rotta parità funzionale mancante: {$route}");
