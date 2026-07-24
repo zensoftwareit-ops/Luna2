@@ -137,7 +137,12 @@ try {
             echo "  demo:seed [--months=18] [--reset]\n";
     }
 } catch (Throwable $exception) {
-    fwrite(STDERR, 'Errore: ' . $exception->getMessage() . PHP_EOL);
+    fwrite(
+        STDERR,
+        'Errore: ' . $exception->getMessage()
+        . ' [' . $exception->getFile() . ':' . $exception->getLine() . ']'
+        . PHP_EOL
+    );
     exit(1);
 }
 
