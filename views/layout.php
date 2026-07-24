@@ -35,8 +35,8 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=6.1.1">
-    <script src="/assets/app.js?v=6.1.1" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=6.1.0">
+    <script src="/assets/app.js?v=6.1.0" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-page">Vai al contenuto</a>
