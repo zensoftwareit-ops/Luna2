@@ -37,8 +37,10 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <title><?= View::e($title) ?> · Luna2</title>
     <link rel="stylesheet" href="/assets/app.css?v=6.1.0">
     <link rel="stylesheet" href="/assets/tables.css?v=1.0.0">
+    <link rel="stylesheet" href="/assets/transitions.css?v=1.0.0">
     <script src="/assets/app.js?v=6.1.0" defer></script>
     <script src="/assets/tables.js?v=1.0.1" defer></script>
+    <script src="/assets/transitions.js?v=1.0.0" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-page">Vai al contenuto</a>

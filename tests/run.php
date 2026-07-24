@@ -95,6 +95,8 @@ $appJs = (string) file_get_contents($base . '/public/assets/app.js');
 $assert(str_contains($appJs, 'Filtra tabella') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
 $tableJs = (string) file_get_contents($base . '/public/assets/tables.js');
 $tableCss = (string) file_get_contents($base . '/public/assets/tables.css');
+$transitionJs = (string) file_get_contents($base . '/public/assets/transitions.js');
+$transitionCss = (string) file_get_contents($base . '/public/assets/transitions.css');
 $layoutView = (string) file_get_contents($base . '/views/layout.php');
 $assert(
     str_contains($layoutView, '/assets/tables.css?v=1.0.0')
@@ -120,6 +122,21 @@ $assert(
     && !str_contains($tableCss, '.topbar')
     && !str_contains($tableCss, '.sidebar'),
     'CSS tabellare non isolato o incompleto.'
+);
+$assert(
+    str_contains($layoutView, '/assets/transitions.css?v=1.0.0')
+    && str_contains($layoutView, '/assets/transitions.js?v=1.0.0')
+    && str_contains($transitionCss, '@keyframes luna-page-enter')
+    && str_contains($transitionCss, 'prefers-reduced-motion: reduce')
+    && str_contains($transitionJs, "closest('a[href]')")
+    && str_contains($transitionJs, "anchor.hasAttribute('download')")
+    && str_contains($transitionJs, 'destination.origin !== window.location.origin')
+    && str_contains($transitionJs, "document.body.classList.add('luna-page-leaving')"),
+    'Le transizioni di pagina devono essere isolate, accessibili e limitate ai link interni.'
+);
+$assert(
+    substr_count($transitionCss, '{') === substr_count($transitionCss, '}'),
+    'Parentesi CSS non bilanciate nelle transizioni di pagina.'
 );
 $parityRoutes = ['/operations/logistics', '/operations/projects', '/operations/communications', '/operations/hr', '/operations/ecommerce', '/operations/rental', '/operations/calendar', '/reports/management'];
 foreach ($parityRoutes as $route) {

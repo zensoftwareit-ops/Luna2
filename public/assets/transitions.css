@@ -1,0 +1,35 @@
+@media (prefers-reduced-motion: no-preference) {
+  .page {
+    animation: luna-page-enter 180ms cubic-bezier(.2, .72, .3, 1) both;
+    transform-origin: 50% 0;
+  }
+
+  body.luna-page-leaving .page {
+    animation: none;
+    opacity: 0;
+    transform: translateY(3px);
+    transition: opacity 90ms ease, transform 90ms ease;
+    pointer-events: none;
+  }
+}
+
+@keyframes luna-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page,
+  body.luna-page-leaving .page {
+    animation: none;
+    transition: none;
+    transform: none;
+  }
+}
