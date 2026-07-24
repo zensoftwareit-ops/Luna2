@@ -101,7 +101,12 @@ final class DemoDataSeeder
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
-            throw new RuntimeException('Generazione demo annullata: ' . $exception->getMessage(), 0, $exception);
+            throw new RuntimeException(
+                'Generazione demo annullata: ' . $exception->getMessage()
+                . ' [' . $exception->getFile() . ':' . $exception->getLine() . ']',
+                0,
+                $exception
+            );
         }
 
         ksort($this->counts);
@@ -615,7 +620,9 @@ final class DemoDataSeeder
 
     private function seedPeople(int $org, int $months, array $users): void
     {
-        $employees = array_intersect_key($users, array_flip(['owner','accountant','sales','warehouse','hr']));
+        $employees = array_values(
+            array_intersect_key($users, array_flip(['owner', 'accountant', 'sales', 'warehouse', 'hr']))
+        );
         foreach ($employees as $index => $userId) {
             $this->add('payroll_employee_configs', [
                 'organization_id' => $org, 'user_id' => $userId, 'employee_code' => 'DIP-' . sprintf('%03d', $index + 1),

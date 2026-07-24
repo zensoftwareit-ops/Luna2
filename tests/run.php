@@ -375,6 +375,11 @@ $assert(
     && str_contains($demoSeeder, "random_bytes(4)"),
     'Il seed demo deve essere isolato, atomico, rigenerabile e usare una password casuale.'
 );
+$assert(
+    str_contains($demoSeeder, 'array_values(')
+    && str_contains($demoSeeder, "array_intersect_key(\$users"),
+    'Gli utenti demo devono essere reindicizzati prima dei calcoli numerici payroll.'
+);
 $demoCoverage = [
     'customers', 'suppliers', 'products', 'documents', 'payment_schedules',
     'journal_entries', 'vat_movements', 'vat_settlements', 'vat_cash_events',
