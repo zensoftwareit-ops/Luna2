@@ -199,7 +199,20 @@ try {
     $periodEnd = new DateTimeImmutable('2026-12-31');
     $renderedAccounting .= $renderAccountingView('compliance', ['year' => 2026, 'adjustments' => [], 'lipe' => [], 'annual' => [], 'closingRuns' => [], 'schedules' => [], 'categories' => [], 'assets' => [], 'depreciations' => [], 'accounts' => [], 'statements' => [], 'statementTotals' => [], 'periodStart' => $periodStart, 'periodEnd' => $periodEnd]);
     $assert(str_contains($renderedAccounting, 'Prima nota') && str_contains($renderedAccounting, 'Registri IVA') && str_contains($renderedAccounting, 'Liquidazioni IVA'), 'Rendering viste contabili incompleto.');
-    $assert(str_contains($renderedAccounting, 'PiaÛÏm¢G§²ÚîÆ­y×milestones'=>[],'users'=>[]]);
+    $assert(str_contains($renderedAccounting, 'Piano dei conti') && str_contains($renderedAccounting, 'Tesoreria e partite') && str_contains($renderedAccounting, 'Adempimenti, bilancio e cespiti'), 'Rendering contabilitÃ  avanzata incompleto.');
+} catch (Throwable $exception) {
+    $assert(false, 'Errore rendering viste contabili: ' . $exception->getMessage());
+}
+$renderView = static function (string $file, array $variables) use ($base): string {
+    extract($variables, EXTR_SKIP);
+    ob_start();
+    require $base . '/views/' . $file . '.php';
+    return (string) ob_get_clean();
+};
+try {
+    $renderedOperations = '';
+    $renderedOperations .= $renderView('operations/logistics', ['balances'=>[],'transfers'=>[],'picks'=>[],'warehouses'=>[],'products'=>[],'orders'=>[]]);
+    $renderedOperations .= $renderView('operations/projects', ['projects'=>[],'project'=>null,'metrics'=>[],'time'=>[],'expenses'=>[],'milestones'=>[],'users'=>[]]);
     $renderedOperations .= $renderView('operations/communications', ['settings'=>[],'messages'=>[],'documents'=>[]]);
     $renderedOperations .= $renderView('operations/hr', ['leaves'=>[],'balances'=>[],'users'=>[],'runs'=>[],'configs'=>[],'admin'=>false]);
     $renderedOperations .= $renderView('operations/ecommerce', ['channels'=>[],'orders'=>[],'catalog'=>[],'queue'=>[]]);

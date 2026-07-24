@@ -291,4 +291,558 @@ final class DemoDataSeeder
             'organization_id' => $organizationId,
             'code' => "GEN",
             'name' => "Struttura generale",
-            'active' =×~½ÞÚ$z{-®éÜj×GF†—2ÓæFB‚w6F•öæ÷F–f–6F–öç2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂw6F•÷G&ç6Ö—76–öåö–BrÓâGG&ç6Ö—76–öâÂvæ÷F–f–6F–öå÷G—RrÓâu$2rÂvf–ÆVæÖRrÓâu$5ôDTÔóç†ÖÂrÂv6†V6·7VÕ÷6†#SbrÓâ†6‚‚w6†#SbrÂvFVÖò×&V6V—Br’Âw–ÆöE÷†ÖÂrÓâsÅ&–6WgWF6öç6VvæFVÖóÒ'G'VR"óârÂw&V6V—fVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓ’F—2r’’Âw&ö6W76VEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓ’F—2r’•Ò“° ¢GF†—2ÓæFB‚v6öÖ×Væ–6F–öå÷6WGF–æw2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂwG&ç7÷'BrÓâtD•4$ÄTBrÂvg&öÕöVÖ–ÂrÓâvæ÷&WÇ”FVÖòæÇVææÆö6ÂrÂvg&öÕöæÖRrÓâtÇVæFVÖòrÂwG&6¶–æuö&6U÷W&ÂrÓâv‡GG3¢òöFVÖòæÇVææÆö6ÂrÂwG&6¶–æuöVæ&ÆVBrÓâÂvÖ…öGFV×G2rÓâUÒ“°¢FÖW76vRÒGF†—2ÓæFB‚v÷WF&÷VæEöVÖ–Ç2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvÖW76vU÷WV–BrÓâGF†—2ÓçWV–B‚’ÂvFö7VÖVçEö–BrÓâFFö7VÖVçG5²w6ÆW5ö–çfö–6RuÒÂw&V6—–VçBrÓâvÖÖ–æ—7G&¦–öæT6Æ–VçFRÖFVÖòæÆö6ÂrÂw7V&¦V7BrÓâtfGGW&FVÖòF—7öæ–&–ÆRrÂv‡FÖÅö&öG’rÓâsÇävVçF–ÆR6Æ–VçFRÂÆfGGW&FVÖò:‚F—7öæ–&–ÆRãÂ÷ârÂwFW‡Eö&öG’rÓâtÆfGGW&FVÖò:‚F—7öæ–&–ÆRârÂvGF6†ÖVçEö§6öârÓâGF†—2Óæ§6öâ…²vFö7VÖVçEö–BrÓâFFö7VÖVçG5²w6ÆW5ö–çfö–6RuÕÒ’ÂwG&6¶–æu÷Fö¶VârÓâ†6‚‚w6†#SbrÂvFVÖò×G&6²ÒrâF÷&r’Âw7FGW2rÓâu4TåBrÂvGFV×G2rÓâÂw6VçEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓRF—2r’’ÂvÖW76vUö–BrÓâsÆFVÖòÒrâF÷&râtÇVææÆö6ÃârÂv7&VFVEö'’rÓâGW6W'5²v66÷VçFçBuÕÒ“°¢GF†—2ÓæFB‚vVÖ–ÅöWfVçG2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv÷WF&÷VæEöVÖ–Åö–BrÓâFÖW76vRÂvWfVçE÷G—RrÓâtDTÄ•dU$TBrÂvö67W'&VEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓRF—2³"Ö–çWFW2r’•Ò“°¢GF†—2ÓæFB‚vVÖ–ÅöWfVçG2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv÷WF&÷VæEöVÖ–Åö–BrÓâFÖW76vRÂvWfVçE÷G—RrÓâtõTârÂvö67W'&VEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓBF—2r’•Ò“°¢GF†—2ÓæFB‚vVÖ–Å÷G&6¶–ærrÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvFö7VÖVçEö–BrÓâFFö7VÖVçG5²w6ÆW5ö–çfö–6RuÒÂw&V6—–VçBrÓâvÖÖ–æ—7G&¦–öæT6Æ–VçFRÖFVÖòæÆö6ÂrÂw7V&¦V7BrÓâtfGGW&FVÖòF—7öæ–&–ÆRrÂwG&6¶–æu÷Fö¶VârÓâ†6‚‚w6†#SbrÂvÆVv7’ÖFVÖò×G&6²ÒrâF÷&r’Âw6VçEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓRF—2r’’Âvf—'7Eö÷VæVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓBF—2r’’ÂvÆ7Eö÷VæVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓ2F—2r’’Âv÷Vç5ö6÷VçBrÓâ5Ò“°¢GF†—2ÓæFB‚v&6¶w&÷VæEö¦ö'2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂwVWVRrÓâvFVÖòrÂv¦ö%÷G—RrÓâtDTÔõô„TÅD…ô4„T4²rÂw–ÆöEö§6öârÓâGF†—2Óæ§6öâ…²v÷&væ—¦F–öåö–BrÓâF÷&uÒ’Âw7FGW2rÓât4ôÕÄUDTBrÂvGFV×G2rÓâÂvf–Æ&ÆUöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓF’r’’Âw7F'FVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓF’r’’Âv6ö×ÆWFVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓF’³Ö–çWFRr’•Ò“°¢Ð ¢&—fFRgVæ7F–öâ6VVE&öfW76–öæÅv÷&·76R†–çBF÷&rÂ'&’GW6W'2Â'&’F66÷VçG2“¢fö–@¢°¢G–V"Ò†–çB’FFR‚u’r“°¢F76WD6FVv÷'’ÒGF†—2ÓæFB‚vf—†VEö76WEö6FVv÷&–W2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv6öFRrÓât…rrÂvæÖRrÓât†&Gv&RRÖ66†–æRVÆWGG&öæ–6†RrÂv6—f–Å÷&FRrÓâ#ÂwF…÷&FRrÓâ#Âv7F—fRrÓâÒ“°¢F76WBÒGF†—2ÓæFB‚vf—†VEö76WG2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv76WEö6öFRrÓât4U5ÔDTÔòÓrÂvFW67&—F–öârÓâu6W'fW"R–æg&7G'WGGW&¦–VæFÆRrÂv6FVv÷'’rÓât†&Gv&RrÂv6FVv÷'•ö–BrÓâF76WD6FVv÷'’ÂwW&6†6UöFFRrÓâFFR‚u’ÖÒÖBrÂ7G'F÷F–ÖR‚rÓ#ÖöçF‡2r’’ÂwW&6†6Uö6÷7BrÓâƒÂvFW&V6–F–öå÷&FRrÓâ#Âv67V×VÆFVEöFW&V6–F–öârÓâs#ÂvæWEö&ööµ÷fÇVRrÓâƒÂw7FGW2rÓât5D•dRrÂv7&VFVEö'’rÓâGW6W'5²v66÷VçFçBuÕÒ“°¢GF†—2ÓæFB‚vFW&V6–F–öåöVçG&–W2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvf—†VEö76WEö–BrÓâF76WBÂvf—66Å÷–V"rÓâG–V"ÒÂvÖ÷VçBrÓâ3cÂw7FGW2rÓâuõ5DTBuÒ“°¢f÷&V6‚…µ²udBrÂufW'6ÖVçFò•dÖVç6–ÆRrÆFFR‚u’ÖÒÓbrÂ7G'F÷F–ÖR‚r³ÖöçF‚r’’Ã#ƒÒÅ²tc#BrÂtc#B6öçG&–'WF’R&—FVçWFRrÆFFR‚u’ÖÒÓbrÂ7G'F÷F–ÖR‚r³ÖöçF‚r’’Ã3cSÒÅ²tÄ•RrÂt6ö×Væ–6¦–öæRÄ•RG&–ÖW7G&ÆRrÆFFR‚u’ÖÒ×BrÂ7G'F÷F–ÖR‚r³"ÖöçF‡2r’’ÃÒÅ²t5RrÂt6W'F–f–6¦–öæRVæ–6rÂ‚G–V"²’ârÓ2ÓbrÃÕÒ2²GG—RÂFFW67&—F–öâÂFGVRÂFÖ÷VçEÒ’°¢GF†—2ÓæFB‚wF…öFVFÆ–æW2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvGVUöFFRrÓâFGVRÂvFVFÆ–æU÷G—RrÓâGG—RÂvFW67&—F–öârÓâFFW67&—F–öâÂw&VfW&Væ6U÷W&–öBrÓâFFR‚vÒõ’r’ÂvÖ÷VçBrÓâFÖ÷VçBÂw7FGW2rÓâtõTâuÒ“°¢Ð¢GF†—2ÓæFB‚wv—F††öÆF–æu÷&V6÷&G2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂw&V6÷&EöFFRrÓâFFR‚u’ÖÒÖBrÂ7G'F÷F–ÖR‚rÓ#F—2r’’ÂvGVUöFFRrÓâFFR‚u’ÖÒÓbrÂ7G'F÷F–ÖR‚r³ÖöçF‚r’’Âwv—F††öÆF–æu÷G—RrÓât•%TbrÂvw&÷75öÖ÷VçBrÓâSÂwF†&ÆU÷W&6VçBrÓâÂw&FU÷W&6VçBrÓâ#Âwv—F††öÆF–æuöÖ÷VçBrÓâ3ÂvæWEöÖ÷VçBrÓâ#Âw7FGW2rÓâut•D„„TÄBrÂv7&VFVEö'’rÓâGW6W'5²v66÷VçFçBuÕÒ“°¢GF†—2ÓæFB‚wfEöF§W7FÖVçG2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvf—66Å÷–V"rÓâG–V"ÂvF§W7FÖVçE÷G—RrÓâu$õõ$DrÂvFW67&—F–öârÓâu&WGF–f–6•dæçVÆRF–Ö÷7G&F—frÂwfEöFV&—EöFVÇFrÓâ#RÂwfEö7&VF—EöFVÇFrÓâÂw7FGW2rÓâtE$eBuÒ“°¢GF†—2ÓæFB‚vÆ—Uö6öÖ×Væ–6F–öç2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvf—66Å÷–V"rÓâG–V"ÂwV'FW%öçVÖ&W"rÓâÂw66†VÖ÷fW'6–öârÓâsãÔDTÔòrÂw–ÆöEö§6öârÓâGF†—2Óæ§6öâ…²wg"rÓâƒSÂwg2rÓâcCÒ’Âw7FGW2rÓâu$Ud”UtTBuÒ“°¢GF†—2ÓæFB‚wfEöæçVÅ÷7VÖÖ&–W2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvf—66Å÷–V"rÓâG–V"ÒÂw66†VÖ÷fW'6–öârÓâtDTÔòÓrÂvFWF–Åö§6öârÓâGF†—2Óæ§6öâ…²w6ÆW2rÓâ#ƒSÂwW&6†6W2rÓâ3#Ò’Âw7FGW2rÓâu$Ud”UtTBuÒ“°¢GF†—2ÓæFB‚v66÷VçF–æu÷W&–öEöÆö6·2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂw66÷RrÓâudBrÂw7F'G5ööârÓâ‚G–V"Ò’ârÓÓrÂvVæG5ööârÓâ‚G–V"Ò’ârÓ"Ó3rÂw&V6öârÓâuW&–öFò•d6†—W6òRfÆ–FFòrÂvÆö6¶VEö'’rÓâGW6W'5²v66÷VçFçBuÕÒ“°¢GF†—2ÓæFB‚v66÷VçF–æuö6Æ÷6–æu÷'Vç2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvf—66Å÷–V"rÓâG–V"ÒÂw7FGW2rÓâuõ5DTBrÂw6æ6†÷Eö§6öârÓâGF†—2Óæ§6öâ…²v76WG2rÓâcƒÂvÆ–&–Æ—F–W2rÓâƒ#Âw&W7VÇBrÓâ#CÒ’Âv7&VFVEö'’rÓâGW6W'5²v66÷VçFçBuÕÒ“°¢GF†—2ÓæFB‚v66÷VçF–æuöF§W7FÖVçE÷66†VGVÆW2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvF§W7FÖVçE÷G—RrÓâu$U”BrÂvFW67&—F–öârÓâu&—66öçFò76–7W&¦–öæRæçVÆRrÂw6÷W&6Uö66÷VçEö–BrÓâF66÷VçG5²v6÷7G2uÒÂv6÷VçFW''Eö66÷VçEö–BrÓâF66÷VçG5²v76WG2uÒÂvÖ÷VçBrÓâ#Âv6ö×WFVæ6Uög&öÒrÓâFFR‚u’ÓrÓr’Âv6ö×WFVæ6U÷FòrÓâFFR‚u’ÓbÓ3rÂ7G'F÷F–ÖR‚r³–V"r’’Âw÷7F–æuöFFRrÓâFFR‚u’Ó"Ó3r’Âw7FGW2rÓâtE$eBuÒ“° ¢F–×÷'BÒGF†—2ÓæFB‚v–×÷'Eö&F6†W2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂwWV–BrÓâGF†—2ÓçWV–B‚’Âw6÷W&6U÷7—7FVÒrÓâtDDUeô´ô”äõ2rÂv–×÷'E÷G—RrÓât5U5DôÔU%2rÂw7FGW2rÓât4ôÕÄUDTBrÂv÷&–v–æÅöf–ÆVæÖRrÓâv6Æ–VçF’Ö¶ö–æ÷2ÖFVÖòæ77brÂv6†V6·7VÕ÷6†#SbrÓâ†6‚‚w6†#SbrÂvFVÖòÖ–×÷'Br’Âvf–ÆU÷6—¦RrÓâ#C‚ÂwF÷FÅ÷&÷w2rÓâ#RÂwfÆ–E÷&÷w2rÓâ#RÂv–×÷'FVE÷&÷w2rÓâ#RÂv7&VFVEö'’rÓâGW6W'5²v÷væW"uÒÂv6ö×ÆWFVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓcF—2r’•Ò“°¢Ff–ÆRÒGF†—2ÓæFB‚v–×÷'Eöf–ÆW2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv&F6…ö–BrÓâF–×÷'BÂvf–ÆVæÖRrÓâv6Æ–VçF’Ö¶ö–æ÷2ÖFVÖòæ77brÂvÖVF–÷G—RrÓâwFW‡Bö77brÂv6†V6·7VÕ÷6†#SbrÓâ†6‚‚w6†#SbrÂvFVÖòÖ–×÷'BÖf–ÆRr’Âvf–ÆU÷6—¦RrÓâ#C…Ò“°¢GF†—2ÓæFB‚v–×÷'E÷&÷w2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv&F6…ö–BrÓâF–×÷'BÂw6÷W&6Uöf–ÆUö–BrÓâFf–ÆRÂw6÷W&6U÷&÷uöçVÖ&W"rÓâ"Âw&uöFFö§6öârÓâGF†—2Óæ§6öâ…²u&v–öæU6ö6–ÆRrÓât6Æ–VçFR7F÷&–6òFVÖòuÒ’Âvæ÷&ÖÆ—¦VEöFFö§6öârÓâGF†—2Óæ§6öâ…²v'W6–æW75öæÖRrÓât6Æ–VçFR7F÷&–6òFVÖòuÒ’Âw7FGW2rÓât”Õõ%DTBuÒ“°¢GF†—2ÓæFB‚v–×÷'E÷&V6÷&G2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv&F6…ö–BrÓâF–×÷'BÂvVçF—G•÷G—RrÓâv7W7FöÖW'2rÂvVçF—G•ö–BrÓâÂv÷W&F–öârÓât5$TDRuÒ“°¢GF†—2ÓæFB‚v–×÷'EöÖ–æw2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂw6÷W&6U÷7—7FVÒrÓâtDDUeô´ô”äõ2rÂv–×÷'E÷G—RrÓât5U5DôÔU%2rÂvæÖRrÓâtÖGW&6Æ–VçF’FVÖòrÂvÖ–æuö§6öârÓâGF†—2Óæ§6öâ…²u&v–öæU6ö6–ÆRrÓâv'W6–æW75öæÖRuÒ’Âv7F—fRrÓâÒ“° ¢GF†—2ÓæFB‚w&W÷'E÷&W6WG2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂw&W÷'Eö¶W’rÓâtÔätTÔTåEôõdU%d”UrrÂvæÖRrÓât7'W66÷GFòF—&W¦–öæÆRÖVç6–ÆRrÂvf–ÇFW'5ö§6öârÓâGF†—2Óæ§6öâ…²wW&–öBrÓâu•DBuÒ’Âv6öÇVÖç5ö§6öârÓâGF†—2Óæ§6öâ…²w&WfVçVRrÂvÖ&v–ârÂv66‚uÒ’Âv7&VFVEö'’rÓâGW6W'5²v÷væW"uÕÒ“°¢GF†—2ÓæFB‚w&W÷'EöW‡÷'G2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂw&W÷'Eö¶W’rÓâtÔätTÔTåEôõdU%d”UrrÂwW&–öEög&öÒrÓâFFR‚u’ÓÓr’ÂwW&–öE÷FòrÓâFFR‚u’ÖÒÖBr’Âw&ÖWFW'5ö§6öârÓâGF†—2Óæ§6öâ…²vFVÖòrÓâG'VUÒ’Âvf–ÆVæÖRrÓâw&W÷'BÖF—&W¦–öæÆRÖFVÖòç†Ç7‚rÂv6†V6·7VÕ÷6†#SbrÓâ†6‚‚w6†#SbrÂvFVÖò×&W÷'Br’Âw&÷uö6÷VçBrÓâ#BÂvvVæW&FVEö'’rÓâGW6W'5²v÷væW"uÒÂvvVæW&FVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓ"F—2r’•Ò“°¢GF†—2ÓæFB‚vöff–6–Å÷&–çE÷'Vç2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂw&–çE÷G—RrÓât¤õU$äÂrÂw6WVVæ6UöçVÖ&W"rÓâÂwF—FÆRrÓâtÆ–'&òv–÷&æÆRFVÖòrÂwW&–öE÷7F'BrÓâFFR‚u’ÓÓr’ÂwW&–öEöVæBrÓâFFR‚u’ÖÒÖBr’Âw7FGW2rÓâudÄ”DDTBrÂw&÷uö6÷VçBrÓâ#Âw&öfW76–öæÅ÷fÆ–FF–öå÷&VfW&Væ6RrÓâudÄ”BÔDTÔòÓrÂvvVæW&FVEö'’rÓâGW6W'5²v66÷VçFçBuÒÂwfÆ–FFVEö'’rÓâGW6W'5²v÷væW"uÒÂwfÆ–FFVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓF’r’•Ò“°¢GF†—2ÓæFB‚v6ö×Æ–æ6Uöf–Æ–æu÷'Vç2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂvf–Æ–æu÷G—RrÓâtÄ•RrÂwW&–öE÷–V"rÓâG–V"ÂwW&–öEö6öFRrÓâurÂw7FGW2rÓâu$TE’rÂw66†VÖ÷fW'6–öârÓâtDTÔòÓrÂvFFö§6öârÓâGF†—2Óæ§6öâ…²wV'FW"rÓâÒ’ÂvæöÖÇ•ö6÷VçBrÓâÂw&öfW76–öæÅ÷fÆ–FF–öå÷&VfW&Væ6RrÓâtÄ•RÔDTÔòÕrÂv7&VFVEö'’rÓâGW6W'5²v66÷VçFçBuÒÂwfÆ–FFVEö'’rÓâGW6W'5²v÷væW"uÒÂwfÆ–FFVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2r•Ò“°¢G7FFVÖVçBÒGF†—2ÓæFB‚v&æµ÷7FFVÖVçEö–×÷'G2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv&æµö66÷VçEö–BrÓâF66÷VçG5²v&æµö–BuÒÂw6÷W&6Uöf÷&ÖBrÓât55brÂv÷&–v–æÅöf–ÆVæÖRrÓâvW7G&GFòÖ6öçFòÖFVÖòæ77brÂw7F÷&VE÷F‚rÓâw7F÷&vRö–×÷'G2öW7G&GFòÖ6öçFòÖFVÖòæ77brÂv6†V6·7VÕ÷6†#SbrÓâ†6‚‚w6†#SbrÂvFVÖò×7FFVÖVçBr’Âw7FGW2rÓât”Õõ%DTBrÂw&÷w5ö6÷VçBrÓâC‚Âv–×÷'FVEö6÷VçBrÓâC‚ÂvGWÆ–6FUö6÷VçBrÓâÂvW'&÷%ö6÷VçBrÓâÂv–×÷'FVEö'’rÓâGW6W'5²v66÷VçFçBuÒÂv–×÷'FVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓ2F—2r’•Ò“° ¢f÷&V6‚‚GW6W'22GW6W$–B’°¢GF†—2ÓæFB‚wW6W%÷&VfW&Væ6W2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂwW6W%ö–BrÓâGW6W$–BÂw&VfW&Væ6Uö¶W’rÓâvF6†&ö&Bæ6ö×7BrÂw&VfW&Væ6Uö§6öârÓâGF†—2Óæ§6öâ…²vVæ&ÆVBrÓâfÇ6UÒ•Ò“°¢Ð¢GF†—2ÓæFB‚w6fVE÷f–Ww2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂwW6W%ö–BrÓâGW6W'5²v66÷VçFçBuÒÂvÖöGVÆUö¶W’rÓâv7W7FöÖW'2rÂvæÖRrÓât6Æ–VçF’GF—f’Ö–ÆæòrÂwVW'•ö§6öârÓâGF†—2Óæ§6öâ…²vf–ÇFW'2rÓâ²v6—G’rÓâtÖ–ÆæòrÂv7F—fRrÓâÕÒ’Âv—5öFVfVÇBrÓâÒ“°¢f÷&V6‚…µ²t44õTåD”ärrÂtÆ—V–F¦–öæR•dFfW&–f–6&RrÂtÆÆ—V–F¦–öæRFVÂÖW6R6÷'&VçFR:‚æ6÷&–â&÷§¦âuÒÅ²u4ÄU2rÂu&WfVçF—fò–â66FVç¦rÂt–Â&WfVçF—fòFVÖò&–6†–VFRVâföÆÆ÷r×WâuÒÅ²t”ådTåDõ%’rÂu66÷'FÖ–æ–ÖrÂtGVR'F–6öÆ’6öæòf–6–æ’ÆÆ6övÆ–Ö–æ–ÖâuÒÅ²t…"rÂtfW&–RF&÷f&RrÂ|8‚&W6VçFRVæ&–6†–W7FfW&–R–âGFW6âuÕÒ2²F6FVv÷'’ÂGF—FÆRÂFÖW76vUÒ’°¢GF†—2ÓæFB‚wv÷&·76Uöæ÷F–f–6F–öç2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂv6FVv÷'’rÓâF6FVv÷'’ÂwF—FÆRrÓâGF—FÆRÂvÖW76vRrÓâFÖW76vRÂw6WfW&—G’rÓât”ädòrÂv7F–öå÷W&ÂrÓâröF6†&ö&BuÒ“°¢Ð¢f÷&V6‚…²v6ö×ç’rÂwW6W'2rÂvÖöGVÆW2rÂv66÷VçF–ærrÂv&æ²rÂv–×÷'G2uÒ2G7FW’°¢GF†—2ÓæFB‚vöæ&ö&F–æu÷&öw&W72rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂw7FWö¶W’rÓâG7FWÂv6ö×ÆWFVEö'’rÓâGW6W'5²v÷væW"uÒÂv6ö×ÆWFVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓ3F—2r’•Ò“°¢Ð¢GF†—2ÓæFB‚v'VÆµö÷W&F–öç2rÂ²v÷&væ—¦F–öåö–BrÓâF÷&rÂwW6W%ö–BrÓâGW6W'5²v÷væW"uÒÂvÖöGVÆUö¶W’rÓâv7W7FöÖW'2rÂv÷W&F–öârÓâtU…õ%BrÂw6VÆV7F–öåö§6öârÓâGF†—2Óæ§6öâ…²vÆÅöf–ÇFW&VBrÓâG'VUÒ’Âw7FGW2rÓât4ôÕÄUDTBrÂw&ö6W76VEö6÷VçBrÓâ‚Âvf–ÆVEö6÷VçBrÓâÂw&W7VÇEö§6öârÓâGF†—2Óæ§6öâ…²vf–ÆVæÖRrÓâv6Æ–VçF’ÖFVÖòç†Ç7‚uÒ’Âv6ö×ÆWFVEöBrÓâFFR‚u’ÖÒÖBƒ¦“§2rÂ7G'F÷F–ÖR‚rÓF’r’•Ò“°¢Ð ¢&—fFRgVæ7F–öâf–æDFVÖô÷&væ—¦F–öâ‚“¢–ç@¢°¢G7FFVÖVçBÒGF†—2ÓæF"Óç&W&R‚u4TÄT5B–Be$ôÒ÷&væ—¦F–öç2t„U$RF…ö6öFRÒòõ$DU"%’–BÄ”Ô•Br“°¢G7FFVÖVçBÓæW†V7WFR…·6VÆc£¤DTÔõõD…ô4ôDUÒ“°¢&WGW&â†–çB’‚G7FFVÖVçBÓæfWF6„6öÇVÖâ‚’ó¢“°¢Ð ¢ò¢¢&ÒÆ—7CÇ7G&–æsâGF&ÆW2¢ð¢&—fFRgVæ7F–öâ&WV—&UF&ÆW2†'&’GF&ÆW2“¢fö–@¢°¢FÖ—76–ærÒ'&•÷fÇVW2†'&•öf–ÇFW"‚GF&ÆW2Âfâ‡7G&–ærGF&ÆR“¢&ööÂÓâGF†—2ÓçF&ÆTW†—7G2‚GF&ÆR’’“°¢–b‚FÖ—76–ærÓÒµÒ’°¢F‡&÷ræWr'VçF–ÖTW†6WF–öâ‚tFF&6Ræöâvv–÷&æFòâF&VÆÆRÖæ6çF“¢râ–×ÆöFR‚rÂrÂFÖ—76–ær’ârâW6VwV’&–Ö&–âöÇVæÖ–w&FRâr“°¢Ð¢Ð ¢ò¢¢&Ò'&“Ç7G&–ærÆÖ—†VCâFFF¢ð¢&—fFRgVæ7F–öâFB‡7G&–ærGF&ÆRÂ'&’FFF“¢–ç@¢°¢–b‚GF†—2ÓçF&ÆTW†—7G2‚GF&ÆR’’°¢F‡&÷ræWr'VçF–ÖTW†6WF–öâ‚%F&VÆÆ²GF&ÆWÒÖæ6çFS¢W6VwV’&–Ö&–âöÇVæÖ–w&FRâ"“°¢Ð¢Ff–Æ&ÆRÒGF†—2ÓçF&ÆT6öÇVÖç2‚GF&ÆR“°¢FFFÒ'&•öf–ÇFW"‚FFFÂ7FF–2fâ†Ö—†VBEòÂ7G&–ærF6öÇVÖâ“¢&ööÂÓâ—76WB‚Ff–Æ&ÆU²F6öÇVÖåÒ’Â%$•ôd”ÅDU%õU4Uô$õD‚“°¢–b‚FFFÓÓÒµÒ’°¢&WGW&â°¢Ð¢F6öÇVÖç2Ò'&•ö¶W—2‚FFF“°¢GV÷FVBÒ–×ÆöFR‚rÂrÂ'&•öÖ‡7FF–2fâ‡7G&–ærF6öÇVÖâ“¢7G&–ærÓâvrâF6öÇVÖââvrÂF6öÇVÖç2’“°¢GÆ6V†öÆFW'2Ò–×ÆöFR‚rÂrÂ'&•öf–ÆÂƒÂ6÷VçB‚F6öÇVÖç2’Âsòr’“°¢G7FFVÖVçBÒGF†—2ÓæF"Óç&W&R‚$”å4U%B”åDò²GF&ÆWÖ‡²GV÷FVGÒ’dÅTU2‡²GÆ6V†öÆFW'7Ò’"“°¢G7FFVÖVçBÓæW†V7WFR†'&•÷fÇVW2‚FFF’“°¢GF†—2Óæ6÷VçG5²GF&ÆUÒÒ‚GF†—2Óæ6÷VçG5²GF&ÆUÒóò’²°¢F–BÒ†–çB’GF†—2ÓæF"ÓæÆ7D–ç6W'D–B‚“°¢&WGW&âF–BâòF–B¢†–çB’‚FFF²v÷&væ—¦F–öåö–BuÒóò“°¢Ð ¢ò¢¢&WGW&â'&“Ç7G&–ærÇG'VSâ¢ð¢&—fFRgVæ7F–öâF&ÆT6öÇVÖç2‡7G&–ærGF&ÆR“¢'&¢°¢–b†—76WB‚GF†—2Óæ6öÇVÖç5²GF&ÆUÒ’’°¢&WGW&âGF†—2Óæ6öÇVÖç5²GF&ÆUÓ°¢Ð¢–b‚&VuöÖF6‚‚rõå¶×£Ó•õÒ²BòrÂGF&ÆR’’°¢F‡&÷ræWr'VçF–ÖTW†6WF–öâ‚tæöÖRF&VÆÆFVÖòæöâfÆ–Fòâr“°¢Ð¢F6öÇVÖç2ÒµÓ°¢f÷&V6‚‚GF†—2ÓæF"ÓçVW'’‚%4„õr4ôÅTÔå2e$ôÒ²GF&ÆWÖ"’ÓæfWF6„ÆÂ…Dó£¤dUD4…ô54ô2’2F6öÇVÖâ’°¢F6öÇVÖç5²‡7G&–ær’F6öÇVÖå²tf–VÆBuÕÒÒG'VS°¢Ð¢&WGW&âGF†—2Óæ6öÇVÖç5²GF&ÆUÒÒF6öÇVÖç3°¢Ð ¢&—fFRgVæ7F–öâF&ÆTW†—7G2‡7G&–ærGF&ÆR“¢&ööÀ¢°¢G7FFVÖVçBÒGF†—2ÓæF"Óç&W&R€¢u4TÄT5Be$ôÒ–æf÷&ÖF–öå÷66†VÖåD$ÄU2t„U$RD$ÄUõ44„TÔÒDD$4R‚’äBD$ÄUôäÔRÒòp¢“°¢G7FFVÖVçBÓæW†V7WFR…²GF&ÆUÒ“°¢&WGW&â†&ööÂ’G7FFVÖVçBÓæfWF6„6öÇVÖâ‚“°¢Ð ¢&—fFRgVæ7F–öâfÇVR‡7G&–ærG7ÂÂ'&’G&ÖWFW'2ÒµÒ“¢–ç@¢°¢G7FFVÖVçBÒGF†—2ÓæF"Óç&W&R‚G7Â“°¢G7FFVÖVçBÓæW†V7WFR‚G&ÖWFW'2“°¢&WGW&â†–çB’‚G7FFVÖVçBÓæfWF6„6öÇVÖâ‚’ó¢“°¢Ð ¢&—fFRgVæ7F–öâ§6öâ†'&’GfÇVR“¢7G&–æp¢°¢&WGW&â‡7G&–ær’§6öåöVæ6öFR‚GfÇVRÂ¥4ôåõTäU44TEõTä”4ôDRÂ¥4ôåõTäU44TEõ4Ä4„U2“°¢Ð ¢&—fFRgVæ7F–öâWV–B‚“¢7G&–æp¢°¢F'—FW2Ò&æFöÕö'—FW2ƒb“°¢F'—FW5³eÒÒ6‡"‚†÷&B‚F'—FW5³eÒ’bƒb’ÂƒC“°¢F'—FW5³…ÒÒ6‡"‚†÷&B‚F'—FW5³…Ò’bƒ6b’Âƒƒ“°¢&WGW&âg7&–çFb‚rW2W2ÒW2ÒW2ÒW2ÒW2W2W2rÂ7G%÷7Æ—B†&–ã&†W‚‚F'—FW2’ÂB’“°¢Ð§Ð 
+            'active' => 1,
+        ]);
+        $vatCodeDefinitions = [
+            ["22", "IVA ordinaria 22%", 22, null],
+            ["10", "IVA ridotta 10%", 10, null],
+            ["N1", "Escluso IVA", 0, "N1"],
+            ["N3.2", "Non imponibile UE", 0, "N3.2"],
+        ];
+        foreach ($vatCodeDefinitions as [$code, $description, $rate, $nature]) {
+            $this->add('vat_codes', [
+                'organization_id' => $organizationId,
+                'code' => $code,
+                'description' => $description,
+                'rate' => $rate,
+                'nature' => $nature,
+                'deductible_percent' => 100,
+                'active' => 1,
+            ]);
+        }
+        foreach ([['VEN', 'Registro vendite', 'SALES'], ['ACQ', 'Registro acquisti', 'PURCHASES'], ['COR', 'Registro corrispettivi', 'CORRISPETTIVI']] as [$code, $name, $type]) {
+            $this->add('vat_registers', ['organization_id' => $organizationId, 'code' => $code, 'name' => $name, 'register_type' => $type, 'active' => 1]);
+        }
+        $this->add('accounting_settings', [
+            'organization_id' => $organizationId, 'fiscal_year_start_month' => 1,
+            'default_sales_vat_register_id' => null, 'default_purchase_vat_register_id' => null,
+            'auto_post_documents' => 0, 'lock_posted_entries' => 1,
+        ]);
+        $cause = $this->add('accounting_causes', ['organization_id' => $organizationId, 'code' => 'FV', 'name' => 'Fattura vendita', 'category' => 'SALES', 'active' => 1]);
+        $this->add('accounting_cause_lines', ['organization_id' => $organizationId, 'cause_id' => $cause, 'line_number' => 1, 'account_id' => $accounts['customers'], 'side' => 'DEBIT']);
+        $this->add('accounting_cause_lines', ['organization_id' => $organizationId, 'cause_id' => $cause, 'line_number' => 2, 'account_id' => $accounts['revenue'], 'side' => 'CREDIT']);
+        foreach (['SALES_REVENUE' => 'revenue','PURCHASE_COST' => 'costs','CUSTOMERS' => 'customers','SUPPLIERS' => 'suppliers','VAT_DEBIT' => 'vat_debit','VAT_CREDIT' => 'vat_credit'] as $mapping => $account) {
+            $this->add('accounting_account_mappings', ['organization_id' => $organizationId, 'mapping_key' => $mapping, 'account_id' => $accounts[$account]]);
+        }
+        $bank = $this->add('bank_accounts', [
+            'organization_id' => $organizationId, 'name' => 'Banca Demo - Conto operativo',
+            'iban' => 'IT60X0542811101000000123456', 'bic' => 'DEMOITMM', 'currency' => 'EUR',
+                'opening_balance' => 48500, 'active' => 1,
+        ]);
+        $accounts['bank_id'] = $bank;
+        $accounts['cost_center'] = $costCenter;
+        return $accounts;
+    }
+
+    /** @return array<string,mixed> */
+    private function seedHistory(
+        int $organizationId,
+        int $months,
+        array $users,
+        array $customers,
+        array $suppliers,
+        array $products,
+        array $accounts
+    ): array {
+        $documentIds = [];
+        $lastSalesInvoice = 0;
+        $lastPurchaseInvoice = 0;
+        $today = new DateTimeImmutable('first day of this month');
+        for ($offset = $months - 1; $offset >= 0; $offset--) {
+            $month = $today->modify("-{$offset} months");
+            $date = $month->modify('+' . (4 + ($offset % 10)) . ' days');
+            $year = (int) $date->format('Y');
+            $number = sprintf('%d/%04d', (int) $date->format('m'), $months - $offset);
+            $customerId = $customers[$offset % count($customers)];
+            $supplierId = $suppliers[$offset % count($suppliers)];
+            $net = 1200 + (($offset * 317) % 4200);
+            $vat = round($net * .22, 2);
+            $total = $net + $vat;
+            $paid = $offset > 1;
+
+            $salesDocument = $this->add('documents', [
+                'organization_id' => $organizationId, 'document_type' => 'SALES_INVOICE',
+                'number' => 'FV-' . $number, 'fiscal_year' => $year, 'document_date' => $date->format('Y-m-d'),
+                'due_date' => $date->modify('+30 days')->format('Y-m-d'), 'counterparty_type' => 'CUSTOMER',
+                'counterparty_id' => $customerId, 'counterparty_name' => 'Cliente demo ' . (($offset % count($customers)) + 1),
+                'subject' => 'Fornitura e servizi del periodo', 'taxable_total' => $net, 'vat_total' => $vat,
+                'total' => $total, 'balance_due' => $paid ? 0 : $total,
+                'status' => $paid ? 'PAID' : ($offset === 0 ? 'ISSUED' : 'OVERDUE'),
+                'fatturapa_type' => 'TD01', 'vat_collectability' => 'I', 'payment_method_code' => 'MP05',
+                'created_by' => $users['sales'],
+            ]);
+            $salesLine = $this->add('document_lines', [
+                'organization_id' => $organizationId, 'document_id' => $salesDocument, 'line_number' => 1,
+                'product_id' => $products[$offset % count($products)], 'product_code' => 'DEMO',
+                'description' => 'Fornitura mensile e assistenza', 'quantity' => 1, 'unit' => 'NR',
+                'unit_price' => $net, 'taxable_amount' => $net, 'vat_code' => '22',
+                'vat_rate' => 22, 'vat_amount' => $vat, 'total_amount' => $total,
+                'cost_center_id' => $accounts['cost_center'],
+            ]);
+            $schedule = $this->add('payment_schedules', [
+                'organization_id' => $organizationId, 'document_id' => $salesDocument, 'installment_number' => 1,
+                'due_date' => $date->modify('+30 days')->format('Y-m-d'), 'amount' => $total,
+                'paid_amount' => $paid ? $total : 0, 'status' => $paid ? 'PAID' : ($offset === 0 ? 'OPEN' : 'OVERDUE'),
+                'payment_method_code' => 'MP05',
+            ]);
+            $journal = $this->add('journal_entries', [
+                'organization_id' => $organizationId, 'protocol_number' => 'PV-' . $date->format('Ym') . '-' . ($offset + 1),
+                'entry_date' => $date->format('Y-m-d'), 'competence_date' => $date->format('Y-m-d'),
+                'entry_type' => 'SALES_INVOICE', 'status' => 'POSTED', 'description' => 'Fattura vendita ' . $number,
+                'document_number' => 'FV-' . $number, 'counterparty' => 'Cliente demo',
+                'total_debit' => $total, 'total_credit' => $total, 'posted_at' => $date->format('Y-m-d H:i:s'),
+                'created_by' => $users['accountant'],
+            ]);
+            $this->add('journal_entry_lines', ['organization_id' => $organizationId, 'journal_entry_id' => $journal, 'line_number' => 1, 'account_id' => $accounts['customers'], 'debit' => $total, 'credit' => 0, 'description' => 'Credito cliente', 'customer_id' => $customerId]);
+            $this->add('journal_entry_lines', ['organization_id' => $organizationId, 'journal_entry_id' => $journal, 'line_number' => 2, 'account_id' => $accounts['revenue'], 'debit' => 0, 'credit' => $net, 'description' => 'Ricavo']);
+            $this->add('journal_entry_lines', ['organization_id' => $organizationId, 'journal_entry_id' => $journal, 'line_number' => 3, 'account_id' => $accounts['vat_debit'], 'debit' => 0, 'credit' => $vat, 'description' => 'IVA a debito']);
+            $vatMovement = $this->add('vat_movements', [
+                'organization_id' => $organizationId, 'document_id' => $salesDocument, 'source_type' => 'DOCUMENT',
+                'register_type' => 'SALES', 'movement_date' => $date->format('Y-m-d'), 'protocol_number' => 'VEN-' . $date->format('Ym'),
+                'counterparty_name' => 'Cliente demo', 'description' => 'Fattura vendita',
+                'vat_code' => '22', 'taxable_amount' => $net, 'vat_amount' => $vat,
+                'vat_due_amount' => $vat, 'deductible_vat' => 0, 'period_year' => $year,
+                'period_month' => (int) $date->format('m'), 'operation_type' => 'DOMESTIC',
+            ]);
+            $openItem = $this->add('accounting_open_items', [
+                'organization_id' => $organizationId, 'direction' => 'RECEIVABLE', 'party_type' => 'CUSTOMER',
+                'party_id' => $customerId, 'party_name' => 'Cliente demo', 'document_id' => $salesDocument,
+                'payment_schedule_id' => $schedule, 'journal_entry_id' => $journal, 'account_id' => $accounts['customers'],
+                'reference' => 'FV-' . $number, 'issue_date' => $date->format('Y-m-d'),
+                'due_date' => $date->modify('+30 days')->format('Y-m-d'), 'original_amount' => $total,
+                'settled_amount' => $paid ? $total : 0,
+                'status' => $paid ? 'SETTLED' : ($offset === 0 ? 'OPEN' : 'OVERDUE'),
+            ]);
+
+            if ($paid) {
+                $payment = $this->add('payments', [
+                    'organization_id' => $organizationId, 'document_id' => $salesDocument,
+                    'payment_schedule_id' => $schedule, 'payment_date' => $date->modify('+24 days')->format('Y-m-d'),
+                    'amount' => $total, 'method' => 'BANK_TRANSFER', 'reference_number' => 'CRO-DEMO-' . $date->format('Ym'),
+                    'bank_name' => 'Banca Demo', 'description' => 'Incasso fattura', 'reconciled' => 1,
+                    'reconciled_at' => $date->modify('+25 days')->format('Y-m-d H:i:s'), 'created_by' => $users['accountant'],
+                ]);
+                $transaction = $this->add('bank_transactions', [
+                    'organization_id' => $organizationId, 'bank_account_id' => $accounts['bank_id'],
+                    'booking_date' => $date->modify('+25 days')->format('Y-m-d'), 'value_date' => $date->modify('+25 days')->format('Y-m-d'),
+                    'amount' => $total, 'description' => 'BONIFICO CLIENTE DEMO', 'counterparty' => 'Cliente demo',
+                    'reference' => 'FV-' . $number, 'external_id' => 'BNK-IN-' . $date->format('Ym'),
+                    'reconciliation_status' => 'MATCHED',
+                ]);
+                $this->add('reconciliation_links', [
+                    'organization_id' => $organizationId, 'bank_transaction_id' => $transaction,
+                    'payment_id' => $payment, 'journal_entry_id' => $journal, 'matched_amount' => $total,
+                    'matched_by' => $users['accountant'], 'matched_at' => $date->modify('+25 days')->format('Y-m-d H:i:s'),
+                ]);
+                $this->add('payment_allocations', [
+                    'organization_id' => $organizationId, 'payment_id' => $payment,
+                    'open_item_id' => $openItem, 'amount' => $total, 'created_by' => $users['accountant'],
+                ]);
+                $this->add('vat_cash_events', [
+                    'organization_id' => $organizationId, 'vat_movement_id' => $vatMovement,
+                    'payment_id' => $payment, 'recognition_date' => $date->modify('+24 days')->format('Y-m-d'),
+                    'recognized_taxable' => $net, 'recognized_vat_due' => $vat, 'recognized_vat_credit' => 0,
+                ]);
+            } else {
+                if ($offset === 0) {
+                    $unmatched = $this->add('bank_transactions', [
+                        'organization_id' => $organizationId, 'bank_account_id' => $accounts['bank_id'],
+                        'booking_date' => date('Y-m-d'), 'amount' => $total,
+                        'description' => 'Bonifico da riconciliare', 'counterparty' => 'Cliente demo',
+                        'external_id' => 'BNK-PENDING-' . date('Ym'), 'reconciliation_status' => 'UNMATCHED',
+                    ]);
+                    $this->add('bank_reconciliation_suggestions', [
+                        'organization_id' => $organizationId, 'bank_transaction_id' => $unmatched,
+                        'open_item_id' => $openItem, 'confidence_score' => 92.5,
+                        'reason_json' => $this->json(['amount' => 'exact', 'reference' => 'similar']), 'status' => 'PROPOSED',
+                    ]);
+                }
+            }
+
+            $purchaseNet = round($net * .46, 2);
+            $purchaseVat = round($purchaseNet * .22, 2);
+            $purchaseTotal = $purchaseNet + $purchaseVat;
+            $purchaseDocument = $this->add('documents', [
+                'organization_id' => $organizationId, 'document_type' => 'PURCHASE_INVOICE',
+                'number' => 'FA-' . $number, 'fiscal_year' => $year, 'document_date' => $date->modify('+2 days')->format('Y-m-d'),
+                'due_date' => $date->modify('+32 days')->format('Y-m-d'), 'counterparty_type' => 'SUPPLIER',
+                'counterparty_id' => $supplierId, 'counterparty_name' => 'Fornitore demo',
+                'subject' => 'Acquisti e servizi del periodo', 'taxable_total' => $purchaseNet, 'vat_total' => $purchaseVat,
+                'total' => $purchaseTotal, 'balance_due' => $offset > 0 ? 0 : $purchaseTotal,
+                'status' => $offset > 0 ? 'PAID' : 'RECEIVED', 'created_by' => $users['accountant'],
+            ]);
+            $this->add('document_lines', [
+                'organization_id' => $organizationId, 'document_id' => $purchaseDocument, 'line_number' => 1,
+                'product_id' => $products[$offset % count($products)], 'description' => 'Acquisti del periodo',
+                'quantity' => 1, 'unit_price' => $purchaseNet, 'taxable_amount' => $purchaseNet,
+                'vat_code' => '22', 'vat_rate' => 22, 'vat_amount' => $purchaseVat, 'total_amount' => $purchaseTotal,
+            ]);
+            $purchaseJournal = $this->add('journal_entries', [
+                'organization_id' => $organizationId, 'protocol_number' => 'PA-' . $date->format('Ym') . '-' . ($offset + 1),
+                'entry_date' => $date->modify('+2 days')->format('Y-m-d'), 'competence_date' => $date->format('Y-m-d'),
+                'entry_type' => 'PURCHASE_INVOICE', 'status' => 'POSTED', 'description' => 'Fattura acquisto ' . $number,
+                'document_number' => 'FA-' . $number, 'counterparty' => 'Fornitore demo',
+                'total_debit' => $purchaseTotal, 'total_credit' => $purchaseTotal,
+                'posted_at' => $date->modify('+2 days')->format('Y-m-d H:i:s'), 'created_by' => $users['accountant'],
+            ]);
+            $this->add('journal_entry_lines', ['organization_id' => $organizationId, 'journal_entry_id' => $purchaseJournal, 'line_number' => 1, 'account_id' => $accounts['costs'], 'debit' => $purchaseNet, 'credit' => 0, 'description' => 'Costo']);
+            $this->add('journal_entry_lines', ['organization_id' => $organizationId, 'journal_entry_id' => $purchaseJournal, 'line_number' => 2, 'account_id' => $accounts['vat_credit'], 'debit' => $purchaseVat, 'credit' => 0, 'description' => 'IVA a credito']);
+            $this->add('journal_entry_lines', ['organization_id' => $organizationId, 'journal_entry_id' => $purchaseJournal, 'line_number' => 3, 'account_id' => $accounts['suppliers'], 'debit' => 0, 'credit' => $purchaseTotal, 'description' => 'Debito fornitore', 'supplier_id' => $supplierId]);
+            $this->add('vat_movements', [
+                'organization_id' => $organizationId, 'document_id' => $purchaseDocument, 'source_type' => 'DOCUMENT',
+                'register_type' => 'PURCHASES', 'movement_date' => $date->modify('+2 days')->format('Y-m-d'),
+                'protocol_number' => 'ACQ-' . $date->format('Ym'), 'counterparty_name' => 'Fornitore demo',
+                'description' => 'Fattura acquisto', 'vat_code' => '22', 'taxable_amount' => $purchaseNet,
+                'vat_amount' => $purchaseVat, 'vat_due_amount' => 0, 'deductible_vat' => $purchaseVat,
+                'period_year' => $year, 'period_month' => (int) $date->format('m'), 'operation_type' => 'DOMESTIC',
+            ]);
+
+            $settlement = $this->add('vat_settlements', [
+                'organization_id' => $organizationId, 'period_type' => 'MONTHLY', 'period_year' => $year,
+                'period_number' => (int) $date->format('m'), 'vat_debit' => $vat, 'vat_credit' => $purchaseVat,
+                'balance' => $vat - $purchaseVat, 'status' => $offset > 0 ? 'CALCULATED' : 'DRAFT',
+            ]);
+            $this->add('vat_settlement_details', ['organization_id' => $organizationId, 'settlement_id' => $settlement, 'register_type' => 'SALES', 'vat_code' => '22', 'taxable_amount' => $net, 'vat_amount' => $vat, 'deductible_vat' => 0]);
+            $this->add('vat_settlement_details', ['organization_id' => $organizationId, 'settlement_id' => $settlement, 'register_type' => 'PURCHASES', 'vat_code' => '22', 'taxable_amount' => $purchaseNet, 'vat_amount' => $purchaseVat, 'deductible_vat' => $purchaseVat]);
+
+            $lastSalesInvoice = $salesDocument;
+            $lastPurchaseInvoice = $purchaseDocument;
+            $documentIds[] = $salesDocument;
+            $documentIds[] = $purchaseDocument;
+        }
+
+        $quote = $this->simpleDocument($organizationId, 'QUOTE', 'PREV-DEMO-001', $customers[0], 'CUSTOMER', 6400, $users['sales'], $products[0]);
+        $order = $this->simpleDocument($organizationId, 'SALES_ORDER', 'ORD-DEMO-001', $customers[0], 'CUSTOMER', 6400, $users['sales'], $products[0]);
+        $ddt = $this->simpleDocument($organizationId, 'DDT', 'DDT-DEMO-001', $customers[0], 'CUSTOMER', 6400, $users['sales'], $products[0]);
+        $this->add('document_links', ['organization_id' => $organizationId, 'source_document_id' => $quote, 'target_document_id' => $order, 'link_type' => 'CONVERSION']);
+        $this->add('document_links', ['organization_id' => $organizationId, 'source_document_id' => $order, 'target_document_id' => $ddt, 'link_type' => 'CONVERSION']);
+        $this->add('document_links', ['organization_id' => $organizationId, 'source_document_id' => $ddt, 'target_document_id' => $lastSalesInvoice, 'link_type' => 'CONVERSION']);
+
+        return [
+            'all' => $documentIds, 'sales_invoice' => $lastSalesInvoice,
+            'purchase_invoice' => $lastPurchaseInvoice, 'quote' => $quote, 'order' => $order, 'ddt' => $ddt,
+        ];
+    }
+
+    private function simpleDocument(int $org, string $type, string $number, int $partyId, string $partyType, float $net, int $user, int $product): int
+    {
+        $vat = round($net * .22, 2);
+        $id = $this->add('documents', [
+            'organization_id' => $org, 'document_type' => $type, 'number' => $number,
+            'fiscal_year' => (int) date('Y'), 'document_date' => date('Y-m-d', strtotime('-10 days')),
+            'due_date' => date('Y-m-d', strtotime('+20 days')), 'counterparty_type' => $partyType,
+            'counterparty_id' => $partyId, 'counterparty_name' => 'Cliente demo',
+            'subject' => 'Workflow commerciale completo', 'taxable_total' => $net, 'vat_total' => $vat,
+            'total' => $net + $vat, 'balance_due' => $type === 'SALES_INVOICE' ? $net + $vat : 0,
+            'status' => in_array($type, ['QUOTE','SALES_ORDER'], true) ? 'ACCEPTED' : 'ISSUED', 'created_by' => $user,
+        ]);
+        $this->add('document_lines', [
+            'organization_id' => $org, 'document_id' => $id, 'line_number' => 1, 'product_id' => $product,
+            'description' => 'Sistema completo e servizi di avviamento', 'quantity' => 5, 'unit' => 'NR',
+            'unit_price' => $net / 5, 'taxable_amount' => $net, 'vat_code' => '22',
+            'vat_rate' => 22, 'vat_amount' => $vat, 'total_amount' => $net + $vat,
+        ]);
+        return $id;
+    }
+
+    private function seedInventory(int $org, array $users, array $products, array $warehouses, array $documents): void
+    {
+        foreach (array_slice($products, 0, 7) as $index => $product) {
+            $this->add('inventory_movements', [
+                'organization_id' => $org, 'movement_date' => date('Y-m-d', strtotime('-' . (30 - $index) . ' days')),
+                'product_id' => $product, 'product_code' => 'DEMO-' . ($index + 1),
+                'warehouse_id' => $warehouses[0], 'warehouse_code' => 'MAG-01',
+                'movement_type' => $index % 2 ? 'OUT' : 'IN', 'quantity' => $index % 2 ? 2 : 10,
+                'unit_cost' => 50 + $index * 40, 'reason' => $index % 2 ? 'Vendita cliente' : 'Carico fornitore',
+                'document_type' => 'DDT', 'document_number' => 'DDT-DEMO-001', 'created_by' => $users['warehouse'],
+            ]);
+        }
+        $transfer = $this->add('inventory_transfers', [
+            'organization_id' => $org, 'transfer_number' => 'TR-DEMO-001', 'transfer_date' => date('Y-m-d', strtotime('-5 days')),
+            'source_warehouse_id' => $warehouses[0], 'destination_warehouse_id' => $warehouses[1],
+            'status' => 'IN_TRANSIT', 'notes' => 'Trasferimento dimostrativo', 'created_by' => $users['warehouse'],
+        ]);
+        $this->add('inventory_transfer_lines', ['organization_id' => $org, 'transfer_id' => $transfer, 'product_id' => $products[0], 'requested_quantity' => 4, 'shipped_quantity' => 4, 'received_quantity' => 0]);
+        $pick = $this->add('inventory_pick_lists', [
+            'organization_id' => $org, 'pick_number' => 'PICK-DEMO-001', 'warehouse_id' => $warehouses[0],
+            'document_id' => $documents['ddt'], 'status' => 'PICKING', 'assigned_to' => $users['warehouse'],
+            'created_by' => $users['warehouse'],
+        ]);
+        $line = $this->value('SELECT id FROM document_lines WHERE document_id = ? ORDER BY id LIMIT 1', [$documents['ddt']]);
+        $this->add('inventory_pick_items', ['organization_id' => $org, 'pick_list_id' => $pick, 'document_line_id' => $line, 'product_id' => $products[0], 'required_quantity' => 5, 'picked_quantity' => 3, 'status' => 'PARTIAL']);
+        $this->add('inventory_barcode_events', ['organization_id' => $org, 'pick_list_id' => $pick, 'warehouse_id' => $warehouses[0], 'product_id' => $products[0], 'barcode' => '805000000001', 'quantity' => 1, 'result' => 'ACCEPTED', 'scanned_by' => $users['warehouse'], 'scanned_at' => date('Y-m-d H:i:s')]);
+    }
+
+    private function seedCrmAndProjects(int $org, array $users, array $customers, array $documents, array $products): void
+    {
+        $stages = [];
+        foreach ([['Nuovo',10],['Qualificato',30],['Proposta',60],['Negoziazione',80],['Chiuso',100]] as [$name,$probability]) {
+            $stages[] = $this->add('pipeline_stages', ['organization_id' => $org, 'name' => $name, 'position' => count($stages) + 1, 'probability' => $probability, 'active' => 1]);
+        }
+        $lead = $this->add('leads', [
+            'organization_id' => $org, 'pipeline_stage_id' => $stages[2], 'company_name' => 'Nuova OpportunitÃ  Demo S.r.l.',
+            'contact_name' => 'Elena Prospect', 'email' => 'elena@prospect-demo.local', 'phone' => '+39 02 9000 0001',
+            'source' => 'Sito web', 'status' => 'PROPOSAL', 'estimated_value' => 18500, 'probability' => 65,
+            'next_action_at' => date('Y-m-d H:i:s', strtotime('+3 days')), 'owner_name' => 'Marco Commerciale',
+            'created_by' => $users['sales'],
+        ]);
+        $this->add('activities', ['organization_id' => $org, 'subject' => 'Demo prodotto al prospect', 'activity_type' => 'MEETING', 'status' => 'OPEN', 'starts_at' => date('Y-m-d H:i:s', strtotime('+3 days 10:00')), 'due_at' => date('Y-m-d H:i:s', strtotime('+3 days 11:30')), 'assigned_to' => 'Marco Commerciale', 'related_type' => 'LEAD', 'related_id' => $lead, 'created_by' => $users['sales']]);
+        $this->add('tasks', ['organization_id' => $org, 'title' => 'Preparare offerta personalizzata', 'priority' => 'HIGH', 'status' => 'IN_PROGRESS', 'due_at' => date('Y-m-d H:i:s', strtotime('+2 days')), 'assigned_user_id' => $users['sales'], 'related_type' => 'LEAD', 'related_id' => $lead, 'created_by' => $users['sales']]);
+        $tag = $this->add('tags', ['organization_id' => $org, 'name' => 'PrioritÃ  commerciale', 'color' => '#2563eb']);
+        $this->add('taggables', ['organization_id' => $org, 'tag_id' => $tag, 'entity_type' => 'LEAD', 'entity_id' => $lead]);
+
+        foreach ([['PRJ-001','Migrazione infrastruttura',0,68],['PRJ-002','Portale clienti',1,35],['PRJ-003','Consulenza continuativa',2,92]] as $index => [$code,$name,$customerIndex,$progress]) {
+            $project = $this->add('projects', [
+                'organization_id' => $org, 'code' => $code, 'name' => $name,
+                'customer_id' => $customers[$customerIndex], 'customer_name' => 'Cliente demo ' . ($customerIndex + 1),
+                'status' => $progress >= 90 ? 'COMPLETED' : 'ACTIVE',
+                'start_date' => date('Y-m-d', strtotime('-' . (120 - $index * 20) . ' days')),
+                'end_date' => date('Y-m-d', strtotime('+' . (60 + $index * 25) . ' days')),
+                'budget' => 24000 + $index * 9000, 'progress_percent' => $progress,
+                'description' => 'Commessa dimostrativa con tempi, costi, ricavi e milestone.',
+                'source_document_id' => $documents['quote'], 'created_by' => $users['sales'],
+            ]);
+            $this->add('project_lines', ['organization_id' => $org, 'project_id' => $project, 'description' => 'Analisi e progettazione', 'quantity' => 40, 'unit_price' => 95, 'cost_amount' => 1800, 'revenue_amount' => 3800, 'status' => 'COMPLETED']);
+            $this->add('project_lines', ['organization_id' => $org, 'project_id' => $project, 'description' => 'Implementazione', 'quantity' => 120, 'unit_price' => 105, 'cost_amount' => 5700, 'revenue_amount' => 12600, 'status' => 'IN_PROGRESS']);
+            for ($week = 0; $week < 8; $week++) {
+                $this->add('project_time_entries', ['organization_id' => $org, 'project_id' => $project, 'user_id' => $users[$week % 2 ? 'sales' : 'owner'], 'work_date' => date('Y-m-d', strtotime("-{$week} weeks")), 'description' => 'AttivitÃ  di progetto', 'hours' => 5 + ($week % 4), 'hourly_cost' => 38, 'hourly_rate' => 95, 'billable' => 1, 'billing_status' => 'OPEN', 'approved_by' => $users['owner'], 'approved_at' => date('Y-m-d H:i:s', strtotime("-{$week} weeks +1 day"))]);
+            }
+            $this->add('project_expenses', ['organization_id' => $org, 'project_id' => $project, 'expense_date' => date('Y-m-d', strtotime('-20 days')), 'description' => 'Trasferta presso cliente', 'cost_amount' => 280, 'billable_amount' => 350, 'billable' => 1, 'billing_status' => 'OPEN', 'approved_by' => $users['owner']]);
+            $this->add('project_milestones', ['organization_id' => $org, 'project_id' => $project, 'name' => 'Avvio operativo', 'due_date' => date('Y-m-d', strtotime('-60 days')), 'amount' => 6000, 'status' => 'INVOICED']);
+            $this->add('project_milestones', ['organization_id' => $org, 'project_id' => $project, 'name' => 'Collaudo finale', 'due_date' => date('Y-m-d', strtotime('+30 days')), 'amount' => 9000, 'status' => 'OPEN']);
+        }
+    }
+
+    private function seedPeople(int $org, int $months, array $users): void
+    {
+        $employees = array_intersect_key($users, array_flip(['owner','accountant','sales','warehouse','hr']));
+        foreach ($employees as $index => $userId) {
+            $this->add('payroll_employee_configs', [
+                'organization_id' => $org, 'user_id' => $userId, 'employee_code' => 'DIP-' . sprintf('%03d', $index + 1),
+                'standard_weekly_hours' => 40, 'hourly_rate' => 18 + $index * 2,
+                'overtime_multiplier' => 1.3, 'inps_rate' => 9.19, 'inail_rate' => .8,
+                'employer_contribution_rate' => 30, 'tax_rate' => 23, 'fixed_monthly_amount' => 2100 + $index * 180,
+                'valid_from' => date('Y-01-01'), 'active' => 1, 'created_by' => $users['hr'],
+            ]);
+            foreach (['HOLIDAY' => [32, 144, 48], 'PERMIT' => [8, 48, 16], 'ROL' => [0, 32, 8]] as $type => [$opening,$accrued,$used]) {
+                $this->add('leave_balances', ['organization_id' => $org, 'user_id' => $userId, 'balance_year' => (int) date('Y'), 'leave_type' => $type, 'opening_hours' => $opening, 'accrued_hours' => $accrued, 'used_hours' => $used, 'adjusted_hours' => 0, 'created_by' => $users['hr']]);
+            }
+        }
+        for ($day = 1; $day <= 90; $day++) {
+            $date = new DateTimeImmutable("-{$day} days");
+            if ((int) $date->format('N') > 5) continue;
+            foreach ($employees as $index => $userId) {
+                $this->add('time_records', [
+                    'organization_id' => $org, 'user_id' => $userId, 'work_date' => $date->format('Y-m-d'),
+                    'employee_name' => ['Federico Demo','Anna Contabile','Marco Commerciale','Luca Magazzino','Giulia Risorse Umane'][$index],
+                    'record_type' => 'WORK', 'check_in' => '09:00:00', 'check_out' => $index % 3 === 0 ? '18:30:00' : '18:00:00',
+                    'hours' => 8, 'overtime_hours' => $index % 3 === 0 ? .5 : 0, 'approved' => 1,
+                    'created_by' => $users['hr'],
+                ]);
+            }
+        }
+        $approval = $this->add('approval_requests', ['organization_id' => $org, 'request_type' => 'LEAVE', 'requester_id' => $users['sales'], 'approver_id' => $users['hr'], 'entity_type' => 'LEAVE_REQUEST', 'status' => 'SUBMITTED', 'requested_at' => date('Y-m-d H:i:s', strtotime('-2 days')), 'reason' => 'Ferie estive']);
+        $leave = $this->add('leave_requests', ['organization_id' => $org, 'user_id' => $users['sales'], 'leave_type' => 'HOLIDAY', 'starts_at' => date('Y-m-d 09:00:00', strtotime('+20 days')), 'ends_at' => date('Y-m-d 18:00:00', strtotime('+24 days')), 'requested_hours' => 40, 'reason' => 'Ferie programmate', 'status' => 'SUBMITTED', 'approval_request_id' => $approval, 'submitted_at' => date('Y-m-d H:i:s', strtotime('-2 days'))]);
+        $this->add('approval_history', ['organization_id' => $org, 'approval_request_id' => $approval, 'action' => 'SUBMIT', 'actor_id' => $users['sales'], 'notes' => 'Richiesta inviata']);
+
+        $payrollMonths = min($months, 12);
+        $first = new DateTimeImmutable('first day of this month');
+        for ($offset = $payrollMonths - 1; $offset >= 0; $offset--) {
+            $period = $first->modify("-{$offset} months");
+            $grossTotal = count($employees) * 2450;
+            $run = $this->add('payroll_runs', [
+                'organization_id' => $org, 'period_label' => ucfirst($period->format('F Y')),
+                'period_start' => $period->format('Y-m-01'), 'period_end' => $period->format('Y-m-t'),
+                'calculation_mode' => 'IMPORTED_PAYSLIPS', 'employees_count' => count($employees),
+                'gross_total' => $grossTotal, 'net_total' => round($grossTotal * .69, 2),
+                'contributions_total' => round($grossTotal * .0919, 2), 'tax_total' => round($grossTotal * .218, 2),
+                'status' => $offset === 0 ? 'CALCULATED' : 'PAID', 'created_by' => $users['hr'],
+                'professional_validation_reference' => $offset === 0 ? null : 'CONSULENTE-' . $period->format('Ym'),
+                'validated_at' => $offset === 0 ? null : $period->modify('+1 month +5 days')->format('Y-m-d H:i:s'),
+            ]);
+            foreach ($employees as $index => $userId) {
+                $gross = 2200 + $index * 180;
+                $contributions = round($gross * .0919, 2);
+                $tax = round(($gross - $contributions) * .23, 2);
+                $net = $gross - $contributions - $tax;
+                $detail = $this->add('payroll_details', [
+                    'organization_id' => $org, 'payroll_run_id' => $run, 'user_id' => $userId,
+                    'employee_name' => ['Federico Demo','Anna Contabile','Marco Commerciale','Luca Magazzino','Giulia Risorse Umane'][$index],
+                    'regular_hours' => 168, 'overtime_hours' => 4 + $index,
+                    'gross_amount' => $gross, 'contributions_amount' => $contributions,
+                    'employer_contributions_amount' => round($gross * .30, 2), 'tax_amount' => $tax,
+                    'net_amount' => $net, 'employer_cost' => round($gross * 1.30, 2),
+                    'source_reference' => 'CED-' . $period->format('Ym') . '-' . ($index + 1),
+                    'calculation_json' => $this->json(['source' => 'demo-payslip']),
+                ]);
+                $this->add('payroll_components', ['organization_id' => $org, 'payroll_detail_id' => $detail, 'component_code' => 'BASE', 'description' => 'Retribuzione base', 'component_type' => 'EARNING', 'quantity' => 1, 'rate' => $gross, 'amount' => $gross, 'source' => 'IMPORTED']);
+                $this->add('payroll_components', ['organization_id' => $org, 'payroll_detail_id' => $detail, 'component_code' => 'INPS', 'description' => 'Contributi dipendente', 'component_type' => 'EMPLOYEE_CONTRIBUTION', 'amount' => -$contributions, 'source' => 'IMPORTED']);
+                $this->add('payroll_import_rows', ['organization_id' => $org, 'payroll_run_id' => $run, 'source_file' => 'cedolini-' . $period->format('Ym') . '.xlsx', 'source_row' => $index + 2, 'employee_code' => 'DIP-' . sprintf('%03d', $index + 1), 'normalized_json' => $this->json(['gross' => $gross, 'net' => $net]), 'status' => 'IMPORTED']);
+            }
+        }
+    }
+
+    private function seedIntegrations(int $org, array $users, array $customers, array $products, array $documents): void
+    {
+        $channel = $this->add('ecommerce_channels', ['organization_id' => $org, 'name' => 'Shop Demo WooCommerce', 'platform' => 'WOOCOMMERCE', 'base_url' => 'https://shop-demo.example', 'secret_reference' => 'ENV:DEMO_WOO_KEY', 'webhook_secret_reference' => 'ENV:DEMO_WOO_WEBHOOK', 'settings_json' => $this->json(['mode' => 'demo']), 'status' => 'CONNECTED', 'active' => 1, 'last_sync_at' => date('Y-m-d H:i:s', strtotime('-2 hours')), 'created_by' => $users['owner']]);
+        for ($i = 1; $i <= 8; $i++) {
+            $order = $this->add('ecommerce_orders', ['organization_id' => $org, 'ecommerce_channel_id' => $channel, 'order_date' => date('Y-m-d', strtotime("-{$i} days")), 'platform' => 'WOOCOMMERCE', 'external_order_id' => 'WEB-' . sprintf('%05d', 1000 + $i), 'customer_email' => 'webcliente' . $i . '@demo.local', 'total' => 120 + $i * 45, 'currency' => 'EUR', 'status' => $i < 6 ? 'COMPLETED' : 'PROCESSING', 'import_status' => $i < 7 ? 'IMPORTED' : 'PENDING', 'luna_document_id' => $i < 7 ? $documents['sales_invoice'] : null, 'raw_data_json' => $this->json(['demo' => true])]);
+            $this->add('ecommerce_order_lines', ['organization_id' => $org, 'ecommerce_order_id' => $order, 'external_line_id' => 'ROW-' . $i, 'product_id' => $products[$i % count($products)], 'sku' => 'SKU-DEMO-' . $i, 'description' => 'Prodotto ordine web', 'quantity' => 1, 'unit_price' => 120 + $i * 45, 'tax_amount' => 22, 'total_amount' => 120 + $i * 45, 'raw_data_json' => $this->json(['demo' => true])]);
+        }
+        foreach (array_slice($products, 0, 5) as $i => $product) {
+            $this->add('ecommerce_products', ['organization_id' => $org, 'ecommerce_channel_id' => $channel, 'platform' => 'WOOCOMMERCE', 'external_product_id' => 'EXT-P-' . ($i + 1), 'product_id' => $product, 'sku' => 'SKU-DEMO-' . ($i + 1), 'name' => 'Prodotto web demo ' . ($i + 1), 'price' => 99 + $i * 40, 'quantity' => 10 + $i, 'sync_status' => 'SYNCED', 'raw_data_json' => $this->json(['demo' => true])]);
+        }
+        $this->add('ecommerce_sync_logs', ['organization_id' => $org, 'ecommerce_channel_id' => $channel, 'sync_type' => 'PULL_ORDERS', 'status' => 'SUCCESS', 'started_at' => date('Y-m-d H:i:s', strtotime('-2 hours')), 'ended_at' => date('Y-m-d H:i:s', strtotime('-119 minutes')), 'processed_count' => 8, 'error_count' => 0, 'message' => 'Sincronizzazione dimostrativa completata']);
+        $this->add('ecommerce_sync_queue', ['organization_id' => $org, 'ecommerce_channel_id' => $channel, 'operation' => 'PUSH_STOCK', 'entity_type' => 'PRODUCT', 'entity_id' => $products[0], 'payload_json' => $this->json(['quantity' => 12]), 'status' => 'QUEUED', 'available_at' => date('Y-m-d H:i:s')]);
+        $this->add('webhook_events', ['organization_id' => $org, 'channel_id' => $channel, 'provider' => 'WOOCOMMERCE', 'event_type' => 'order.updated', 'external_id' => 'WH-DEMO-001', 'signature_valid' => 1, 'payload_json' => $this->json(['order' => 'WEB-01008']), 'status' => 'PROCESSED', 'received_at' => date('Y-m-d H:i:s', strtotime('-1 hour')), 'processed_at' => date('Y-m-d H:i:s', strtotime('-59 minutes'))]);
+
+        $rental = $this->add('rental_contracts', ['organization_id' => $org, 'contract_number' => 'NOL-DEMO-001', 'customer_id' => $customers[0], 'customer_name' => 'Alfa Industrie S.p.A.', 'vehicle_plate' => 'DE123MO', 'start_date' => date('Y-m-d', strtotime('-14 months')), 'end_date' => date('Y-m-d', strtotime('+22 months')), 'monthly_fee' => 690, 'annual_km' => 30000, 'invoice_day' => 5, 'next_invoice_date' => date('Y-m-05', strtotime('+1 month')), 'included_km' => 90000, 'current_km' => 28450, 'renewal_notice_days' => 60, 'status' => 'ACTIVE', 'notes' => 'Contratto demo in corso', 'created_by' => $users['sales']]);
+        $ticket = $this->add('rental_tickets', ['organization_id' => $org, 'ticket_number' => 'TCK-DEMO-001', 'rental_contract_id' => $rental, 'opened_at' => date('Y-m-d H:i:s', strtotime('-1 day')), 'customer_name' => 'Alfa Industrie S.p.A.', 'subject' => 'Richiesta cambio pneumatici', 'priority' => 'MEDIUM', 'status' => 'IN_PROGRESS', 'assigned_to' => $users['warehouse'], 'sla_due_at' => date('Y-m-d H:i:s', strtotime('+1 day')), 'response_due_at' => date('Y-m-d H:i:s', strtotime('+4 hours')), 'description' => 'Pianificare appuntamento con officina convenzionata.', 'created_by' => $users['sales']]);
+        $this->add('rental_deadlines', ['organization_id' => $org, 'rental_contract_id' => $rental, 'deadline_type' => 'SERVICE', 'due_date' => date('Y-m-d', strtotime('+20 days')), 'description' => 'Tagliando programmato', 'status' => 'OPEN']);
+        $this->add('rental_meter_readings', ['organization_id' => $org, 'rental_contract_id' => $rental, 'reading_date' => date('Y-m-d'), 'kilometers' => 28450, 'source' => 'CUSTOMER', 'notes' => 'Lettura portale cliente', 'created_by' => $users['sales']]);
+        $this->add('rental_ticket_events', ['organization_id' => $org, 'rental_ticket_id' => $ticket, 'event_type' => 'ASSIGNED', 'old_value' => 'OPEN', 'new_value' => 'IN_PROGRESS', 'notes' => 'Assegnato al magazzino', 'actor_id' => $users['sales']]);
+        $this->add('rental_invoice_links', ['organization_id' => $org, 'rental_contract_id' => $rental, 'document_id' => $documents['sales_invoice'], 'period_start' => date('Y-m-01', strtotime('-1 month')), 'period_end' => date('Y-m-t', strtotime('-1 month')), 'amount' => 690]);
+
+        $calendar = $this->add('calendar_accounts', ['organization_id' => $org, 'user_id' => $users['sales'], 'provider' => 'CALDAV', 'account_email' => 'vendite.demo@luna.local', 'endpoint_url' => 'https://calendar-demo.example/caldav', 'auth_type' => 'APP_PASSWORD', 'secret_reference' => 'ENV:DEMO_CALENDAR_PASSWORD', 'external_calendar_id' => 'sales-demo', 'active' => 1, 'last_sync_at' => date('Y-m-d H:i:s', strtotime('-3 hours')), 'created_by' => $users['owner']]);
+        for ($i = 0; $i < 6; $i++) {
+            $this->add('calendar_events', ['organization_id' => $org, 'calendar_account_id' => $calendar, 'title' => ['Riunione cliente','Revisione commessa','Scadenza offerta','Demo commerciale','Inventario','Riunione mensile'][$i], 'starts_at' => date('Y-m-d H:i:s', strtotime('+' . ($i + 1) . ' days 10:00')), 'ends_at' => date('Y-m-d H:i:s', strtotime('+' . ($i + 1) . ' days 11:00')), 'all_day' => 0, 'location' => $i % 2 ? 'Microsoft Teams' : 'Sede cliente', 'provider' => 'LOCAL', 'provider_event_id' => 'EV-DEMO-' . $i, 'sync_status' => 'SYNCED', 'description' => 'Evento calendario dimostrativo', 'created_by' => $users['sales']]);
+        }
+        $this->add('calendar_sync_logs', ['organization_id' => $org, 'calendar_account_id' => $calendar, 'direction' => 'BIDIRECTIONAL', 'status' => 'SUCCESS', 'processed_count' => 6, 'error_count' => 0, 'started_at' => date('Y-m-d H:i:s', strtotime('-3 hours')), 'ended_at' => date('Y-m-d H:i:s', strtotime('-179 minutes')), 'message' => 'Calendario demo sincronizzato']);
+
+        $this->add('integration_accounts', ['organization_id' => $org, 'integration_key' => 'DEMO_CONNECTOR', 'display_name' => 'Connettore dimostrativo', 'settings_json' => $this->json(['endpoint' => 'disabled']), 'status' => 'CONNECTED', 'last_check_at' => date('Y-m-d H:i:s')]);
+        $endpoint = $this->add('api_endpoint_configs', ['organization_id' => $org, 'service_key' => 'EINVOICE_DEMO', 'display_name' => 'Fatturazione elettronica demo', 'base_url' => 'https://api-demo.example/einvoice', 'environment' => 'TEST', 'auth_type' => 'BEARER', 'secret_reference' => 'ENV:DEMO_EINVOICE_TOKEN', 'verify_tls' => 1, 'enabled' => 0]);
+        $transmission = $this->add('sdi_transmissions', ['organization_id' => $org, 'document_id' => $documents['sales_invoice'], 'provider' => 'DEMO', 'filename' => 'IT09999990969_DEMO001.xml', 'checksum_sha256' => hash('sha256', 'demo-invoice'), 'provider_reference' => 'SDI-DEMO-001', 'status' => 'DELIVERED', 'sent_at' => date('Y-m-d H:i:s', strtotime('-10 days')), 'completed_at' => date('Y-m-d H:i:s', strtotime('-9 days'))]);
+        $this->add('sdi_notifications', ['organization_id' => $org, 'sdi_transmission_id' => $transmission, 'notification_type' => 'RC', 'filename' => 'RC_DEMO001.xml', 'checksum_sha256' => hash('sha256', 'demo-receipt'), 'payload_xml' => '<RicevutaConsegna demo="true"/>', 'received_at' => date('Y-m-d H:i:s', strtotime('-9 days')), 'processed_at' => date('Y-m-d H:i:s', strtotime('-9 days'))]);
+
+        $this->add('communication_settings', ['organization_id' => $org, 'transport' => 'DISABLED', 'from_email' => 'noreply@demo.luna.local', 'from_name' => 'Luna Demo', 'tracking_base_url' => 'https://demo.luna.local', 'tracking_enabled' => 1, 'max_attempts' => 5]);
+        $message = $this->add('outbound_emails', ['organization_id' => $org, 'message_uuid' => $this->uuid(), 'document_id' => $documents['sales_invoice'], 'recipient' => 'amministrazione@cliente-demo.local', 'subject' => 'Fattura demo disponibile', 'html_body' => '<p>Gentile cliente, la fattura demo Ã¨ disponibile.</p>', 'text_body' => 'La fattura demo Ã¨ disponibile.', 'attachment_json' => $this->json(['document_id' => $documents['sales_invoice']]), 'tracking_token' => hash('sha256', 'demo-track-' . $org), 'status' => 'SENT', 'attempts' => 1, 'sent_at' => date('Y-m-d H:i:s', strtotime('-5 days')), 'message_id' => '<demo-' . $org . '@luna.local>', 'created_by' => $users['accountant']]);
+        $this->add('email_events', ['organization_id' => $org, 'outbound_email_id' => $message, 'event_type' => 'DELIVERED', 'occurred_at' => date('Y-m-d H:i:s', strtotime('-5 days +2 minutes'))]);
+        $this->add('email_events', ['organization_id' => $org, 'outbound_email_id' => $message, 'event_type' => 'OPEN', 'occurred_at' => date('Y-m-d H:i:s', strtotime('-4 days'))]);
+        $this->add('email_tracking', ['organization_id' => $org, 'document_id' => $documents['sales_invoice'], 'recipient' => 'amministrazione@cliente-demo.local', 'subject' => 'Fattura demo disponibile', 'tracking_token' => hash('sha256', 'legacy-demo-track-' . $org), 'sent_at' => date('Y-m-d H:i:s', strtotime('-5 days')), 'first_opened_at' => date('Y-m-d H:i:s', strtotime('-4 days')), 'last_opened_at' => date('Y-m-d H:i:s', strtotime('-3 days')), 'opens_count' => 3]);
+        $this->add('background_jobs', ['organization_id' => $org, 'queue' => 'demo', 'job_type' => 'DEMO_HEALTH_CHECK', 'payload_json' => $this->json(['organization_id' => $org]), 'status' => 'COMPLETED', 'attempts' => 1, 'available_at' => date('Y-m-d H:i:s', strtotime('-1 day')), 'started_at' => date('Y-m-d H:i:s', strtotime('-1 day')), 'completed_at' => date('Y-m-d H:i:s', strtotime('-1 day +1 minute'))]);
+    }
+
+    private function seedProfessionalWorkspace(int $org, array $users, array $accounts): void
+    {
+        $year = (int) date('Y');
+        $assetCategory = $this->add('fixed_asset_categories', ['organization_id' => $org, 'code' => 'HW', 'name' => 'Hardware e macchine elettroniche', 'civil_rate' => 20, 'tax_rate' => 20, 'active' => 1]);
+        $asset = $this->add('fixed_assets', ['organization_id' => $org, 'asset_code' => 'CESP-DEMO-001', 'description' => 'Server e infrastruttura aziendale', 'category' => 'Hardware', 'category_id' => $assetCategory, 'purchase_date' => date('Y-m-d', strtotime('-20 months')), 'purchase_cost' => 18000, 'depreciation_rate' => 20, 'accumulated_depreciation' => 7200, 'net_book_value' => 10800, 'status' => 'ACTIVE', 'created_by' => $users['accountant']]);
+        $this->add('depreciation_entries', ['organization_id' => $org, 'fixed_asset_id' => $asset, 'fiscal_year' => $year - 1, 'amount' => 3600, 'status' => 'POSTED']);
+        foreach ([['VAT','Versamento IVA mensile',date('Y-m-16', strtotime('+1 month')),1280],['F24','F24 contributi e ritenute',date('Y-m-16', strtotime('+1 month')),3650],['LIPE','Comunicazione LIPE trimestrale',date('Y-m-t', strtotime('+2 months')),0],['CU','Certificazione Unica',($year + 1) . '-03-16',0]] as [$type,$description,$due,$amount]) {
+            $this->add('tax_deadlines', ['organization_id' => $org, 'due_date' => $due, 'deadline_type' => $type, 'description' => $description, 'reference_period' => date('m/Y'), 'amount' => $amount, 'status' => 'OPEN']);
+        }
+        $this->add('withholding_records', ['organization_id' => $org, 'record_date' => date('Y-m-d', strtotime('-20 days')), 'due_date' => date('Y-m-16', strtotime('+1 month')), 'withholding_type' => 'IRPEF', 'gross_amount' => 1500, 'taxable_percent' => 100, 'rate_percent' => 20, 'withholding_amount' => 300, 'net_amount' => 1200, 'status' => 'WITHHELD', 'created_by' => $users['accountant']]);
+        $this->add('vat_adjustments', ['organization_id' => $org, 'fiscal_year' => $year, 'adjustment_type' => 'PRO_RATA', 'description' => 'Rettifica IVA annuale dimostrativa', 'vat_debit_delta' => 125, 'vat_credit_delta' => 0, 'status' => 'DRAFT']);
+        $this->add('lipe_communications', ['organization_id' => $org, 'fiscal_year' => $year, 'quarter_number' => 1, 'schema_version' => '1.0-DEMO', 'payload_json' => $this->json(['vp2' => 18500, 'vp3' => 6400]), 'status' => 'REVIEWED']);
+        $this->add('vat_annual_summaries', ['organization_id' => $org, 'fiscal_year' => $year - 1, 'schema_version' => 'DEMO-1', 'detail_json' => $this->json(['sales' => 285000, 'purchases' => 132000]), 'status' => 'REVIEWED']);
+        $this->add('accounting_period_locks', ['organization_id' => $org, 'scope' => 'VAT', 'starts_on' => ($year - 1) . '-01-01', 'ends_on' => ($year - 1) . '-12-31', 'reason' => 'Periodo IVA chiuso e validato', 'locked_by' => $users['accountant']]);
+        $this->add('accounting_closing_runs', ['organization_id' => $org, 'fiscal_year' => $year - 1, 'status' => 'POSTED', 'snapshot_json' => $this->json(['assets' => 168000, 'liabilities' => 82000, 'result' => 24000]), 'created_by' => $users['accountant']]);
+        $this->add('accounting_adjustment_schedules', ['organization_id' => $org, 'adjustment_type' => 'PREPAID', 'description' => 'Risconto assicurazione annuale', 'source_account_id' => $accounts['costs'], 'counterpart_account_id' => $accounts['assets'], 'amount' => 1200, 'competence_from' => date('Y-07-01'), 'competence_to' => date('Y-06-30', strtotime('+1 year')), 'posting_date' => date('Y-12-31'), 'status' => 'DRAFT']);
+
+        $import = $this->add('import_batches', ['organization_id' => $org, 'uuid' => $this->uuid(), 'source_system' => 'DATEV_KOINOS', 'import_type' => 'CUSTOMERS', 'status' => 'COMPLETED', 'original_filename' => 'clienti-koinos-demo.csv', 'checksum_sha256' => hash('sha256', 'demo-import'), 'file_size' => 2048, 'total_rows' => 25, 'valid_rows' => 25, 'imported_rows' => 25, 'created_by' => $users['owner'], 'completed_at' => date('Y-m-d H:i:s', strtotime('-60 days'))]);
+        $file = $this->add('import_files', ['organization_id' => $org, 'batch_id' => $import, 'filename' => 'clienti-koinos-demo.csv', 'media_type' => 'text/csv', 'checksum_sha256' => hash('sha256', 'demo-import-file'), 'file_size' => 2048]);
+        $this->add('import_rows', ['organization_id' => $org, 'batch_id' => $import, 'source_file_id' => $file, 'source_row_number' => 2, 'raw_data_json' => $this->json(['RagioneSociale' => 'Cliente storico demo']), 'normalized_data_json' => $this->json(['business_name' => 'Cliente storico demo']), 'status' => 'IMPORTED']);
+        $this->add('import_records', ['organization_id' => $org, 'batch_id' => $import, 'entity_type' => 'customers', 'entity_id' => 1, 'operation' => 'CREATE']);
+        $this->add('import_mappings', ['organization_id' => $org, 'source_system' => 'DATEV_KOINOS', 'import_type' => 'CUSTOMERS', 'name' => 'Mappatura clienti demo', 'mapping_json' => $this->json(['RagioneSociale' => 'business_name']), 'active' => 1]);
+
+        $this->add('report_presets', ['organization_id' => $org, 'report_key' => 'MANAGEMENT_OVERVIEW', 'name' => 'Cruscotto direzionale mensile', 'filters_json' => $this->json(['period' => 'YTD']), 'columns_json' => $this->json(['revenue','margin','cash']), 'created_by' => $users['owner']]);
+        $this->add('report_exports', ['organization_id' => $org, 'report_key' => 'MANAGEMENT_OVERVIEW', 'period_from' => date('Y-01-01'), 'period_to' => date('Y-m-d'), 'parameters_json' => $this->json(['demo' => true]), 'filename' => 'report-direzionale-demo.xlsx', 'checksum_sha256' => hash('sha256', 'demo-report'), 'row_count' => 24, 'generated_by' => $users['owner'], 'generated_at' => date('Y-m-d H:i:s', strtotime('-2 days'))]);
+        $this->add('official_print_runs', ['organization_id' => $org, 'print_type' => 'JOURNAL', 'sequence_number' => 1, 'title' => 'Libro giornale demo', 'period_start' => date('Y-01-01'), 'period_end' => date('Y-m-d'), 'status' => 'VALIDATED', 'row_count' => 120, 'professional_validation_reference' => 'VALID-DEMO-001', 'generated_by' => $users['accountant'], 'validated_by' => $users['owner'], 'validated_at' => date('Y-m-d H:i:s', strtotime('-1 day'))]);
+        $this->add('compliance_filing_runs', ['organization_id' => $org, 'filing_type' => 'LIPE', 'period_year' => $year, 'period_code' => 'Q1', 'status' => 'READY', 'schema_version' => 'DEMO-1', 'data_json' => $this->json(['quarter' => 1]), 'anomaly_count' => 0, 'professional_validation_reference' => 'LIPE-DEMO-Q1', 'created_by' => $users['accountant'], 'validated_by' => $users['owner'], 'validated_at' => date('Y-m-d H:i:s')]);
+        $statement = $this->add('bank_statement_imports', ['organization_id' => $org, 'bank_account_id' => $accounts['bank_id'], 'source_format' => 'CSV', 'original_filename' => 'estratto-conto-demo.csv', 'stored_path' => 'storage/imports/estratto-conto-demo.csv', 'checksum_sha256' => hash('sha256', 'demo-statement'), 'status' => 'IMPORTED', 'rows_count' => 48, 'imported_count' => 48, 'duplicate_count' => 0, 'error_count' => 0, 'imported_by' => $users['accountant'], 'imported_at' => date('Y-m-d H:i:s', strtotime('-3 days'))]);
+
+        foreach ($users as $userId) {
+            $this->add('user_preferences', ['organization_id' => $org, 'user_id' => $userId, 'preference_key' => 'dashboard.compact', 'preference_json' => $this->json(['enabled' => false])]);
+        }
+        $this->add('saved_views', ['organization_id' => $org, 'user_id' => $users['accountant'], 'module_key' => 'customers', 'name' => 'Clienti attivi Milano', 'query_json' => $this->json(['filters' => ['city' => 'Milano', 'active' => 1]]), 'is_default' => 1]);
+        foreach ([['ACCOUNTING','Liquidazione IVA da verificare','La liquidazione del mese corrente Ã¨ ancora in bozza.'],['SALES','Preventivo in scadenza','Il preventivo demo richiede un follow-up.'],['INVENTORY','Scorta minima','Due articoli sono vicini alla soglia minima.'],['HR','Ferie da approvare','Ãˆ presente una richiesta ferie in attesa.']] as [$category,$title,$message]) {
+            $this->add('workspace_notifications', ['organization_id' => $org, 'category' => $category, 'title' => $title, 'message' => $message, 'severity' => 'INFO', 'action_url' => '/dashboard']);
+        }
+        foreach (['company','users','modules','accounting','bank','imports'] as $step) {
+            $this->add('onboarding_progress', ['organization_id' => $org, 'step_key' => $step, 'completed_by' => $users['owner'], 'completed_at' => date('Y-m-d H:i:s', strtotime('-30 days'))]);
+        }
+        $this->add('bulk_operations', ['organization_id' => $org, 'user_id' => $users['owner'], 'module_key' => 'customers', 'operation' => 'EXPORT', 'selection_json' => $this->json(['all_filtered' => true]), 'status' => 'COMPLETED', 'processed_count' => 8, 'failed_count' => 0, 'result_json' => $this->json(['filename' => 'clienti-demo.xlsx']), 'completed_at' => date('Y-m-d H:i:s', strtotime('-1 day'))]);
+    }
+
+    private function findDemoOrganization(): int
+    {
+        $statement = $this->db->prepare('SELECT id FROM organizations WHERE tax_code = ? ORDER BY id LIMIT 1');
+        $statement->execute([self::DEMO_TAX_CODE]);
+        return (int) ($statement->fetchColumn() ?: 0);
+    }
+
+    /** @param list<string> $tables */
+    private function requireTables(array $tables): void
+    {
+        $missing = array_values(array_filter($tables, fn (string $table): bool => !$this->tableExists($table)));
+        if ($missing !== []) {
+            throw new RuntimeException('Database non aggiornato. Tabelle mancanti: ' . implode(', ', $missing) . '. Esegui prima bin/luna migrate.');
+        }
+    }
+
+    /** @param array<string,mixed> $data */
+    private function add(string $table, array $data): int
+    {
+        if (!$this->tableExists($table)) {
+            throw new RuntimeException("Tabella {$table} mancante: esegui prima bin/luna migrate.");
+        }
+        $available = $this->tableColumns($table);
+        $data = array_filter($data, static fn (mixed $_, string $column): bool => isset($available[$column]), ARRAY_FILTER_USE_BOTH);
+        if ($data === []) {
+            return 0;
+        }
+        $columns = array_keys($data);
+        $quoted = implode(', ', array_map(static fn (string $column): string => '`' . $column . '`', $columns));
+        $placeholders = implode(', ', array_fill(0, count($columns), '?'));
+        $statement = $this->db->prepare("INSERT INTO `{$table}` ({$quoted}) VALUES ({$placeholders})");
+        $statement->execute(array_values($data));
+        $this->counts[$table] = ($this->counts[$table] ?? 0) + 1;
+        $id = (int) $this->db->lastInsertId();
+        return $id > 0 ? $id : (int) ($data['organization_id'] ?? 0);
+    }
+
+    /** @return array<string,true> */
+    private function tableColumns(string $table): array
+    {
+        if (isset($this->columns[$table])) {
+            return $this->columns[$table];
+        }
+        if (!preg_match('/^[a-z0-9_]+$/', $table)) {
+            throw new RuntimeException('Nome tabella demo non valido.');
+        }
+        $columns = [];
+        foreach ($this->db->query("SHOW COLUMNS FROM `{$table}`")->fetchAll(PDO::FETCH_ASSOC) as $column) {
+            $columns[(string) $column['Field']] = true;
+        }
+        return $this->columns[$table] = $columns;
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $statement = $this->db->prepare(
+            'SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+        );
+        $statement->execute([$table]);
+        return (bool) $statement->fetchColumn();
+    }
+
+    private function value(string $sql, array $parameters = []): int
+    {
+        $statement = $this->db->prepare($sql);
+        $statement->execute($parameters);
+        return (int) ($statement->fetchColumn() ?: 0);
+    }
+
+    private function json(array $value): string
+    {
+        return (string) json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    private function uuid(): string
+    {
+        $bytes = random_bytes(16);
+        $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+        $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+        return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($bytes), 4));
+    }
+}
