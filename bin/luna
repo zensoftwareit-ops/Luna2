@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Luna\Core\Database;
 use Luna\Core\Env;
 use Luna\Service\CalendarService;
+use Luna\Service\DemoDataSeeder;
 use Luna\Service\EcommerceService;
 use Luna\Service\MailService;
 use Luna\Service\RentalService;
@@ -102,9 +103,38 @@ try {
             echo "Scadenze: fiscali {$tax}, documenti {$documents}, noleggio {$rental}. Job: mail {$jobs['mail_sent']}, e-commerce {$jobs['commerce']}, calendari {$jobs['calendar']}, fatture noleggio {$jobs['rental_invoices']}, notifiche {$jobs['notifications']}, errori {$jobs['errors']}.\n";
             break;
 
+        case 'demo:seed':
+            $db = Database::connect();
+            $months = 18;
+            $reset = false;
+            foreach (array_slice($argv, 2) as $argument) {
+                if ($argument === '--reset') {
+                    $reset = true;
+                } elseif (str_starts_with($argument, '--months=')) {
+                    $months = (int) substr($argument, strlen('--months='));
+                } else {
+                    throw new RuntimeException("Opzione demo non riconosciuta: {$argument}");
+                }
+            }
+            $result = (new DemoDataSeeder($db, BASE_PATH))->seed($months, $reset);
+            echo "\n=== AZIENDA DEMO GENERATA ===\n";
+            echo "Organizzazione ID: {$result['organization_id']}\n";
+            echo "Storico: {$result['months']} mesi\n";
+            echo "Email: {$result['email']}\n";
+            echo "Password: {$result['password']}\n";
+            echo "Tabelle popolate: " . count($result['counts']) . "\n";
+            echo "Righe generate: " . array_sum($result['counts']) . "\n";
+            foreach ($result['counts'] as $table => $count) {
+                echo sprintf("  %-38s %d\n", $table, $count);
+            }
+            echo "ATTENZIONE: dati e credenziali sono esclusivamente dimostrativi.\n";
+            echo "================================\n";
+            break;
+
         default:
             echo "Luna2 CLI\n\n";
             echo "  storage:init\n  key:generate\n  migrate\n  cron:daily\n";
+            echo "  demo:seed [--months=18] [--reset]\n";
     }
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Errore: ' . $exception->getMessage() . PHP_EOL);

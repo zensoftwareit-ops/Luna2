@@ -199,20 +199,7 @@ try {
     $periodEnd = new DateTimeImmutable('2026-12-31');
     $renderedAccounting .= $renderAccountingView('compliance', ['year' => 2026, 'adjustments' => [], 'lipe' => [], 'annual' => [], 'closingRuns' => [], 'schedules' => [], 'categories' => [], 'assets' => [], 'depreciations' => [], 'accounts' => [], 'statements' => [], 'statementTotals' => [], 'periodStart' => $periodStart, 'periodEnd' => $periodEnd]);
     $assert(str_contains($renderedAccounting, 'Prima nota') && str_contains($renderedAccounting, 'Registri IVA') && str_contains($renderedAccounting, 'Liquidazioni IVA'), 'Rendering viste contabili incompleto.');
-    $assert(str_contains($renderedAccounting, 'Piano dei conti') && str_contains($renderedAccounting, 'Tesoreria e partite') && str_contains($renderedAccounting, 'Adempimenti, bilancio e cespiti'), 'Rendering contabilitÃ  avanzata incompleto.');
-} catch (Throwable $exception) {
-    $assert(false, 'Errore rendering viste contabili: ' . $exception->getMessage());
-}
-$renderView = static function (string $file, array $variables) use ($base): string {
-    extract($variables, EXTR_SKIP);
-    ob_start();
-    require $base . '/views/' . $file . '.php';
-    return (string) ob_get_clean();
-};
-try {
-    $renderedOperations = '';
-    $renderedOperations .= $renderView('operations/logistics', ['balances'=>[],'transfers'=>[],'picks'=>[],'warehouses'=>[],'products'=>[],'orders'=>[]]);
-    $renderedOperations .= $renderView('operations/projects', ['projects'=>[],'project'=>null,'metrics'=>[],'time'=>[],'expenses'=>[],'milestones'=>[],'users'=>[]]);
+    $assert(str_contains($renderedAccounting, 'PiaÛÏm¢G§²ÚîÆ­y×milestones'=>[],'users'=>[]]);
     $renderedOperations .= $renderView('operations/communications', ['settings'=>[],'messages'=>[],'documents'=>[]]);
     $renderedOperations .= $renderView('operations/hr', ['leaves'=>[],'balances'=>[],'users'=>[],'runs'=>[],'configs'=>[],'admin'=>false]);
     $renderedOperations .= $renderView('operations/ecommerce', ['channels'=>[],'orders'=>[],'catalog'=>[],'queue'=>[]]);
@@ -357,6 +344,44 @@ $assert(str_contains($leaveService,'function cancel(')&&str_contains($inventoryS
 $assert(str_contains((string) file_get_contents($base . '/app/Service/SecretResolver.php'), 'ENV:'), 'I segreti delle integrazioni devono essere risolti da ambiente.');
 $assert(str_contains($cli, 'random_bytes(18)') && str_contains($cli, 'CREDENZIALI SUPERUSER'), 'Bootstrap sicuro del superuser mancante.');
 $assert(!str_contains($cli, "case 'setup:admin':"), 'Il setup azienda da CLI deve essere sostituito dal setup web riservato.');
+
+$demoSeederPath = $base . '/app/Service/DemoDataSeeder.php';
+$assert(is_file($demoSeederPath), 'Servizio di generazione dati demo mancante.');
+$demoSeeder = is_file($demoSeederPath) ? (string) file_get_contents($demoSeederPath) : '';
+$assert(
+    str_contains($cli, "case 'demo:seed':")
+    && str_contains($cli, '--months=')
+    && str_contains($cli, '--reset')
+    && str_contains($cli, "Password: {\$result['password']}"),
+    'Il comando demo:seed deve supportare storico configurabile, rigenerazione e credenziali in output.'
+);
+$assert(
+    str_contains($demoSeeder, 'beginTransaction()')
+    && str_contains($demoSeeder, 'rollBack()')
+    && str_contains($demoSeeder, "DELETE FROM organizations WHERE id = ?")
+    && str_contains($demoSeeder, "random_bytes(4)"),
+    'Il seed demo deve essere isolato, atomico, rigenerabile e usare una password casuale.'
+);
+$demoCoverage = [
+    'customers', 'suppliers', 'products', 'documents', 'payment_schedules',
+    'journal_entries', 'vat_movements', 'vat_settlements', 'vat_cash_events',
+    'bank_transactions', 'accounting_open_items', 'payment_allocations',
+    'inventory_movements', 'inventory_transfers', 'inventory_pick_lists',
+    'leads', 'activities', 'projects', 'project_time_entries',
+    'time_records', 'leave_requests', 'payroll_runs', 'payroll_details',
+    'ecommerce_orders', 'rental_contracts', 'rental_tickets',
+    'calendar_events', 'outbound_emails', 'sdi_transmissions',
+    'fixed_assets', 'tax_deadlines', 'report_exports', 'import_batches',
+];
+foreach ($demoCoverage as $table) {
+    $assert(str_contains($demoSeeder, "add('{$table}'"), "Copertura dati demo mancante per {$table}.");
+}
+$assert(
+    !str_contains($demoSeeder, "'status' => 'COMMITTED'")
+    && !str_contains($demoSeeder, "'status' => 'FINAL'")
+    && !str_contains($demoSeeder, "'document_id' => \$documents['ddt'], 'status' => 'IN_PROGRESS'"),
+    'Il seed demo usa stati non compatibili con lo schema MariaDB.'
+);
 
 $secretPatterns = [
     '/GOCSPX-[A-Za-z0-9_-]+/',
