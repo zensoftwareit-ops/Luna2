@@ -172,21 +172,33 @@ final class ResourceController extends BaseController
             foreach (array_keys($values) as $field) {
                 $sets[] = $this->identifier($field) . ' = :' . $field;
             }
-            $sets[] = 'updated_by = :updated_by';
+            if ($module['author_columns'] ?? true) {
+                $sets[] = 'updated_by = :updated_by';
+                $values['updated_by'] = Auth::id();
+            }
             $sets[] = 'updated_at = NOW()';
-            $values['updated_by'] = Auth::id();
             $values['id'] = $id;
             $values['organization_id'] = Auth::organizationId();
             $sql = 'UPDATE ' . $this->identifier($module['table']) . ' SET ' . implode(', ', $sets) . ' WHERE id = :id AND organization_id = :organization_id';
             $this->db->prepare($sql)->execute($values);
             $action = 'UPDATE';
         } else {
-            $values = ['organization_id' => Auth::organizationId()] + $values + ['created_by' => Auth::id(), 'updated_by' => Auth::id()];
-            $columns = array_keys($values);
+            // Lascia che il database applichi i DEFAULT ai campi opzionali
+            // anziché forzarli a NULL (per esempio customers.country_code).
+            $insertValues = array_filter(
+                $values,
+                static fn (mixed $value): bool => $value !== null,
+            );
+            $insertValues = ['organization_id' => Auth::organizationId()]
+                + $insertValues;
+            if ($module['author_columns'] ?? true) {
+                $insertValues += ['created_by' => Auth::id(), 'updated_by' => Auth::id()];
+            }
+            $columns = array_keys($insertValues);
             $sql = 'INSERT INTO ' . $this->identifier($module['table'])
                 . ' (' . implode(', ', array_map([$this, 'identifier'], $columns)) . ', created_at, updated_at) VALUES ('
                 . implode(', ', array_map(static fn (string $column): string => ':' . $column, $columns)) . ', NOW(), NOW())';
-            $this->db->prepare($sql)->execute($values);
+            $this->db->prepare($sql)->execute($insertValues);
             $id = (int) $this->db->lastInsertId();
             $action = 'CREATE';
         }

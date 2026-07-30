@@ -18,7 +18,7 @@ return [
             'sdi_code' => $text('Codice destinatario'), 'pec' => ['label' => 'PEC', 'type' => 'email'],
             'email' => ['label' => 'Email', 'type' => 'email'], 'phone' => $text('Telefono'),
             'address' => $text('Indirizzo'), 'postal_code' => $text('CAP'), 'city' => $text('Città'),
-            'province' => $text('Provincia'), 'country_code' => $text('Paese'), 'iban' => $text('IBAN'),
+            'province' => $text('Provincia'), 'country_code' => ['label' => 'Paese', 'type' => 'text', 'default' => 'IT'], 'iban' => $text('IBAN'),
             'payment_terms' => $text('Condizioni di pagamento'), 'credit_limit' => $decimal('Fido'),
             'active' => ['label' => 'Attivo', 'type' => 'checkbox', 'default' => 1],
         ],
@@ -32,7 +32,7 @@ return [
             'vat_number' => $text('Partita IVA'), 'tax_code' => $text('Codice fiscale'),
             'email' => ['label' => 'Email', 'type' => 'email'], 'pec' => ['label' => 'PEC', 'type' => 'email'],
             'phone' => $text('Telefono'), 'address' => $text('Indirizzo'), 'postal_code' => $text('CAP'),
-            'city' => $text('Città'), 'province' => $text('Provincia'), 'country_code' => $text('Paese'),
+            'city' => $text('Città'), 'province' => $text('Provincia'), 'country_code' => ['label' => 'Paese', 'type' => 'text', 'default' => 'IT'],
             'iban' => $text('IBAN'), 'payment_terms' => $text('Condizioni di pagamento'),
             'active' => ['label' => 'Attivo', 'type' => 'checkbox', 'default' => 1],
         ],
@@ -140,6 +140,7 @@ return [
     ],
     'calendar-accounts' => [
         'feature' => 'calendar', 'group' => 'Operatività', 'title' => 'Account calendario', 'singular' => 'Account calendario', 'table' => 'calendar_accounts',
+        'author_columns' => false,
         'title_column' => 'account_email', 'search' => ['provider', 'account_email', 'endpoint_url'], 'columns' => ['user_id', 'provider', 'account_email', 'endpoint_url', 'auth_type', 'active', 'last_sync_at'],
         'fields' => [
             'user_id' => ['label' => 'ID utente', 'type' => 'number', 'required' => true], 'provider' => $select('Provider', ['GOOGLE'=>'Google Calendar','ICLOUD'=>'iCloud','CALDAV'=>'CalDAV'], true),
@@ -173,6 +174,7 @@ return [
     ],
     'payroll-configs' => [
         'feature' => 'hr', 'group' => 'HR', 'title' => 'Configurazioni dipendenti', 'singular' => 'Configurazione dipendente', 'table' => 'payroll_employee_configs',
+        'author_columns' => false,
         'title_column' => 'employee_code', 'search' => ['employee_code'], 'columns' => ['user_id','employee_code','hourly_rate','fixed_monthly_amount','inps_rate','tax_rate','valid_from','valid_to','active'],
         'fields' => [
             'user_id'=>['label'=>'ID utente','type'=>'number','required'=>true], 'employee_code'=>$text('Codice dipendente',true), 'standard_weekly_hours'=>$decimal('Ore settimanali'),

@@ -75,6 +75,23 @@ $assert(is_file($base . '/docs/DATEV_KOINOS_MIGRATION.md'), 'Piano migrazione Ko
 $assert(is_file($base . '/docs/ACCOUNTING_PARITY.md'), 'Matrice parità contabile Koinos mancante.');
 $assert(is_file($base . '/views/settings/modules.php') && is_file($base . '/views/settings/system.php') && is_file($base . '/views/settings/company.php'), 'Pannello impostazioni incompleto.');
 $application = (string) file_get_contents($base . '/app/Core/Application.php');
+$resourceController = (string) file_get_contents($base . '/app/Controller/ResourceController.php');
+$assert(
+    str_contains($resourceController, '$value !== null')
+    && str_contains($resourceController, '->execute($insertValues)'),
+    'I nuovi record devono lasciare al database i valori DEFAULT dei campi opzionali.'
+);
+$assert(
+    ($modules['customers']['fields']['country_code']['default'] ?? null) === 'IT'
+    && ($modules['suppliers']['fields']['country_code']['default'] ?? null) === 'IT',
+    'Paese predefinito mancante nelle anagrafiche.'
+);
+$assert(
+    ($modules['calendar-accounts']['author_columns'] ?? true) === false
+    && ($modules['payroll-configs']['author_columns'] ?? true) === false
+    && str_contains($resourceController, "\$module['author_columns'] ?? true"),
+    'Il salvataggio generico deve rispettare le tabelle prive delle colonne autore.'
+);
 $assert(str_contains($application, "'/settings/modules'"), 'Rotta gestione moduli mancante.');
 $assert(str_contains($application, "'/settings/system'"), 'Rotta stato sistema mancante.');
 $assert(str_contains($application, "'/settings/company'"), 'Rotta setup azienda mancante.');
