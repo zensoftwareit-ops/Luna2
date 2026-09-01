@@ -9,6 +9,8 @@ use InvalidArgumentException;
 use Luna\Core\Auth;
 use Luna\Service\AccountingService;
 use Luna\Service\FatturaPaService;
+use Luna\Service\PartyAutomationService;
+use Luna\Service\ReceivablesService;
 use Luna\Service\DocumentNumberService;
 use Luna\Service\DocumentWorkflowService;
 use Luna\Service\TabularExportService;
@@ -31,13 +33,17 @@ final class DocumentController extends BaseController
     {
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
         $definition = $this->type($type);
-        [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, 1500);
+        [
+            $documents, $search, $from, $to, $counterpartyId, $status,
+            $sort, $direction, $perPage, $page, $pages, $total,
+        ] = $this->documentList($definition, true);
         $table = $definition['counterparty'] === 'customer' ? 'customers' : 'suppliers';
         $statement = $this->db->prepare("SELECT id, code, business_name FROM {$table} WHERE organization_id = ? ORDER BY business_name");
         $statement->execute([Auth::organizationId()]);
         $counterparties = $statement->fetchAll();
         $this->view->render('documents/index', compact(
-            'type', 'definition', 'documents', 'search', 'from', 'to', 'counterpartyId', 'status', 'counterparties'
+            'type', 'definition', 'documents', 'search', 'from', 'to', 'counterpartyId', 'status', 'counterparties',
+            'sort', 'direction', 'perPage', 'page', 'pages', 'total'
         ) + ['title' => $definition['title']]);
     }
 
@@ -45,7 +51,7 @@ final class DocumentController extends BaseController
     {
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
         $definition = $this->type($type);
-        [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, null);
+        [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, false);
         (new TabularExportService())->stream(
             $format,
             $definition['title'],
@@ -79,7 +85,9 @@ final class DocumentController extends BaseController
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES']);
         $definition = $this->type($type);
         $table = $definition['counterparty'] === 'customer' ? 'customers' : 'suppliers';
-        $statement = $this->db->prepare("SELECT id, code, business_name, vat_number FROM {$table} WHERE organization_id = ? AND active = 1 ORDER BY business_name");
+        $statement = $this->db->prepare("SELECT id, code, business_name, vat_number, payment_terms, payment_days, payment_month_end,
+            payment_method_code, iban, bank_name, bank_abi, bank_cab" . ($table === 'suppliers' ? ", withholding_enabled, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause" : "") . "
+            FROM {$table} WHERE organization_id = ? AND active = 1 ORDER BY business_name");
         $statement->execute([Auth::organizationId()]);
         $counterparties = $statement->fetchAll();
         $statement = $this->db->prepare('SELECT id, code, name, unit, sale_price, purchase_cost, vat_rate FROM products WHERE organization_id = ? AND active = 1 ORDER BY name');
@@ -88,13 +96,16 @@ final class DocumentController extends BaseController
         $statement = $this->db->prepare('SELECT code, description, rate, nature FROM vat_codes WHERE organization_id = ? AND active = 1 ORDER BY rate DESC, code');
         $statement->execute([Auth::organizationId()]);
         $vatCodes = $statement->fetchAll();
+        $statement = $this->db->prepare('SELECT withholding_enabled, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause FROM organizations WHERE id = ?');
+        $statement->execute([Auth::organizationId()]);
+        $organizationFiscal = $statement->fetch() ?: [];
 
         $document = [
             'document_date' => date('Y-m-d'), 'due_date' => date('Y-m-d', strtotime('+30 days')),
             'currency' => 'EUR', 'fatturapa_type' => $definition['code'] === 'CREDIT_NOTE' ? 'TD04' : 'TD01',
             'vat_collectability' => 'I', 'payment_method_code' => 'MP05',
         ];
-        $this->view->render('documents/form', compact('type', 'definition', 'document', 'counterparties', 'products', 'vatCodes') + ['title' => 'Nuovo ' . $definition['singular']]);
+        $this->view->render('documents/form', compact('type', 'definition', 'document', 'counterparties', 'products', 'vatCodes', 'organizationFiscal') + ['title' => 'Nuovo ' . $definition['singular']]);
     }
 
     public function save(string $type): never
@@ -114,24 +125,38 @@ final class DocumentController extends BaseController
         $taxable = round(array_sum(array_column($lines, 'taxable_amount')), 2);
         $vat = round(array_sum(array_column($lines, 'vat_amount')), 2);
         $total = round($taxable + $vat, 2);
+        $withholdingEnabled = !empty($_POST['withholding_enabled']) && in_array($definition['code'], ['SALES_INVOICE', 'PURCHASE_INVOICE'], true);
+        $withholdingRate = $withholdingEnabled ? max(0, min(100, $this->decimal($_POST['withholding_rate'] ?? 0))) : 0;
+        $withholdingTaxable = $withholdingEnabled ? max(0, min(100, $this->decimal($_POST['withholding_taxable_percent'] ?? 100))) : 100;
+        $withholding = $withholdingEnabled ? round($taxable * $withholdingTaxable / 100 * $withholdingRate / 100, 2) : 0;
 
         $this->db->beginTransaction();
         try {
             $date = (string) ($_POST['document_date'] ?? date('Y-m-d'));
+            $dueDate = PartyAutomationService::dueDate($date, $counterparty);
+            $paymentMethod = trim((string) ($_POST['payment_method_code'] ?? '')) ?: ($counterparty['payment_method_code'] ?: 'MP05');
+            $paymentLabel = PartyAutomationService::paymentLabel($counterparty);
             $number = $this->nextNumber($definition, $date);
             $statement = $this->db->prepare(
                 "INSERT INTO documents
                  (organization_id, document_type, number, fiscal_year, document_date, due_date, counterparty_type,
                   counterparty_id, counterparty_name, subject, currency, taxable_total, vat_total, total, balance_due,
-                  status, fatturapa_type, vat_collectability, payment_method_code, notes, created_by, updated_by, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, NOW(), NOW())"
+                  withholding_total, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause,
+                  status, fatturapa_type, vat_collectability, payment_method_code, payment_terms_label, bank_name, bank_abi,
+                  bank_cab, bank_iban, notes, created_by, updated_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())"
             );
             $statement->execute([
                 Auth::organizationId(), $definition['code'], $number, (int) substr($date, 0, 4), $date,
-                ($_POST['due_date'] ?? '') ?: null, strtoupper($definition['counterparty']), $counterpartyId,
+                $dueDate, strtoupper($definition['counterparty']), $counterpartyId,
                 $counterparty['business_name'], trim((string) ($_POST['subject'] ?? '')), ($_POST['currency'] ?? 'EUR') ?: 'EUR',
-                $taxable, $vat, $total, $total, ($_POST['fatturapa_type'] ?? '') ?: null,
-                ($_POST['vat_collectability'] ?? '') ?: null, ($_POST['payment_method_code'] ?? '') ?: null,
+                $taxable, $vat, $total, round($total - $withholding, 2), $withholding,
+                $withholdingEnabled ? (($_POST['withholding_type'] ?? '') ?: 'RT01') : null, $withholdingRate, $withholdingTaxable,
+                $withholdingEnabled ? (($_POST['withholding_cause'] ?? '') ?: null) : null,
+                ($_POST['fatturapa_type'] ?? '') ?: null,
+                ($_POST['vat_collectability'] ?? '') ?: null, $paymentMethod, $paymentLabel,
+                ($counterparty['bank_name'] ?? '') ?: null, ($counterparty['bank_abi'] ?? '') ?: null,
+                ($counterparty['bank_cab'] ?? '') ?: null, ($counterparty['iban'] ?? '') ?: null,
                 trim((string) ($_POST['notes'] ?? '')) ?: null, Auth::id(), Auth::id(),
             ]);
             $documentId = (int) $this->db->lastInsertId();
@@ -212,6 +237,13 @@ final class DocumentController extends BaseController
         $statement = $this->db->prepare('SELECT * FROM organizations WHERE id = ?');
         $statement->execute([Auth::organizationId()]);
         $organization = $statement->fetch();
+        $partyTable = $document['counterparty_type'] === 'SUPPLIER' ? 'suppliers' : 'customers';
+        $statement = $this->db->prepare("SELECT * FROM {$partyTable} WHERE id = ? AND organization_id = ?");
+        $statement->execute([$document['counterparty_id'], Auth::organizationId()]);
+        $counterparty = $statement->fetch() ?: [];
+        $statement = $this->db->prepare('SELECT * FROM payment_schedules WHERE document_id = ? AND organization_id = ? ORDER BY installment_number');
+        $statement->execute([(int) $id, Auth::organizationId()]);
+        $paymentSchedules = $statement->fetchAll();
 
         ob_start();
         require dirname(__DIR__, 2) . '/views/documents/pdf.php';
@@ -254,6 +286,7 @@ final class DocumentController extends BaseController
             $statement->execute([$status, Auth::id(), (int) $id, Auth::organizationId(), $definition['code']]);
             if (in_array($status, ['ISSUED', 'RECEIVED'], true)) {
                 (new AccountingService($this->db, Auth::organizationId(), Auth::id()))->postDocument((int) $id);
+                (new ReceivablesService($this->db, Auth::organizationId(), Auth::id()))->syncDocumentById((int) $id);
             }
             $this->db->commit();
         } catch (Throwable $exception) {
@@ -273,40 +306,59 @@ final class DocumentController extends BaseController
         return $definition;
     }
 
-    private function documentList(array $definition, ?int $limit): array
+    private function documentList(array $definition, bool $paginate): array
     {
         $search = trim((string) ($_GET['q'] ?? ''));
         $from = (string) ($_GET['from'] ?? date('Y-01-01'));
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
         $counterpartyId = max(0, (int) ($_GET['counterparty_id'] ?? 0));
         $status = strtoupper(trim((string) ($_GET['status'] ?? '')));
-        $sql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
-                       taxable_total, vat_total, total, balance_due, status
-                FROM documents WHERE organization_id = :organization AND document_type = :type
-                  AND document_date BETWEEN :date_from AND :date_to';
+        $allowedSort = ['number', 'counterparty_name', 'subject', 'document_date', 'due_date', 'taxable_total', 'vat_total', 'total', 'balance_due', 'status'];
+        $sort = in_array((string) ($_GET['sort'] ?? ''), $allowedSort, true) ? (string) $_GET['sort'] : 'document_date';
+        $direction = strtoupper((string) ($_GET['direction'] ?? 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
+        $perPage = in_array((int) ($_GET['per_page'] ?? 50), [25, 50, 100, 250], true) ? (int) $_GET['per_page'] : 50;
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        $where = ' FROM documents WHERE organization_id = :organization AND document_type = :type
+                   AND document_date BETWEEN :date_from AND :date_to';
         $params = [
             'organization' => Auth::organizationId(), 'type' => $definition['code'],
             'date_from' => $from, 'date_to' => $to,
         ];
         if ($search !== '') {
-            $sql .= ' AND (number LIKE :search OR counterparty_name LIKE :search OR subject LIKE :search)';
+            $where .= ' AND (number LIKE :search OR counterparty_name LIKE :search OR subject LIKE :search)';
             $params['search'] = '%' . $search . '%';
         }
         if ($counterpartyId > 0) {
-            $sql .= ' AND counterparty_id = :counterparty_id';
+            $where .= ' AND counterparty_id = :counterparty_id';
             $params['counterparty_id'] = $counterpartyId;
         }
         if ($status !== '') {
-            $sql .= ' AND status = :status';
+            $where .= ' AND status = :status';
             $params['status'] = $status;
         }
-        $sql .= ' ORDER BY document_date DESC, id DESC';
-        if ($limit !== null) {
-            $sql .= ' LIMIT ' . max(1, $limit);
+        $total = 0;
+        $pages = 1;
+        $offset = 0;
+        if ($paginate) {
+            $count = $this->db->prepare('SELECT COUNT(*)' . $where);
+            $count->execute($params);
+            $total = (int) $count->fetchColumn();
+            $pages = max(1, (int) ceil($total / $perPage));
+            $page = min($page, $pages);
+            $offset = ($page - 1) * $perPage;
+        }
+        $sql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
+                       taxable_total, vat_total, total, balance_due, status' . $where
+            . ' ORDER BY `' . $sort . '` ' . $direction . ', id ' . $direction;
+        if ($paginate) {
+            $sql .= ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
         }
         $statement = $this->db->prepare($sql);
         $statement->execute($params);
-        return [$statement->fetchAll(), $search, $from, $to, $counterpartyId, $status];
+        return [
+            $statement->fetchAll(), $search, $from, $to, $counterpartyId, $status,
+            $sort, $direction, $perPage, $page, $pages, $total,
+        ];
     }
 
     private function counterparty(string $type, int $id): array|false

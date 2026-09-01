@@ -27,7 +27,14 @@ final class TreasuryController extends BaseController
             $params[] = $direction;
         }
         $openItems = $this->query(
-            "SELECT i.*, i.original_amount - i.settled_amount AS outstanding FROM accounting_open_items i
+            "SELECT i.*, i.original_amount - i.settled_amount AS outstanding,
+                    d.withholding_type AS document_withholding_type, d.withholding_rate AS document_withholding_rate,
+                    d.withholding_taxable_percent AS document_withholding_taxable, d.withholding_total,
+                    s.withholding_enabled AS supplier_withholding_enabled, s.withholding_type AS supplier_withholding_type,
+                    s.withholding_rate AS supplier_withholding_rate, s.withholding_taxable_percent AS supplier_withholding_taxable
+             FROM accounting_open_items i
+             LEFT JOIN documents d ON d.id = i.document_id AND d.organization_id = i.organization_id
+             LEFT JOIN suppliers s ON s.id = i.party_id AND i.party_type = 'SUPPLIER'
              WHERE i.organization_id = ? AND i.status IN ('OPEN','PARTIAL','OVERDUE','DISPUTED'){$filter}
              ORDER BY i.due_date, i.id LIMIT 1000", $params
         );

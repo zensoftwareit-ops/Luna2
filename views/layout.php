@@ -35,12 +35,8 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=6.1.0">
-    <link rel="stylesheet" href="/assets/tables.css?v=1.0.0">
-    <link rel="stylesheet" href="/assets/transitions.css?v=1.0.0">
-    <script src="/assets/app.js?v=6.1.0" defer></script>
-    <script src="/assets/tables.js?v=1.0.1" defer></script>
-    <script src="/assets/transitions.js?v=1.0.0" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=6.3.0">
+    <script src="/assets/app.js?v=6.3.0" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-page">Vai al contenuto</a>
@@ -62,8 +58,13 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 <a class="nav-link<?= $active('/settings/company') ?>" href="/settings/company"><?= View::icon('briefcase') ?><span>Aziende e utenti</span></a>
                 <a class="nav-link<?= $active('/settings/modules') ?>" href="/settings/modules"><?= View::icon('settings') ?><span>Gestione moduli</span></a>
                 <a class="nav-link<?= $active('/settings/system') ?>" href="/settings/system"><?= View::icon('check') ?><span>Stato del sistema</span></a>
+                <a class="nav-link<?= $active('/settings/license') ?>" href="/settings/license"><?= View::icon('key') ?><span>Licenza</span></a>
             <?php else: ?>
             <a class="nav-link<?= $active('/dashboard') ?>" href="/dashboard"><?= View::icon('home') ?><span>Dashboard</span></a>
+            <?php if (Auth::isAdmin()): ?>
+                <a class="nav-link<?= $active('/settings/company') ?>" href="/settings/company"><?= View::icon('briefcase') ?><span>Azienda e utenti</span></a>
+                <a class="nav-link<?= $active('/settings/modules') ?>" href="/settings/modules"><?= View::icon('settings') ?><span>Moduli aziendali</span></a>
+            <?php endif; ?>
             <?php if ($enabled('professional')): ?><a class="nav-link<?= $active('/professional') ?>" href="/professional"><?= View::icon('lock') ?><span>Centro professionale</span></a><?php endif; ?>
 
             <?php if ($enabled('sales')): ?>
@@ -128,8 +129,8 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
             <?php if ($enabled('rental')): ?>
                 <a class="nav-link<?= $active('/operations/rental') ?>" href="/operations/rental"><?= View::icon('car') ?><span>Noleggio e ticket</span></a>
             <?php endif; ?>
-            <a class="nav-link<?= $active('/operations/communications') ?>" href="/operations/communications"><?= View::icon('receipt') ?><span>Comunicazioni</span></a>
-            <a class="nav-link<?= $active('/reports/management') ?>" href="/reports/management"><?= View::icon('download') ?><span>Report direzionali</span></a>
+            <?php if ($enabled('communications')): ?><a class="nav-link<?= $active('/operations/communications') ?>" href="/operations/communications"><?= View::icon('receipt') ?><span>Comunicazioni</span></a><?php endif; ?>
+            <?php if ($enabled('management_reports')): ?><a class="nav-link<?= $active('/reports/management') ?>" href="/reports/management"><?= View::icon('download') ?><span>Report direzionali</span></a><?php endif; ?>
 
             <?php foreach ($groups as $group => $modules): ?>
                 <?php

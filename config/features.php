@@ -78,11 +78,32 @@ return [
         'required_tables' => ['calendar_events', 'calendar_accounts', 'calendar_sync_logs'],
         'default' => true,
     ],
+    'communications' => [
+        'label' => 'Comunicazioni',
+        'description' => 'Invio e-mail, code, allegati e tracciamento delle comunicazioni.',
+        'icon' => 'receipt',
+        'required_tables' => ['communication_settings', 'outbound_emails', 'email_events'],
+        'default' => true,
+    ],
+    'management_reports' => [
+        'label' => 'Report direzionali',
+        'description' => 'Analisi economiche, operative ed esportazioni direzionali.',
+        'icon' => 'download',
+        'required_tables' => ['report_exports'],
+        'default' => true,
+    ],
     'hr' => [
         'label' => 'Personale',
         'description' => 'Presenze, approvazioni ed elaborazioni paghe.',
         'icon' => 'id-card',
         'required_tables' => ['time_records', 'leave_requests', 'leave_balances', 'approval_requests', 'payroll_runs', 'payroll_details', 'payroll_employee_configs'],
+        'default' => true,
+    ],
+    'leave_payroll' => [
+        'label' => 'Ferie e paghe',
+        'description' => 'Ferie, permessi, approvazioni e gestione dei cedolini importati.',
+        'icon' => 'id-card',
+        'required_tables' => ['leave_requests', 'leave_balances', 'approval_requests', 'payroll_runs', 'payroll_details', 'payroll_employee_configs'],
         'default' => true,
     ],
     'ecommerce' => [

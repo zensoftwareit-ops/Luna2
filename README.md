@@ -13,7 +13,7 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 - partite clienti/fornitori, incassi/pagamenti, ritenute, banche e riconciliazione manuale controllata;
 - stato patrimoniale e conto economico riclassificati, assestamenti, chiusura/apertura e cespiti civilistici/fiscali;
 - prospetti di raccordo LIPE e IVA annuale, esplicitamente non trasmissibili fino alla validazione del futuro servizio;
-- endpoint e-invoice configurabili senza memorizzare segreti né eseguire chiamate esterne;
+- endpoint e-invoice e verifica Partita IVA configurabili senza memorizzare segreti nel database;
 - import DATEV Koinos con staging, anteprima, idempotenza, log, quadrature e rollback per CSV/XLSX/XML/ZIP.
 - conversioni guidate e parziali preventivo → ordine → DDT → fattura con tracciamento delle quantità residue;
 - giacenze atomiche, trasferimenti, picking barcode, impegni e annullamenti controllati;
@@ -33,7 +33,7 @@ Solo il `SUPERUSER` di piattaforma vede **Aziende e utenti**, **Gestione moduli*
 
 ## Stato del progetto
 
-Questa è la release candidate 6.0 della riscrittura PHP. Il via libera al primo cliente resta subordinato alla quadratura di un export DATEV reale, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo della release in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
+Questa è la release candidate 6.4 della riscrittura PHP. Il via libera al primo cliente resta subordinato alla quadratura di un export DATEV reale, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo della release in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
 
 ## Requisiti
 
@@ -85,7 +85,15 @@ L’applicazione genera XML FatturaPA, ma non simula un endpoint pubblico inesis
 - canale Web Service/FTP preventivamente accreditato presso SdI;
 - PEC o upload manuale, per volumi contenuti.
 
-Gli URL del futuro servizio si configurano in **Contabilità → Endpoint e-invoice**. Le credenziali restano fuori dal database e vengono indicate soltanto tramite riferimenti `ENV:NOME_VARIABILE` o `vault://…`. Il connettore concreto sarà sviluppato dopo la scelta contrattuale.
+Gli URL dei servizi si configurano in **Contabilità → Endpoint e-invoice**. Le credenziali restano fuori dal database e vengono indicate soltanto tramite riferimenti `ENV:NOME_VARIABILE`. Il connettore di ricezione usa l’endpoint `EINVOICE`: la risposta deve contenere `invoices`, con `filename` e `content_base64` per ciascun XML. Da **Importazioni e fatture passive** si acquisiscono i file in staging e si confermano solo dopo l’anteprima. Restano disponibili anche XML, P7M e ZIP caricati manualmente.
+
+## Automatismi fiscali e anagrafici
+
+- clienti e fornitori normalizzano la Partita IVA, ne verificano formalmente il formato italiano e bloccano i duplicati con un messaggio esplicito;
+- il pulsante di compilazione assistita usa l’endpoint `VAT_LOOKUP`, che riceve `country` e `vat_number` e restituisce JSON con almeno `business_name`;
+- giorni, fine mese e metodo di pagamento salvati in anagrafica calcolano la scadenza del documento; ABI, CAB e banca vengono richiamati automaticamente per la Ri.Ba.;
+- ritenuta, imponibile e aliquota possono essere configurati sull’azienda o sul fornitore e sono riportati su documento, XML e PDF;
+- le fatture passive FatturaPA importano anche dati fiscali del fornitore, scadenza, modalità, banca e ritenuta.
 
 ## Test
 

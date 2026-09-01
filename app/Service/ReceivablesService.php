@@ -36,6 +36,13 @@ final class ReceivablesService
         return $created;
     }
 
+    public function syncDocumentById(int $documentId): int
+    {
+        $statement=$this->db->prepare("SELECT * FROM documents WHERE id=? AND organization_id=? AND status IN ('ISSUED','RECEIVED','PARTIALLY_PAID','OVERDUE')");
+        $statement->execute([$documentId,$this->organizationId]);$document=$statement->fetch();
+        return $document ? $this->syncDocument($document) : 0;
+    }
+
     public function recordPayment(array $data): int
     {
         $openItemId = (int) ($data['open_item_id'] ?? 0);
@@ -223,9 +230,9 @@ final class ReceivablesService
             $dueDate = $document['due_date'] ?: $document['document_date'];
             $this->db->prepare(
                 'INSERT INTO payment_schedules
-                 (organization_id, document_id, installment_number, due_date, amount, paid_amount, status, created_at, updated_at)
-                 VALUES (?, ?, 1, ?, ?, 0, ?, NOW(), NOW())'
-            )->execute([$this->organizationId, $document['id'], $dueDate, $amount, $dueDate < date('Y-m-d') ? 'OVERDUE' : 'OPEN']);
+                 (organization_id, document_id, installment_number, due_date, amount, paid_amount, status, payment_method_code, iban, created_at, updated_at)
+                 VALUES (?, ?, 1, ?, ?, 0, ?, ?, ?, NOW(), NOW())'
+            )->execute([$this->organizationId, $document['id'], $dueDate, $amount, $dueDate < date('Y-m-d') ? 'OVERDUE' : 'OPEN', $document['payment_method_code'] ?? null, $document['bank_iban'] ?? null]);
             $statement->execute([$this->organizationId, $document['id']]);
             $schedules = $statement->fetchAll();
         }

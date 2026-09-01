@@ -4,29 +4,37 @@ declare(strict_types=1);
 
 namespace Luna\Controller;
 
+use DomainException;
 use Luna\Core\Auth;
+use Luna\Core\LicenseService;
 use Luna\Service\OrganizationService;
+use Luna\Service\UserLimitService;
 use PDOException;
+use Throwable;
 
 final class PlatformController extends BaseController
 {
-    private const USER_ROLES = ['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'HR', 'VIEWER'];
+    private const USER_ROLES = ['OWNER', 'ADMIN', 'MANAGER', 'OPERATOR', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'HR', 'VIEWER'];
 
     public function index(): never
     {
-        $this->requireSuperuser();
-        $organizations = $this->organizations();
-        if (Auth::managedOrganizationId() <= 0 && $organizations !== []) {
+        $isSuperuser = Auth::isSuperuser();
+        if (!$isSuperuser) {
+            $this->requireRoles(['OWNER', 'ADMIN']);
+        }
+        $organizations = $isSuperuser ? $this->organizations() : [];
+        if ($isSuperuser && Auth::managedOrganizationId() <= 0 && $organizations !== []) {
             Auth::manageOrganization((int) $organizations[0]['id'], (string) $organizations[0]['business_name']);
         }
 
         $organization = null;
         $users = [];
-        if (Auth::managedOrganizationId() > 0) {
+        $organizationId = $isSuperuser ? Auth::managedOrganizationId() : Auth::homeOrganizationId();
+        if ($organizationId > 0) {
             $statement = $this->db->prepare(
-                'SELECT * FROM organizations WHERE id = ? AND id <> ? AND active = 1'
+                'SELECT * FROM organizations WHERE id = ? AND active = 1'
             );
-            $statement->execute([Auth::managedOrganizationId(), Auth::homeOrganizationId()]);
+            $statement->execute([$organizationId]);
             $organization = $statement->fetch() ?: null;
             if ($organization) {
                 $statement = $this->db->prepare(
@@ -41,8 +49,10 @@ final class PlatformController extends BaseController
         $credentials = $_SESSION['generated_credentials'] ?? null;
         unset($_SESSION['generated_credentials']);
         $roles = self::USER_ROLES;
-        $this->view->render('settings/company', compact('organizations', 'organization', 'users', 'credentials', 'roles') + [
-            'title' => 'Setup piattaforma',
+        $userUsage = $organization ? (new UserLimitService($this->db))->usage((int) $organization['id']) : ['used' => 0, 'max' => null, 'remaining' => null, 'enforced' => false];
+        $license = (new LicenseService($this->db))->snapshot();
+        $this->view->render('settings/company', compact('organizations', 'organization', 'users', 'credentials', 'roles', 'isSuperuser', 'userUsage', 'license') + [
+            'title' => $isSuperuser ? 'Setup piattaforma' : 'Azienda e utenti',
         ]);
     }
 
@@ -85,9 +95,24 @@ final class PlatformController extends BaseController
         $this->redirect('/settings/company');
     }
 
+    public function updateCompany(): never
+    {
+        $organizationId = $this->requireOrganizationAdministrator();
+        try {
+            (new OrganizationService($this->db))->update($organizationId, $_POST);
+        } catch (PDOException|\InvalidArgumentException $exception) {
+            $message = str_contains(strtolower($exception->getMessage()), 'duplicate')
+                ? 'La partita IVA è già associata a un’altra azienda.'
+                : $exception->getMessage();
+            $this->redirect('/settings/company', $message, 'error');
+        }
+        $this->audit('UPDATE_ORGANIZATION', 'organization', $organizationId);
+        $this->redirect('/settings/company', 'Dati aziendali aggiornati.');
+    }
+
     public function createUser(): never
     {
-        $organizationId = $this->requireManagedOrganization();
+        $organizationId = $this->requireOrganizationAdministrator();
         $name = trim((string) ($_POST['name'] ?? ''));
         $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
         $role = (string) ($_POST['role'] ?? 'VIEWER');
@@ -97,15 +122,21 @@ final class PlatformController extends BaseController
 
         $password = self::randomPassword();
         try {
+            $this->db->beginTransaction();
+            (new UserLimitService($this->db))->assertCanActivate($organizationId);
             $statement = $this->db->prepare(
-                'INSERT INTO users (organization_id, name, email, password_hash, role, active)
-                 VALUES (?, ?, ?, ?, ?, 1)'
+                "INSERT INTO users (organization_id, name, email, password_hash, role, account_type, active)
+                 VALUES (?, ?, ?, ?, ?, 'HUMAN', 1)"
             );
             $statement->execute([$organizationId, $name, $email, password_hash($password, PASSWORD_ARGON2ID), $role]);
-        } catch (PDOException $exception) {
+            $this->db->commit();
+        } catch (PDOException|DomainException $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
             $message = str_contains(strtolower($exception->getMessage()), 'duplicate')
                 ? 'Esiste già un utente con questo indirizzo email.'
-                : 'Non è stato possibile creare l’utente.';
+                : ($exception instanceof DomainException ? $exception->getMessage() : 'Non è stato possibile creare l’utente.');
             $this->redirect('/settings/company', $message, 'error');
         }
 
@@ -117,19 +148,35 @@ final class PlatformController extends BaseController
 
     public function toggleUser(string $id): never
     {
-        $organizationId = $this->requireManagedOrganization();
-        $statement = $this->db->prepare(
-            "UPDATE users SET active = IF(active = 1, 0, 1), updated_at = NOW()
-             WHERE id = ? AND organization_id = ? AND role <> 'SUPERUSER'"
-        );
-        $statement->execute([(int) $id, $organizationId]);
+        $organizationId = $this->requireOrganizationAdministrator();
+        try {
+            $this->db->beginTransaction();
+            $statement = $this->db->prepare("SELECT active FROM users WHERE id = ? AND organization_id = ? AND role <> 'SUPERUSER' FOR UPDATE");
+            $statement->execute([(int) $id, $organizationId]);
+            $active = $statement->fetchColumn();
+            if ($active === false) {
+                throw new DomainException('Utente non trovato.');
+            }
+            if (!(bool) $active) {
+                (new UserLimitService($this->db))->assertCanActivate($organizationId);
+            }
+            $this->db->prepare('UPDATE users SET active = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                ->execute([(bool) $active ? 0 : 1, (int) $id, $organizationId]);
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            $message = $exception instanceof DomainException ? $exception->getMessage() : 'Non è stato possibile aggiornare lo stato dell’utente.';
+            $this->redirect('/settings/company', $message, 'error');
+        }
         $this->audit('TOGGLE_USER', 'user', (int) $id);
         $this->redirect('/settings/company', 'Stato dell’utente aggiornato.');
     }
 
     public function resetUserPassword(string $id): never
     {
-        $organizationId = $this->requireManagedOrganization();
+        $organizationId = $this->requireOrganizationAdministrator();
         $statement = $this->db->prepare(
             "SELECT id, name, email FROM users
              WHERE id = ? AND organization_id = ? AND role <> 'SUPERUSER'"

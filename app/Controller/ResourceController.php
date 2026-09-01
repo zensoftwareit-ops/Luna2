@@ -6,8 +6,11 @@ namespace Luna\Controller;
 
 use InvalidArgumentException;
 use Luna\Core\Auth;
+use Luna\Service\PartyAutomationService;
 use Luna\Service\TabularExportService;
+use Luna\Service\VatLookupService;
 use Luna\Service\WorkspaceService;
+use PDOException;
 
 final class ResourceController extends BaseController
 {
@@ -149,6 +152,25 @@ final class ResourceController extends BaseController
             $values[$field] = $value;
         }
 
+        if (in_array($slug, ['customers', 'suppliers'], true)) {
+            $country = strtoupper(trim((string) ($values['country_code'] ?? 'IT'))) ?: 'IT';
+            $values['country_code'] = $country;
+            $values['vat_number'] = PartyAutomationService::normalizeVat($values['vat_number'] ?? null, $country);
+            if ($country === 'IT' && $values['vat_number'] !== null && !PartyAutomationService::validateItalianVat($values['vat_number'])) {
+                $errors[] = 'La Partita IVA italiana non supera il controllo formale.';
+            }
+            if ($values['vat_number'] !== null) {
+                $duplicate = $this->db->prepare(
+                    'SELECT id, business_name FROM ' . $this->identifier($module['table'])
+                    . ' WHERE organization_id = ? AND vat_number = ? AND id <> ? LIMIT 1'
+                );
+                $duplicate->execute([Auth::organizationId(), $values['vat_number'], $id ?: 0]);
+                if ($existing = $duplicate->fetch()) {
+                    $errors[] = 'Partita IVA già presente nell’anagrafica “' . $existing['business_name'] . '” (#' . $existing['id'] . ').';
+                }
+            }
+        }
+
         $tenantForeignKeys = ['user_id' => 'users', 'customer_id' => 'customers', 'supplier_id' => 'suppliers', 'product_id' => 'products', 'warehouse_id' => 'warehouses', 'project_id' => 'projects'];
         foreach ($tenantForeignKeys as $field => $table) {
             if (empty($values[$field])) {
@@ -167,44 +189,61 @@ final class ResourceController extends BaseController
             $this->redirect($id ? "/r/{$slug}/{$id}/edit" : "/r/{$slug}/create");
         }
 
+        try {
         if ($id) {
             $sets = [];
             foreach (array_keys($values) as $field) {
                 $sets[] = $this->identifier($field) . ' = :' . $field;
             }
-            if ($module['author_columns'] ?? true) {
-                $sets[] = 'updated_by = :updated_by';
-                $values['updated_by'] = Auth::id();
-            }
+            $sets[] = 'updated_by = :updated_by';
             $sets[] = 'updated_at = NOW()';
+            $values['updated_by'] = Auth::id();
             $values['id'] = $id;
             $values['organization_id'] = Auth::organizationId();
             $sql = 'UPDATE ' . $this->identifier($module['table']) . ' SET ' . implode(', ', $sets) . ' WHERE id = :id AND organization_id = :organization_id';
             $this->db->prepare($sql)->execute($values);
             $action = 'UPDATE';
         } else {
-            // Lascia che il database applichi i DEFAULT ai campi opzionali
-            // anziché forzarli a NULL (per esempio customers.country_code).
-            $insertValues = array_filter(
-                $values,
-                static fn (mixed $value): bool => $value !== null,
-            );
-            $insertValues = ['organization_id' => Auth::organizationId()]
-                + $insertValues;
-            if ($module['author_columns'] ?? true) {
-                $insertValues += ['created_by' => Auth::id(), 'updated_by' => Auth::id()];
-            }
-            $columns = array_keys($insertValues);
+            $values = ['organization_id' => Auth::organizationId()] + $values + ['created_by' => Auth::id(), 'updated_by' => Auth::id()];
+            $columns = array_keys($values);
             $sql = 'INSERT INTO ' . $this->identifier($module['table'])
                 . ' (' . implode(', ', array_map([$this, 'identifier'], $columns)) . ', created_at, updated_at) VALUES ('
                 . implode(', ', array_map(static fn (string $column): string => ':' . $column, $columns)) . ', NOW(), NOW())';
-            $this->db->prepare($sql)->execute($insertValues);
+            $this->db->prepare($sql)->execute($values);
             $id = (int) $this->db->lastInsertId();
             $action = 'CREATE';
+        }
+        } catch (PDOException $exception) {
+            if (str_contains(strtolower($exception->getMessage()), 'duplicate')) {
+                $_SESSION['form_errors'] = ['Codice o Partita IVA già presenti: apri l’anagrafica esistente invece di crearne una nuova.'];
+                $_SESSION['form_old'] = $values + ['id' => $id];
+                $this->redirect($id ? "/r/{$slug}/{$id}/edit" : "/r/{$slug}/create");
+            }
+            throw $exception;
         }
 
         $this->audit($action, $module['table'], $id, $values);
         $this->redirect('/r/' . $slug, $module['singular'] . ' salvato correttamente.');
+    }
+
+    public function vatLookup(string $slug): never
+    {
+        $module = $this->module($slug);
+        $this->requireModuleWriteRole($module);
+        header('Content-Type: application/json; charset=utf-8');
+        try {
+            if (!in_array($slug, ['customers', 'suppliers'], true)) {
+                throw new InvalidArgumentException('Ricerca disponibile solo per clienti e fornitori.');
+            }
+            $data = (new VatLookupService($this->db, Auth::organizationId()))->lookup(
+                (string) ($_POST['vat_number'] ?? ''), (string) ($_POST['country_code'] ?? 'IT')
+            );
+            echo json_encode(['ok' => true, 'data' => $data], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        } catch (\Throwable $exception) {
+            http_response_code(422);
+            echo json_encode(['ok' => false, 'message' => $exception->getMessage()], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        }
+        exit;
     }
 
     public function delete(string $slug, string $id): never

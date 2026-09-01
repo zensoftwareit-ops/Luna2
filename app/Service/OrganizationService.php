@@ -15,17 +15,7 @@ final class OrganizationService
 
     public function create(array $data): int
     {
-        $fields = [
-            'business_name', 'vat_number', 'tax_code', 'fiscal_regime', 'sdi_code', 'pec',
-            'email', 'phone', 'address', 'postal_code', 'city', 'province', 'country_code', 'iban',
-        ];
-        $values = [];
-        foreach ($fields as $field) {
-            $value = trim((string) ($data[$field] ?? ''));
-            $values[$field] = $value === '' ? null : $value;
-        }
-        $values['fiscal_regime'] ??= 'RF01';
-        $values['country_code'] = strtoupper((string) ($values['country_code'] ?? 'IT'));
+        $values = $this->normalize($data);
 
         $this->db->beginTransaction();
         try {
@@ -43,6 +33,46 @@ final class OrganizationService
             }
             throw $exception;
         }
+    }
+
+    public function update(int $organizationId, array $data): void
+    {
+        $values = $this->normalize($data);
+        if (($values['business_name'] ?? null) === null) {
+            throw new \InvalidArgumentException('La ragione sociale è obbligatoria.');
+        }
+        $assignments = implode(', ', array_map(static fn (string $field): string => "{$field} = ?", array_keys($values)));
+        $statement = $this->db->prepare("UPDATE organizations SET {$assignments}, updated_at = NOW() WHERE id = ? AND active = 1");
+        $statement->execute([...array_values($values), $organizationId]);
+        if ($statement->rowCount() === 0) {
+            $check = $this->db->prepare('SELECT 1 FROM organizations WHERE id = ? AND active = 1');
+            $check->execute([$organizationId]);
+            if (!$check->fetchColumn()) {
+                throw new \InvalidArgumentException('Azienda non disponibile.');
+            }
+        }
+    }
+
+    private function normalize(array $data): array
+    {
+        $fields = [
+            'business_name', 'vat_number', 'tax_code', 'fiscal_regime', 'sdi_code', 'pec',
+            'email', 'phone', 'address', 'postal_code', 'city', 'province', 'country_code', 'iban',
+            'withholding_type', 'withholding_rate', 'withholding_taxable_percent', 'withholding_cause',
+        ];
+        $values = [];
+        foreach ($fields as $field) {
+            $value = trim((string) ($data[$field] ?? ''));
+            $values[$field] = $value === '' ? null : $value;
+        }
+        $values['fiscal_regime'] ??= 'RF01';
+        $values['country_code'] = strtoupper((string) ($values['country_code'] ?? 'IT'));
+        $values['vat_number'] = PartyAutomationService::normalizeVat($values['vat_number'] ?? null, $values['country_code']);
+        $values['withholding_enabled'] = !empty($data['withholding_enabled']) ? 1 : 0;
+        $values['withholding_type'] ??= 'RT01';
+        $values['withholding_rate'] = (float) ($values['withholding_rate'] ?? 20);
+        $values['withholding_taxable_percent'] = (float) ($values['withholding_taxable_percent'] ?? 100);
+        return $values;
     }
 
     private function seedCore(int $organizationId): void

@@ -90,6 +90,13 @@ final class FatturaPaService
         $this->value($dom, $generalDocument, 'Divisa', $document['currency'] ?: 'EUR');
         $this->value($dom, $generalDocument, 'Data', $document['document_date']);
         $this->value($dom, $generalDocument, 'Numero', $document['number']);
+        if ((float) ($document['withholding_total'] ?? 0) > 0) {
+            $withholding = $this->append($dom, $generalDocument, 'DatiRitenuta');
+            $this->value($dom, $withholding, 'TipoRitenuta', $document['withholding_type'] ?: 'RT01');
+            $this->value($dom, $withholding, 'ImportoRitenuta', $this->amount($document['withholding_total']));
+            $this->value($dom, $withholding, 'AliquotaRitenuta', number_format((float) $document['withholding_rate'], 2, '.', ''));
+            $this->value($dom, $withholding, 'CausalePagamento', $document['withholding_cause'] ?: 'A');
+        }
         $this->value($dom, $generalDocument, 'ImportoTotaleDocumento', $this->amount($document['total']));
 
         $goods = $this->append($dom, $body, 'DatiBeniServizi');
@@ -133,7 +140,12 @@ final class FatturaPaService
             $detail = $this->append($dom, $payment, 'DettaglioPagamento');
             $this->value($dom, $detail, 'ModalitaPagamento', $document['payment_method_code'] ?: 'MP05');
             $this->value($dom, $detail, 'DataScadenzaPagamento', $document['due_date']);
-            $this->value($dom, $detail, 'ImportoPagamento', $this->amount($document['total']));
+            $this->value($dom, $detail, 'ImportoPagamento', $this->amount($document['balance_due']));
+            if (($document['payment_method_code'] ?? '') === 'MP12') {
+                if (!empty($document['bank_name'])) { $this->value($dom, $detail, 'IstitutoFinanziario', $document['bank_name']); }
+                if (!empty($document['bank_abi'])) { $this->value($dom, $detail, 'ABI', $document['bank_abi']); }
+                if (!empty($document['bank_cab'])) { $this->value($dom, $detail, 'CAB', $document['bank_cab']); }
+            }
             if (!empty($organization['iban'])) {
                 $this->value($dom, $detail, 'IBAN', $organization['iban']);
             }

@@ -118,6 +118,19 @@ final class ImportService
         }
     }
 
+    public function ingestRemoteInvoices(array $files, int $maxBytes): int
+    {
+        $uuid=$this->uuid();$directory=$this->storagePath.'/imports/'.$uuid;
+        if(!is_dir($directory)&&!mkdir($directory,0750,true)&&!is_dir($directory)){throw new RuntimeException('Impossibile creare la cartella di importazione.');}
+        $totalBytes=array_sum(array_map(static fn(array $file):int=>strlen((string)($file['content']??'')),$files));
+        if($totalBytes<=0||$totalBytes>$maxBytes){throw new InvalidArgumentException('Dimensione complessiva delle fatture non ammessa.');}
+        $this->db->prepare("INSERT INTO import_batches (organization_id,uuid,source_system,import_type,status,original_filename,checksum_sha256,file_size,total_rows,valid_rows,error_rows,created_by,created_at,updated_at) VALUES (?,?,'SDI_API','fatturapa','STAGING','Ricezione endpoint SDI',?,?,0,0,0,?,NOW(),NOW())")
+            ->execute([$this->organizationId,$uuid,hash('sha256',implode('',array_column($files,'content'))),$totalBytes,$this->userId]);
+        $batchId=(int)$this->db->lastInsertId();
+        try{foreach($files as $index=>$file){$name=basename((string)($file['name']??('fattura-'.($index+1).'.xml')));if(mb_strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='xml')continue;$path=$directory.'/'.($index+1).'.xml';if(file_put_contents($path,(string)$file['content'],LOCK_EX)===false){throw new RuntimeException('Impossibile archiviare una fattura ricevuta.');}$this->stageFile($batchId,$path,$name,'fatturapa',$maxBytes,0);} $this->refreshCounters($batchId,'READY');return $batchId;}
+        catch(Throwable $exception){$this->db->prepare("UPDATE import_batches SET status='ERROR',error_message=?,updated_at=NOW() WHERE id=?")->execute([mb_substr($exception->getMessage(),0,2000),$batchId]);throw $exception;}
+    }
+
     public function rollback(int $batchId): int
     {
         $batch = $this->batch($batchId, true);
@@ -198,7 +211,7 @@ final class ImportService
                     throw new InvalidArgumentException('Archivio ZIP troppo grande dopo la decompressione.');
                 }
                 $entryExtension = mb_strtolower(pathinfo($entryName, PATHINFO_EXTENSION));
-                if (!in_array($entryExtension, self::EXTENSIONS, true) || $entryExtension === 'p7m') {
+                if (!in_array($entryExtension, self::EXTENSIONS, true)) {
                     continue;
                 }
                 $content = $zip->getFromIndex($index);
@@ -218,7 +231,14 @@ final class ImportService
             return;
         }
         if ($extension === 'p7m') {
-            throw new InvalidArgumentException('File P7M rilevato: estrarre prima il contenuto XML oppure configurare un servizio di verifica firma.');
+            $xml = $this->extractXmlFromP7m((string) file_get_contents($path));
+            if ($xml === null) {
+                throw new InvalidArgumentException('Contenuto XML non estraibile dal file P7M. Verifica che sia una FatturaPA firmata CAdES.');
+            }
+            $xmlPath = dirname($path) . '/extracted-' . $fileId . '.xml';
+            if (file_put_contents($xmlPath, $xml, LOCK_EX) === false) { throw new RuntimeException('Impossibile archiviare l’XML estratto.'); }
+            $this->stageFatturaPa($batchId, $fileId, $xmlPath);
+            return;
         }
         if ($extension === 'xlsx') {
             $this->stageSpreadsheet($batchId, $fileId, $path);
@@ -259,6 +279,19 @@ final class ImportService
         fclose($handle);
     }
 
+    private function extractXmlFromP7m(string $payload): ?string
+    {
+        $start = strpos($payload, '<?xml');
+        if ($start === false) { $start = strpos($payload, '<p:FatturaElettronica'); }
+        if ($start === false) { $start = strpos($payload, '<FatturaElettronica'); }
+        if ($start === false) { return null; }
+        foreach (['</p:FatturaElettronica>', '</FatturaElettronica>'] as $closing) {
+            $end = strpos($payload, $closing, $start);
+            if ($end !== false) { return substr($payload, $start, $end + strlen($closing) - $start); }
+        }
+        return null;
+    }
+
     private function stageSpreadsheet(int $batchId, int $fileId, string $path): void
     {
         $reader = IOFactory::createReaderForFile($path);
@@ -296,6 +329,15 @@ final class ImportService
         }
         $issuerVat = $this->xpathText($header, './/*[local-name()="CedentePrestatore"]//*[local-name()="IdFiscaleIVA"]/*[local-name()="IdCodice"]');
         $issuerName = $this->xpathText($header, './/*[local-name()="CedentePrestatore"]//*[local-name()="Anagrafica"]/*[local-name()="Denominazione"]');
+        if ($issuerName === '') {
+            $issuerName = trim($this->xpathText($header, './/*[local-name()="CedentePrestatore"]//*[local-name()="Anagrafica"]/*[local-name()="Nome"]') . ' ' . $this->xpathText($header, './/*[local-name()="CedentePrestatore"]//*[local-name()="Anagrafica"]/*[local-name()="Cognome"]'));
+        }
+        $issuerTaxCode = $this->xpathText($header, './/*[local-name()="CedentePrestatore"]//*[local-name()="DatiAnagrafici"]/*[local-name()="CodiceFiscale"]');
+        $issuerAddress = $this->xpathText($header, './/*[local-name()="CedentePrestatore"]/*[local-name()="Sede"]/*[local-name()="Indirizzo"]');
+        $issuerPostalCode = $this->xpathText($header, './/*[local-name()="CedentePrestatore"]/*[local-name()="Sede"]/*[local-name()="CAP"]');
+        $issuerCity = $this->xpathText($header, './/*[local-name()="CedentePrestatore"]/*[local-name()="Sede"]/*[local-name()="Comune"]');
+        $issuerProvince = $this->xpathText($header, './/*[local-name()="CedentePrestatore"]/*[local-name()="Sede"]/*[local-name()="Provincia"]');
+        $issuerCountry = $this->xpathText($header, './/*[local-name()="CedentePrestatore"]/*[local-name()="Sede"]/*[local-name()="Nazione"]') ?: 'IT';
         $recipientVat = $this->xpathText($header, './/*[local-name()="CessionarioCommittente"]//*[local-name()="IdFiscaleIVA"]/*[local-name()="IdCodice"]');
         $recipientName = $this->xpathText($header, './/*[local-name()="CessionarioCommittente"]//*[local-name()="Anagrafica"]/*[local-name()="Denominazione"]');
         $organizationVat = (string) $this->db->query('SELECT vat_number FROM organizations WHERE id = ' . (int) $this->organizationId)->fetchColumn();
@@ -307,6 +349,8 @@ final class ImportService
             $date = $this->xpathText($general, './*[local-name()="Data"]');
             $type = $this->xpathText($general, './*[local-name()="TipoDocumento"]');
             $total = $this->decimal($this->xpathText($general, './*[local-name()="ImportoTotaleDocumento"]'));
+            $withholdingNode = $this->xpathOne($general, './*[local-name()="DatiRitenuta"]');
+            $paymentNode = $this->xpathOne($body, './/*[local-name()="DatiPagamento"]/*[local-name()="DettaglioPagamento"]');
             $lines = [];
             foreach (($body->xpath('.//*[local-name()="DettaglioLinee"]') ?: []) as $line) {
                 $quantity = $this->decimal($this->xpathText($line, './*[local-name()="Quantita"]') ?: '1');
@@ -328,6 +372,22 @@ final class ImportService
                 'issuer_vat' => $issuerVat, 'issuer_name' => $issuerName, 'recipient_vat' => $recipientVat, 'recipient_name' => $recipientName,
                 'counterparty_vat' => $direction === 'SALES_INVOICE' ? $recipientVat : $issuerVat,
                 'counterparty_name' => $direction === 'SALES_INVOICE' ? $recipientName : $issuerName,
+                'counterparty_tax_code' => $direction === 'PURCHASE_INVOICE' ? $issuerTaxCode : null,
+                'counterparty_address' => $direction === 'PURCHASE_INVOICE' ? $issuerAddress : null,
+                'counterparty_postal_code' => $direction === 'PURCHASE_INVOICE' ? $issuerPostalCode : null,
+                'counterparty_city' => $direction === 'PURCHASE_INVOICE' ? $issuerCity : null,
+                'counterparty_province' => $direction === 'PURCHASE_INVOICE' ? $issuerProvince : null,
+                'counterparty_country' => $direction === 'PURCHASE_INVOICE' ? $issuerCountry : 'IT',
+                'due_date' => $paymentNode ? ($this->xpathText($paymentNode, './*[local-name()="DataScadenzaPagamento"]') ?: null) : null,
+                'payment_method_code' => $paymentNode ? ($this->xpathText($paymentNode, './*[local-name()="ModalitaPagamento"]') ?: null) : null,
+                'bank_name' => $paymentNode ? ($this->xpathText($paymentNode, './*[local-name()="IstitutoFinanziario"]') ?: null) : null,
+                'bank_iban' => $paymentNode ? ($this->xpathText($paymentNode, './*[local-name()="IBAN"]') ?: null) : null,
+                'bank_abi' => $paymentNode ? ($this->xpathText($paymentNode, './*[local-name()="ABI"]') ?: null) : null,
+                'bank_cab' => $paymentNode ? ($this->xpathText($paymentNode, './*[local-name()="CAB"]') ?: null) : null,
+                'withholding_type' => $withholdingNode ? ($this->xpathText($withholdingNode, './*[local-name()="TipoRitenuta"]') ?: null) : null,
+                'withholding_amount' => $withholdingNode ? $this->decimal($this->xpathText($withholdingNode, './*[local-name()="ImportoRitenuta"]')) : 0,
+                'withholding_rate' => $withholdingNode ? $this->decimal($this->xpathText($withholdingNode, './*[local-name()="AliquotaRitenuta"]')) : 0,
+                'withholding_cause' => $withholdingNode ? ($this->xpathText($withholdingNode, './*[local-name()="CausalePagamento"]') ?: null) : null,
                 'lines' => $lines,
             ];
             $this->insertStagedRow($batchId, $fileId, $index + 1, ['xml_file' => basename($path)], $normalized);
@@ -351,6 +411,8 @@ final class ImportService
                 'province' => $this->pick($row, ['province', 'provincia', 'prov']), 'country_code' => $this->pick($row, ['country_code', 'paese', 'nazione']) ?: 'IT',
                 'iban' => $this->pick($row, ['iban']), 'payment_terms' => $this->pick($row, ['payment_terms', 'condizioni_pagamento']),
             ];
+            $data['country_code'] = strtoupper((string) ($data['country_code'] ?: 'IT'));
+            $data['vat_number'] = PartyAutomationService::normalizeVat($data['vat_number'], $data['country_code']);
             if (!$data['business_name']) {
                 $this->markRow($staged['id'], 'ERROR', 'Ragione sociale mancante.'); $errors++; continue;
             }
@@ -703,13 +765,18 @@ final class ImportService
             if (empty($data['number']) || empty($data['document_date']) || empty($data['counterparty_name'])) {
                 $this->markRow($staged['id'], 'ERROR', 'Dati minimi FatturaPA mancanti.'); $errors++; continue;
             }
+            $data['counterparty_vat'] = PartyAutomationService::normalizeVat($data['counterparty_vat'] ?? null, (string) ($data['counterparty_country'] ?? 'IT'));
             $partyTable = $data['document_type'] === 'PURCHASE_INVOICE' ? 'suppliers' : 'customers';
             $find = $this->db->prepare("SELECT id FROM {$partyTable} WHERE organization_id = ? AND vat_number = ? LIMIT 1");
             $find->execute([$this->organizationId, $data['counterparty_vat']]);
             $partyId = (int) $find->fetchColumn();
             if (!$partyId) {
-                $this->db->prepare("INSERT INTO {$partyTable} (organization_id, business_name, vat_number, country_code, active, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, 'IT', 1, ?, ?, ?, NOW(), NOW())")
-                    ->execute([$this->organizationId, $data['counterparty_name'], $data['counterparty_vat'] ?: null, $batchId, $this->userId, $this->userId]);
+                $this->db->prepare("INSERT INTO {$partyTable} (organization_id, business_name, vat_number, tax_code, address, postal_code, city, province, country_code, iban, bank_name, bank_abi, bank_cab, payment_method_code, active, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, NOW(), NOW())")
+                    ->execute([$this->organizationId, $data['counterparty_name'], $data['counterparty_vat'] ?: null,
+                        $data['counterparty_tax_code'] ?: null, $data['counterparty_address'] ?: null, $data['counterparty_postal_code'] ?: null,
+                        $data['counterparty_city'] ?: null, $data['counterparty_province'] ?: null, $data['counterparty_country'] ?: 'IT',
+                        $data['bank_iban'] ?: null, $data['bank_name'] ?: null, $data['bank_abi'] ?: null, $data['bank_cab'] ?: null,
+                        $data['payment_method_code'] ?: null, $batchId, $this->userId, $this->userId]);
                 $partyId = (int) $this->db->lastInsertId();
                 $this->recordImport($batchId, $partyTable, $partyId, 'CREATE', null);
             }
@@ -724,13 +791,19 @@ final class ImportService
             $total = $data['total'] > 0 ? round((float) $data['total'], 2) : round($taxable + $vat, 2);
             $status = $data['document_type'] === 'PURCHASE_INVOICE' ? 'RECEIVED' : 'ISSUED';
             $this->db->prepare(
-                'INSERT INTO documents (organization_id, document_type, number, fiscal_year, document_date, counterparty_type, counterparty_id, counterparty_name, currency, taxable_total, vat_total, total, balance_due, status, fatturapa_type, external_key, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
-            )->execute([$this->organizationId, $data['document_type'], $data['number'], (int) substr($data['document_date'], 0, 4), $data['document_date'], $partyTable === 'suppliers' ? 'SUPPLIER' : 'CUSTOMER', $partyId, $data['counterparty_name'], $data['currency'], $taxable, $vat, $total, $total, $status, $data['fatturapa_type'], $externalKey, $batchId, $this->userId, $this->userId]);
+                'INSERT INTO documents (organization_id, document_type, number, fiscal_year, document_date, due_date, counterparty_type, counterparty_id, counterparty_name, currency, taxable_total, vat_total, withholding_total, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause, total, balance_due, status, fatturapa_type, payment_method_code, bank_name, bank_abi, bank_cab, bank_iban, external_key, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+            )->execute([$this->organizationId, $data['document_type'], $data['number'], (int) substr($data['document_date'], 0, 4), $data['document_date'], $data['due_date'] ?: null, $partyTable === 'suppliers' ? 'SUPPLIER' : 'CUSTOMER', $partyId, $data['counterparty_name'], $data['currency'], $taxable, $vat,
+                $data['withholding_amount'] ?: 0, $data['withholding_type'] ?: null, $data['withholding_rate'] ?: 0, $data['withholding_cause'] ?: null,
+                $total, round($total - (float) ($data['withholding_amount'] ?? 0), 2), $status, $data['fatturapa_type'], $data['payment_method_code'] ?: null,
+                $data['bank_name'] ?: null, $data['bank_abi'] ?: null, $data['bank_cab'] ?: null, $data['bank_iban'] ?: null,
+                $externalKey, $batchId, $this->userId, $this->userId]);
             $documentId = (int) $this->db->lastInsertId();
             $insert = $this->db->prepare('INSERT INTO document_lines (organization_id, document_id, line_number, description, quantity, unit, unit_price, discount_percent, taxable_amount, vat_rate, vat_nature, vat_amount, total_amount, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NOW(), NOW())');
             foreach ($data['lines'] as $index => $line) {
                 $insert->execute([$this->organizationId, $documentId, $index + 1, $line['description'], $line['quantity'], $line['unit'], $line['unit_price'], $line['taxable_amount'], $line['vat_rate'], $line['vat_nature'], $line['vat_amount'], round($line['taxable_amount'] + $line['vat_amount'], 2)]);
             }
+            (new AccountingService($this->db, $this->organizationId, $this->userId))->postDocument($documentId);
+            (new ReceivablesService($this->db, $this->organizationId, $this->userId))->syncDocumentById($documentId);
             $this->recordImport($batchId, 'documents', $documentId, 'CREATE', null);
             $this->markRow($staged['id'], 'IMPORTED', null, $documentId); $imported++;
         }
@@ -785,7 +858,7 @@ final class ImportService
     private function restorableColumns(string $table): array
     {
         return match ($table) {
-            'customers', 'suppliers' => ['code', 'business_name', 'vat_number', 'tax_code', 'sdi_code', 'pec', 'email', 'phone', 'address', 'postal_code', 'city', 'province', 'country_code', 'iban', 'payment_terms', 'active'],
+            'customers', 'suppliers' => ['code', 'business_name', 'vat_number', 'tax_code', 'sdi_code', 'pec', 'email', 'phone', 'address', 'postal_code', 'city', 'province', 'country_code', 'iban', 'bank_name', 'bank_abi', 'bank_cab', 'payment_terms', 'payment_days', 'payment_month_end', 'payment_method_code', 'active'],
             'chart_of_accounts' => ['code', 'name', 'account_type', 'normal_balance', 'parent_id', 'classification_code', 'statement_section', 'tax_mapping_code', 'is_postable', 'active'],
             default => [],
         };

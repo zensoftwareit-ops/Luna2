@@ -6,4 +6,5 @@ return [
     'app' => require dirname(__DIR__) . '/config/app.php',
     'modules' => require dirname(__DIR__) . '/config/modules.php',
     'features' => require dirname(__DIR__) . '/config/features.php',
+    'permissions' => require dirname(__DIR__) . '/config/permissions.php',
 ];

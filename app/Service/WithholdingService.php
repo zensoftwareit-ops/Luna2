@@ -23,7 +23,8 @@ final class WithholdingService
     {
         $openItemId = (int) ($data['open_item_id'] ?? 0);
         $date = $this->date((string) ($data['record_date'] ?? ''));
-        $dueDate = !empty($data['due_date']) ? $this->date((string) $data['due_date']) : null;
+        $dueDate = !empty($data['due_date']) ? $this->date((string) $data['due_date'])
+            : (new DateTimeImmutable($date))->modify('first day of next month')->modify('+15 days')->format('Y-m-d');
         $type = strtoupper((string) ($data['withholding_type'] ?? 'IRPEF'));
         $gross = round($this->decimal($data['gross_amount'] ?? 0), 2);
         $taxablePercent = $this->percent($data['taxable_percent'] ?? 100);

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 use Luna\Core\Database;
 use Luna\Core\Env;
+use Luna\Core\LicenseService;
+use Luna\Core\ModuleManager;
 use Luna\Service\CalendarService;
-use Luna\Service\DemoDataSeeder;
 use Luna\Service\EcommerceService;
+use Luna\Service\LicenseLifecycleService;
 use Luna\Service\MailService;
 use Luna\Service\RentalService;
 use Luna\Service\WorkspaceService;
@@ -84,65 +86,90 @@ try {
                 }
             }
             bootstrapSuperuser($db);
+            bootstrapInstanceIdentity($db);
+            break;
+
+        case 'license:status':
+            $db = Database::connect();
+            bootstrapInstanceIdentity($db);
+            $identity = $db->query('SELECT * FROM instance_identity WHERE id = 1')->fetch();
+            $license = (new LicenseService($db))->snapshot();
+            echo "Identità installazione\n";
+            echo '  UUID: ' . ($identity['installation_uuid'] ?? 'non disponibile') . PHP_EOL;
+            echo '  Instance ID: ' . ($identity['instance_id'] ?? 'non disponibile') . PHP_EOL;
+            echo '  Dominio: ' . ($identity['canonical_domain'] ?? 'non configurato') . PHP_EOL;
+            echo "Licenza\n";
+            echo '  Stato: ' . ($license['effective_status'] ?? 'UNCONFIGURED') . PHP_EOL;
+            echo '  Piano: ' . ($license['plan_code'] ?? 'non configurato') . PHP_EOL;
+            echo '  Utenti massimi: ' . ($license['max_users'] ?? 'non configurato') . PHP_EOL;
+            echo '  Moduli: ' . (($license['modules'] ?? []) === [] ? 'nessuno' : implode(', ', $license['modules'])) . PHP_EOL;
+            echo '  Enforcement: ' . (new LicenseService($db))->enforcement() . PHP_EOL;
+            break;
+
+        case 'license:sync':
+            $db = Database::connect();
+            $payload = (new LicenseLifecycleService($db))->sync();
+            echo 'Licenza sincronizzata. Stato: ' . ($payload['status'] ?? 'sconosciuto') . ', piano: ' . ($payload['plan_code'] ?? 'sconosciuto') . PHP_EOL;
+            break;
+
+        case 'cron:license':
+            $db = Database::connect();
+            $lifecycle = new LicenseLifecycleService($db);
+            if (!$lifecycle->dueForSync()) {
+                echo "Nessuna sincronizzazione licenza necessaria.\n";
+                break;
+            }
+            $payload = $lifecycle->sync();
+            echo 'Sincronizzazione licenza completata: ' . ($payload['status'] ?? 'sconosciuto') . PHP_EOL;
             break;
 
         case 'cron:daily':
             $db = Database::connect();
+            try {
+                $licenseLifecycle = new LicenseLifecycleService($db);
+                if ($licenseLifecycle->dueForSync()) {
+                    $licenseLifecycle->sync();
+                    echo "Licenza sincronizzata.\n";
+                }
+            } catch (Throwable $exception) {
+                echo 'Avviso licenza: ' . $exception->getMessage() . PHP_EOL;
+            }
+            $licenseService = new LicenseService($db);
+            if (!$licenseService->operationAllowed('WRITE')) {
+                echo "Licenza in modalità limitata: aggiornamenti e job in uscita sospesi. Consultazione ed export restano disponibili.\n";
+                break;
+            }
             $tax = $db->exec("UPDATE tax_deadlines SET status = 'OVERDUE', updated_at = NOW() WHERE due_date < CURRENT_DATE() AND status IN ('OPEN','IN_PROGRESS')");
             $documents = $db->exec("UPDATE documents SET status = 'OVERDUE', updated_at = NOW() WHERE due_date < CURRENT_DATE() AND balance_due > 0 AND status IN ('ISSUED','RECEIVED','PARTIALLY_PAID')");
             $rental = $db->exec("UPDATE rental_deadlines SET status = 'OVERDUE', updated_at = NOW() WHERE due_date < CURRENT_DATE() AND status = 'OPEN'");
             $organizations = $db->query('SELECT id FROM organizations WHERE active = 1')->fetchAll(PDO::FETCH_COLUMN);
             $jobs = ['mail_sent' => 0, 'commerce' => 0, 'calendar' => 0, 'rental_invoices' => 0, 'notifications' => 0, 'errors' => 0];
+            $features = require BASE_PATH . '/config/features.php';
             foreach ($organizations as $organizationId) {
-                try { $result = (new MailService($db, (int) $organizationId))->processQueue(50); $jobs['mail_sent'] += $result['sent']; } catch (Throwable) { $jobs['errors']++; }
-                try { $result = (new EcommerceService($db, (int) $organizationId))->processQueue(25); $jobs['commerce'] += $result['processed']; } catch (Throwable) { $jobs['errors']++; }
-                try { $result = (new CalendarService($db, (int) $organizationId))->syncAll(); $jobs['calendar'] += $result['ok']; $jobs['errors'] += $result['failed']; } catch (Throwable) { $jobs['errors']++; }
-                try { $result = (new RentalService($db, (int) $organizationId))->runAutomations(); $jobs['rental_invoices'] += $result['invoices']; } catch (Throwable) { $jobs['errors']++; }
+                $modules = new ModuleManager($db, $features, (int) $organizationId);
+                if ($modules->operationallyEnabled('communications')) {
+                    try { $result = (new MailService($db, (int) $organizationId))->processQueue(50); $jobs['mail_sent'] += $result['sent']; } catch (Throwable) { $jobs['errors']++; }
+                }
+                if ($modules->operationallyEnabled('ecommerce')) {
+                    try { $result = (new EcommerceService($db, (int) $organizationId))->processQueue(25); $jobs['commerce'] += $result['processed']; } catch (Throwable) { $jobs['errors']++; }
+                }
+                if ($modules->operationallyEnabled('calendar')) {
+                    try { $result = (new CalendarService($db, (int) $organizationId))->syncAll(); $jobs['calendar'] += $result['ok']; $jobs['errors'] += $result['failed']; } catch (Throwable) { $jobs['errors']++; }
+                }
+                if ($modules->operationallyEnabled('rental')) {
+                    try { $result = (new RentalService($db, (int) $organizationId))->runAutomations(); $jobs['rental_invoices'] += $result['invoices']; } catch (Throwable) { $jobs['errors']++; }
+                }
                 try { $jobs['notifications'] += (new WorkspaceService($db, (int) $organizationId, 0))->refreshOperationalNotifications(); } catch (Throwable) { $jobs['errors']++; }
             }
             echo "Scadenze: fiscali {$tax}, documenti {$documents}, noleggio {$rental}. Job: mail {$jobs['mail_sent']}, e-commerce {$jobs['commerce']}, calendari {$jobs['calendar']}, fatture noleggio {$jobs['rental_invoices']}, notifiche {$jobs['notifications']}, errori {$jobs['errors']}.\n";
             break;
 
-        case 'demo:seed':
-            $db = Database::connect();
-            $months = 18;
-            $reset = false;
-            foreach (array_slice($argv, 2) as $argument) {
-                if ($argument === '--reset') {
-                    $reset = true;
-                } elseif (str_starts_with($argument, '--months=')) {
-                    $months = (int) substr($argument, strlen('--months='));
-                } else {
-                    throw new RuntimeException("Opzione demo non riconosciuta: {$argument}");
-                }
-            }
-            $result = (new DemoDataSeeder($db, BASE_PATH))->seed($months, $reset);
-            echo "\n=== AZIENDA DEMO GENERATA ===\n";
-            echo "Organizzazione ID: {$result['organization_id']}\n";
-            echo "Storico: {$result['months']} mesi\n";
-            echo "Email: {$result['email']}\n";
-            echo "Password: {$result['password']}\n";
-            echo "Tabelle popolate: " . count($result['counts']) . "\n";
-            echo "Righe generate: " . array_sum($result['counts']) . "\n";
-            foreach ($result['counts'] as $table => $count) {
-                echo sprintf("  %-38s %d\n", $table, $count);
-            }
-            echo "ATTENZIONE: dati e credenziali sono esclusivamente dimostrativi.\n";
-            echo "================================\n";
-            break;
-
         default:
             echo "Luna2 CLI\n\n";
-            echo "  storage:init\n  key:generate\n  migrate\n  cron:daily\n";
-            echo "  demo:seed [--months=18] [--reset]\n";
+            echo "  storage:init\n  key:generate\n  migrate\n  license:status\n  license:sync\n  cron:license\n  cron:daily\n";
     }
 } catch (Throwable $exception) {
-    fwrite(
-        STDERR,
-        'Errore: ' . $exception->getMessage()
-        . ' [' . $exception->getFile() . ':' . $exception->getLine() . ']'
-        . PHP_EOL
-    );
+    fwrite(STDERR, 'Errore: ' . $exception->getMessage() . PHP_EOL);
     exit(1);
 }
 
@@ -197,5 +224,41 @@ function columnExists(PDO $db, string $table, string $column): bool
          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
     );
     $statement->execute([$table, $column]);
+    return (bool) $statement->fetchColumn();
+}
+
+function bootstrapInstanceIdentity(PDO $db): void
+{
+    if (!tableExists($db, 'instance_identity')) {
+        return;
+    }
+    $url = (string) Env::get('APP_URL', '');
+    $domain = parse_url($url, PHP_URL_HOST) ?: null;
+    $existing = $db->query('SELECT installation_uuid FROM instance_identity WHERE id = 1')->fetchColumn();
+    if ($existing !== false) {
+        $db->prepare('UPDATE instance_identity SET canonical_domain = COALESCE(?, canonical_domain), software_version = ?, last_seen_at = NOW() WHERE id = 1')
+            ->execute([$domain, '6.3.0-php']);
+        return;
+    }
+
+    $bytes = random_bytes(16);
+    $bytes[6] = chr((ord($bytes[6]) & 0x0f) | 0x40);
+    $bytes[8] = chr((ord($bytes[8]) & 0x3f) | 0x80);
+    $hex = bin2hex($bytes);
+    $uuid = sprintf('%s-%s-%s-%s-%s', substr($hex, 0, 8), substr($hex, 8, 4), substr($hex, 12, 4), substr($hex, 16, 4), substr($hex, 20));
+    $instanceId = 'luna2-' . substr(hash('sha256', $uuid), 0, 20);
+    $db->prepare(
+        'INSERT INTO instance_identity (id, installation_uuid, instance_id, canonical_domain, environment, software_version, installed_at, last_seen_at)
+         VALUES (1, ?, ?, ?, ?, ?, NOW(), NOW())'
+    )->execute([$uuid, $instanceId, $domain, (string) Env::get('APP_ENV', 'production'), '6.3.0-php']);
+    echo "Identità installazione creata: {$instanceId}\n";
+}
+
+function tableExists(PDO $db, string $table): bool
+{
+    $statement = $db->prepare(
+        'SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+    );
+    $statement->execute([$table]);
     return (bool) $statement->fetchColumn();
 }

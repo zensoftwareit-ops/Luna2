@@ -37,11 +37,19 @@ final class ModuleManager
             }
         }
 
+        $license = new LicenseService($this->db, $this->organizationId);
         $this->states = [];
         foreach ($this->catalog as $key => $feature) {
+            $configured = $overrides[$key] ?? (bool) ($feature['default'] ?? true);
+            $licensed = $license->currentModuleAllowed($key);
+            $readable = $license->moduleAllowed($key, 'READ');
             $this->states[$key] = $feature + [
                 'key' => $key,
-                'enabled' => $overrides[$key] ?? (bool) ($feature['default'] ?? true),
+                'configured_enabled' => $configured,
+                'licensed' => $licensed,
+                'readable' => $readable,
+                'enabled' => $configured && $readable,
+                'availability_reason' => !$licensed && $readable ? 'HISTORICAL_READONLY' : (!$licensed ? 'NOT_LICENSED' : (!$configured ? 'DISABLED_BY_COMPANY' : 'AVAILABLE')),
             ];
         }
         return $this->states;
@@ -52,16 +60,24 @@ final class ModuleManager
         return (bool) ($this->all()[$key]['enabled'] ?? false);
     }
 
+    public function operationallyEnabled(string $key): bool
+    {
+        $module = $this->all()[$key] ?? [];
+        return (bool) ($module['configured_enabled'] ?? false) && (bool) ($module['licensed'] ?? false);
+    }
+
     public function update(array $enabledKeys): void
     {
         $enabledLookup = array_fill_keys($enabledKeys, true);
+        $license = new LicenseService($this->db, $this->organizationId);
         $statement = $this->db->prepare(
             'INSERT INTO module_settings (organization_id, module_key, enabled, created_at, updated_at)
              VALUES (?, ?, ?, NOW(), NOW())
              ON DUPLICATE KEY UPDATE enabled = VALUES(enabled), updated_at = NOW()'
         );
         foreach (array_keys($this->catalog) as $key) {
-            $statement->execute([$this->organizationId, $key, isset($enabledLookup[$key]) ? 1 : 0]);
+            $enabled = isset($enabledLookup[$key]) && $license->currentModuleAllowed($key);
+            $statement->execute([$this->organizationId, $key, $enabled ? 1 : 0]);
         }
         $this->states = null;
     }

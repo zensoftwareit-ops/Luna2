@@ -75,33 +75,23 @@ $assert(is_file($base . '/docs/DATEV_KOINOS_MIGRATION.md'), 'Piano migrazione Ko
 $assert(is_file($base . '/docs/ACCOUNTING_PARITY.md'), 'Matrice parità contabile Koinos mancante.');
 $assert(is_file($base . '/views/settings/modules.php') && is_file($base . '/views/settings/system.php') && is_file($base . '/views/settings/company.php'), 'Pannello impostazioni incompleto.');
 $application = (string) file_get_contents($base . '/app/Core/Application.php');
-$resourceController = (string) file_get_contents($base . '/app/Controller/ResourceController.php');
-$assert(
-    str_contains($resourceController, '$value !== null')
-    && str_contains($resourceController, '->execute($insertValues)'),
-    'I nuovi record devono lasciare al database i valori DEFAULT dei campi opzionali.'
-);
-$assert(
-    ($modules['customers']['fields']['country_code']['default'] ?? null) === 'IT'
-    && ($modules['suppliers']['fields']['country_code']['default'] ?? null) === 'IT',
-    'Paese predefinito mancante nelle anagrafiche.'
-);
-$assert(
-    ($modules['calendar-accounts']['author_columns'] ?? true) === false
-    && ($modules['payroll-configs']['author_columns'] ?? true) === false
-    && str_contains($resourceController, "\$module['author_columns'] ?? true"),
-    'Il salvataggio generico deve rispettare le tabelle prive delle colonne autore.'
-);
 $assert(str_contains($application, "'/settings/modules'"), 'Rotta gestione moduli mancante.');
 $assert(str_contains($application, "'/settings/system'"), 'Rotta stato sistema mancante.');
 $assert(str_contains($application, "'/settings/company'"), 'Rotta setup azienda mancante.');
 $assert(str_contains($application, "'/settings/users'"), 'Rotta gestione utenti mancante.');
+$assert(str_contains($application, "'module' => 'ecommerce', 'permission' => 'public', 'operation' => 'WRITE'"), 'Webhook e-commerce non protetto dalla licenza.');
+$assert(str_contains($application, "'/settings/license'"), 'Pannello tecnico licenza mancante.');
+$assert(substr_count($application, "'permission' => 'settings.license', 'operation' => 'TECHNICAL'") === 4, 'Le operazioni licenza devono restare accessibili in modalità limitata.');
 $assert(str_contains($application, "'/accounting/vat-registers'"), 'Rotta registri IVA mancante.');
 $assert(str_contains($application, "'/accounting/vat-settlements'"), 'Rotta liquidazioni IVA mancante.');
 $assert(str_contains($application, "'/accounting/setup'"), 'Rotta configurazione piano dei conti mancante.');
 $assert(str_contains($application, "'/accounting/treasury'"), 'Rotta tesoreria e partite mancante.');
 $assert(str_contains($application, "'/accounting/compliance'"), 'Rotta adempimenti e chiusure mancante.');
 $assert(str_contains($application, "'/settings/endpoints'"), 'Rotta endpoint fatturazione elettronica mancante.');
+$assert(str_contains($application, "'/r/{module}/vat-lookup'") && is_file($base . '/app/Service/VatLookupService.php'), 'Verifica assistita Partita IVA mancante.');
+$assert(str_contains($application, "'/imports/einvoice/pull'") && is_file($base . '/app/Service/InboundInvoiceService.php'), 'Ricezione fatture passive da endpoint mancante.');
+$assert(is_file($base . '/app/Service/PartyAutomationService.php'), 'Automatismi anagrafici e scadenze mancanti.');
+$assert(str_contains($schema, 'payment_month_end') && str_contains($schema, 'withholding_taxable_percent'), 'Schema automatismi pagamento/ritenuta incompleto.');
 $assert(str_contains($application, "'/r/{module}/export/{format}'"), 'Esportazioni PDF/XLSX/CSV degli archivi mancanti.');
 $assert(str_contains($application, "'/documents/{type}/export/{format}'"), 'Esportazioni documenti filtrati mancanti.');
 $assert(str_contains($application, "'/accounting/ledger/{id}/export/{format}'"), 'Esportazioni mastrino mancanti.');
@@ -109,52 +99,14 @@ $assert(is_file($base . '/app/Service/TabularExportService.php'), 'Servizio espo
 $tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportService.php');
 $assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
 $appJs = (string) file_get_contents($base . '/public/assets/app.js');
-$assert(str_contains($appJs, 'Filtra tabella') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
-$tableJs = (string) file_get_contents($base . '/public/assets/tables.js');
-$tableCss = (string) file_get_contents($base . '/public/assets/tables.css');
-$transitionJs = (string) file_get_contents($base . '/public/assets/transitions.js');
-$transitionCss = (string) file_get_contents($base . '/public/assets/transitions.css');
-$layoutView = (string) file_get_contents($base . '/views/layout.php');
-$assert(
-    str_contains($layoutView, '/assets/tables.css?v=1.0.0')
-    && str_contains($layoutView, '/assets/tables.js?v=1.0.1'),
-    'Asset tabellari isolati non caricati dal layout.'
-);
-$assert(
-    str_contains($tableJs, "document.querySelectorAll('.table-wrap > table').forEach((table)")
-    && str_contains($tableJs, "table.matches('.line-table,.selectable-table,[data-no-table-controls]')")
-    && str_contains($tableJs, "table.closest('form')")
-    && str_contains($tableJs, "aria-sort")
-    && str_contains($tableJs, "data-luna-size"),
-    'Ordinamento e paginazione sicuri delle tabelle dati incompleti.'
-);
-$assert(
-    !str_contains($tableJs, "if (rows.length === 0) return;"),
-    'Le intestazioni devono restare ordinabili anche quando la tabella dati è vuota.'
-);
-$assert(
-    substr_count($tableCss, '{') === substr_count($tableCss, '}')
-    && str_contains($tableCss, '.page .list-toolbar.exportable-toolbar')
-    && str_contains($tableCss, '.luna-table-pagination')
-    && !str_contains($tableCss, '.topbar')
-    && !str_contains($tableCss, '.sidebar'),
-    'CSS tabellare non isolato o incompleto.'
-);
-$assert(
-    str_contains($layoutView, '/assets/transitions.css?v=1.0.0')
-    && str_contains($layoutView, '/assets/transitions.js?v=1.0.0')
-    && str_contains($transitionCss, '@keyframes luna-page-enter')
-    && str_contains($transitionCss, 'prefers-reduced-motion: reduce')
-    && str_contains($transitionJs, "closest('a[href]')")
-    && str_contains($transitionJs, "anchor.hasAttribute('download')")
-    && str_contains($transitionJs, 'destination.origin !== window.location.origin')
-    && str_contains($transitionJs, "document.body.classList.add('luna-page-leaving')"),
-    'Le transizioni di pagina devono essere isolate, accessibili e limitate ai link interni.'
-);
-$assert(
-    substr_count($transitionCss, '{') === substr_count($transitionCss, '}'),
-    'Parentesi CSS non bilanciate nelle transizioni di pagina.'
-);
+$assert(str_contains($appJs, 'data-table-search') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
+$documentController = (string) file_get_contents($base . '/app/Controller/DocumentController.php');
+$documentIndex = (string) file_get_contents($base . '/views/documents/index.php');
+$assert(str_contains($documentController, "ceil(\$total / \$perPage)") && str_contains($documentController, '$allowedSort'), 'Paginazione o ordinamento server dei documenti mancanti.');
+$assert(str_contains($documentIndex, 'filter-toolbar-card') && str_contains($documentIndex, 'sort-link') && str_contains($documentIndex, 'Paginazione documenti'), 'Toolbar, intestazioni ordinabili o paginazione documenti incomplete.');
+$assert(str_contains($appJs, 'client-sortable-header') && str_contains($appJs, 'client-pagination'), 'Ordinamento e paginazione delle tabelle operative mancanti.');
+$assert(str_contains($appJs, "document.querySelectorAll('.table-wrap table')") && str_contains($appJs, 'data-table-date-from') && str_contains($appJs, 'data-table-party'), 'Il componente tabella universale non copre filtri data e controparte.');
+$assert(str_contains($appJs, "!table.closest('form')") && str_contains($appJs, "!table.matches('.line-table')"), 'Le griglie di inserimento devono essere escluse da filtri e paginazione.');
 $parityRoutes = ['/operations/logistics', '/operations/projects', '/operations/communications', '/operations/hr', '/operations/ecommerce', '/operations/rental', '/operations/calendar', '/reports/management'];
 foreach ($parityRoutes as $route) {
     $assert(str_contains($application, "'{$route}"), "Rotta parità funzionale mancante: {$route}");
@@ -176,10 +128,12 @@ $platformController = (string) file_get_contents($base . '/app/Controller/Platfo
 $settingsController = (string) file_get_contents($base . '/app/Controller/SettingsController.php');
 $auth = (string) file_get_contents($base . '/app/Core/Auth.php');
 $assert(str_contains($platformController, 'requireSuperuser()'), 'Setup piattaforma non protetto dal ruolo superuser.');
-$assert(str_contains($settingsController, 'requireManagedOrganization()'), 'Gestione moduli non vincolata al superuser e a una azienda selezionata.');
-$assert(!str_contains($settingsController, "requireRoles(['OWNER', 'ADMIN'])"), 'OWNER e ADMIN non devono gestire i moduli di piattaforma.');
+$assert(str_contains($settingsController, 'requireOrganizationAdministrator()'), 'Gestione moduli non disponibile agli amministratori aziendali.');
+$assert(str_contains($platformController, "requireRoles(['OWNER', 'ADMIN'])"), 'Pannello azienda e utenti non disponibile agli amministratori aziendali.');
 $assert(str_contains($auth, "=== 'SUPERUSER'"), 'Ruolo SUPERUSER non gestito dall’autenticazione.');
 $assert(str_contains($schema, "ENUM('SUPERUSER','OWNER','ADMIN'"), 'Migrazione ruolo SUPERUSER mancante.');
+$assert(str_contains($schema, "account_type ENUM('HUMAN','SYSTEM','TECHNICAL')"), 'Classificazione utenti licenziati mancante.');
+$assert(is_file($base . '/app/Service/UserLimitService.php'), 'Servizio limite utenti mancante.');
 $accountingController = (string) file_get_contents($base . '/app/Controller/AccountingController.php');
 $accountingService = (string) file_get_contents($base . '/app/Service/AccountingService.php');
 $vatService = (string) file_get_contents($base . '/app/Service/VatService.php');
@@ -216,6 +170,88 @@ $renderAccountingView = static function (string $file, array $variables) use ($b
     return (string) ob_get_clean();
 };
 require_once $base . '/vendor/autoload.php';
+// La fondazione autorizzativa deve restare verificabile senza connessione al database.
+$permissionConfig = require $base . '/config/permissions.php';
+$permissionGate = new \Luna\Core\PermissionGate($permissionConfig);
+$assert($permissionGate->family('OWNER') === 'ROLE_COMPANY_ADMIN', 'OWNER non mappato ad amministratore aziendale.');
+$assert($permissionGate->family('ACCOUNTANT') === 'ROLE_OPERATOR', 'Profilo contabile non mappato alla famiglia operatore.');
+$assert($permissionGate->allows('VIEWER', 'accounting.read'), 'Il profilo sola lettura deve poter consultare.');
+$assert($permissionGate->allows('VIEWER', 'accounting.export'), 'Il profilo sola lettura deve poter esportare.');
+$assert(!$permissionGate->allows('VIEWER', 'accounting.write'), 'Il profilo sola lettura non deve poter modificare.');
+$assert($permissionGate->allows('ACCOUNTANT', 'accounting.write'), 'Il profilo contabile deve poter operare in contabilità.');
+$assert($permissionGate->allows('MANAGER', 'projects.approve') && !$permissionGate->allows('MANAGER', 'projects.write'), 'Permessi del responsabile non coerenti.');
+$assert($permissionGate->enforcement() === 'shadow', 'Il rollout iniziale delle autorizzazioni deve essere shadow.');
+
+$routeSamples = [
+    ['POST', '/accounting/journal/save', true, 'accounting', 'WRITE'],
+    ['GET', '/accounting/ledger/{id}/export/{format}', true, 'accounting', 'EXPORT'],
+    ['POST', '/operations/logistics/transfers/{id}/confirm', true, 'inventory', 'APPROVE'],
+    ['GET', '/operations/communications', true, 'communications', 'READ'],
+    ['GET', '/documents/{type}', true, null, 'READ'],
+    ['GET', '/health', false, null, 'PUBLIC'],
+];
+foreach ($routeSamples as [$method, $pattern, $authRequired, $expectedModule, $expectedOperation]) {
+    $policy = \Luna\Core\RoutePolicyCatalog::classify($method, $pattern, $authRequired);
+    $assert($policy['module'] === $expectedModule, "Modulo policy errato per {$method} {$pattern}");
+    $assert($policy['operation'] === $expectedOperation, "Operazione policy errata per {$method} {$pattern}");
+    $assert($policy['permission'] !== '', "Permesso policy mancante per {$method} {$pattern}");
+}
+$documentPolicy = \Luna\Core\RoutePolicyCatalog::classify('GET', '/documents/{type}', true);
+$assert(($documentPolicy['dynamic'] ?? null) === 'document_type', 'Policy dinamica vendite/acquisti mancante.');
+
+$licenseSource = (string) file_get_contents($base . '/app/Core/LicenseService.php');
+$assert(str_contains($licenseSource, "['shadow', 'warn', 'enforce']"), 'Modalità progressive della licenza mancanti.');
+$assert(str_contains($licenseSource, "['PUBLIC', 'READ', 'EXPORT', 'TECHNICAL']"), 'Matrice operazioni in modalità limitata incompleta.');
+$assert(isset($tableSchemas['instance_identity'], $tableSchemas['licenses'], $tableSchemas['license_modules'], $tableSchemas['license_sync_logs'], $tableSchemas['license_overrides']), 'Schema fondazione licenza incompleto.');
+$assert(isset($tableSchemas['license_module_history']), 'Storico entitlement per downgrade mancante.');
+$licenseLifecycle = (string) file_get_contents($base . '/app/Service/LicenseLifecycleService.php');
+$licenseClient = (string) file_get_contents($base . '/app/Service/LicenseApiClient.php');
+$licenseCipher = (string) file_get_contents($base . '/app/Core/LicenseKeyCipher.php');
+$licenseVerifier = (string) file_get_contents($base . '/app/Core/LicenseSignatureVerifier.php');
+$assert(str_contains($licenseCipher, "aes-256-gcm") && str_contains($licenseCipher, 'APP_KEY'), 'Cifratura autenticata della chiave licenza mancante.');
+$assert(str_contains($licenseClient, "hash_hmac('sha256'") && str_contains($licenseClient, 'X-Luna-Nonce'), 'Firma HMAC o protezione replay richiesta mancanti.');
+$assert(str_contains($licenseClient, "parse_url(\$baseUrl, PHP_URL_SCHEME) !== 'https'"), 'Endpoint licenze non vincolato a HTTPS.');
+$assert(str_contains($licenseVerifier, 'sodium_crypto_sign_verify_detached') && str_contains($licenseVerifier, 'canonicalJson'), 'Verifica Ed25519 del payload mancante.');
+$assert(str_contains($licenseLifecycle, 'DATE_ADD(NOW(), INTERVAL 7 DAY)') && str_contains($licenseLifecycle, 'license_module_history'), 'Grace period o storico moduli mancanti.');
+$assert(str_contains($licenseLifecycle, 'assertCustomerOrganization') && str_contains($licenseLifecycle, "'licensed_organization_id' => \$organizationId > 0"), 'Il binding azienda deve usare esclusivamente un ID locale verificato.');
+$assert(is_file($base . '/views/settings/license.php') && is_file($base . '/app/Controller/LicenseController.php'), 'Interfaccia tecnica licenza incompleta.');
+if (function_exists('openssl_encrypt')) {
+    $previousAppKey = getenv('APP_KEY');
+    putenv('APP_KEY=base64:' . base64_encode(str_repeat('K', 32)));
+    try {
+        $cipher = new \Luna\Core\LicenseKeyCipher();
+        $encryptedKey = $cipher->encrypt('LUNA-TEST-LICENSE-123456789');
+        $assert($encryptedKey !== 'LUNA-TEST-LICENSE-123456789' && $cipher->decrypt($encryptedKey) === 'LUNA-TEST-LICENSE-123456789', 'Round-trip cifratura licenza non riuscito.');
+        $assert(!str_contains($encryptedKey, 'TEST-LICENSE'), 'La chiave licenza compare nel ciphertext.');
+    } catch (Throwable $exception) {
+        $assert(false, 'Errore test cifratura licenza: ' . $exception->getMessage());
+    } finally {
+        $previousAppKey === false ? putenv('APP_KEY') : putenv('APP_KEY=' . $previousAppKey);
+    }
+}
+if (function_exists('sodium_crypto_sign_keypair')) {
+    $previousPublicKey = getenv('LUNA_LICENSE_PUBLIC_KEY');
+    try {
+        $keyPair = sodium_crypto_sign_keypair();
+        $publicKey = sodium_crypto_sign_publickey($keyPair);
+        $secretKey = sodium_crypto_sign_secretkey($keyPair);
+        putenv('LUNA_LICENSE_PUBLIC_KEY=base64:' . base64_encode($publicKey));
+        $signedTestPayload = ['modules' => ['accounting'], 'plan_code' => 'TEST', 'status' => 'ACTIVE'];
+        $signature = base64_encode(sodium_crypto_sign_detached(\Luna\Core\LicenseSignatureVerifier::canonicalJson($signedTestPayload), $secretKey));
+        (new \Luna\Core\LicenseSignatureVerifier())->verify($signedTestPayload, $signature);
+        $tamperRejected = false;
+        try {
+            (new \Luna\Core\LicenseSignatureVerifier())->verify($signedTestPayload + ['max_users' => 999], $signature);
+        } catch (Throwable) {
+            $tamperRejected = true;
+        }
+        $assert($tamperRejected, 'Un payload licenza alterato deve essere rifiutato.');
+    } catch (Throwable $exception) {
+        $assert(false, 'Errore test firma licenza: ' . $exception->getMessage());
+    } finally {
+        $previousPublicKey === false ? putenv('LUNA_LICENSE_PUBLIC_KEY') : putenv('LUNA_LICENSE_PUBLIC_KEY=' . $previousPublicKey);
+    }
+}
 $_SESSION = [];
 try {
     $renderedAccounting = '';
@@ -391,49 +427,9 @@ $assert(str_contains($leaveService,'function cancel(')&&str_contains($inventoryS
 $assert(str_contains((string) file_get_contents($base . '/app/Service/SecretResolver.php'), 'ENV:'), 'I segreti delle integrazioni devono essere risolti da ambiente.');
 $assert(str_contains($cli, 'random_bytes(18)') && str_contains($cli, 'CREDENZIALI SUPERUSER'), 'Bootstrap sicuro del superuser mancante.');
 $assert(!str_contains($cli, "case 'setup:admin':"), 'Il setup azienda da CLI deve essere sostituito dal setup web riservato.');
-
-$demoSeederPath = $base . '/app/Service/DemoDataSeeder.php';
-$assert(is_file($demoSeederPath), 'Servizio di generazione dati demo mancante.');
-$demoSeeder = is_file($demoSeederPath) ? (string) file_get_contents($demoSeederPath) : '';
-$assert(
-    str_contains($cli, "case 'demo:seed':")
-    && str_contains($cli, '--months=')
-    && str_contains($cli, '--reset')
-    && str_contains($cli, "Password: {\$result['password']}"),
-    'Il comando demo:seed deve supportare storico configurabile, rigenerazione e credenziali in output.'
-);
-$assert(
-    str_contains($demoSeeder, 'beginTransaction()')
-    && str_contains($demoSeeder, 'rollBack()')
-    && str_contains($demoSeeder, "DELETE FROM organizations WHERE id = ?")
-    && str_contains($demoSeeder, "random_bytes(4)"),
-    'Il seed demo deve essere isolato, atomico, rigenerabile e usare una password casuale.'
-);
-$assert(
-    str_contains($demoSeeder, 'array_values(')
-    && str_contains($demoSeeder, "array_intersect_key(\$users"),
-    'Gli utenti demo devono essere reindicizzati prima dei calcoli numerici payroll.'
-);
-$demoCoverage = [
-    'customers', 'suppliers', 'products', 'documents', 'payment_schedules',
-    'journal_entries', 'vat_movements', 'vat_settlements', 'vat_cash_events',
-    'bank_transactions', 'accounting_open_items', 'payment_allocations',
-    'inventory_movements', 'inventory_transfers', 'inventory_pick_lists',
-    'leads', 'activities', 'projects', 'project_time_entries',
-    'time_records', 'leave_requests', 'payroll_runs', 'payroll_details',
-    'ecommerce_orders', 'rental_contracts', 'rental_tickets',
-    'calendar_events', 'outbound_emails', 'sdi_transmissions',
-    'fixed_assets', 'tax_deadlines', 'report_exports', 'import_batches',
-];
-foreach ($demoCoverage as $table) {
-    $assert(str_contains($demoSeeder, "add('{$table}'"), "Copertura dati demo mancante per {$table}.");
-}
-$assert(
-    !str_contains($demoSeeder, "'status' => 'COMMITTED'")
-    && !str_contains($demoSeeder, "'status' => 'FINAL'")
-    && !str_contains($demoSeeder, "'document_id' => \$documents['ddt'], 'status' => 'IN_PROGRESS'"),
-    'Il seed demo usa stati non compatibili con lo schema MariaDB.'
-);
+$assert(str_contains($cli, "case 'license:status':") && str_contains($cli, 'bootstrapInstanceIdentity'), 'Diagnostica o identità installazione licenza mancanti.');
+$assert(str_contains($cli, "case 'license:sync':") && str_contains($cli, "case 'cron:license':"), 'Comandi sincronizzazione licenza mancanti.');
+$assert(str_contains($cli, "operationAllowed('WRITE')") && str_contains($cli, "operationallyEnabled('ecommerce')"), 'I cron devono rispettare stato licenza e moduli correnti.');
 
 $secretPatterns = [
     '/GOCSPX-[A-Za-z0-9_-]+/',

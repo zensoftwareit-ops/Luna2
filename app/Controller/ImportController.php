@@ -7,6 +7,8 @@ namespace Luna\Controller;
 use Luna\Core\Auth;
 use Luna\Core\Env;
 use Luna\Service\ImportService;
+use Luna\Service\InboundInvoiceService;
+use Throwable;
 
 final class ImportController extends BaseController
 {
@@ -17,7 +19,7 @@ final class ImportController extends BaseController
         $statement = $this->db->prepare('SELECT * FROM import_batches WHERE organization_id = ? ORDER BY id DESC LIMIT 100');
         $statement->execute([Auth::organizationId()]);
         $batches = $statement->fetchAll();
-        $this->view->render('imports/index', compact('batches') + ['title' => 'Import DATEV Koinos']);
+        $this->view->render('imports/index', compact('batches') + ['title' => 'Importazioni e fatture passive']);
     }
 
     public function upload(): never
@@ -28,6 +30,19 @@ final class ImportController extends BaseController
         $id = $service->upload($_FILES['import_file'] ?? [], (string) ($_POST['import_type'] ?? ''), Env::int('IMPORT_MAX_BYTES', 52428800));
         $this->audit('UPLOAD', 'import_batches', $id, ['type' => $_POST['import_type'] ?? null]);
         $this->redirect('/imports/' . $id, 'File caricato e analizzato. Verifica l’anteprima prima di confermare.');
+    }
+
+    public function pullInvoices(): never
+    {
+        $this->guard();$this->requireRoles(['OWNER','ADMIN','ACCOUNTANT']);
+        try {
+            $files=(new InboundInvoiceService($this->db,Auth::organizationId()))->receive();
+            $id=$this->service()->ingestRemoteInvoices($files,Env::int('IMPORT_MAX_BYTES',52428800));
+            $this->audit('RECEIVE','import_batches',$id,['source'=>'EINVOICE','files'=>count($files)]);
+            $this->redirect('/imports/'.$id,'Fatture ricevute dall’endpoint. Verifica l’anteprima e conferma l’importazione.');
+        } catch (Throwable $exception) {
+            $this->redirect('/imports', 'Ricezione non completata: ' . $exception->getMessage(), 'error');
+        }
     }
 
     public function preview(string $id): never

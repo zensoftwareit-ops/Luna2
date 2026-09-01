@@ -12,6 +12,7 @@ use Luna\Controller\ComplianceController;
 use Luna\Controller\DocumentController;
 use Luna\Controller\ImportController;
 use Luna\Controller\IntegrationController;
+use Luna\Controller\LicenseController;
 use Luna\Controller\LogisticsController;
 use Luna\Controller\ProjectOpsController;
 use Luna\Controller\CommunicationsController;
@@ -88,6 +89,7 @@ final class Application
         $router->add('GET', '/r/{module}/export/{format}', [ResourceController::class, 'export']);
         $router->add('GET', '/r/{module}/{id}/edit', [ResourceController::class, 'edit']);
         $router->add('POST', '/r/{module}/save', [ResourceController::class, 'save']);
+        $router->add('POST', '/r/{module}/vat-lookup', [ResourceController::class, 'vatLookup']);
         $router->add('POST', '/r/{module}/bulk', [ResourceController::class, 'bulk']);
         $router->add('POST', '/r/{module}/{id}/delete', [ResourceController::class, 'delete']);
 
@@ -164,7 +166,9 @@ final class Application
         $router->add('POST', '/operations/ecommerce/channels/{id}/enqueue', [OperationsIntegrationController::class, 'enqueue']);
         $router->add('POST', '/operations/ecommerce/process', [OperationsIntegrationController::class, 'processCommerce']);
         $router->add('POST', '/operations/ecommerce/orders/{id}/convert', [OperationsIntegrationController::class, 'convertOrder']);
-        $router->add('POST', '/webhooks/ecommerce/{id}', [OperationsIntegrationController::class, 'webhook'], false, false);
+        $router->add('POST', '/webhooks/ecommerce/{id}', [OperationsIntegrationController::class, 'webhook'], false, false, [
+            'module' => 'ecommerce', 'permission' => 'public', 'operation' => 'WRITE',
+        ]);
         $router->add('GET', '/operations/rental', [OperationsIntegrationController::class, 'rental']);
         $router->add('POST', '/operations/rental/contracts/{id}/meter', [OperationsIntegrationController::class, 'meter']);
         $router->add('POST', '/operations/rental/tickets/{id}/status', [OperationsIntegrationController::class, 'ticket']);
@@ -235,6 +239,7 @@ final class Application
 
         $router->add('GET', '/imports', [ImportController::class, 'index']);
         $router->add('POST', '/imports/upload', [ImportController::class, 'upload']);
+        $router->add('POST', '/imports/einvoice/pull', [ImportController::class, 'pullInvoices']);
         $router->add('GET', '/imports/{id}', [ImportController::class, 'preview']);
         $router->add('POST', '/imports/{id}/commit', [ImportController::class, 'commit']);
         $router->add('POST', '/imports/{id}/rollback', [ImportController::class, 'rollback']);
@@ -242,10 +247,15 @@ final class Application
         $router->add('GET', '/settings/modules', [SettingsController::class, 'modules']);
         $router->add('POST', '/settings/modules', [SettingsController::class, 'saveModules']);
         $router->add('GET', '/settings/system', [SettingsController::class, 'system']);
+        $router->add('GET', '/settings/license', [LicenseController::class, 'index'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
+        $router->add('POST', '/settings/license/activate', [LicenseController::class, 'activate'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
+        $router->add('POST', '/settings/license/sync', [LicenseController::class, 'sync'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
+        $router->add('POST', '/settings/license/deactivate', [LicenseController::class, 'deactivate'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
         $router->add('GET', '/settings/endpoints', [IntegrationController::class, 'endpoints']);
         $router->add('POST', '/settings/endpoints', [IntegrationController::class, 'saveEndpoint']);
         $router->add('GET', '/settings/company', [PlatformController::class, 'index']);
         $router->add('POST', '/settings/company', [PlatformController::class, 'createCompany']);
+        $router->add('POST', '/settings/company/update', [PlatformController::class, 'updateCompany']);
         $router->add('POST', '/settings/company/{id}/select', [PlatformController::class, 'selectCompany']);
         $router->add('POST', '/settings/users', [PlatformController::class, 'createUser']);
         $router->add('POST', '/settings/users/{id}/toggle', [PlatformController::class, 'toggleUser']);

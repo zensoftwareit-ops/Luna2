@@ -82,7 +82,10 @@ final class DocumentWorkflowService
             $vat = round(array_sum(array_column($lines, 'target_vat')), 2);
             $total = round(array_sum(array_column($lines, 'target_total')), 2);
             $number = (new DocumentNumberService($this->db, $this->organizationId))->next($targetType, $date);
-            $dueDate = in_array($targetType, ['SALES_INVOICE', 'PURCHASE_INVOICE'], true) ? date('Y-m-d', strtotime($date . ' +30 days')) : $document['due_date'];
+            $partyTable = $document['counterparty_type'] === 'SUPPLIER' ? 'suppliers' : 'customers';
+            $party = $this->one("SELECT * FROM {$partyTable} WHERE id = ? AND organization_id = ?", [$document['counterparty_id'], $this->organizationId]) ?: [];
+            $dueDate = in_array($targetType, ['SALES_INVOICE', 'PURCHASE_INVOICE'], true)
+                ? PartyAutomationService::dueDate($date, $party) : $document['due_date'];
             $fulfillment = in_array($targetType, ['SALES_ORDER', 'DDT'], true) ? 'OPEN' : 'NOT_REQUIRED';
             $status = in_array($targetType, ['SALES_INVOICE', 'PURCHASE_INVOICE'], true) ? 'DRAFT' : 'DRAFT';
 
@@ -100,6 +103,8 @@ final class DocumentWorkflowService
                 $sourceId, $warehouseId ?? $document['warehouse_id'], $document['project_id'], $this->userId, $this->userId,
             ]);
             $targetId = (int) $this->db->lastInsertId();
+            $this->db->prepare('UPDATE documents SET payment_terms_label=?, bank_name=?, bank_abi=?, bank_cab=?, bank_iban=? WHERE id=? AND organization_id=?')
+                ->execute([PartyAutomationService::paymentLabel($party), $party['bank_name'] ?? null, $party['bank_abi'] ?? null, $party['bank_cab'] ?? null, $party['iban'] ?? null, $targetId, $this->organizationId]);
             $insertLine = $this->db->prepare(
                 'INSERT INTO document_lines (organization_id, document_id, source_line_id, line_number, product_id, warehouse_id, project_id, product_code, description, quantity, converted_quantity, reserved_quantity, fulfilled_quantity, unit, unit_price, discount_percent, taxable_amount, vat_code, vat_rate, vat_nature, vat_amount, total_amount, cost_center_id, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'

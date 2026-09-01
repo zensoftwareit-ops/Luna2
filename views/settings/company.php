@@ -5,12 +5,13 @@ use Luna\Core\View;
 
 $roleLabels = [
     'OWNER' => 'Titolare', 'ADMIN' => 'Amministratore', 'ACCOUNTANT' => 'Contabile',
-    'SALES' => 'Commerciale', 'WAREHOUSE' => 'Magazzino', 'HR' => 'Risorse umane', 'VIEWER' => 'Solo lettura',
+    'MANAGER' => 'Responsabile', 'OPERATOR' => 'Operatore', 'SALES' => 'Commerciale',
+    'WAREHOUSE' => 'Magazzino', 'HR' => 'Risorse umane', 'VIEWER' => 'Solo lettura',
 ];
 ?>
 <section class="page-intro compact">
-    <div><span class="eyebrow">Amministrazione piattaforma</span><h1>Aziende e utenti</h1><p>Configura l’azienda operativa e gestisci gli accessi senza utilizzare comandi esterni.</p></div>
-    <?php if ($organization): ?><div class="inline-actions"><a class="button ghost" href="/settings/modules"><?= View::icon('settings') ?> Moduli</a><a class="button ghost" href="/settings/system"><?= View::icon('check') ?> Stato sistema</a></div><?php endif; ?>
+    <div><span class="eyebrow"><?= $isSuperuser ? 'Amministrazione piattaforma' : 'Amministrazione aziendale' ?></span><h1>Azienda e utenti</h1><p>Configura l’azienda operativa e gestisci gli accessi senza utilizzare comandi esterni.</p></div>
+    <?php if ($organization): ?><div class="inline-actions"><a class="button ghost" href="/settings/modules"><?= View::icon('settings') ?> Moduli</a><?php if ($isSuperuser): ?><a class="button ghost" href="/settings/system"><?= View::icon('check') ?> Stato sistema</a><?php endif; ?></div><?php endif; ?>
 </section>
 
 <?php if ($credentials): ?>
@@ -21,7 +22,7 @@ $roleLabels = [
     </section>
 <?php endif; ?>
 
-<?php if ($organizations): ?>
+<?php if ($isSuperuser && $organizations): ?>
     <section class="card organization-switcher">
         <div><span class="section-kicker">Azienda attiva</span><h2><?= View::e($organization['business_name'] ?? 'Seleziona un’azienda') ?></h2><p>Moduli, utenti e dati visualizzati si riferiscono all’azienda selezionata.</p></div>
         <div class="organization-list">
@@ -37,7 +38,7 @@ $roleLabels = [
     </section>
 <?php endif; ?>
 
-<details class="card setup-panel" <?= !$organization ? 'open' : '' ?>>
+<?php if ($isSuperuser): ?><details class="card setup-panel" <?= !$organization ? 'open' : '' ?>>
     <summary><span class="module-icon"><?= View::icon('briefcase') ?></span><span><strong><?= $organization ? 'Aggiungi un’altra azienda' : 'Configura la prima azienda' ?></strong><small>Il sistema creerà automaticamente piano dei conti, codici IVA, magazzino e pipeline CRM.</small></span><?= View::icon('chevron', 'setup-chevron') ?></summary>
     <form method="post" action="/settings/company" class="modern-form setup-form">
         <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
@@ -56,10 +57,45 @@ $roleLabels = [
             <label class="field"><span>Provincia</span><input name="province" maxlength="8"></label>
             <label class="field"><span>Paese</span><input name="country_code" value="IT" maxlength="2"></label>
             <label class="field full-width"><span>IBAN</span><input name="iban" maxlength="34"></label>
+            <label class="field checkbox-field"><input class="switch-input" type="checkbox" name="withholding_enabled" value="1"><span class="switch-ui"></span><span>Ritenuta d’acconto sulle fatture emesse</span></label>
+            <label class="field"><span>Tipo ritenuta</span><input name="withholding_type" value="RT01"></label>
+            <label class="field"><span>Aliquota ritenuta %</span><input name="withholding_rate" value="20"></label>
+            <label class="field"><span>Imponibile ritenuta %</span><input name="withholding_taxable_percent" value="100"></label>
+            <label class="field"><span>Causale pagamento</span><input name="withholding_cause"></label>
         </div>
         <div class="form-actions"><button class="button primary" type="submit"><?= View::icon('check') ?> Crea e inizializza azienda</button></div>
     </form>
 </details>
+<?php endif; ?>
+
+<?php if ($organization): ?>
+<section class="health-summary <?= ($license['effective_status'] ?? '') === 'ACTIVE' ? 'healthy' : 'attention' ?>">
+    <span><?= View::icon(($license['effective_status'] ?? '') === 'ACTIVE' ? 'check' : 'alert') ?></span>
+    <div><strong>Licenza <?= View::e($license['effective_status'] ?? 'UNCONFIGURED') ?></strong><p>Piano <?= View::e($license['plan_code'] ?? 'non configurato') ?> · <?= (int) $userUsage['used'] ?> utenti attivi<?= $userUsage['max'] !== null ? ' su ' . (int) $userUsage['max'] : '' ?>.</p></div>
+</section>
+<details class="card setup-panel">
+    <summary><span class="module-icon"><?= View::icon('briefcase') ?></span><span><strong>Dati aziendali</strong><small>Aggiorna dati fiscali, recapiti e coordinate dell’azienda.</small></span><?= View::icon('chevron', 'setup-chevron') ?></summary>
+    <form method="post" action="/settings/company/update" class="modern-form setup-form">
+        <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
+        <div class="form-grid">
+            <?php foreach ([
+                'business_name' => 'Ragione sociale *', 'vat_number' => 'Partita IVA', 'tax_code' => 'Codice fiscale',
+                'fiscal_regime' => 'Regime fiscale', 'sdi_code' => 'Codice SDI', 'pec' => 'PEC', 'email' => 'Email',
+                'phone' => 'Telefono', 'address' => 'Indirizzo', 'postal_code' => 'CAP', 'city' => 'Città',
+                'province' => 'Provincia', 'country_code' => 'Paese', 'iban' => 'IBAN',
+            ] as $field => $label): ?>
+                <label class="field <?= in_array($field, ['address', 'iban'], true) ? 'full-width' : '' ?>"><span><?= View::e($label) ?></span><input name="<?= View::e($field) ?>" value="<?= View::e($organization[$field] ?? '') ?>" <?= $field === 'business_name' ? 'required' : '' ?>></label>
+            <?php endforeach; ?>
+            <label class="field checkbox-field"><input class="switch-input" type="checkbox" name="withholding_enabled" value="1" <?= !empty($organization['withholding_enabled']) ? 'checked' : '' ?>><span class="switch-ui"></span><span>Ritenuta d’acconto sulle fatture emesse</span></label>
+            <label class="field"><span>Tipo ritenuta</span><input name="withholding_type" value="<?= View::e($organization['withholding_type'] ?? 'RT01') ?>"></label>
+            <label class="field"><span>Aliquota ritenuta %</span><input name="withholding_rate" value="<?= View::e($organization['withholding_rate'] ?? '20') ?>"></label>
+            <label class="field"><span>Imponibile ritenuta %</span><input name="withholding_taxable_percent" value="<?= View::e($organization['withholding_taxable_percent'] ?? '100') ?>"></label>
+            <label class="field"><span>Causale pagamento</span><input name="withholding_cause" value="<?= View::e($organization['withholding_cause'] ?? '') ?>"></label>
+        </div>
+        <div class="form-actions"><button class="button primary" type="submit"><?= View::icon('check') ?> Salva dati aziendali</button></div>
+    </form>
+</details>
+<?php endif; ?>
 
 <?php if ($organization): ?>
     <div class="settings-grid platform-grid">
@@ -75,7 +111,7 @@ $roleLabels = [
             </form>
         </section>
 
-        <section class="card settings-card password-card">
+        <?php if ($isSuperuser): ?><section class="card settings-card password-card">
             <div class="card-header"><div><span class="section-kicker">Sicurezza</span><h2>Password superuser</h2></div><?= View::icon('key') ?></div>
             <p>Sostituisci la password generata durante la migrazione dopo aver completato il primo accesso.</p>
             <form method="post" action="/settings/security/password" class="stack-form compact-form">
@@ -85,11 +121,11 @@ $roleLabels = [
                 <label><span>Conferma password</span><input type="password" name="password_confirmation" minlength="14" autocomplete="new-password" required></label>
                 <button class="button ghost" type="submit">Aggiorna password</button>
             </form>
-        </section>
+        </section><?php endif; ?>
     </div>
 
     <section class="card data-card user-management">
-        <div class="card-header"><div><span class="section-kicker"><?= View::e($organization['business_name']) ?></span><h2>Utenti aziendali</h2></div><span class="score"><?= count($users) ?></span></div>
+        <div class="card-header"><div><span class="section-kicker"><?= View::e($organization['business_name']) ?></span><h2>Utenti aziendali</h2></div><span class="score"><?= (int) $userUsage['used'] ?><?= $userUsage['max'] !== null ? ' / ' . (int) $userUsage['max'] : '' ?></span></div>
         <div class="table-wrap"><table><thead><tr><th>Utente</th><th>Ruolo</th><th>Stato</th><th>Ultimo accesso</th><th class="actions-column">Azioni</th></tr></thead><tbody>
         <?php foreach ($users as $user): ?>
             <tr><td class="primary-cell"><strong><?= View::e($user['name']) ?></strong><small><?= View::e($user['email']) ?></small></td><td><?= View::e($roleLabels[$user['role']] ?? $user['role']) ?></td><td><span class="badge <?= $user['active'] ? 'status-active' : 'status-muted' ?>"><?= $user['active'] ? 'Attivo' : 'Disattivato' ?></span></td><td><?= $user['last_login_at'] ? View::date($user['last_login_at']) : 'Mai' ?></td><td class="row-actions">

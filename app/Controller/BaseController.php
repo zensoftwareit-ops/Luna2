@@ -6,6 +6,7 @@ namespace Luna\Controller;
 
 use Luna\Core\Auth;
 use Luna\Core\ModuleManager;
+use Luna\Core\PermissionGate;
 use Luna\Core\SystemHealth;
 use Luna\Core\View;
 use PDO;
@@ -45,8 +46,26 @@ abstract class BaseController
     protected function requireRoles(array $roles): void
     {
         $role = (string) (Auth::user()['role'] ?? '');
-        if (!in_array($role, $roles, true)) {
-            $this->view->render('error', ['title' => 'Accesso negato', 'message' => 'Il tuo ruolo non consente questa operazione.'], 403);
+        if (in_array($role, $roles, true)) {
+            return;
+        }
+
+        // I profili introdotti dopo i ruoli legacy usano il permesso della route,
+        // evitando di doverli aggiungere manualmente a ogni controller esistente.
+        if (in_array($role, ['MANAGER', 'OPERATOR'], true)) {
+            $gate = new PermissionGate($this->config['permissions'] ?? []);
+            if ($gate->allows($role, PermissionGate::currentPermission())) {
+                return;
+            }
+        }
+        $this->view->render('error', ['title' => 'Accesso negato', 'message' => 'Il tuo ruolo non consente questa operazione.'], 403);
+    }
+
+    protected function requirePermission(string $permission): void
+    {
+        $gate = new PermissionGate($this->config['permissions'] ?? []);
+        if (!$gate->allows((string) (Auth::user()['role'] ?? ''), $permission)) {
+            $this->view->render('error', ['title' => 'Accesso negato', 'message' => 'Il tuo profilo non dispone del permesso richiesto.'], 403);
         }
     }
 
@@ -70,6 +89,19 @@ abstract class BaseController
         return $organizationId;
     }
 
+    protected function requireOrganizationAdministrator(): int
+    {
+        if (Auth::isSuperuser()) {
+            return $this->requireManagedOrganization();
+        }
+        $this->requireRoles(['OWNER', 'ADMIN']);
+        $organizationId = Auth::homeOrganizationId();
+        if ($organizationId <= 0) {
+            $this->view->render('error', ['title' => 'Azienda non disponibile', 'message' => 'Non è stato possibile determinare l’azienda associata al tuo profilo.'], 403);
+        }
+        return $organizationId;
+    }
+
     protected function requireFeature(string $featureKey): void
     {
         $feature = $this->config['features'][$featureKey] ?? null;
@@ -79,11 +111,12 @@ abstract class BaseController
 
         $manager = new ModuleManager($this->db, $this->config['features'], Auth::organizationId());
         if (!$manager->enabled($featureKey)) {
+            $canManageModules = Auth::isSuperuser() || Auth::isAdmin();
             $this->view->render('error', [
                 'title' => 'Modulo disattivato',
                 'message' => 'Il modulo “' . $feature['label'] . '” è disattivato per questa azienda.',
-                'actionUrl' => Auth::isSuperuser() ? '/settings/modules' : '/dashboard',
-                'actionLabel' => Auth::isSuperuser() ? 'Gestisci moduli' : 'Torna alla dashboard',
+                'actionUrl' => $canManageModules ? '/settings/modules' : '/dashboard',
+                'actionLabel' => $canManageModules ? 'Gestisci moduli' : 'Torna alla dashboard',
             ], 403);
         }
 

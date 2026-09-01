@@ -62,7 +62,7 @@ final class SystemHealth
 
     public static function runtime(string $basePath): array
     {
-        $requiredExtensions = ['ctype', 'dom', 'fileinfo', 'gd', 'json', 'libxml', 'mbstring', 'pdo', 'pdo_mysql', 'simplexml', 'zip'];
+        $requiredExtensions = ['ctype', 'dom', 'fileinfo', 'gd', 'json', 'libxml', 'mbstring', 'openssl', 'pdo', 'pdo_mysql', 'simplexml', 'sodium', 'zip'];
         $extensions = [];
         foreach ($requiredExtensions as $extension) {
             $extensions[$extension] = extension_loaded($extension);

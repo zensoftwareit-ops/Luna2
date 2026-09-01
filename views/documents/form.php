@@ -3,7 +3,7 @@
 <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
 <section class="card form-card">
 <div class="form-grid">
-<label class="field"><span><?= $definition['counterparty'] === 'customer' ? 'Cliente' : 'Fornitore' ?> *</span><select name="counterparty_id" required><option value="">Seleziona…</option><?php foreach ($counterparties as $party): ?><option value="<?= (int) $party['id'] ?>"><?= View::e(($party['code'] ? $party['code'] . ' · ' : '') . $party['business_name']) ?></option><?php endforeach; ?></select></label>
+<label class="field"><span><?= $definition['counterparty'] === 'customer' ? 'Cliente' : 'Fornitore' ?> *</span><select name="counterparty_id" required data-counterparty><option value="">Seleziona…</option><?php foreach ($counterparties as $party): ?><option value="<?= (int) $party['id'] ?>" data-payment-days="<?= (int) ($party['payment_days'] ?? 30) ?>" data-month-end="<?= !empty($party['payment_month_end']) ? '1' : '0' ?>" data-method="<?= View::e($party['payment_method_code'] ?? '') ?>" data-withholding="<?= !empty($party['withholding_enabled']) ? '1' : '0' ?>" data-withholding-type="<?= View::e($party['withholding_type'] ?? '') ?>" data-withholding-rate="<?= View::e($party['withholding_rate'] ?? '') ?>" data-withholding-taxable="<?= View::e($party['withholding_taxable_percent'] ?? '') ?>" data-withholding-cause="<?= View::e($party['withholding_cause'] ?? '') ?>"><?= View::e(($party['code'] ? $party['code'] . ' · ' : '') . $party['business_name']) ?></option><?php endforeach; ?></select></label>
 <label class="field"><span>Data documento *</span><input type="date" name="document_date" value="<?= View::e($document['document_date']) ?>" required></label>
 <label class="field"><span>Scadenza</span><input type="date" name="due_date" value="<?= View::e($document['due_date']) ?>"></label>
 <label class="field"><span>Valuta</span><input name="currency" value="<?= View::e($document['currency']) ?>" maxlength="3"></label>
@@ -11,7 +11,16 @@
 <?php if (in_array($definition['code'], ['SALES_INVOICE','CREDIT_NOTE'], true)): ?>
 <label class="field"><span>Tipo FatturaPA</span><input name="fatturapa_type" value="<?= View::e($document['fatturapa_type']) ?>"></label>
 <label class="field"><span>Esigibilità IVA</span><select name="vat_collectability"><option value="I">Immediata</option><option value="D">Differita</option><option value="S">Scissione pagamenti</option></select></label>
-<label class="field"><span>Modalità pagamento</span><input name="payment_method_code" value="<?= View::e($document['payment_method_code']) ?>"></label>
+<?php endif; ?>
+<?php if (in_array($definition['code'], ['SALES_INVOICE','PURCHASE_INVOICE','CREDIT_NOTE'], true)): ?>
+<label class="field"><span>Modalità pagamento</span><select name="payment_method_code"><option value="MP05">Bonifico</option><option value="MP01">Contanti</option><option value="MP12">Ri.Ba.</option><option value="MP08">Carta</option></select></label>
+<?php endif; ?>
+<?php if (in_array($definition['code'], ['SALES_INVOICE','PURCHASE_INVOICE'], true)): $withholdingSource = $definition['counterparty'] === 'supplier' ? [] : $organizationFiscal; ?>
+<label class="field checkbox-field"><input class="switch-input" type="checkbox" name="withholding_enabled" value="1" data-withholding-enabled <?= !empty($withholdingSource['withholding_enabled']) ? 'checked' : '' ?>><span class="switch-ui"></span><span>Applica ritenuta</span></label>
+<label class="field"><span>Tipo ritenuta</span><input name="withholding_type" value="<?= View::e($withholdingSource['withholding_type'] ?? 'RT01') ?>"></label>
+<label class="field"><span>Aliquota ritenuta %</span><input name="withholding_rate" inputmode="decimal" value="<?= View::e($withholdingSource['withholding_rate'] ?? '20') ?>"></label>
+<label class="field"><span>Imponibile ritenuta %</span><input name="withholding_taxable_percent" inputmode="decimal" value="<?= View::e($withholdingSource['withholding_taxable_percent'] ?? '100') ?>"></label>
+<label class="field"><span>Causale pagamento</span><input name="withholding_cause" value="<?= View::e($withholdingSource['withholding_cause'] ?? '') ?>"></label>
 <?php endif; ?>
 </div>
 </section>
