@@ -1,7 +1,10 @@
 /.env
 /storage/cache/*
 /storage/logs/*
+/storage/sdi/*
 !/storage/cache/.gitkeep
 !/storage/logs/.gitkeep
+!/storage/sdi/.gitkeep
+/certificates/*
+!/certificates/README.md
 /vendor/
-

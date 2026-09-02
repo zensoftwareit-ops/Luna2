@@ -5,7 +5,10 @@
   "require": {
     "php": "^8.3",
     "ext-curl": "*",
-    "ext-json": "*"
+    "ext-dom": "*",
+    "ext-json": "*",
+    "ext-libxml": "*",
+    "ext-openssl": "*"
   },
   "autoload": {
     "psr-4": {
@@ -16,4 +19,3 @@
     "test": "php tests/run.php"
   }
 }
-

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Luna2 API
-  version: 1.0.0
+  version: 1.1.0
 servers:
   - url: https://api.gestionaleluna.it
 paths:
@@ -46,6 +46,44 @@ paths:
           description: Limite di richieste superato
         '502':
           description: Errore del provider
+  /v1/einvoices:
+    get:
+      summary: Elenca fatture passive, trasmissioni o notifiche SdI
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: direction
+          in: query
+          schema: { type: string, enum: [inbound, outbound, notifications], default: inbound }
+        - name: pending_only
+          in: query
+          schema: { type: boolean, default: false }
+      responses:
+        '200': { description: Elenco documenti }
+  /v1/einvoices/outbound:
+    post:
+      summary: Invia una fattura elettronica privata o PA a SdI
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename, content_base64]
+              properties:
+                filename: { type: string }
+                content_base64: { type: string, format: byte }
+                recipient_type: { type: string, enum: [PRIVATE, PA] }
+          multipart/form-data:
+            schema:
+              type: object
+              required: [invoice]
+              properties:
+                invoice: { type: string, format: binary }
+                recipient_type: { type: string, enum: [PRIVATE, PA] }
+      responses:
+        '202': { description: File ricevuto da SdI }
+        '422': { description: Fattura o tracciato non valido }
 components:
   securitySchemes:
     bearerAuth:
@@ -68,4 +106,3 @@ components:
         sdi_code: { type: string, nullable: true }
         provider_updated_at: { type: string, format: date-time, nullable: true }
         request_id: { type: string }
-

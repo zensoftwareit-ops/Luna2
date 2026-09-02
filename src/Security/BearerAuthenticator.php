@@ -6,7 +6,7 @@ namespace LunaApi\Security;
 
 final class BearerAuthenticator
 {
-    /** @param list<string> $tokens */
+    /** @param array<string, string> $tokens Chiave client, valore token segreto. */
     public function __construct(private readonly array $tokens)
     {
     }
@@ -17,12 +17,11 @@ final class BearerAuthenticator
             return null;
         }
         $candidate = trim($matches[1]);
-        foreach ($this->tokens as $token) {
+        foreach ($this->tokens as $clientId => $token) {
             if ($token !== '' && hash_equals($token, $candidate)) {
-                return hash('sha256', $token);
+                return (string) $clientId;
             }
         }
         return null;
     }
 }
-
