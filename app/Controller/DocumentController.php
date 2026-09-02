@@ -342,27 +342,59 @@ final class DocumentController extends BaseController
             $where .= ' AND status = :status';
             $params['status'] = $status;
         }
-        $total = 0;
-        $pages = 1;
-        $offset = 0;
-        if ($paginate) {
-            $count = $this->db->prepare('SELECT COUNT(*)' . $where);
-            $count->execute($params);
-            $total = (int) $count->fetchColumn();
-            $pages = max(1, (int) ceil($total / $perPage));
-            $page = min($page, $pages);
-            $offset = ($page - 1) * $perPage;
+        try {
+            $total = 0;
+            $pages = 1;
+            $offset = 0;
+            if ($paginate) {
+                $count = $this->db->prepare('SELECT COUNT(*)' . $where);
+                $count->execute($params);
+                $total = (int) $count->fetchColumn();
+                $pages = max(1, (int) ceil($total / $perPage));
+                $page = min($page, $pages);
+                $offset = ($page - 1) * $perPage;
+            }
+            $sql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
+                           taxable_total, vat_total, total, balance_due, status' . $where
+                . ' ORDER BY `' . $sort . '` ' . $direction . ', id ' . $direction;
+            if ($paginate) {
+                $sql .= ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
+            }
+            $statement = $this->db->prepare($sql);
+            $statement->execute($params);
+            $documents = $statement->fetchAll();
+        } catch (Throwable $exception) {
+            // Compatibilita con installazioni MariaDB/PDO gia operative: se il
+            // percorso paginato non e supportato, manteniamo consultabili i
+            // documenti usando la query posizionale precedente.
+            error_log('[Luna2 documents compatibility fallback] ' . $exception->getMessage());
+            $legacyWhere = ' FROM documents WHERE organization_id = ? AND document_type = ? AND document_date BETWEEN ? AND ?';
+            $legacyParams = [Auth::organizationId(), $definition['code'], $from, $to];
+            if ($search !== '') {
+                $legacyWhere .= ' AND (number LIKE ? OR counterparty_name LIKE ? OR subject LIKE ?)';
+                $legacySearch = '%' . $search . '%';
+                array_push($legacyParams, $legacySearch, $legacySearch, $legacySearch);
+            }
+            if ($counterpartyId > 0) {
+                $legacyWhere .= ' AND counterparty_id = ?';
+                $legacyParams[] = $counterpartyId;
+            }
+            if ($status !== '') {
+                $legacyWhere .= ' AND status = ?';
+                $legacyParams[] = $status;
+            }
+            $legacySql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
+                                 taxable_total, vat_total, total, balance_due, status' . $legacyWhere
+                . ' ORDER BY document_date DESC, id DESC' . ($paginate ? ' LIMIT 1500' : '');
+            $statement = $this->db->prepare($legacySql);
+            $statement->execute($legacyParams);
+            $documents = $statement->fetchAll();
+            $total = count($documents);
+            $pages = 1;
+            $page = 1;
         }
-        $sql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
-                       taxable_total, vat_total, total, balance_due, status' . $where
-            . ' ORDER BY `' . $sort . '` ' . $direction . ', id ' . $direction;
-        if ($paginate) {
-            $sql .= ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
-        }
-        $statement = $this->db->prepare($sql);
-        $statement->execute($params);
         return [
-            $statement->fetchAll(), $search, $from, $to, $counterpartyId, $status,
+            $documents, $search, $from, $to, $counterpartyId, $status,
             $sort, $direction, $perPage, $page, $pages, $total,
         ];
     }

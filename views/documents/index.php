@@ -12,14 +12,17 @@ $headers = [
     'document_date' => 'Data', 'due_date' => 'Scadenza', 'taxable_total' => 'Imponibile',
     'vat_total' => 'IVA', 'total' => 'Totale', 'balance_due' => 'Residuo', 'status' => 'Stato',
 ];
+$lower = static fn (mixed $value): string => function_exists('mb_strtolower')
+    ? mb_strtolower((string) $value, 'UTF-8')
+    : strtolower((string) $value);
 ?>
 <section class="page-intro compact">
     <div><span class="eyebrow">Documenti</span><h1><?= View::e($definition['title']) ?></h1><p><?= number_format($total, 0, ',', '.') ?> documenti corrispondenti ai filtri</p></div>
-    <a class="button primary" href="/documents/<?= View::e($type) ?>/create"><?= View::icon('plus') ?> Nuovo <?= View::e(mb_strtolower($definition['singular'])) ?></a>
+    <a class="button primary" href="/documents/<?= View::e($type) ?>/create"><?= View::icon('plus') ?> Nuovo <?= View::e($lower($definition['singular'])) ?></a>
 </section>
 
 <section class="filter-toolbar-card">
-    <div class="filter-toolbar-head"><div><span class="section-kicker">Ricerca avanzata</span><strong>Filtra <?= View::e(mb_strtolower($definition['title'])) ?></strong></div><div class="export-actions" aria-label="Esporta documenti"><a class="button ghost" href="/documents/<?= View::e($type) ?>/export/pdf?<?= View::e($exportQuery) ?>">PDF</a><a class="button ghost" href="/documents/<?= View::e($type) ?>/export/xlsx?<?= View::e($exportQuery) ?>">XLSX</a><a class="button ghost" href="/documents/<?= View::e($type) ?>/export/csv?<?= View::e($exportQuery) ?>">CSV</a></div></div>
+    <div class="filter-toolbar-head"><div><span class="section-kicker">Ricerca avanzata</span><strong>Filtra <?= View::e($lower($definition['title'])) ?></strong></div><div class="export-actions" aria-label="Esporta documenti"><a class="button ghost" href="/documents/<?= View::e($type) ?>/export/pdf?<?= View::e($exportQuery) ?>">PDF</a><a class="button ghost" href="/documents/<?= View::e($type) ?>/export/xlsx?<?= View::e($exportQuery) ?>">XLSX</a><a class="button ghost" href="/documents/<?= View::e($type) ?>/export/csv?<?= View::e($exportQuery) ?>">CSV</a></div></div>
     <form method="get" class="document-filter-grid">
         <label class="field filter-search-field"><span>Testo</span><span class="search-control"><?= View::icon('search') ?><input type="search" name="q" value="<?= View::e($search) ?>" placeholder="Numero, controparte o oggetto…" autocomplete="off"></span></label>
         <label class="field"><span>Dal</span><input type="date" name="from" value="<?= View::e($from) ?>"></label>
