@@ -103,6 +103,13 @@ $assert(str_contains($appJs, 'data-table-search') && str_contains($appJs, 'appli
 $documentController = (string) file_get_contents($base . '/app/Controller/DocumentController.php');
 $documentIndex = (string) file_get_contents($base . '/views/documents/index.php');
 $assert(str_contains($documentController, "ceil(\$total / \$perPage)") && str_contains($documentController, '$allowedSort'), 'Paginazione o ordinamento server dei documenti mancanti.');
+$assert(
+    str_contains($documentController, ':search_number')
+    && str_contains($documentController, ':search_counterparty')
+    && str_contains($documentController, ':search_subject')
+    && !str_contains($documentController, 'number LIKE :search OR'),
+    'La ricerca documenti deve usare placeholder distinti con PDO MySQL nativo.'
+);
 $assert(str_contains($documentIndex, 'filter-toolbar-card') && str_contains($documentIndex, 'sort-link') && str_contains($documentIndex, 'Paginazione documenti'), 'Toolbar, intestazioni ordinabili o paginazione documenti incomplete.');
 $assert(str_contains($appJs, 'client-sortable-header') && str_contains($appJs, 'client-pagination'), 'Ordinamento e paginazione delle tabelle operative mancanti.');
 $assert(str_contains($appJs, "document.querySelectorAll('.table-wrap table')") && str_contains($appJs, 'data-table-date-from') && str_contains($appJs, 'data-table-party'), 'Il componente tabella universale non copre filtri data e controparte.');

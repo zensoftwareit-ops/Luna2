@@ -325,8 +325,14 @@ final class DocumentController extends BaseController
             'date_from' => $from, 'date_to' => $to,
         ];
         if ($search !== '') {
-            $where .= ' AND (number LIKE :search OR counterparty_name LIKE :search OR subject LIKE :search)';
-            $params['search'] = '%' . $search . '%';
+            // Con PDO MySQL in modalita native ogni occorrenza deve avere un
+            // segnaposto distinto. Riutilizzare :search produce HY093 e rende
+            // indisponibili tutti gli elenchi documentali quando si ricerca.
+            $where .= ' AND (number LIKE :search_number OR counterparty_name LIKE :search_counterparty OR subject LIKE :search_subject)';
+            $searchValue = '%' . $search . '%';
+            $params['search_number'] = $searchValue;
+            $params['search_counterparty'] = $searchValue;
+            $params['search_subject'] = $searchValue;
         }
         if ($counterpartyId > 0) {
             $where .= ' AND counterparty_id = :counterparty_id';
