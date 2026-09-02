@@ -1,0 +1,13 @@
+Options -Indexes
+RewriteEngine On
+
+# Conserva Authorization anche con PHP-FPM/FastCGI su Plesk.
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+RewriteRule ^(?:src|bootstrap|storage|tests|docs)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:\.env|composer\.(?:json|lock)|README\.md)$ - [F,L,NC]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+

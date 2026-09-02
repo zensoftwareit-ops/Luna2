@@ -1,0 +1,71 @@
+openapi: 3.0.3
+info:
+  title: Luna2 API
+  version: 1.0.0
+servers:
+  - url: https://api.gestionaleluna.it
+paths:
+  /health:
+    get:
+      summary: Stato del servizio
+      responses:
+        '200':
+          description: Servizio operativo
+  /v1/vat-lookup:
+    get:
+      summary: Recupera i dati di un'impresa italiana
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: country
+          in: query
+          schema:
+            type: string
+            enum: [IT]
+            default: IT
+        - name: vat_number
+          in: query
+          required: true
+          schema:
+            type: string
+            example: '12485671007'
+      responses:
+        '200':
+          description: Impresa trovata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '401':
+          description: Token mancante o non valido
+        '404':
+          description: Impresa non trovata
+        '422':
+          description: Parametri non validi
+        '429':
+          description: Limite di richieste superato
+        '502':
+          description: Errore del provider
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Company:
+      type: object
+      required: [business_name, vat_number, country_code, status]
+      properties:
+        business_name: { type: string }
+        tax_code: { type: string, nullable: true }
+        vat_number: { type: string }
+        address: { type: string, nullable: true }
+        postal_code: { type: string, nullable: true }
+        city: { type: string, nullable: true }
+        province: { type: string, nullable: true }
+        country_code: { type: string, enum: [IT] }
+        status: { type: string, enum: [ACTIVE, CLOSED, SUSPENDED, INACTIVE, UNKNOWN] }
+        sdi_code: { type: string, nullable: true }
+        provider_updated_at: { type: string, format: date-time, nullable: true }
+        request_id: { type: string }
+

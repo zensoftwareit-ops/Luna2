@@ -1,0 +1,19 @@
+{
+  "name": "zensoftware/luna2-api",
+  "description": "API centrale per le integrazioni Luna2",
+  "type": "project",
+  "require": {
+    "php": "^8.3",
+    "ext-curl": "*",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "LunaApi\\": "src/"
+    }
+  },
+  "scripts": {
+    "test": "php tests/run.php"
+  }
+}
+
