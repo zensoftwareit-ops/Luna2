@@ -133,13 +133,23 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         [$rows, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
+        $totals = [
+            'debit' => round((float) array_sum(array_column($rows, 'debit')), 2),
+            'credit' => round((float) array_sum(array_column($rows, 'credit')), 2),
+        ];
+        $difference = round($totals['debit'] - $totals['credit'], 2);
+        $rows[] = ['code' => '', 'name' => 'TOTALI SALDI', 'account_type' => '', 'debit' => $totals['debit'], 'credit' => $totals['credit']];
+        $rows[] = [
+            'code' => '', 'name' => 'DIFFERENZA DARE / AVERE', 'account_type' => '',
+            'debit' => $difference > 0 ? $difference : 0,
+            'credit' => $difference < 0 ? abs($difference) : 0,
+        ];
         $this->exporter()->stream($format, 'Bilancio di verifica', [
             ['key' => 'code', 'label' => 'Conto'],
             ['key' => 'name', 'label' => 'Descrizione'],
             ['key' => 'account_type', 'label' => 'Tipo'],
-            ['key' => 'debit', 'label' => 'Dare', 'type' => 'money'],
-            ['key' => 'credit', 'label' => 'Avere', 'type' => 'money'],
-            ['key' => 'balance', 'label' => 'Saldo', 'type' => 'money'],
+            ['key' => 'debit', 'label' => 'Saldo Dare', 'type' => 'money'],
+            ['key' => 'credit', 'label' => 'Saldo Avere', 'type' => 'money'],
         ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca conto' => $search, 'Tipo conto' => $accountType]), Auth::organizationName(), 'bilancio-verifica');
     }
 
@@ -152,8 +162,9 @@ final class AccountingController extends BaseController
         $where = 'a.organization_id = :organization_id';
         $params = ['date_from' => $from, 'date_to' => $to, 'organization_id' => Auth::organizationId()];
         if ($search !== '') {
-            $where .= ' AND (a.code LIKE :search OR a.name LIKE :search)';
-            $params['search'] = '%' . $search . '%';
+            $where .= ' AND (a.code LIKE :search_code OR a.name LIKE :search_name)';
+            $params['search_code'] = '%' . $search . '%';
+            $params['search_name'] = '%' . $search . '%';
         }
         if ($accountType !== '') {
             $where .= ' AND a.account_type = :account_type';
@@ -170,11 +181,19 @@ final class AccountingController extends BaseController
                   AND e.entry_date BETWEEN :date_from AND :date_to
              WHERE {$where}
              GROUP BY a.id, a.code, a.name, a.account_type
-             HAVING debit <> 0 OR credit <> 0
+             HAVING ABS(balance) > 0.005
              ORDER BY a.code"
         );
         $statement->execute($params);
-        return [$statement->fetchAll(), $from, $to, $search, $accountType];
+        $accounts = array_map(static function (array $account): array {
+            $balance = round((float) $account['balance'], 2);
+            $account['movement_debit'] = (float) $account['debit'];
+            $account['movement_credit'] = (float) $account['credit'];
+            $account['debit'] = $balance > 0 ? $balance : 0.0;
+            $account['credit'] = $balance < 0 ? abs($balance) : 0.0;
+            return $account;
+        }, $statement->fetchAll());
+        return [$accounts, $from, $to, $search, $accountType];
     }
 
     public function ledger(string $id): never
@@ -247,15 +266,7 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         [$movements, $register, $year, $month, $search] = $this->vatMovementsDataset();
-        $statement = $this->db->prepare(
-            'SELECT COALESCE(vat_code, \'N/D\') AS vat_code, SUM(taxable_amount) AS taxable_amount,
-                    SUM(vat_amount) AS vat_amount, SUM(deductible_vat) AS deductible_vat
-             FROM vat_movements
-             WHERE organization_id = ? AND register_type = ? AND period_year = ? AND period_month = ?
-             GROUP BY COALESCE(vat_code, \'N/D\') ORDER BY vat_code'
-        );
-        $statement->execute([Auth::organizationId(), $register, $year, $month]);
-        $summary = $statement->fetchAll();
+        $summary = $this->vatSummary($movements);
         $totals = [
             'taxable' => array_sum(array_column($movements, 'taxable_amount')),
             'vat' => array_sum(array_column($movements, 'vat_amount')),
@@ -274,15 +285,35 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         [$rows, $register, $year, $month, $search] = $this->vatMovementsDataset();
+        $summary = $this->vatSummary($rows);
+        foreach ($summary as $item) {
+            $rows[] = [
+                'movement_date' => null,
+                'protocol_number' => 'RIEPILOGO',
+                'counterparty_name' => $item['vat_description'],
+                'description' => $item['vat_nature'] ? 'Natura ' . $item['vat_nature'] : 'Totale articolo IVA',
+                'vat_code' => $item['vat_code'],
+                'vat_rate' => $item['vat_rate'],
+                'vat_description' => $item['vat_description'],
+                'vat_nature' => $item['vat_nature'],
+                'taxable_amount' => $item['taxable_amount'],
+                'vat_amount' => $item['vat_amount'],
+                'vat_due_amount' => $item['vat_due_amount'],
+                'deductible_vat' => $item['deductible_vat'],
+            ];
+        }
         $this->exporter()->stream($format, 'Registro IVA ' . $register, [
             ['key' => 'movement_date', 'label' => 'Data', 'type' => 'date'],
             ['key' => 'protocol_number', 'label' => 'Protocollo'],
             ['key' => 'counterparty_name', 'label' => 'Controparte'],
             ['key' => 'description', 'label' => 'Descrizione'],
             ['key' => 'vat_code', 'label' => 'Codice IVA'],
-            ['key' => 'operation_type', 'label' => 'Operazione'],
+            ['key' => 'vat_rate', 'label' => 'Aliquota %', 'type' => 'decimal'],
+            ['key' => 'vat_description', 'label' => 'Articolo IVA'],
+            ['key' => 'vat_nature', 'label' => 'Natura'],
             ['key' => 'taxable_amount', 'label' => 'Imponibile', 'type' => 'money'],
             ['key' => 'vat_amount', 'label' => 'IVA', 'type' => 'money'],
+            ['key' => 'vat_due_amount', 'label' => 'IVA dovuta', 'type' => 'money'],
             ['key' => 'deductible_vat', 'label' => 'IVA detraibile', 'type' => 'money'],
         ], $rows, array_filter(['Registro' => $register, 'Anno' => (string) $year, 'Mese' => (string) $month, 'Ricerca' => $search]), Auth::organizationName(), 'registro-iva-' . strtolower($register));
     }
@@ -385,11 +416,55 @@ final class AccountingController extends BaseController
             $this->redirect('/accounting/vat-settlements', 'Liquidazione non trovata.', 'error');
         }
         $statement = $this->db->prepare(
-            'SELECT * FROM vat_settlement_details WHERE settlement_id = ? AND organization_id = ? ORDER BY register_type, vat_code'
+            'SELECT d.*, COALESCE(c.description, d.vat_code) AS vat_description,
+                    COALESCE(c.rate, 0) AS vat_rate, COALESCE(c.nature, \'\') AS vat_nature
+             FROM vat_settlement_details d
+             LEFT JOIN vat_codes c ON c.organization_id = d.organization_id AND c.code = d.vat_code
+             WHERE d.settlement_id = ? AND d.organization_id = ? ORDER BY d.register_type, d.vat_code, c.rate'
         );
         $statement->execute([(int) $id, Auth::organizationId()]);
         $details = $statement->fetchAll();
         $this->view->render('accounting/vat-settlement', compact('settlement', 'details') + ['title' => 'Liquidazione IVA']);
+    }
+
+    public function exportVatSettlement(string $id, string $format): never
+    {
+        $this->authorize();
+        $statement = $this->db->prepare('SELECT * FROM vat_settlements WHERE id = ? AND organization_id = ?');
+        $statement->execute([(int) $id, Auth::organizationId()]);
+        $settlement = $statement->fetch();
+        if (!$settlement) {
+            $this->redirect('/accounting/vat-settlements', 'Liquidazione non trovata.', 'error');
+        }
+        $statement = $this->db->prepare(
+            'SELECT d.register_type, d.vat_code, COALESCE(c.description, d.vat_code) AS vat_description,
+                    COALESCE(c.rate, 0) AS vat_rate, COALESCE(c.nature, \'\') AS vat_nature,
+                    d.taxable_amount, d.vat_amount, d.deductible_vat
+             FROM vat_settlement_details d
+             LEFT JOIN vat_codes c ON c.organization_id = d.organization_id AND c.code = d.vat_code
+             WHERE d.settlement_id = ? AND d.organization_id = ? ORDER BY d.register_type, d.vat_code, c.rate'
+        );
+        $statement->execute([(int) $id, Auth::organizationId()]);
+        $rows = $statement->fetchAll();
+        $rows[] = [
+            'register_type' => 'TOTALE LIQUIDAZIONE', 'vat_code' => '', 'vat_description' => '', 'vat_rate' => null,
+            'vat_nature' => '', 'taxable_amount' => array_sum(array_column($rows, 'taxable_amount')),
+            'vat_amount' => $settlement['vat_debit'], 'deductible_vat' => $settlement['vat_credit'],
+        ];
+        $this->exporter()->stream($format, 'Liquidazione IVA', [
+            ['key' => 'register_type', 'label' => 'Registro'],
+            ['key' => 'vat_code', 'label' => 'Codice IVA'],
+            ['key' => 'vat_description', 'label' => 'Articolo IVA'],
+            ['key' => 'vat_rate', 'label' => 'Aliquota %', 'type' => 'decimal'],
+            ['key' => 'vat_nature', 'label' => 'Natura'],
+            ['key' => 'taxable_amount', 'label' => 'Imponibile', 'type' => 'money'],
+            ['key' => 'vat_amount', 'label' => 'IVA a debito', 'type' => 'money'],
+            ['key' => 'deductible_vat', 'label' => 'IVA detraibile', 'type' => 'money'],
+        ], $rows, [
+            'Periodicita' => (string) $settlement['period_type'],
+            'Anno' => (string) $settlement['period_year'],
+            'Periodo' => (string) $settlement['period_number'],
+        ], Auth::organizationName(), 'liquidazione-iva-' . $settlement['period_year'] . '-' . $settlement['period_number']);
     }
 
     public function updateVatSettlementStatus(string $id): never
@@ -454,27 +529,77 @@ final class AccountingController extends BaseController
         $year = (int) ($_GET['year'] ?? date('Y'));
         $month = (int) ($_GET['month'] ?? date('n'));
         $search = trim((string) ($_GET['q'] ?? ''));
-        if (!in_array($register, ['SALES', 'PURCHASES', 'CORRISPETTIVI'], true)) {
+        if (!in_array($register, ['SALES', 'PURCHASES', 'CORRISPETTIVI', 'REVERSE_CHARGE', 'SELF_INVOICES'], true)) {
             $register = 'SALES';
         }
-        $sql = 'SELECT id, document_id, source_type, movement_date, protocol_number, counterparty_name, description,
-                       vat_code, taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent,
-                       operation_type, collectability, vat_register_id
-                FROM vat_movements
-                WHERE organization_id = :organization_id AND register_type = :register_type
-                  AND period_year = :period_year AND period_month = :period_month';
+        $sql = 'SELECT m.id, m.document_id, m.source_type, m.movement_date, m.protocol_number, m.counterparty_name, m.description,
+                       COALESCE(m.vat_code, \'N/D\') AS vat_code, COALESCE(c.description, m.vat_code, \'N/D\') AS vat_description,
+                       COALESCE(c.rate, 0) AS vat_rate, COALESCE(c.nature, \'\') AS vat_nature,
+                       m.taxable_amount, m.vat_amount, m.vat_due_amount, m.deductible_vat, m.deductibility_percent,
+                       m.operation_type, m.collectability, m.vat_register_id
+                FROM vat_movements m
+                LEFT JOIN vat_codes c ON c.organization_id = m.organization_id AND c.code = m.vat_code
+                LEFT JOIN documents d ON d.id = m.document_id AND d.organization_id = m.organization_id
+                WHERE m.organization_id = :organization_id
+                  AND m.period_year = :period_year AND m.period_month = :period_month';
         $params = [
-            'organization_id' => Auth::organizationId(), 'register_type' => $register,
-            'period_year' => $year, 'period_month' => $month,
+            'organization_id' => Auth::organizationId(), 'period_year' => $year, 'period_month' => $month,
         ];
-        if ($search !== '') {
-            $sql .= ' AND (protocol_number LIKE :search OR counterparty_name LIKE :search OR description LIKE :search OR vat_code LIKE :search)';
-            $params['search'] = '%' . $search . '%';
+        if ($register === 'REVERSE_CHARGE') {
+            $sql .= " AND m.operation_type = 'REVERSE_CHARGE'";
+        } elseif ($register === 'SELF_INVOICES') {
+            $sql .= " AND d.fatturapa_type IN ('TD16','TD17','TD18','TD19','TD20','TD21','TD27','TD28')";
+        } else {
+            $sql .= ' AND m.register_type = :register_type';
+            $params['register_type'] = $register;
         }
-        $sql .= ' ORDER BY movement_date, id';
+        if ($search !== '') {
+            $sql .= ' AND (m.protocol_number LIKE :search_protocol OR m.counterparty_name LIKE :search_party
+                       OR m.description LIKE :search_description OR m.vat_code LIKE :search_vat_code)';
+            $searchValue = '%' . $search . '%';
+            $params['search_protocol'] = $searchValue;
+            $params['search_party'] = $searchValue;
+            $params['search_description'] = $searchValue;
+            $params['search_vat_code'] = $searchValue;
+        }
+        $sql .= ' ORDER BY m.movement_date, m.id';
         $statement = $this->db->prepare($sql);
         $statement->execute($params);
         return [$statement->fetchAll(), $register, $year, $month, $search];
+    }
+
+    private function vatSummary(array $movements): array
+    {
+        $summary = [];
+        foreach ($movements as $movement) {
+            $code = (string) ($movement['vat_code'] ?: 'N/D');
+            $rate = round((float) ($movement['vat_rate'] ?? 0), 2);
+            $nature = (string) ($movement['vat_nature'] ?? '');
+            $key = $code . '|' . number_format($rate, 2, '.', '') . '|' . $nature;
+            if (!isset($summary[$key])) {
+                $summary[$key] = [
+                    'vat_code' => $code,
+                    'vat_description' => (string) ($movement['vat_description'] ?? $code),
+                    'vat_rate' => $rate,
+                    'vat_nature' => $nature,
+                    'taxable_amount' => 0.0,
+                    'vat_amount' => 0.0,
+                    'vat_due_amount' => 0.0,
+                    'deductible_vat' => 0.0,
+                ];
+            }
+            foreach (['taxable_amount', 'vat_amount', 'vat_due_amount', 'deductible_vat'] as $amount) {
+                $summary[$key][$amount] += (float) ($movement[$amount] ?? 0);
+            }
+        }
+        foreach ($summary as &$row) {
+            foreach (['taxable_amount', 'vat_amount', 'vat_due_amount', 'deductible_vat'] as $amount) {
+                $row[$amount] = round($row[$amount], 2);
+            }
+        }
+        unset($row);
+        uasort($summary, static fn (array $a, array $b): int => [$a['vat_code'], $a['vat_rate'], $a['vat_nature']] <=> [$b['vat_code'], $b['vat_rate'], $b['vat_nature']]);
+        return array_values($summary);
     }
 
     private function exporter(): TabularExportService

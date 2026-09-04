@@ -201,6 +201,7 @@ final class Application
         $router->add('GET', '/accounting/vat-settlements', [AccountingController::class, 'vatSettlements']);
         $router->add('GET', '/accounting/vat-settlements/export/{format}', [AccountingController::class, 'exportVatSettlements']);
         $router->add('POST', '/accounting/vat-settlements/calculate', [AccountingController::class, 'calculateVatSettlement']);
+        $router->add('GET', '/accounting/vat-settlements/{id}/export/{format}', [AccountingController::class, 'exportVatSettlement']);
         $router->add('POST', '/accounting/vat-settlements/{id}/status', [AccountingController::class, 'updateVatSettlementStatus']);
         $router->add('GET', '/accounting/vat-settlements/{id}', [AccountingController::class, 'showVatSettlement']);
 

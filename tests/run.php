@@ -84,6 +84,7 @@ $assert(str_contains($application, "'/settings/license'"), 'Pannello tecnico lic
 $assert(substr_count($application, "'permission' => 'settings.license', 'operation' => 'TECHNICAL'") === 4, 'Le operazioni licenza devono restare accessibili in modalità limitata.');
 $assert(str_contains($application, "'/accounting/vat-registers'"), 'Rotta registri IVA mancante.');
 $assert(str_contains($application, "'/accounting/vat-settlements'"), 'Rotta liquidazioni IVA mancante.');
+$assert(str_contains($application, "'/accounting/vat-settlements/{id}/export/{format}'"), 'Esportazione analitica liquidazione IVA mancante.');
 $assert(str_contains($application, "'/accounting/setup'"), 'Rotta configurazione piano dei conti mancante.');
 $assert(str_contains($application, "'/accounting/treasury'"), 'Rotta tesoreria e partite mancante.');
 $assert(str_contains($application, "'/accounting/compliance'"), 'Rotta adempimenti e chiusure mancante.');
@@ -268,6 +269,7 @@ try {
     $renderedAccounting .= $renderAccountingView('form', ['accounts' => [], 'entry' => ['entry_date' => '2026-01-01', 'competence_date' => '2026-01-01', 'entry_type' => 'MANUAL'], 'lines' => []]);
     $entry = ['id' => 1, 'protocol_number' => 'GEN-2026-000001', 'description' => 'Test', 'entry_date' => '2026-01-01', 'entry_type' => 'MANUAL', 'counterparty' => null, 'status' => 'DRAFT', 'source_type' => 'MANUAL', 'total_debit' => 0, 'total_credit' => 0, 'document_number' => null, 'notes' => null];
     $renderedAccounting .= $renderAccountingView('entry', ['entry' => $entry, 'lines' => []]);
+    $renderedAccounting .= $renderAccountingView('trial-balance', ['accounts' => [], 'totals' => ['debit' => 0, 'credit' => 0], 'from' => '2026-01-01', 'to' => '2026-12-31', 'search' => '', 'accountType' => '']);
     $renderedAccounting .= $renderAccountingView('vat-registers', ['register' => 'SALES', 'year' => 2026, 'month' => 1, 'search' => '', 'movements' => [], 'summary' => [], 'totals' => ['taxable' => 0, 'vat' => 0, 'deductible' => 0], 'vatCodes' => []]);
     $renderedAccounting .= $renderAccountingView('vat-settlements', ['settlements' => [], 'year' => 2026]);
     $settlement = ['id' => 1, 'period_type' => 'MONTHLY', 'period_year' => 2026, 'period_number' => 1, 'calculated_at' => '2026-02-01', 'updated_at' => '2026-02-01', 'status' => 'CALCULATED', 'vat_debit' => 0, 'vat_credit' => 0, 'previous_credit' => 0, 'interest_amount' => 0, 'balance' => 0, 'notes' => null];
@@ -363,6 +365,14 @@ try {
 $workspaceService = (string) file_get_contents($base . '/app/Service/WorkspaceService.php');
 $complianceWorkspaceService = (string) file_get_contents($base . '/app/Service/ComplianceWorkspaceService.php');
 $officialPrintService = (string) file_get_contents($base . '/app/Service/OfficialPrintService.php');
+$trialBalanceView = (string) file_get_contents($base . '/views/accounting/trial-balance.php');
+$vatRegistersView = (string) file_get_contents($base . '/views/accounting/vat-registers.php');
+$vatSettlementView = (string) file_get_contents($base . '/views/accounting/vat-settlement.php');
+$assert(str_contains($trialBalanceView, 'Saldo Dare') && !str_contains($trialBalanceView, '<th class="numeric">Saldo</th>'), 'Il bilancio di verifica deve mostrare un solo saldo Dare/Avere per conto.');
+$assert(str_contains($trialBalanceView, 'Differenza Dare / Avere') && str_contains($accountingController, 'TOTALI SALDI'), 'Totali e differenza del bilancio di verifica mancanti.');
+$assert(str_contains($vatRegistersView, 'Totali per articolo e aliquota IVA') && str_contains($vatRegistersView, 'REVERSE_CHARGE') && str_contains($vatRegistersView, 'SELF_INVOICES'), 'Registri IVA professionali incompleti.');
+$assert(str_contains($vatSettlementView, 'Dettaglio per registro, articolo e aliquota IVA'), 'Dettaglio aliquote della liquidazione IVA mancante.');
+$assert(str_contains($officialPrintService, 'VAT_REVERSE_CHARGE') && str_contains($officialPrintService, 'VAT_SELF_INVOICES') && str_contains($officialPrintService, 'VAT_LIQUIDATION'), 'Tipi di stampa IVA ufficiale incompleti.');
 $assert(!str_contains($workspaceService, "status = 'COMMITTED'") && !str_contains($workspaceService, "'INVALID','FAILED','PARTIAL'"), 'Stati import non compatibili con lo schema.');
 $assert(!str_contains($complianceWorkspaceService, 'api_endpoint_configs WHERE id = ? AND organization_id = ? AND active = 1'), 'Gli endpoint professionali devono usare il campo enabled.');
 $assert(str_contains($complianceWorkspaceService, 'e.display_name AS endpoint_name'), 'Il Centro professionale deve usare la colonna display_name degli endpoint.');

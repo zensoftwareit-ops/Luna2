@@ -20,6 +20,9 @@ final class OfficialPrintService
         'VAT_SALES' => 'Registro IVA vendite',
         'VAT_PURCHASES' => 'Registro IVA acquisti',
         'VAT_CORRISPETTIVI' => 'Registro corrispettivi',
+        'VAT_REVERSE_CHARGE' => 'Registro IVA reverse charge',
+        'VAT_SELF_INVOICES' => 'Registro IVA autofatture',
+        'VAT_LIQUIDATION' => 'Liquidazione IVA per articolo e aliquota',
         'ASSET_REGISTER' => 'Registro cespiti',
     ];
 
@@ -181,36 +184,96 @@ final class OfficialPrintService
             );
         }
         if ($type === 'TRIAL_BALANCE') {
-            return $this->query(
-                ['Codice', 'Conto', 'Dare', 'Avere', 'Saldo'],
+            [$columns, $rows] = $this->query(
+                ['Codice', 'Conto', 'Saldo Dare', 'Saldo Avere'],
                 "SELECT a.code, a.name,
-                        COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END),0),
-                        COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END),0),
-                        COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit-l.credit ELSE 0 END),0)
+                        GREATEST(COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit-l.credit ELSE 0 END),0), 0),
+                        GREATEST(COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit-l.debit ELSE 0 END),0), 0)
                  FROM chart_of_accounts a
                  LEFT JOIN journal_entry_lines l ON l.account_id = a.id AND l.organization_id = a.organization_id
                  LEFT JOIN journal_entries e ON e.id = l.journal_entry_id AND e.status = 'POSTED' AND e.entry_date BETWEEN ? AND ?
                  WHERE a.organization_id = ?
                  GROUP BY a.id, a.code, a.name
-                 HAVING ABS(COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END),0)) > 0.005
-                     OR ABS(COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END),0)) > 0.005
+                 HAVING ABS(COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit-l.credit ELSE 0 END),0)) > 0.005
                  ORDER BY a.code",
                 [$from, $to, $this->organizationId],
             );
+            $debit = round((float) array_sum(array_column($rows, 2)), 2);
+            $credit = round((float) array_sum(array_column($rows, 3)), 2);
+            $difference = round($debit - $credit, 2);
+            $rows[] = ['', 'TOTALI SALDI', $debit, $credit];
+            $rows[] = ['', 'DIFFERENZA DARE / AVERE', $difference > 0 ? $difference : 0, $difference < 0 ? abs($difference) : 0];
+            return [$columns, $rows];
+        }
+        if ($type === 'VAT_LIQUIDATION') {
+            $columns = ['Periodo', 'Registro', 'Codice IVA', 'Articolo IVA', 'Aliquota %', 'Natura', 'Imponibile', 'IVA a debito', 'IVA detraibile', 'Credito precedente', 'Interessi', 'Saldo'];
+            $rows = [];
+            $settlements = $this->db->prepare(
+                "SELECT * FROM vat_settlements
+                 WHERE organization_id = ? AND period_year BETWEEN ? AND ? AND status IN ('CALCULATED','SUBMITTED','PAID','OVERDUE')
+                 ORDER BY period_year, period_type, period_number"
+            );
+            $settlements->execute([$this->organizationId, (int) substr($from, 0, 4), (int) substr($to, 0, 4)]);
+            $details = $this->db->prepare(
+                "SELECT d.register_type, d.vat_code, COALESCE(c.description, d.vat_code), COALESCE(c.rate, 0),
+                        COALESCE(c.nature, ''), d.taxable_amount, d.vat_amount, d.deductible_vat
+                 FROM vat_settlement_details d
+                 LEFT JOIN vat_codes c ON c.organization_id = d.organization_id AND c.code = d.vat_code
+                 WHERE d.organization_id = ? AND d.settlement_id = ? ORDER BY d.register_type, d.vat_code, c.rate"
+            );
+            foreach ($settlements->fetchAll() as $settlement) {
+                [$periodStart, $periodEnd] = $this->settlementPeriod($settlement);
+                if ($periodEnd < $from || $periodStart > $to) {
+                    continue;
+                }
+                $periodLabel = ($settlement['period_type'] === 'MONTHLY' ? 'M' : 'T')
+                    . $settlement['period_number'] . '/' . $settlement['period_year'];
+                $details->execute([$this->organizationId, $settlement['id']]);
+                foreach ($details->fetchAll(PDO::FETCH_NUM) as $detail) {
+                    $rows[] = [$periodLabel, ...$detail, '', '', ''];
+                }
+                $rows[] = [
+                    $periodLabel . ' · TOTALE LIQUIDAZIONE', '', '', '', '', '', 0,
+                    $settlement['vat_debit'], $settlement['vat_credit'], $settlement['previous_credit'],
+                    $settlement['interest_amount'], $settlement['balance'],
+                ];
+            }
+            return [$columns, $rows];
         }
         if (str_starts_with($type, 'VAT_')) {
-            $register = match ($type) {
-                'VAT_SALES' => 'SALES',
-                'VAT_PURCHASES' => 'PURCHASES',
-                default => 'CORRISPETTIVI',
+            $filter = match ($type) {
+                'VAT_SALES' => "m.register_type = 'SALES'",
+                'VAT_PURCHASES' => "m.register_type = 'PURCHASES'",
+                'VAT_REVERSE_CHARGE' => "m.operation_type = 'REVERSE_CHARGE'",
+                'VAT_SELF_INVOICES' => "d.fatturapa_type IN ('TD16','TD17','TD18','TD19','TD20','TD21','TD27','TD28')",
+                default => "m.register_type = 'CORRISPETTIVI'",
             };
-            return $this->query(
-                ['Data', 'Protocollo', 'Controparte', 'Codice IVA', 'Imponibile', 'IVA', 'IVA detraibile'],
-                'SELECT movement_date, protocol_number, counterparty_name, vat_code, taxable_amount, vat_amount, deductible_vat
-                 FROM vat_movements WHERE organization_id = ? AND register_type = ? AND movement_date BETWEEN ? AND ?
-                 ORDER BY movement_date, protocol_number, id',
-                [$this->organizationId, $register, $from, $to],
+            [$columns, $rows] = $this->query(
+                ['Data', 'Protocollo', 'Controparte', 'Codice IVA', 'Articolo IVA', 'Aliquota %', 'Natura', 'Imponibile', 'IVA', 'IVA dovuta', 'IVA detraibile'],
+                "SELECT m.movement_date, m.protocol_number, m.counterparty_name, COALESCE(m.vat_code, 'N/D'),
+                        COALESCE(c.description, m.vat_code, 'N/D'), COALESCE(c.rate, 0), COALESCE(c.nature, ''),
+                        m.taxable_amount, m.vat_amount, m.vat_due_amount, m.deductible_vat
+                 FROM vat_movements m
+                 LEFT JOIN vat_codes c ON c.organization_id = m.organization_id AND c.code = m.vat_code
+                 LEFT JOIN documents d ON d.id = m.document_id AND d.organization_id = m.organization_id
+                 WHERE m.organization_id = ? AND {$filter} AND m.movement_date BETWEEN ? AND ?
+                 ORDER BY m.movement_date, m.protocol_number, m.id",
+                [$this->organizationId, $from, $to],
             );
+            $summary = [];
+            foreach ($rows as $row) {
+                $key = ($row[3] ?? 'N/D') . '|' . ($row[5] ?? 0) . '|' . ($row[6] ?? '');
+                if (!isset($summary[$key])) {
+                    $summary[$key] = ['', 'RIEPILOGO', '', $row[3], $row[4], $row[5], $row[6], 0.0, 0.0, 0.0, 0.0];
+                }
+                foreach ([7, 8, 9, 10] as $index) {
+                    $summary[$key][$index] += (float) ($row[$index] ?? 0);
+                }
+            }
+            foreach ($summary as $total) {
+                $rows[] = $total;
+            }
+            return [$columns, $rows];
         }
         return $this->query(
             ['Codice', 'Descrizione', 'Data acquisto', 'Costo storico', 'Fondo civilistico', 'Valore netto', 'Stato'],
@@ -231,10 +294,14 @@ final class OfficialPrintService
     {
         $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $headers = implode('', array_map(static fn (string $column): string => '<th>' . htmlspecialchars($column, ENT_QUOTES, 'UTF-8') . '</th>', $columns));
-        $numericColumns = ['Dare', 'Avere', 'Saldo', 'Imponibile', 'IVA', 'IVA detraibile', 'Costo storico', 'Fondo civilistico', 'Valore netto'];
+        $numericColumns = ['Dare', 'Avere', 'Saldo', 'Saldo Dare', 'Saldo Avere', 'Aliquota %', 'Imponibile', 'IVA', 'IVA dovuta', 'IVA detraibile', 'Credito precedente', 'Interessi', 'Costo storico', 'Fondo civilistico', 'Valore netto'];
         $body = '';
         foreach ($rows as $row) {
-            $body .= '<tr>';
+            $isSummary = in_array('RIEPILOGO', $row, true)
+                || in_array('TOTALI SALDI', $row, true)
+                || in_array('DIFFERENZA DARE / AVERE', $row, true)
+                || str_contains((string) ($row[0] ?? ''), 'TOTALE LIQUIDAZIONE');
+            $body .= $isSummary ? '<tr class="summary-row">' : '<tr>';
             foreach ($row as $index => $value) {
                 $display = in_array($columns[$index] ?? '', $numericColumns, true) && is_numeric($value)
                     ? number_format((float) $value, 2, ',', '.')
@@ -255,6 +322,7 @@ final class OfficialPrintService
             th { background:#edf3fa; color:#193b64; text-align:left; font-size:7.5pt; }
             th, td { border:1px solid #ccd6e3; padding:4px 5px; vertical-align:top; }
             tr:nth-child(even) td { background:#f8fafc; }
+            .summary-row td { background:#edf3fa; font-weight:bold; border-top:1.5px solid #163b68; }
             footer { position:fixed; bottom:-12mm; left:0; right:0; border-top:1px solid #ccd6e3; padding-top:5px; font-size:7pt; color:#66758a; }
         </style></head><body><header><h1>' . $escape(self::TYPES[$type]) . '</h1>
         <p><strong>' . $escape($company['business_name']) . '</strong> · P.IVA ' . $escape($company['vat_number'] ?? '—') . '</p>
@@ -289,6 +357,17 @@ final class OfficialPrintService
         if (!$start || !$end || $start > $end) {
             throw new InvalidArgumentException('Periodo di stampa non valido.');
         }
+        return [$start->format('Y-m-d'), $end->format('Y-m-d')];
+    }
+
+    private function settlementPeriod(array $settlement): array
+    {
+        $year = (int) $settlement['period_year'];
+        $number = (int) $settlement['period_number'];
+        $firstMonth = $settlement['period_type'] === 'QUARTERLY' ? (($number - 1) * 3) + 1 : $number;
+        $months = $settlement['period_type'] === 'QUARTERLY' ? 3 : 1;
+        $start = new DateTimeImmutable(sprintf('%04d-%02d-01', $year, $firstMonth));
+        $end = $start->modify('+' . $months . ' months -1 day');
         return [$start->format('Y-m-d'), $end->format('Y-m-d')];
     }
 
