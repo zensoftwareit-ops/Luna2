@@ -153,6 +153,7 @@ $assert(str_contains($accountingService, 'assertAccountsBelongToOrganization'), 
 $assert(str_contains($vatService, 'syncDocument') && str_contains($vatService, 'assertPeriodOpen'), 'Sincronizzazione IVA o blocco periodo mancante.');
 $assert(isset($tableSchemas['vat_settlement_details']), 'Dettaglio liquidazioni IVA mancante.');
 $assert(str_contains($schema, 'vat_settlement_details'), 'Storico di dettaglio delle liquidazioni IVA mancante.');
+$assert(str_contains($schema, 'ADD COLUMN vat_rate DECIMAL(5,2)') && str_contains($schema, 'vat_legal_reference'), 'Snapshot fiscali per stampe IVA mancanti.');
 $advancedAccountingTables = [
     'accounting_settings', 'vat_registers', 'accounting_causes', 'accounting_account_mappings',
     'accounting_open_items', 'payment_allocations', 'vat_cash_events', 'vat_adjustments',
@@ -365,6 +366,7 @@ try {
 $workspaceService = (string) file_get_contents($base . '/app/Service/WorkspaceService.php');
 $complianceWorkspaceService = (string) file_get_contents($base . '/app/Service/ComplianceWorkspaceService.php');
 $officialPrintService = (string) file_get_contents($base . '/app/Service/OfficialPrintService.php');
+$vatService = (string) file_get_contents($base . '/app/Service/VatService.php');
 $trialBalanceView = (string) file_get_contents($base . '/views/accounting/trial-balance.php');
 $vatRegistersView = (string) file_get_contents($base . '/views/accounting/vat-registers.php');
 $vatSettlementView = (string) file_get_contents($base . '/views/accounting/vat-settlement.php');
@@ -373,6 +375,7 @@ $assert(str_contains($trialBalanceView, 'Differenza Dare / Avere') && str_contai
 $assert(str_contains($vatRegistersView, 'Totali per articolo e aliquota IVA') && str_contains($vatRegistersView, 'REVERSE_CHARGE') && str_contains($vatRegistersView, 'SELF_INVOICES'), 'Registri IVA professionali incompleti.');
 $assert(str_contains($vatSettlementView, 'Dettaglio per registro, articolo e aliquota IVA'), 'Dettaglio aliquote della liquidazione IVA mancante.');
 $assert(str_contains($officialPrintService, 'VAT_REVERSE_CHARGE') && str_contains($officialPrintService, 'VAT_SELF_INVOICES') && str_contains($officialPrintService, 'VAT_LIQUIDATION'), 'Tipi di stampa IVA ufficiale incompleti.');
+$assert(str_contains($vatService, 'vat_description, vat_legal_reference') && str_contains($vatService, 'GROUP BY register_type, vat_code, vat_rate'), 'Liquidazioni IVA prive del raggruppamento storico per articolo e aliquota.');
 $assert(!str_contains($workspaceService, "status = 'COMMITTED'") && !str_contains($workspaceService, "'INVALID','FAILED','PARTIAL'"), 'Stati import non compatibili con lo schema.');
 $assert(!str_contains($complianceWorkspaceService, 'api_endpoint_configs WHERE id = ? AND organization_id = ? AND active = 1'), 'Gli endpoint professionali devono usare il campo enabled.');
 $assert(str_contains($complianceWorkspaceService, 'e.display_name AS endpoint_name'), 'Il Centro professionale deve usare la colonna display_name degli endpoint.');

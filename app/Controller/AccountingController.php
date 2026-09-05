@@ -296,6 +296,7 @@ final class AccountingController extends BaseController
                 'vat_rate' => $item['vat_rate'],
                 'vat_description' => $item['vat_description'],
                 'vat_nature' => $item['vat_nature'],
+                'vat_legal_reference' => $item['vat_legal_reference'],
                 'taxable_amount' => $item['taxable_amount'],
                 'vat_amount' => $item['vat_amount'],
                 'vat_due_amount' => $item['vat_due_amount'],
@@ -311,6 +312,7 @@ final class AccountingController extends BaseController
             ['key' => 'vat_rate', 'label' => 'Aliquota %', 'type' => 'decimal'],
             ['key' => 'vat_description', 'label' => 'Articolo IVA'],
             ['key' => 'vat_nature', 'label' => 'Natura'],
+            ['key' => 'vat_legal_reference', 'label' => 'Riferimento normativo'],
             ['key' => 'taxable_amount', 'label' => 'Imponibile', 'type' => 'money'],
             ['key' => 'vat_amount', 'label' => 'IVA', 'type' => 'money'],
             ['key' => 'vat_due_amount', 'label' => 'IVA dovuta', 'type' => 'money'],
@@ -416,11 +418,9 @@ final class AccountingController extends BaseController
             $this->redirect('/accounting/vat-settlements', 'Liquidazione non trovata.', 'error');
         }
         $statement = $this->db->prepare(
-            'SELECT d.*, COALESCE(c.description, d.vat_code) AS vat_description,
-                    COALESCE(c.rate, 0) AS vat_rate, COALESCE(c.nature, \'\') AS vat_nature
+            'SELECT d.*
              FROM vat_settlement_details d
-             LEFT JOIN vat_codes c ON c.organization_id = d.organization_id AND c.code = d.vat_code
-             WHERE d.settlement_id = ? AND d.organization_id = ? ORDER BY d.register_type, d.vat_code, c.rate'
+             WHERE d.settlement_id = ? AND d.organization_id = ? ORDER BY d.register_type, d.vat_code, d.vat_rate, d.vat_nature'
         );
         $statement->execute([(int) $id, Auth::organizationId()]);
         $details = $statement->fetchAll();
@@ -437,18 +437,16 @@ final class AccountingController extends BaseController
             $this->redirect('/accounting/vat-settlements', 'Liquidazione non trovata.', 'error');
         }
         $statement = $this->db->prepare(
-            'SELECT d.register_type, d.vat_code, COALESCE(c.description, d.vat_code) AS vat_description,
-                    COALESCE(c.rate, 0) AS vat_rate, COALESCE(c.nature, \'\') AS vat_nature,
+            'SELECT d.register_type, d.vat_code, d.vat_description, d.vat_rate, d.vat_nature, d.vat_legal_reference,
                     d.taxable_amount, d.vat_amount, d.deductible_vat
              FROM vat_settlement_details d
-             LEFT JOIN vat_codes c ON c.organization_id = d.organization_id AND c.code = d.vat_code
-             WHERE d.settlement_id = ? AND d.organization_id = ? ORDER BY d.register_type, d.vat_code, c.rate'
+             WHERE d.settlement_id = ? AND d.organization_id = ? ORDER BY d.register_type, d.vat_code, d.vat_rate, d.vat_nature'
         );
         $statement->execute([(int) $id, Auth::organizationId()]);
         $rows = $statement->fetchAll();
         $rows[] = [
             'register_type' => 'TOTALE LIQUIDAZIONE', 'vat_code' => '', 'vat_description' => '', 'vat_rate' => null,
-            'vat_nature' => '', 'taxable_amount' => array_sum(array_column($rows, 'taxable_amount')),
+            'vat_nature' => '', 'vat_legal_reference' => '', 'taxable_amount' => array_sum(array_column($rows, 'taxable_amount')),
             'vat_amount' => $settlement['vat_debit'], 'deductible_vat' => $settlement['vat_credit'],
         ];
         $this->exporter()->stream($format, 'Liquidazione IVA', [
@@ -457,6 +455,7 @@ final class AccountingController extends BaseController
             ['key' => 'vat_description', 'label' => 'Articolo IVA'],
             ['key' => 'vat_rate', 'label' => 'Aliquota %', 'type' => 'decimal'],
             ['key' => 'vat_nature', 'label' => 'Natura'],
+            ['key' => 'vat_legal_reference', 'label' => 'Riferimento normativo'],
             ['key' => 'taxable_amount', 'label' => 'Imponibile', 'type' => 'money'],
             ['key' => 'vat_amount', 'label' => 'IVA a debito', 'type' => 'money'],
             ['key' => 'deductible_vat', 'label' => 'IVA detraibile', 'type' => 'money'],
@@ -533,12 +532,11 @@ final class AccountingController extends BaseController
             $register = 'SALES';
         }
         $sql = 'SELECT m.id, m.document_id, m.source_type, m.movement_date, m.protocol_number, m.counterparty_name, m.description,
-                       COALESCE(m.vat_code, \'N/D\') AS vat_code, COALESCE(c.description, m.vat_code, \'N/D\') AS vat_description,
-                       COALESCE(c.rate, 0) AS vat_rate, COALESCE(c.nature, \'\') AS vat_nature,
+                       COALESCE(m.vat_code, \'N/D\') AS vat_code, COALESCE(m.vat_description, m.vat_code, \'N/D\') AS vat_description,
+                       m.vat_rate, m.vat_nature, m.vat_legal_reference,
                        m.taxable_amount, m.vat_amount, m.vat_due_amount, m.deductible_vat, m.deductibility_percent,
                        m.operation_type, m.collectability, m.vat_register_id
                 FROM vat_movements m
-                LEFT JOIN vat_codes c ON c.organization_id = m.organization_id AND c.code = m.vat_code
                 LEFT JOIN documents d ON d.id = m.document_id AND d.organization_id = m.organization_id
                 WHERE m.organization_id = :organization_id
                   AND m.period_year = :period_year AND m.period_month = :period_month';
@@ -573,15 +571,18 @@ final class AccountingController extends BaseController
         $summary = [];
         foreach ($movements as $movement) {
             $code = (string) ($movement['vat_code'] ?: 'N/D');
+            $description = (string) ($movement['vat_description'] ?? $code);
             $rate = round((float) ($movement['vat_rate'] ?? 0), 2);
             $nature = (string) ($movement['vat_nature'] ?? '');
-            $key = $code . '|' . number_format($rate, 2, '.', '') . '|' . $nature;
+            $legalReference = (string) ($movement['vat_legal_reference'] ?? '');
+            $key = $code . '|' . $description . '|' . number_format($rate, 2, '.', '') . '|' . $nature . '|' . $legalReference;
             if (!isset($summary[$key])) {
                 $summary[$key] = [
                     'vat_code' => $code,
-                    'vat_description' => (string) ($movement['vat_description'] ?? $code),
+                    'vat_description' => $description,
                     'vat_rate' => $rate,
                     'vat_nature' => $nature,
+                    'vat_legal_reference' => $legalReference,
                     'taxable_amount' => 0.0,
                     'vat_amount' => 0.0,
                     'vat_due_amount' => 0.0,
@@ -598,7 +599,7 @@ final class AccountingController extends BaseController
             }
         }
         unset($row);
-        uasort($summary, static fn (array $a, array $b): int => [$a['vat_code'], $a['vat_rate'], $a['vat_nature']] <=> [$b['vat_code'], $b['vat_rate'], $b['vat_nature']]);
+        uasort($summary, static fn (array $a, array $b): int => [$a['vat_code'], $a['vat_rate'], $a['vat_nature'], $a['vat_legal_reference']] <=> [$b['vat_code'], $b['vat_rate'], $b['vat_nature'], $b['vat_legal_reference']]);
         return array_values($summary);
     }
 

@@ -206,7 +206,7 @@ final class OfficialPrintService
             return [$columns, $rows];
         }
         if ($type === 'VAT_LIQUIDATION') {
-            $columns = ['Periodo', 'Registro', 'Codice IVA', 'Articolo IVA', 'Aliquota %', 'Natura', 'Imponibile', 'IVA a debito', 'IVA detraibile', 'Credito precedente', 'Interessi', 'Saldo'];
+            $columns = ['Periodo', 'Registro', 'Codice IVA', 'Articolo IVA', 'Aliquota %', 'Natura', 'Riferimento normativo', 'Imponibile', 'IVA a debito', 'IVA detraibile', 'Credito precedente', 'Interessi', 'Saldo'];
             $rows = [];
             $settlements = $this->db->prepare(
                 "SELECT * FROM vat_settlements
@@ -215,11 +215,10 @@ final class OfficialPrintService
             );
             $settlements->execute([$this->organizationId, (int) substr($from, 0, 4), (int) substr($to, 0, 4)]);
             $details = $this->db->prepare(
-                "SELECT d.register_type, d.vat_code, COALESCE(c.description, d.vat_code), COALESCE(c.rate, 0),
-                        COALESCE(c.nature, ''), d.taxable_amount, d.vat_amount, d.deductible_vat
+                "SELECT d.register_type, d.vat_code, d.vat_description, d.vat_rate,
+                        d.vat_nature, d.vat_legal_reference, d.taxable_amount, d.vat_amount, d.deductible_vat
                  FROM vat_settlement_details d
-                 LEFT JOIN vat_codes c ON c.organization_id = d.organization_id AND c.code = d.vat_code
-                 WHERE d.organization_id = ? AND d.settlement_id = ? ORDER BY d.register_type, d.vat_code, c.rate"
+                 WHERE d.organization_id = ? AND d.settlement_id = ? ORDER BY d.register_type, d.vat_code, d.vat_rate, d.vat_nature"
             );
             foreach ($settlements->fetchAll() as $settlement) {
                 [$periodStart, $periodEnd] = $this->settlementPeriod($settlement);
@@ -233,7 +232,7 @@ final class OfficialPrintService
                     $rows[] = [$periodLabel, ...$detail, '', '', ''];
                 }
                 $rows[] = [
-                    $periodLabel . ' · TOTALE LIQUIDAZIONE', '', '', '', '', '', 0,
+                    $periodLabel . ' · TOTALE LIQUIDAZIONE', '', '', '', '', '', '', 0,
                     $settlement['vat_debit'], $settlement['vat_credit'], $settlement['previous_credit'],
                     $settlement['interest_amount'], $settlement['balance'],
                 ];
@@ -249,12 +248,11 @@ final class OfficialPrintService
                 default => "m.register_type = 'CORRISPETTIVI'",
             };
             [$columns, $rows] = $this->query(
-                ['Data', 'Protocollo', 'Controparte', 'Codice IVA', 'Articolo IVA', 'Aliquota %', 'Natura', 'Imponibile', 'IVA', 'IVA dovuta', 'IVA detraibile'],
+                ['Data', 'Protocollo', 'Controparte', 'Codice IVA', 'Articolo IVA', 'Aliquota %', 'Natura', 'Riferimento normativo', 'Imponibile', 'IVA', 'IVA dovuta', 'IVA detraibile'],
                 "SELECT m.movement_date, m.protocol_number, m.counterparty_name, COALESCE(m.vat_code, 'N/D'),
-                        COALESCE(c.description, m.vat_code, 'N/D'), COALESCE(c.rate, 0), COALESCE(c.nature, ''),
+                        COALESCE(m.vat_description, m.vat_code, 'N/D'), m.vat_rate, m.vat_nature, m.vat_legal_reference,
                         m.taxable_amount, m.vat_amount, m.vat_due_amount, m.deductible_vat
                  FROM vat_movements m
-                 LEFT JOIN vat_codes c ON c.organization_id = m.organization_id AND c.code = m.vat_code
                  LEFT JOIN documents d ON d.id = m.document_id AND d.organization_id = m.organization_id
                  WHERE m.organization_id = ? AND {$filter} AND m.movement_date BETWEEN ? AND ?
                  ORDER BY m.movement_date, m.protocol_number, m.id",
@@ -262,11 +260,11 @@ final class OfficialPrintService
             );
             $summary = [];
             foreach ($rows as $row) {
-                $key = ($row[3] ?? 'N/D') . '|' . ($row[5] ?? 0) . '|' . ($row[6] ?? '');
+                $key = ($row[3] ?? 'N/D') . '|' . ($row[4] ?? '') . '|' . ($row[5] ?? 0) . '|' . ($row[6] ?? '') . '|' . ($row[7] ?? '');
                 if (!isset($summary[$key])) {
-                    $summary[$key] = ['', 'RIEPILOGO', '', $row[3], $row[4], $row[5], $row[6], 0.0, 0.0, 0.0, 0.0];
+                    $summary[$key] = ['', 'RIEPILOGO', '', $row[3], $row[4], $row[5], $row[6], $row[7], 0.0, 0.0, 0.0, 0.0];
                 }
-                foreach ([7, 8, 9, 10] as $index) {
+                foreach ([8, 9, 10, 11] as $index) {
                     $summary[$key][$index] += (float) ($row[$index] ?? 0);
                 }
             }
@@ -294,7 +292,7 @@ final class OfficialPrintService
     {
         $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $headers = implode('', array_map(static fn (string $column): string => '<th>' . htmlspecialchars($column, ENT_QUOTES, 'UTF-8') . '</th>', $columns));
-        $numericColumns = ['Dare', 'Avere', 'Saldo', 'Saldo Dare', 'Saldo Avere', 'Aliquota %', 'Imponibile', 'IVA', 'IVA dovuta', 'IVA detraibile', 'Credito precedente', 'Interessi', 'Costo storico', 'Fondo civilistico', 'Valore netto'];
+        $numericColumns = ['Dare', 'Avere', 'Saldo', 'Saldo Dare', 'Saldo Avere', 'Aliquota %', 'Imponibile', 'IVA', 'IVA a debito', 'IVA dovuta', 'IVA detraibile', 'Credito precedente', 'Interessi', 'Costo storico', 'Fondo civilistico', 'Valore netto'];
         $body = '';
         foreach ($rows as $row) {
             $isSummary = in_array('RIEPILOGO', $row, true)

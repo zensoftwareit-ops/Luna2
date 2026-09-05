@@ -654,6 +654,8 @@ final class ImportService
                 'counterparty_name' => $this->pick($row, ['counterparty_name', 'controparte', 'nominativo']),
                 'description' => $this->pick($row, ['description', 'descrizione', 'causale']),
                 'vat_code' => $this->pick($row, ['vat_code', 'codice_iva', 'aliquota']) ?: 'N/D',
+                'vat_rate' => $this->pick($row, ['vat_rate', 'percentuale_iva', 'aliquota_percentuale', 'aliquota']),
+                'vat_nature' => $this->pick($row, ['vat_nature', 'natura_iva', 'natura']),
                 'taxable_amount' => $this->pick($row, ['taxable_amount', 'imponibile']) ?: 0,
                 'vat_amount' => $this->pick($row, ['vat_amount', 'imposta', 'iva']) ?: 0,
                 'vat_due_amount' => $this->pick($row, ['vat_due_amount', 'iva_dovuta']),
