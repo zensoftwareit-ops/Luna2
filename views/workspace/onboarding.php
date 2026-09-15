@@ -1,6 +1,6 @@
 <?php use Luna\Core\Auth; use Luna\Core\Csrf; use Luna\Core\View; $token = View::e(Csrf::token()); $admin = Auth::isAdmin(); ?>
 <section class="page-intro">
-    <div><span class="eyebrow">Configurazione guidata</span><h1>Prontezza operativa</h1><p>Una checklist verificabile per portare l’azienda in produzione senza passaggi impliciti.</p></div>
+    <div><span class="eyebrow">Configurazione guidata</span><h1>Configurazione aziendale</h1><p>Completa i dati aziendali e le impostazioni necessarie per iniziare a lavorare.</p></div>
     <div class="readiness-score"><strong><?= (int) $onboarding['percentage'] ?>%</strong><span><?= (int) $onboarding['completed'] ?>/<?= (int) $onboarding['total'] ?> completati</span></div>
 </section>
 <div class="progress-track" aria-label="Avanzamento configurazione"><span style="width:<?= (int) $onboarding['percentage'] ?>%"></span></div>

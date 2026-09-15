@@ -55,7 +55,7 @@
                 <thead><tr><th>Documento</th><th>Controparte</th><th>Data</th><th class="numeric">Totale</th><th>Stato</th></tr></thead>
                 <tbody>
                 <?php foreach ($recentDocuments as $row): ?>
-                    <tr><td><strong><?= View::e($row['number']) ?></strong><small class="cell-subtitle"><?= View::e(str_replace('_', ' ', $row['document_type'])) ?></small></td><td><?= View::e($row['counterparty_name']) ?></td><td><?= View::date($row['document_date']) ?></td><td class="numeric"><?= View::money($row['total']) ?></td><td><span class="badge status-<?= View::e(strtolower($row['status'])) ?>"><?= View::e($row['status']) ?></span></td></tr>
+                    <tr><td><strong><?= View::e($row['number']) ?></strong><small class="cell-subtitle"><?= View::e(View::label($row['document_type'])) ?></small></td><td><?= View::e($row['counterparty_name']) ?></td><td><?= View::date($row['document_date']) ?></td><td class="numeric"><?= View::money($row['total']) ?></td><td><span class="badge status-<?= View::e(strtolower($row['status'])) ?>"><?= View::e(View::label($row['status'])) ?></span></td></tr>
                 <?php endforeach; ?>
                 <?php if (!$recentDocuments): ?><tr><td colspan="5"><div class="table-empty">Nessun documento recente.</div></td></tr><?php endif; ?>
                 </tbody>
@@ -66,7 +66,7 @@
         <div class="card-header"><div><span class="section-kicker">Agenda</span><h2>Prossime scadenze</h2></div><?php if ($featureStates['accounting']['enabled'] ?? false): ?><a class="text-link" href="/r/tax-deadlines">Apri <?= View::icon('chevron') ?></a><?php endif; ?></div>
         <div class="deadline-list">
             <?php foreach ($deadlines as $row): ?>
-                <article class="deadline-item"><time datetime="<?= View::e($row['due_date']) ?>"><strong><?= date('d', strtotime($row['due_date'])) ?></strong><span><?= mb_strtoupper(date('M', strtotime($row['due_date']))) ?></span></time><div><strong><?= View::e($row['description']) ?></strong><span><?= View::e($row['deadline_type']) ?> · <?= $row['amount'] !== null ? View::money($row['amount']) : 'Importo non indicato' ?></span></div><span class="badge"><?= View::e($row['status']) ?></span></article>
+                <article class="deadline-item"><time datetime="<?= View::e($row['due_date']) ?>"><strong><?= date('d', strtotime($row['due_date'])) ?></strong><span><?= mb_strtoupper(date('M', strtotime($row['due_date']))) ?></span></time><div><strong><?= View::e($row['description']) ?></strong><span><?= View::e($row['deadline_type']) ?> · <?= $row['amount'] !== null ? View::money($row['amount']) : 'Importo non indicato' ?></span></div><span class="badge"><?= View::e(View::label($row['status'])) ?></span></article>
             <?php endforeach; ?>
             <?php if (!$deadlines): ?><div class="panel-empty"><?= View::icon('check') ?><strong>Nessuna scadenza aperta</strong><span>La situazione è aggiornata.</span></div><?php endif; ?>
         </div>

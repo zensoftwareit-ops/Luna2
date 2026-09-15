@@ -302,7 +302,7 @@ try {
     $renderedOperations .= $renderView('operations/calendar', ['accounts'=>[],'events'=>[],'logs'=>[],'users'=>[]]);
     $renderedOperations .= $renderView('operations/reports', ['exports'=>[]]);
     $assert(str_contains($renderedOperations, 'Logistica e magazzino') && str_contains($renderedOperations, 'Consuntivazione commesse'), 'Rendering pannelli operativi incompleto.');
-    $assert(str_contains($renderedOperations, 'Hub e-commerce') && str_contains($renderedOperations, 'Report direzionali XLSX'), 'Rendering integrazioni o report incompleto.');
+    $assert(str_contains($renderedOperations, 'Canali e-commerce') && str_contains($renderedOperations, 'Report direzionali'), 'Rendering integrazioni o report incompleto.');
 } catch (Throwable $exception) {
     $assert(false, 'Errore rendering pannelli operativi: ' . $exception->getMessage());
 }
@@ -340,7 +340,7 @@ try {
         'total' => 0, 'savedViews' => [],
     ]);
     $joinedWorkspace = implode("\n", $renderedWorkspace);
-    $assert(str_contains($joinedWorkspace, 'Centro professionale') && str_contains($joinedWorkspace, 'Prontezza operativa'), 'Rendering workspace professionale incompleto.');
+    $assert(str_contains($joinedWorkspace, 'Centro professionale') && str_contains($joinedWorkspace, 'Configurazione aziendale'), 'Rendering workspace professionale incompleto.');
     $assert(str_contains($joinedWorkspace, 'Operazione massiva') && str_contains($joinedWorkspace, 'Ricerca globale'), 'Rendering UX archivi o ricerca incompleto.');
     if (class_exists(DOMDocument::class)) {
         foreach ($renderedWorkspace as $index => $html) {

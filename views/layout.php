@@ -35,8 +35,8 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=6.3.0">
-    <script src="/assets/app.js?v=6.3.0" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=6.4.0">
+    <script src="/assets/app.js?v=6.4.0" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-page">Vai al contenuto</a>
@@ -104,7 +104,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                         <a class="<?= $active('/accounting/setup') ?>" href="/accounting/setup">Piano dei conti e causali</a>
                         <a class="<?= $active('/r/fixed-assets') ?>" href="/r/fixed-assets">Cespiti</a>
                         <a class="<?= $active('/r/tax-deadlines') ?>" href="/r/tax-deadlines">Scadenze fiscali</a>
-                        <?php if (in_array((string) (Auth::user()['role'] ?? ''), ['OWNER', 'ADMIN'], true)): ?><a class="<?= $active('/settings/endpoints') ?>" href="/settings/endpoints">Endpoint e-invoice</a><?php endif; ?>
+                        <?php if (in_array((string) (Auth::user()['role'] ?? ''), ['OWNER', 'ADMIN'], true)): ?><a class="<?= $active('/settings/endpoints') ?>" href="/settings/endpoints">Fatturazione elettronica</a><?php endif; ?>
                     </div>
                 </details>
             <?php endif; ?>
@@ -124,7 +124,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 <a class="nav-link<?= $active('/operations/hr') ?>" href="/operations/hr"><?= View::icon('id-card') ?><span>Ferie e paghe</span></a>
             <?php endif; ?>
             <?php if ($enabled('ecommerce')): ?>
-                <a class="nav-link<?= $active('/operations/ecommerce') ?>" href="/operations/ecommerce"><?= View::icon('store') ?><span>Hub e-commerce</span></a>
+                <a class="nav-link<?= $active('/operations/ecommerce') ?>" href="/operations/ecommerce"><?= View::icon('store') ?><span>Canali e-commerce</span></a>
             <?php endif; ?>
             <?php if ($enabled('rental')): ?>
                 <a class="nav-link<?= $active('/operations/rental') ?>" href="/operations/rental"><?= View::icon('car') ?><span>Noleggio e ticket</span></a>
@@ -154,7 +154,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
             <?php if ($enabled('imports')): ?>
                 <a class="nav-link<?= $active('/imports') ?>" href="/imports"><?= View::icon('upload') ?><span>Importazioni</span></a>
             <?php endif; ?>
-            <a class="nav-link<?= $active('/workspace/onboarding') ?>" href="/workspace/onboarding"><?= View::icon('check') ?><span>Prontezza operativa</span><small class="nav-progress"><?= (int) $workspace['readiness'] ?>%</small></a>
+            <a class="nav-link<?= $active('/workspace/onboarding') ?>" href="/workspace/onboarding"><?= View::icon('check') ?><span>Configurazione aziendale</span><small class="nav-progress"><?= (int) $workspace['readiness'] ?>%</small></a>
             <?php endif; ?>
         </nav>
 
@@ -192,7 +192,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                         <summary class="icon-button" aria-label="Guida contestuale"><?= View::icon('help') ?></summary>
                         <div class="popover-panel compact-panel">
                             <div class="popover-head"><div><span class="section-kicker">Assistenza</span><strong>Guida rapida</strong></div></div>
-                            <a class="help-link" href="/workspace/onboarding"><?= View::icon('check') ?><span><strong>Configurazione guidata</strong><small>Controlla la prontezza aziendale</small></span></a>
+                            <a class="help-link" href="/workspace/onboarding"><?= View::icon('check') ?><span><strong>Configurazione guidata</strong><small>Verifica le impostazioni aziendali</small></span></a>
                             <a class="help-link" href="/professional#quality"><?= View::icon('alert') ?><span><strong>Qualità dati</strong><small>Verifica anomalie e quadrature</small></span></a>
                             <a class="help-link" href="/imports"><?= View::icon('upload') ?><span><strong>Migrazione Koinos</strong><small>Carica, valida e riconcilia</small></span></a>
                         </div>

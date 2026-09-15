@@ -22,5 +22,5 @@
             </div>
         </article>
     <?php endforeach; ?>
-    <?php if (!$notifications): ?><section class="card empty-state-large"><?= View::icon('check') ?><h2>Tutto sotto controllo</h2><p>Non ci sono notifiche attive per questo workspace.</p></section><?php endif; ?>
+    <?php if (!$notifications): ?><section class="card empty-state-large"><?= View::icon('check') ?><h2>Tutto sotto controllo</h2><p>Non ci sono notifiche attive per questa azienda.</p></section><?php endif; ?>
 </section>

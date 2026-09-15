@@ -10,7 +10,7 @@ $roleLabels = [
 ];
 ?>
 <section class="page-intro compact">
-    <div><span class="eyebrow"><?= $isSuperuser ? 'Amministrazione piattaforma' : 'Amministrazione aziendale' ?></span><h1>Azienda e utenti</h1><p>Configura l’azienda operativa e gestisci gli accessi senza utilizzare comandi esterni.</p></div>
+    <div><span class="eyebrow"><?= $isSuperuser ? 'Amministrazione piattaforma' : 'Amministrazione aziendale' ?></span><h1>Azienda e utenti</h1><p>Gestisci i dati aziendali, gli utenti e le autorizzazioni di accesso.</p></div>
     <?php if ($organization): ?><div class="inline-actions"><a class="button ghost" href="/settings/modules"><?= View::icon('settings') ?> Moduli</a><?php if ($isSuperuser): ?><a class="button ghost" href="/settings/system"><?= View::icon('check') ?> Stato sistema</a><?php endif; ?></div><?php endif; ?>
 </section>
 

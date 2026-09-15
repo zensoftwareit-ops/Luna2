@@ -173,3 +173,42 @@ button,input,select,textarea{font:inherit}.icon{width:20px;height:20px;display:i
   body.print-table .print-target a{color:#111!important;text-decoration:none!important}
 }
 .module-card.not-licensed{opacity:.68;background:#f8fafc}.module-card.not-licensed .module-checkbox{cursor:not-allowed}.module-card.not-licensed .module-state small{color:#b45309}
+
+/* Workspace refinements: screen-only, preserving statutory print layouts. */
+@media screen {
+  .page-intro > div:first-child,.card-header > div:first-child{min-width:0}
+  .page-intro p{max-width:78ch;line-height:1.65}
+  .card-header{flex-wrap:wrap;row-gap:12px}
+  .card-header p{max-width:76ch;line-height:1.6}
+  .page .two-columns > *{min-width:0}
+  .page .form-grid > .form-actions{align-self:end}
+  .page .field small{line-height:1.6;font-size:11px}
+  .page .inline-form,.page .micro-form,.page .filing-actions{flex-wrap:wrap;row-gap:8px}
+  .page .inline-form{align-items:center}
+  .page .micro-form.stack{grid-template-columns:repeat(2,minmax(110px,1fr));max-width:320px}
+  .page .micro-form.stack .table-action{grid-column:1/-1;justify-self:start}
+  .page .micro-form :is(input,select){font-size:11px;min-height:34px}
+  .page .form-grid .field :is(input,select,textarea):disabled{background:#f1f5f9;color:#64748b;cursor:not-allowed}
+  .page .button:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+  .page .document-form .link-button{border:1px solid #f1d2d6;border-radius:8px;background:#fff;padding:8px 10px;font:inherit;font-size:11px;font-weight:600;cursor:pointer}
+  .page .document-form .link-button:hover{background:var(--danger-bg);border-color:var(--danger)}
+  .page .badge{max-width:100%;line-height:1.4}
+  .page .metric-grid.compact .metric{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:8px;min-height:100px}
+  .page .technical-note{overflow-wrap:anywhere;white-space:normal;max-width:36rem}
+  .page .import-preview-cell{min-width:260px;max-width:640px;white-space:normal}
+  .page .import-field-list{display:grid;gap:7px;margin:0;padding:4px 0}
+  .page .import-field-list > div{display:grid;grid-template-columns:minmax(110px,.7fr) minmax(0,1.3fr);gap:12px}
+  .page .import-field-list dt{color:var(--muted);font-size:11px;font-weight:600}
+  .page .import-field-list dd{margin:0;color:var(--ink);overflow-wrap:anywhere}
+  .page .technical-details summary{color:var(--blue-700);font-size:11px;cursor:pointer;padding:3px 0}
+  .page .technical-details[open] .json-preview{margin-top:8px;padding:12px;border:1px solid var(--line);border-radius:8px;background:#f8fafc}
+}
+@media screen and (max-width:1100px){
+  .page .two-columns{grid-template-columns:1fr}
+}
+@media screen and (max-width:640px){
+  .page .card-header{padding:16px}
+  .page .form-actions{flex-wrap:wrap;gap:10px}
+  .page .micro-form.stack{grid-template-columns:1fr}
+  .page .import-field-list > div{grid-template-columns:1fr;gap:2px}
+}

@@ -231,7 +231,7 @@
         .map((row) => row.cells[partyIndex]?.innerText.replace(/\s+/g, ' ').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'it'));
       const tools = document.createElement('div');
       tools.className = 'table-export-tools';
-      tools.innerHTML = '<div class="table-filter-fields"><label><span>Ricerca</span><input data-table-search type="search" placeholder="Cerca nelle righe…"></label></div><div class="table-output-actions"><span>Output</span><button type="button">PDF</button><button type="button">XLS</button><button type="button">CSV</button></div>';
+      tools.innerHTML = '<div class="table-filter-fields"><label><span>Ricerca</span><input data-table-search type="search" placeholder="Cerca nelle righe…"></label></div><div class="table-output-actions"><span>Esporta</span><button type="button">PDF</button><button type="button">XLS</button><button type="button">CSV</button></div>';
       const fields = tools.querySelector('.table-filter-fields');
       if (dateIndex >= 0) fields.insertAdjacentHTML('beforeend', '<label><span>Dal</span><input data-table-date-from type="date"></label><label><span>Al</span><input data-table-date-to type="date"></label>');
       if (partyIndex >= 0 && parties.length > 0 && parties.length <= 100) {

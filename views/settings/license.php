@@ -11,7 +11,7 @@
 
 <div class="settings-grid">
     <section class="card settings-card">
-        <div class="card-header"><div><span class="section-kicker">Installazione</span><h2>Identità e binding</h2></div><?= View::icon('key') ?></div>
+        <div class="card-header"><div><span class="section-kicker">Installazione</span><h2>Installazione associata</h2></div><?= View::icon('key') ?></div>
         <div class="check-list compact-list">
             <div><span>Instance ID</span><small><code><?= View::e($identity['instance_id'] ?? 'Da generare') ?></code></small></div>
             <div><span>UUID</span><small><code><?= View::e($identity['installation_uuid'] ?? 'Da generare') ?></code></small></div>
@@ -49,7 +49,7 @@
 <section class="card data-card">
     <div class="card-header"><div><span class="section-kicker">Audit tecnico</span><h2>Ultime sincronizzazioni</h2></div><span class="score"><?= count($logs) ?></span></div>
     <div class="table-wrap"><table><thead><tr><th>Data</th><th>Operazione</th><th>Esito</th><th>HTTP</th><th>Request ID</th><th>Dettaglio</th></tr></thead><tbody>
-    <?php foreach ($logs as $log): ?><tr><td><?= View::date($log['created_at']) ?></td><td><?= View::e($log['operation']) ?></td><td><span class="badge <?= $log['result'] === 'SUCCESS' ? 'status-active' : 'status-muted' ?>"><?= View::e($log['result']) ?></span></td><td><?= View::e($log['http_status'] ?: '—') ?></td><td><code><?= View::e($log['request_id']) ?></code></td><td><?= View::e($log['error_message'] ?? '—') ?></td></tr><?php endforeach; ?>
+    <?php foreach ($logs as $log): ?><tr><td><?= View::date($log['created_at']) ?></td><td><?= View::e(View::label($log['operation'])) ?></td><td><span class="badge <?= $log['result'] === 'SUCCESS' ? 'status-active' : 'status-muted' ?>"><?= View::e($log['result']) ?></span></td><td><?= View::e($log['http_status'] ?: '—') ?></td><td><code><?= View::e($log['request_id']) ?></code></td><td><?= View::e($log['error_message'] ?? '—') ?></td></tr><?php endforeach; ?>
     <?php if (!$logs): ?><tr><td colspan="6"><div class="table-empty"><strong>Nessuna sincronizzazione</strong><small>Attiva una licenza per iniziare.</small></div></td></tr><?php endif; ?>
     </tbody></table></div>
 </section>

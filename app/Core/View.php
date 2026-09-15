@@ -56,6 +56,45 @@ final class View
         return number_format((float) $value, 2, ',', '.') . ' €';
     }
 
+    /** Presentation only: stored codes and submitted form values remain unchanged. */
+    public static function label(mixed $value): string
+    {
+        $code = (string) $value;
+        return [
+            'DRAFT' => 'Bozza', 'NEW' => 'Nuovo', 'OPEN' => 'Aperto',
+            'ACTIVE' => 'Attivo', 'INACTIVE' => 'Inattivo', 'DISABLED' => 'Disattivato',
+            'ENABLED' => 'Attivato', 'PENDING' => 'In attesa', 'QUEUED' => 'In coda',
+            'PROCESSING' => 'In elaborazione', 'RUNNING' => 'In corso',
+            'COMPLETED' => 'Completato', 'COMPLETED_WITH_ERRORS' => 'Completato con errori',
+            'DONE' => 'Completato', 'ERROR' => 'Errore', 'FAILED' => 'Non riuscito',
+            'RETRY' => 'Nuovo tentativo previsto', 'SUCCESS' => 'Completato',
+            'READY' => 'Pronto', 'REVIEW' => 'Da verificare', 'VALID' => 'Valido',
+            'INVALID' => 'Da correggere', 'VALIDATED' => 'Validato', 'LOCKED' => 'Bloccato',
+            'GENERATED' => 'Generato', 'IMPORTED' => 'Importato', 'ROLLED_BACK' => 'Annullato',
+            'SUBMITTED' => 'Presentato', 'APPROVED' => 'Approvato', 'REJECTED' => 'Rifiutato',
+            'ACCEPTED' => 'Accettato', 'CANCELLED' => 'Annullato', 'CANCELED' => 'Annullato',
+            'CONFIRMED' => 'Confermato', 'CLOSED' => 'Chiuso', 'SENT' => 'Inviato',
+            'DELIVERED' => 'Consegnato', 'RECEIVED' => 'Ricevuto', 'ISSUED' => 'Emesso',
+            'PAID' => 'Pagato', 'PARTIAL' => 'Parziale', 'OVERDUE' => 'Scaduto',
+            'POSTED' => 'Contabilizzato', 'REVERSED' => 'Stornato', 'CALCULATED' => 'Calcolato',
+            'CONNECTED' => 'Connesso', 'DISCONNECTED' => 'Disconnesso', 'SYNCED' => 'Sincronizzato',
+            'PICKING' => 'In preparazione', 'PICKED' => 'Preparato', 'SHIPPED' => 'Spedito',
+            'IN_TRANSIT' => 'In trasferimento', 'RESERVED' => 'Impegnato',
+            'HOLIDAY' => 'Ferie', 'PERMIT' => 'Permesso', 'SICK' => 'Malattia', 'OTHER' => 'Altro',
+            'IMPORTED_PAYSLIPS' => 'Cedolini importati', 'CONFIGURED_RATES' => 'Simulazione gestionale',
+            'PULL_ORDERS' => 'Importa ordini', 'PULL_PRODUCTS' => 'Importa prodotti',
+            'PUSH_STOCK' => 'Aggiorna disponibilità', 'PUSH_PRICES' => 'Aggiorna prezzi',
+            'ACK_ORDER' => 'Conferma ricezione ordine', 'TEST' => 'Test', 'PRODUCTION' => 'Produzione',
+            'customers' => 'Clienti', 'suppliers' => 'Fornitori', 'chart_of_accounts' => 'Piano dei conti',
+            'journal_entries' => 'Prima nota', 'payments' => 'Pagamenti', 'open_items' => 'Partite aperte',
+            'vat_movements' => 'Movimenti IVA', 'fixed_assets' => 'Cespiti', 'bank_transactions' => 'Movimenti bancari',
+            'documents' => 'Documenti', 'products' => 'Prodotti', 'fatturapa' => 'Fatture elettroniche',
+            'QUOTE' => 'Preventivo', 'SALES_ORDER' => 'Ordine cliente', 'DELIVERY_NOTE' => 'DDT',
+            'SALES_INVOICE' => 'Fattura attiva', 'PURCHASE_INVOICE' => 'Fattura passiva',
+            'CREDIT_NOTE' => 'Nota di credito', 'PROFORMA' => 'Proforma',
+        ][$code] ?? $code;
+    }
+
     public static function date(mixed $value): string
     {
         if (!$value) {
