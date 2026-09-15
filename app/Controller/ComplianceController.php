@@ -35,6 +35,9 @@ final class ComplianceController extends BaseController
              WHERE s.organization_id = ? ORDER BY s.posting_date DESC LIMIT 300', [$organizationId]
         );
         $categories = $this->query('SELECT * FROM fixed_asset_categories WHERE organization_id = ? ORDER BY code', [$organizationId]);
+        $registerYears = $this->query('SELECT y.*, a.asset_code, a.description FROM fixed_asset_register_years y
+            JOIN fixed_assets a ON a.id = y.fixed_asset_id AND a.organization_id = y.organization_id
+            WHERE y.organization_id = ? AND y.fiscal_year = ? ORDER BY a.asset_code', [$organizationId, $year]);
         $assets = $this->query(
             'SELECT a.*, c.code AS category_code FROM fixed_assets a LEFT JOIN fixed_asset_categories c ON c.id = a.category_id
              WHERE a.organization_id = ? ORDER BY a.asset_code', [$organizationId]
@@ -66,7 +69,7 @@ final class ComplianceController extends BaseController
         unset($row);
         $this->view->render('accounting/compliance', compact(
             'year', 'adjustments', 'lipe', 'annual', 'closingRuns', 'schedules', 'categories', 'assets',
-            'depreciations', 'accounts', 'statements', 'statementTotals', 'periodStart', 'periodEnd'
+            'depreciations', 'accounts', 'statements', 'statementTotals', 'periodStart', 'periodEnd', 'registerYears'
         ) + ['title' => 'Adempimenti e chiusure']);
     }
 
@@ -86,6 +89,11 @@ final class ComplianceController extends BaseController
     public function asset(): never { $this->perform(fn (): int => $this->assets()->saveAsset($_POST, !empty($_POST['id']) ? (int) $_POST['id'] : null), 'Cespite salvato.', 'SAVE', 'fixed_assets'); }
     public function calculateDepreciation(string $id): never { $this->perform(fn (): int => $this->assets()->calculate((int) $id, (int) ($_POST['year'] ?? 0)), 'Quota di ammortamento calcolata.', 'CALCULATE', 'depreciation_entries'); }
     public function postDepreciation(string $id): never { $this->perform(fn (): int => $this->assets()->postDepreciation((int) $id), 'Ammortamento contabilizzato.', 'POST', 'depreciation_entries'); }
+
+    public function assetRegisterYear(): never
+    {
+        $this->perform(fn (): int => $this->assets()->saveRegisterYear($_POST), 'Scheda annuale cespite salvata.', 'REGISTER_YEAR', 'fixed_assets');
+    }
 
     private function perform(callable $operation, string $success, string $auditAction, string $entity): never
     {

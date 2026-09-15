@@ -88,6 +88,21 @@ final class ProfessionalController extends BaseController
         }, 'Fascicolo di controllo creato.', 'CREATE', 'compliance_filing_runs');
     }
 
+    public function downloadPrintDossier(string $id): never
+    {
+        $this->authorize();
+        $path = $this->prints()->dossier((int) $id);
+        try {
+            header('Content-Type: application/zip');
+            header('Cache-Control: private, no-store');
+            header('Content-Length: ' . filesize($path));
+            header('Content-Disposition: attachment; filename="fascicolo-stampa-' . (int) $id . '.zip"');
+            header('X-Content-Type-Options: nosniff');
+            readfile($path);
+        } finally { unlink($path); }
+        exit;
+    }
+
     public function transitionFiling(string $id): never
     {
         $this->authorize();

@@ -107,6 +107,8 @@ final class Application
         $router->add('POST', '/professional/prints/{id}/validate', [ProfessionalController::class, 'validatePrint']);
         $router->add('POST', '/professional/prints/{id}/lock', [ProfessionalController::class, 'lockPrint']);
         $router->add('GET', '/professional/prints/{id}/download', [ProfessionalController::class, 'downloadPrint']);
+        $router->add('GET', '/professional/prints/{id}/dossier', [ProfessionalController::class, 'downloadPrintDossier']);
+        $router->add('POST', '/accounting/compliance/asset-register-year', [ComplianceController::class, 'assetRegisterYear']);
         $router->add('POST', '/professional/filings', [ProfessionalController::class, 'createFiling']);
         $router->add('POST', '/professional/filings/{id}/status', [ProfessionalController::class, 'transitionFiling']);
         $router->add('GET', '/professional/filings/{id}/download', [ProfessionalController::class, 'downloadFiling']);

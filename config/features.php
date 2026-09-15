@@ -55,7 +55,7 @@ return [
             'accounting_open_items', 'payment_allocations', 'vat_cash_events', 'bank_accounts', 'bank_transactions',
             'reconciliation_links', 'vat_adjustments', 'lipe_communications', 'vat_annual_summaries',
             'accounting_period_locks', 'accounting_closing_runs', 'accounting_adjustment_schedules',
-            'tax_deadlines', 'fixed_assets', 'fixed_asset_categories', 'depreciation_entries',
+            'tax_deadlines', 'fixed_assets', 'fixed_asset_categories', 'depreciation_entries', 'fixed_asset_register_years',
             'withholding_records', 'api_endpoint_configs',
         ],
         'default' => true,

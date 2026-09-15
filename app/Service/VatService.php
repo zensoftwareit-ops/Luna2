@@ -140,6 +140,9 @@ final class VatService
         $operation = strtoupper((string) ($data['operation_type'] ?? 'DOMESTIC'));
         $collectability = strtoupper((string) ($data['collectability'] ?? 'IMMEDIATE'));
         $date = $this->isoDate($data['movement_date'] ?? date('Y-m-d'));
+        $documentReference = trim((string) ($data['document_reference'] ?? ''));
+        $documentDate = !empty($data['document_reference_date']) ? $this->isoDate($data['document_reference_date'])->format('Y-m-d') : null;
+        if (strlen($documentReference) > 100) { throw new InvalidArgumentException('Numero documento troppo lungo.'); }
         $taxable = $this->decimal($data['taxable_amount'] ?? 0);
         $vat = $this->decimal($data['vat_amount'] ?? 0);
         $deductibleInput = trim((string) ($data['deductible_vat'] ?? ''));
@@ -199,6 +202,8 @@ final class VatService
                 (int) $date->format('Y'), (int) $date->format('n'), $this->userId,
             ]);
             $movementId = (int) $this->db->lastInsertId();
+            $this->db->prepare('UPDATE vat_movements SET document_reference = ?, document_reference_date = ? WHERE id = ? AND organization_id = ?')
+                ->execute([$documentReference ?: null, $documentDate, $movementId, $this->organizationId]);
             $this->invalidateCalculatedPeriods((int) $date->format('Y'), (int) $date->format('n'));
             if ($ownsTransaction) {
                 $this->db->commit();
@@ -371,17 +376,24 @@ final class VatService
         }
     }
 
-    public function updateSettlementStatus(int $settlementId, string $status, ?string $paymentDate = null): void
+    public function updateSettlementStatus(int $settlementId, string $status, ?string $paymentDate = null, ?string $paymentReference = null): void
     {
         $status = strtoupper($status);
         if (!in_array($status, ['CALCULATED', 'SUBMITTED', 'PAID'], true)) {
             throw new InvalidArgumentException('Stato liquidazione non valido.');
         }
+        if ($status === 'PAID') {
+            $this->isoDate($paymentDate ?: date('Y-m-d'));
+            if (trim((string) $paymentReference) === '' || strlen((string) $paymentReference) > 190) {
+                throw new InvalidArgumentException('Indicare il riferimento del versamento F24 (massimo 190 caratteri).');
+            }
+        }
         $statement = $this->db->prepare(
-            "UPDATE vat_settlements SET status = ?, payment_date = ?, updated_by = ?, updated_at = NOW()
+            "UPDATE vat_settlements SET status = ?, payment_date = ?, payment_reference = ?, updated_by = ?, updated_at = NOW()
              WHERE id = ? AND organization_id = ? AND status <> 'DRAFT'"
         );
-        $statement->execute([$status, $status === 'PAID' ? ($paymentDate ?: date('Y-m-d')) : null, $this->userId, $settlementId, $this->organizationId]);
+        $statement->execute([$status, $status === 'PAID' ? ($paymentDate ?: date('Y-m-d')) : null,
+            $status === 'PAID' ? trim((string) $paymentReference) : null, $this->userId, $settlementId, $this->organizationId]);
         if ($statement->rowCount() === 0) {
             throw new InvalidArgumentException('Liquidazione non trovata o non calcolata.');
         }

@@ -15,6 +15,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 final class TabularExportService
 {
+    public function __construct(private readonly array $company = []) {}
     /**
      * @param array<int,array{key:string,label:string,type?:string}> $columns
      * @param array<int,array<string,mixed>> $rows
@@ -30,6 +31,15 @@ final class TabularExportService
         ?string $filename = null,
     ): never {
         $format = strtolower($format);
+        if ($this->company !== []) {
+            $organization = implode(' · ', array_filter([
+                $this->company['business_name'] ?? $organization,
+                'P.IVA ' . ($this->company['vat_number'] ?? 'non indicata'),
+                'CF ' . ($this->company['tax_code'] ?? 'non indicato'),
+                implode(' ', array_filter([$this->company['address'] ?? '', $this->company['postal_code'] ?? '',
+                    $this->company['city'] ?? '', $this->company['province'] ?? ''])),
+            ]));
+        }
         if (!in_array($format, ['pdf', 'xlsx', 'csv'], true)) {
             throw new \InvalidArgumentException('Formato di esportazione non supportato.');
         }
@@ -173,6 +183,9 @@ final class TabularExportService
         $pdf->loadHtml($html, 'UTF-8');
         $pdf->setPaper('A4', 'landscape');
         $pdf->render();
+        $canvas = $pdf->getCanvas();
+        $canvas->page_text(22, $canvas->get_height() - 18, 'Pagina {PAGE_NUM} / {PAGE_COUNT}',
+            $pdf->getFontMetrics()->getFont('DejaVu Sans'), 7);
         $pdf->stream($filename . '.pdf', ['Attachment' => true]);
         exit;
     }

@@ -21,7 +21,7 @@ $proposed = count($suggestions);
 </section>
 
 <section class="professional-section" id="prints">
-    <div class="section-heading"><div><span class="section-kicker">Archivio immutabile</span><h2>Stampe numerate e validate</h2><p>PDF con progressivo, hash SHA-256, validazione e blocco definitivo.</p></div></div>
+    <div class="section-heading"><div><span class="section-kicker">Archivio controllato</span><h2>Stampe numerate e validate</h2><p>PDF con pagine progressive per anno, dati storici e fascicolo scaricabile. Completare gli eventuali dati mancanti e rigenerare prima della validazione professionale. Il fascicolo va affidato alla procedura di conservazione concordata con il commercialista.</p></div></div>
     <div class="content-grid">
         <section class="card span-4">
             <div class="card-header"><div><h3>Genera stampa</h3><p class="card-description">Il contenuto viene prodotto dai dati contabilizzati.</p></div></div>
@@ -38,7 +38,7 @@ $proposed = count($suggestions);
             <div class="table-wrap"><table><thead><tr><th>Progressivo</th><th>Stampa</th><th>Periodo</th><th>Righe</th><th>Stato</th><th>Azioni</th></tr></thead><tbody>
                 <?php foreach ($prints as $row): ?><tr>
                     <td class="primary-cell">#<?= str_pad((string) $row['sequence_number'], 6, '0', STR_PAD_LEFT) ?></td><td><?= View::e($row['title']) ?><small class="cell-subtitle"><?= View::e($row['file_sha256'] ? substr((string) $row['file_sha256'], 0, 12) . '…' : 'PDF non disponibile') ?></small></td><td><?= View::date($row['period_start']) ?> – <?= View::date($row['period_end']) ?></td><td><?= (int) $row['row_count'] ?></td><td><span class="badge status-<?= View::e(strtolower((string) $row['status'])) ?>"><?= View::e($row['status']) ?></span></td>
-                    <td class="row-actions"><?php if ($row['file_path']): ?><a class="table-action" href="/professional/prints/<?= (int) $row['id'] ?>/download">PDF</a><?php endif; ?>
+                    <td class="row-actions"><?php if ($row['file_path']): ?><a class="table-action" href="/professional/prints/<?= (int) $row['id'] ?>/download">PDF</a><?php if (!empty($row['snapshot_sha256'])): ?><a class="table-action" href="/professional/prints/<?= (int) $row['id'] ?>/dossier">Fascicolo ZIP</a><small>Pagine <?= (int) $row['first_page'] ?>–<?= (int) $row['first_page'] + (int) $row['page_count'] - 1 ?></small><?php endif; ?><?php endif; ?>
                         <?php if ($row['status'] === 'GENERATED'): ?><form method="post" action="/professional/prints/<?= (int) $row['id'] ?>/validate" class="micro-form"><input type="hidden" name="_token" value="<?= $token ?>"><input name="professional_validation_reference" placeholder="Rif. validazione" aria-label="Riferimento validazione stampa" required><button class="table-action" type="submit">Valida</button></form><?php endif; ?>
                         <?php if ($row['status'] === 'VALIDATED'): ?><form method="post" action="/professional/prints/<?= (int) $row['id'] ?>/lock" data-confirm="Dopo il blocco la stampa resterà immutabile. Continuare?"><input type="hidden" name="_token" value="<?= $token ?>"><button class="table-action" type="submit">Blocca</button></form><?php endif; ?>
                     </td>

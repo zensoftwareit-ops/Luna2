@@ -214,6 +214,51 @@ final class AssetService
         }
     }
 
+    public function saveRegisterYear(array $data): int
+    {
+        $assetId = (int) ($data['fixed_asset_id'] ?? 0);
+        $asset = $this->asset($assetId, false);
+        $year = (int) ($data['year'] ?? 0);
+        $reference = trim((string) ($data['evidence_reference'] ?? ''));
+        if ($year < (int) substr($asset['purchase_date'], 0, 4) || $year > 2200 || $reference === '' || strlen($reference) > 500) {
+            throw new InvalidArgumentException('Indicare esercizio valido e riferimento alla verifica della scheda cespite.');
+        }
+        $fields = ['original_cost','revaluations','writedowns','civil_opening_fund','tax_opening_fund',
+            'civil_rate','tax_rate','civil_quota','tax_quota'];
+        $values = [];
+        foreach ($fields as $field) {
+            $raw = trim((string) ($data[$field] ?? ''));
+            if (!preg_match('/^\d+(?:[.,]\d{1,4})?$/D', $raw)) {
+                throw new InvalidArgumentException('Importo non valido: ' . $field . '. Usare numeri senza separatore delle migliaia.');
+            }
+            $values[$field] = round((float) str_replace(',', '.', $raw), str_ends_with($field, '_rate') ? 4 : 2);
+        }
+        $base = $values['original_cost'] + $values['revaluations'] - $values['writedowns'];
+        foreach (['civil', 'tax'] as $prefix) {
+            if ($base < 0 || $values[$prefix . '_rate'] > 100
+                || $values[$prefix . '_opening_fund'] + $values[$prefix . '_quota'] > $base + 0.005) {
+                throw new InvalidArgumentException('Fondo e quota non possono superare il valore del cespite; coefficiente massimo 100%.');
+            }
+        }
+        $disposal = !empty($data['disposal_date']) ? $this->date((string) $data['disposal_date']) : null;
+        if ($disposal && ($disposal < $asset['purchase_date'] || $disposal > $year . '-12-31')) {
+            throw new InvalidArgumentException('Data eliminazione non coerente con la scheda annuale.');
+        }
+        $proceeds = trim((string) ($data['disposal_proceeds'] ?? ''));
+        if ($proceeds !== '' && (!preg_match('/^\d+(?:[.,]\d{1,2})?$/D', $proceeds) || !$disposal)) {
+            throw new InvalidArgumentException('Corrispettivo eliminazione non valido o data mancante.');
+        }
+        $assignments = implode(', ', array_map(static fn ($field): string => "$field = VALUES($field)", $fields));
+        $statement = $this->db->prepare('INSERT INTO fixed_asset_register_years
+            (organization_id, fixed_asset_id, fiscal_year, ' . implode(', ', $fields) . ', disposal_date, disposal_proceeds, evidence_reference, updated_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE ' . $assignments . ', disposal_date = VALUES(disposal_date),
+            disposal_proceeds = VALUES(disposal_proceeds), evidence_reference = VALUES(evidence_reference), updated_by = VALUES(updated_by), updated_at = CURRENT_TIMESTAMP');
+        $statement->execute([$this->organizationId, $assetId, $year, ...array_values($values), $disposal,
+            $proceeds !== '' ? (float) str_replace(',', '.', $proceeds) : null, $reference, $this->userId]);
+        return $assetId;
+    }
+
     private function asset(int $assetId, bool $forUpdate): array
     {
         $statement = $this->db->prepare(

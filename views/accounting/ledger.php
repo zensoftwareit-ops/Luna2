@@ -4,6 +4,7 @@ $query = http_build_query(array_filter(['from' => $from, 'to' => $to, 'q' => $se
 ?>
 <section class="page-intro compact"><div><span class="eyebrow">Mastrino contabile</span><h1><?= View::e($account['code'] . ' · ' . $account['name']) ?></h1><p>Saldo iniziale al <?= View::date($from) ?>: <strong><?= View::money($account['opening_balance']) ?></strong></p></div><a class="button" href="/accounting/trial-balance?from=<?= View::e($from) ?>&to=<?= View::e($to) ?>">← Bilancio di verifica</a></section>
 <section class="list-toolbar exportable-toolbar">
+    <p>Totali dell’intero periodo: Dare <?= View::money($account['period_debit']) ?> · Avere <?= View::money($account['period_credit']) ?> · Saldo finale <?= View::money($account['closing_balance']) ?>. La ricerca limita le righe visibili; i saldi includono tutti i movimenti.</p>
     <form method="get" class="search-form filter-form">
         <span class="search-control"><?= View::icon('search') ?><input type="search" name="q" value="<?= View::e($search) ?>" placeholder="Protocollo, documento, controparte…"></span>
         <label>Conto <select onchange="if(this.value)location.href='/accounting/ledger/'+this.value+'?from=<?= View::e($from) ?>&to=<?= View::e($to) ?>'"><?php foreach ($accounts as $option): ?><option value="<?= (int) $option['id'] ?>" <?= (int) $option['id'] === (int) $account['id'] ? 'selected' : '' ?>><?= View::e($option['code'] . ' · ' . $option['name']) ?></option><?php endforeach; ?></select></label>
