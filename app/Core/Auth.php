@@ -99,6 +99,11 @@ final class Auth
         $_SESSION['managed_organization_name'] = $businessName;
     }
 
+    public static function clearManagedOrganization(): void
+    {
+        unset($_SESSION['managed_organization_id'], $_SESSION['managed_organization_name']);
+    }
+
     public static function isSuperuser(): bool
     {
         return ($_SESSION['user']['role'] ?? '') === 'SUPERUSER';

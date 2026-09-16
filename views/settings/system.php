@@ -16,3 +16,19 @@
     <section class="card settings-card"><div class="card-header"><div><span class="section-kicker">Filesystem</span><h2>Directory scrivibili</h2></div></div><div class="check-list compact-list"><?php foreach ($runtime['directories'] as $directory => $writable): ?><div><span class="check-dot <?= $writable ? 'ok' : 'missing' ?>"><?= View::icon($writable ? 'check' : 'alert') ?></span><code>storage/<?= View::e($directory) ?></code><small><?= $writable ? 'Scrivibile' : 'Permessi da correggere' ?></small></div><?php endforeach; ?></div></section>
     <section class="card settings-card"><div class="card-header"><div><span class="section-kicker">Moduli</span><h2>Tabelle richieste</h2></div></div><div class="check-list compact-list"><?php foreach ($tables as $key => $status): ?><div><span class="check-dot <?= $status['ready'] ? 'ok' : 'missing' ?>"><?= View::icon($status['ready'] ? 'check' : 'alert') ?></span><span><?= View::e($config['features'][$key]['label'] ?? $key) ?></span><small><?= $status['ready'] ? 'Pronto' : count($status['missing']) . ' mancanti' ?></small></div><?php endforeach; ?></div></section>
 </div>
+
+<section class="card settings-card system-danger-zone">
+    <div class="card-header">
+        <div><span class="section-kicker danger-text">Operazione irreversibile</span><h2>Ripristino completo del sistema</h2><p>Elimina tutti i dati operativi, contabili, fiscali, documentali e i file generati. Restano identità installazione, migrazioni, licenza di installazione e superuser.</p></div>
+        <?= View::icon('alert') ?>
+    </div>
+    <div class="alert alert-error"><?= View::icon('alert') ?><span>Prima di procedere crea un backup completo del database e della cartella <code>storage</code>. Il ripristino non dispone di annullamento.</span></div>
+    <form method="post" action="/settings/system/reset" class="form-grid" data-confirm="Confermi il ripristino completo di Luna2? Questa operazione non può essere annullata.">
+        <input type="hidden" name="_token" value="<?= View::e(\Luna\Core\Csrf::token()) ?>">
+        <label class="field full-width"><span>Gestione aziende e utenti</span><select name="user_policy" required><option value="KEEP">Mantieni <?= (int) $resetCounts['organizations'] ?> aziende e <?= (int) $resetCounts['users'] ?> utenti; elimina tutti gli altri dati</option><option value="DELETE">Elimina aziende e utenti; conserva soltanto il superuser</option></select><small>Con “Mantieni”, restano soltanto le anagrafiche azienda e le credenziali utente; preferenze, moduli e dati operativi vengono azzerati.</small></label>
+        <label class="field"><span>Password corrente del superuser</span><input type="password" name="current_password" autocomplete="current-password" required></label>
+        <label class="field"><span>Digita esattamente RESET LUNA2</span><input name="confirmation" autocomplete="off" pattern="RESET LUNA2" required></label>
+        <label class="field checkbox-field full-width"><input type="checkbox" name="backup_confirmed" value="1" required><span>Confermo di avere un backup recente e verificato del database e della cartella storage.</span></label>
+        <div class="form-actions full-width"><button class="button danger" type="submit"><?= View::icon('alert') ?> Ripristina completamente Luna2</button></div>
+    </form>
+</section>

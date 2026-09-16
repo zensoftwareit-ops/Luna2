@@ -138,6 +138,14 @@ $platformController = (string) file_get_contents($base . '/app/Controller/Platfo
 $settingsController = (string) file_get_contents($base . '/app/Controller/SettingsController.php');
 $auth = (string) file_get_contents($base . '/app/Core/Auth.php');
 $assert(str_contains($platformController, 'requireSuperuser()'), 'Setup piattaforma non protetto dal ruolo superuser.');
+$systemResetService = (string) file_get_contents($base . '/app/Service/SystemResetService.php');
+$systemView = (string) file_get_contents($base . '/views/settings/system.php');
+$assert(str_contains($settingsController, 'function resetSystem()') && str_contains($settingsController, 'requireSuperuser()'), 'Ripristino sistema non protetto dal superuser.');
+$assert(str_contains($settingsController, "password_verify(\$password, \$hash)") && str_contains($settingsController, "'RESET LUNA2'"), 'Conferme forti del ripristino sistema mancanti.');
+$assert(str_contains($systemResetService, "'migrations'") && str_contains($systemResetService, "'instance_identity'") && str_contains($systemResetService, "'licenses'"), 'Dati tecnici protetti dal ripristino incompleti.');
+$assert(str_contains($systemResetService, "DELETE FROM users WHERE id <> ?") && str_contains($systemResetService, "DELETE FROM organizations WHERE id <> ?"), 'Modalità solo superuser incompleta.');
+$assert(str_contains($systemView, 'name="user_policy"') && str_contains($systemView, 'name="backup_confirmed"'), 'Scelta conservazione utenti o conferma backup mancanti.');
+$assert(str_contains($application, "'/settings/system/reset'") && str_contains($application, "[SettingsController::class, 'resetSystem']"), 'Rotta protetta del ripristino sistema mancante.');
 $assert(str_contains($settingsController, 'requireOrganizationAdministrator()'), 'Gestione moduli non disponibile agli amministratori aziendali.');
 $assert(str_contains($platformController, "requireRoles(['OWNER', 'ADMIN'])"), 'Pannello azienda e utenti non disponibile agli amministratori aziendali.');
 $assert(str_contains($auth, "=== 'SUPERUSER'"), 'Ruolo SUPERUSER non gestito dall’autenticazione.');

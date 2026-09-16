@@ -251,6 +251,7 @@ final class Application
         $router->add('GET', '/settings/modules', [SettingsController::class, 'modules']);
         $router->add('POST', '/settings/modules', [SettingsController::class, 'saveModules']);
         $router->add('GET', '/settings/system', [SettingsController::class, 'system']);
+        $router->add('POST', '/settings/system/reset', [SettingsController::class, 'resetSystem']);
         $router->add('GET', '/settings/license', [LicenseController::class, 'index'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
         $router->add('POST', '/settings/license/activate', [LicenseController::class, 'activate'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
         $router->add('POST', '/settings/license/sync', [LicenseController::class, 'sync'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
