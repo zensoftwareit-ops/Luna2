@@ -16,9 +16,10 @@ final class ImportService
 {
     private const TARGETS = [
         'customers', 'suppliers', 'chart_of_accounts', 'journal_entries', 'payments', 'open_items',
-        'vat_movements', 'fixed_assets', 'bank_transactions', 'fatturapa',
+        'vat_movements', 'fixed_assets', 'bank_transactions', 'fatturapa', 'datev_koinos',
     ];
-    private const EXTENSIONS = ['csv', 'txt', 'xlsx', 'xml', 'p7m', 'zip'];
+    private const EXTENSIONS = ['csv', 'txt', 'xls', 'xlsx', 'xml', 'p7m', 'zip', 'pdf'];
+    private int $unpackedBytes = 0;
 
     public function __construct(
         private readonly PDO $db,
@@ -42,8 +43,10 @@ final class ImportService
         $originalName = basename((string) ($file['name'] ?? 'import'));
         $extension = mb_strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
         if (!in_array($extension, self::EXTENSIONS, true)) {
-            throw new InvalidArgumentException('Formato non ammesso. Usa CSV, XLSX, XML FatturaPA o ZIP.');
+            throw new InvalidArgumentException('Formato non ammesso. Usa CSV, XLS, XLSX, XML FatturaPA, PDF o ZIP.');
         }
+        if ($extension === 'pdf' && $target !== 'datev_koinos') throw new InvalidArgumentException('Per i PDF usa “Originali DATEV Koinos”: il registro viene archiviato, non trasformato automaticamente in movimenti.');
+        $this->unpackedBytes = 0;
 
         $uuid = $this->uuid();
         $directory = $this->storagePath . '/imports/' . $uuid;
@@ -79,13 +82,13 @@ final class ImportService
 
     public function commit(int $batchId): array
     {
-        $batch = $this->batch($batchId, true);
-        if (!in_array($batch['status'], ['READY', 'ERROR'], true)) {
-            throw new InvalidArgumentException('Il lotto non è pronto per l’importazione.');
-        }
-
         $this->db->beginTransaction();
+        $started = false;
         try {
+            $batch = $this->batch($batchId, true);
+            if (!in_array($batch['status'], ['READY', 'ERROR'], true)) throw new InvalidArgumentException('Il lotto non è pronto per l’importazione.');
+            if ($batch['import_type'] === 'datev_koinos' && $batch['status'] !== 'READY') throw new InvalidArgumentException('Analisi Koinos incompleta: correggere il file e caricare un nuovo lotto. Nessuna acquisizione parziale consentita.');
+            $started = true;
             $this->db->prepare("UPDATE import_batches SET status = 'IMPORTING', updated_at = NOW() WHERE id = ?")->execute([$batchId]);
             $statement = $this->db->prepare("SELECT * FROM import_rows WHERE batch_id = ? AND organization_id = ? AND status IN ('STAGED','VALID') ORDER BY source_file_id, source_row_number");
             $statement->execute([$batchId, $this->organizationId]);
@@ -101,6 +104,7 @@ final class ImportService
                 'fixed_assets' => $this->commitFixedAssets($batchId, $rows),
                 'bank_transactions' => $this->commitBankTransactions($batchId, $rows),
                 'fatturapa' => $this->commitFatturaPa($batchId, $rows),
+                'datev_koinos' => (new DatevKoinosImport($this->db, $this->organizationId, $this->userId))->commit($batchId, $rows),
                 default => throw new InvalidArgumentException('Importazione non gestita.'),
             };
             $status = $result['errors'] > 0 ? 'COMPLETED_WITH_ERRORS' : 'COMPLETED';
@@ -112,7 +116,7 @@ final class ImportService
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
-            $this->db->prepare("UPDATE import_batches SET status = 'ERROR', error_message = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?")
+            if ($started) $this->db->prepare("UPDATE import_batches SET status = 'ERROR', error_message = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?")
                 ->execute([mb_substr($exception->getMessage(), 0, 2000), $batchId, $this->organizationId]);
             throw $exception;
         }
@@ -134,6 +138,7 @@ final class ImportService
     public function rollback(int $batchId): int
     {
         $batch = $this->batch($batchId, true);
+        if ($batch['import_type'] === 'datev_koinos') throw new InvalidArgumentException('Le acquisizioni Koinos sono tracciate e non prevedono cancellazione massiva. Per annullare una migrazione usare il backup di collaudo.');
         if (!in_array($batch['status'], ['COMPLETED', 'COMPLETED_WITH_ERRORS'], true)) {
             throw new InvalidArgumentException('Questo lotto non può essere annullato.');
         }
@@ -192,6 +197,13 @@ final class ImportService
         );
         $fileStatement->execute([$this->organizationId, $batchId, basename($name), $extension, hash_file('sha256', $path), filesize($path)]);
         $fileId = (int) $this->db->lastInsertId();
+        if ($target === 'datev_koinos') {
+            $root = realpath($this->storagePath . '/imports');
+            $real = realpath($path);
+            if (!$root || !$real || !str_starts_with($real, $root . DIRECTORY_SEPARATOR)) throw new InvalidArgumentException('Percorso sorgente non valido.');
+            $relative = str_replace(DIRECTORY_SEPARATOR, '/', substr($real, strlen($root) + 1));
+            $this->db->prepare('UPDATE import_files SET stored_relative_path=? WHERE id=? AND organization_id=?')->execute([$relative,$fileId,$this->organizationId]);
+        }
 
         if ($extension === 'zip') {
             $zip = new ZipArchive();
@@ -199,6 +211,7 @@ final class ImportService
                 throw new InvalidArgumentException('Archivio ZIP non leggibile.');
             }
             $total = 0;
+            if ($zip->numFiles > 10000) { $zip->close(); throw new InvalidArgumentException('Archivio con troppi file.'); }
             for ($index = 0; $index < $zip->numFiles; $index++) {
                 $stat = $zip->statIndex($index);
                 $entryName = (string) ($stat['name'] ?? '');
@@ -206,7 +219,8 @@ final class ImportService
                     continue;
                 }
                 $total += (int) ($stat['size'] ?? 0);
-                if ($total > $maxBytes * 4) {
+                $this->unpackedBytes += (int) ($stat['size'] ?? 0);
+                if ($total > $maxBytes * 4 || $this->unpackedBytes > $maxBytes * 4) {
                     $zip->close();
                     throw new InvalidArgumentException('Archivio ZIP troppo grande dopo la decompressione.');
                 }
@@ -218,16 +232,39 @@ final class ImportService
                 if ($content === false) {
                     continue;
                 }
-                $childPath = dirname($path) . '/entry-' . $index . '.' . $entryExtension;
-                file_put_contents($childPath, $content, LOCK_EX);
+                $childPath = dirname($path) . '/entry-' . $fileId . '-' . $index . '.' . $entryExtension;
+                if (file_put_contents($childPath, $content, LOCK_EX) === false) throw new RuntimeException('Impossibile archiviare il contenuto ZIP.');
                 $this->stageFile($batchId, $childPath, basename($entryName), $target, $maxBytes, $depth + 1);
             }
             $zip->close();
             return;
         }
 
+        if ($target === 'datev_koinos' && in_array($extension, ['csv','xls','xlsx','pdf'],true)) {
+            if ($extension === 'pdf' && !str_starts_with((string)file_get_contents($path,false,null,0,5),'%PDF-')) throw new InvalidArgumentException('Il file non è un PDF valido.');
+            if ($extension === 'pdf') {
+                $lowerName = mb_strtolower($name);
+                $kind = str_contains($lowerName, 'libro giornale') ? 'journal_pdf'
+                    : (str_contains($lowerName, 'cespit') || str_contains($lowerName, 'ammortizzabil') ? 'asset_register_pdf' : 'vat_pdf');
+                $label = match ($kind) {
+                    'journal_pdf' => 'Libro giornale conservato come evidenza; le righe operative vanno caricate con il tracciato contabile normalizzato e quadrato.',
+                    'asset_register_pdf' => 'Registro cespiti conservato come evidenza dei valori civili e fiscali annuali.',
+                    default => 'Registro IVA conservato come evidenza e controllo dei movimenti importati.',
+                };
+                $records = [['kind'=>$kind,'key'=>hash_file('sha256',$path),'line'=>1,'data'=>['filename'=>$name,'checksum_sha256'=>hash_file('sha256',$path)],'raw'=>[], 'issue'=>$label]];
+            } else {
+                $records = (new DatevKoinosReader())->read($path, $name);
+            }
+            foreach ($records as $record) $this->insertStagedRow($batchId,$fileId,$record['line'],$record['raw'],$record);
+            return;
+        }
+        if ($extension === 'pdf') throw new InvalidArgumentException('PDF ammessi solo nel percorso Originali DATEV Koinos.');
+        if ($target === 'datev_koinos' && $extension === 'txt') throw new InvalidArgumentException('Tracciato TXT non riconosciuto come originale Koinos.');
+        // Invoice export ZIPs also contain an XLS index: never treat it as another invoice.
+        if ($target === 'fatturapa' && in_array($extension,['xls','xlsx'],true)) return;
+
         if ($extension === 'xml') {
-            $this->stageFatturaPa($batchId, $fileId, $path);
+            $this->stageFatturaPa($batchId, $fileId, $path, $target === 'datev_koinos');
             return;
         }
         if ($extension === 'p7m') {
@@ -237,10 +274,10 @@ final class ImportService
             }
             $xmlPath = dirname($path) . '/extracted-' . $fileId . '.xml';
             if (file_put_contents($xmlPath, $xml, LOCK_EX) === false) { throw new RuntimeException('Impossibile archiviare l’XML estratto.'); }
-            $this->stageFatturaPa($batchId, $fileId, $xmlPath);
+            $this->stageFatturaPa($batchId, $fileId, $xmlPath, $target === 'datev_koinos');
             return;
         }
-        if ($extension === 'xlsx') {
+        if (in_array($extension, ['xls','xlsx'],true)) {
             $this->stageSpreadsheet($batchId, $fileId, $path);
             return;
         }
@@ -254,16 +291,17 @@ final class ImportService
             throw new RuntimeException('File CSV non leggibile.');
         }
         $sample = (string) fgets($handle);
+        if (str_contains($sample, 'DK SET')) { fclose($handle); throw new InvalidArgumentException('Questa è una stampa Koinos: selezionare Originali DATEV Koinos, non il tracciato operativo standard.'); }
         rewind($handle);
         $delimiter = $this->detectDelimiter($sample);
-        $headers = fgetcsv($handle, 0, $delimiter);
+        $headers = fgetcsv($handle, 0, $delimiter, '"', '');
         if (!$headers) {
             fclose($handle);
             throw new InvalidArgumentException('Intestazione CSV assente.');
         }
         $headers = array_map([$this, 'normalizeHeader'], $headers);
         $rowNumber = 1;
-        while (($values = fgetcsv($handle, 0, $delimiter)) !== false) {
+        while (($values = fgetcsv($handle, 0, $delimiter, '"', '')) !== false) {
             $rowNumber++;
             if ($rowNumber > 200001) {
                 fclose($handle);
@@ -298,6 +336,7 @@ final class ImportService
         $reader->setReadDataOnly(true);
         $spreadsheet = $reader->load($path);
         foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
+            if (in_array($sheet->getTitle(), ['CGPrimaNota','BAProgressivi'], true)) { $spreadsheet->disconnectWorksheets(); throw new InvalidArgumentException('Questo foglio contiene testate o progressivi Koinos: usare Originali DATEV Koinos.'); }
             $rows = $sheet->toArray(null, true, true, false);
             if ($rows === []) {
                 continue;
@@ -316,9 +355,11 @@ final class ImportService
         $spreadsheet->disconnectWorksheets();
     }
 
-    private function stageFatturaPa(int $batchId, int $fileId, string $path): void
+    private function stageFatturaPa(int $batchId, int $fileId, string $path, bool $history = false): void
     {
         libxml_use_internal_errors(true);
+        $payload = (string) file_get_contents($path);
+        if (preg_match('/<!DOCTYPE|<!ENTITY/i', $payload)) throw new InvalidArgumentException('Dichiarazioni DTD o entità XML non ammesse.');
         $xml = simplexml_load_file($path, SimpleXMLElement::class, LIBXML_NONET | LIBXML_NOBLANKS);
         if (!$xml) {
             throw new InvalidArgumentException('XML non valido: ' . basename($path));
@@ -341,6 +382,9 @@ final class ImportService
         $recipientVat = $this->xpathText($header, './/*[local-name()="CessionarioCommittente"]//*[local-name()="IdFiscaleIVA"]/*[local-name()="IdCodice"]');
         $recipientName = $this->xpathText($header, './/*[local-name()="CessionarioCommittente"]//*[local-name()="Anagrafica"]/*[local-name()="Denominazione"]');
         $organizationVat = (string) $this->db->query('SELECT vat_number FROM organizations WHERE id = ' . (int) $this->organizationId)->fetchColumn();
+        if ($history && ($organizationVat === '' || !in_array(preg_replace('/\D/','',$organizationVat),[preg_replace('/\D/','',$issuerVat),preg_replace('/\D/','',$recipientVat)],true))) {
+            throw new InvalidArgumentException('La partita IVA dell’azienda selezionata non corrisponde al cedente o al destinatario della fattura.');
+        }
         $direction = preg_replace('/\D/', '', $issuerVat) === preg_replace('/\D/', '', $organizationVat) ? 'SALES_INVOICE' : 'PURCHASE_INVOICE';
         $bodies = $xml->xpath('//*[local-name()="FatturaElettronicaBody"]') ?: [];
         foreach ($bodies as $index => $body) {
@@ -390,6 +434,22 @@ final class ImportService
                 'withholding_cause' => $withholdingNode ? ($this->xpathText($withholdingNode, './*[local-name()="CausalePagamento"]') ?: null) : null,
                 'lines' => $lines,
             ];
+            if ($history) {
+                $summaries = [];
+                foreach (($body->xpath('.//*[local-name()="DatiRiepilogo"]') ?: []) as $summary) {
+                    $summaries[] = [
+                        'rate' => $this->xpathText($summary, './*[local-name()="AliquotaIVA"]'),
+                        'nature' => $this->xpathText($summary, './*[local-name()="Natura"]'),
+                        'taxable' => $this->xpathText($summary, './*[local-name()="ImponibileImporto"]'),
+                        'vat' => $this->xpathText($summary, './*[local-name()="Imposta"]'),
+                        'collectability' => $this->xpathText($summary, './*[local-name()="EsigibilitaIVA"]'),
+                        'legal_reference' => $this->xpathText($summary, './*[local-name()="RiferimentoNormativo"]'),
+                    ];
+                }
+                $normalized['vat_summaries'] = $summaries;
+                $key = hash('sha256', implode('|', [$issuerVat,$recipientVat,$date,$number,$type]));
+                $normalized = ['kind'=>'invoice_history','key'=>$key,'line'=>$index+1,'data'=>$normalized,'issue'=>'Fattura storica acquisita senza generare prima nota, movimenti IVA o partite aperte. Stato dei pagamenti da riconciliare con la contabilità originaria.'];
+            }
             $this->insertStagedRow($batchId, $fileId, $index + 1, ['xml_file' => basename($path)], $normalized);
         }
     }

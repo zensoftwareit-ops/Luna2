@@ -147,7 +147,7 @@ final class AccountingService
                      (organization_id, protocol_number, entry_date, competence_date, entry_type, cause_id, vat_register_id,
                       status, description, document_number, source_protocol, source_type, source_id, counterparty, total_debit, total_credit, notes,
                       created_by, updated_by, posted_at, created_at, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', NULL, ?, ?, ?, ?, ?, ?, ?, IF(? = 'POSTED', NOW(), NULL), NOW(), NOW())"
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'MANUAL', NULL, ?, ?, ?, ?, ?, ?, IF(? = 'POSTED', NOW(), NULL), NOW(), NOW())"
                 );
                 $statement->execute([
                     $this->organizationId, $protocol, $entryDate, $competenceDate, $header['entry_type'] ?? 'MANUAL',

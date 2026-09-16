@@ -21,6 +21,13 @@ $view = new class($features) {
     public function workspaceSummary(): array { return ['unread' => 0, 'notifications' => [], 'readiness' => 80]; }
 };
 $fixtures = [
+    'datev' => ['imports/datev-preview','/imports/2',[
+        'batch'=>['id'=>2,'status'=>'READY','original_filename'=>'Esempio Koinos.csv','total_rows'=>100,'imported_rows'=>0,'error_rows'=>0,'error_message'=>''],
+        'destination'=>['business_name'=>'Azienda di collaudo','vat_number'=>'01234567890'],
+        'files'=>[['id'=>1,'filename'=>'Originale.csv','file_size'=>2048,'stored_relative_path'=>'example/original.csv']],
+        'summary'=>[],'kind'=>'','search'=>'','page'=>1,'pages'=>2,'total'=>100,
+        'rows'=>[['filename'=>'Originale.csv','source_row_number'=>7,'status'=>'STAGED','error_message'=>'','data'=>['kind'=>'journal_headers','key'=>'2025:1','data'=>['Descrizione'=>'Esempio <script>alert(1)</script>','IDPrimanota'=>'001'],'issue'=>'Mancano righe Dare e Avere.']]],
+    ]],
     'quotes' => ['documents/form', '/documents/quotes/create', [
         'type' => 'quotes', 'definition' => ['counterparty' => 'customer', 'code' => 'QUOTE'],
         'counterparties' => [['id' => 1, 'code' => 'C001', 'business_name' => 'Cliente di verifica']],

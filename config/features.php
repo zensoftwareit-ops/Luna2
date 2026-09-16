@@ -124,7 +124,7 @@ return [
         'label' => 'Importazioni',
         'description' => 'Migrazione DATEV Koinos e importazioni massive.',
         'icon' => 'upload',
-        'required_tables' => ['import_batches', 'import_files', 'import_rows', 'import_records'],
+        'required_tables' => ['import_batches', 'import_files', 'import_rows', 'import_records', 'datev_reference_records', 'datev_fixed_asset_progressives', 'datev_fixed_asset_movements'],
         'default' => true,
     ],
 ];

@@ -25,7 +25,7 @@ const out = path.join(base, 'storage/private/ui-review');
     let checks = 0;
     for (const width of [1440, 900, 390]) {
       await page.setViewportSize({ width, height: 1000 });
-      for (const name of ['quotes', 'hr', 'logistics', 'communications', 'ecommerce', 'calendar', 'endpoints', 'imports', 'professional']) {
+      for (const name of ['quotes', 'hr', 'logistics', 'communications', 'ecommerce', 'calendar', 'endpoints', 'imports', 'professional', 'datev']) {
         await page.goto(`http://luna-ui.test/${name}.html`);
         await page.waitForLoadState('networkidle');
         const sizes = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth }));
@@ -46,7 +46,7 @@ const out = path.join(base, 'storage/private/ui-review');
           assert.equal(await page.locator('select[name="leave_type"]').first().inputValue(), 'HOLIDAY');
           assert.equal(await page.locator('select[name="calculation_mode"]').inputValue(), 'IMPORTED_PAYSLIPS');
         }
-        if (['quotes', 'hr', 'imports', 'professional', 'communications'].includes(name) && width !== 900) {
+        if (['quotes', 'hr', 'imports', 'professional', 'communications', 'datev'].includes(name) && width !== 900) {
           await page.screenshot({ path: path.join(out, `${name}-${width}.png`), fullPage: true });
         }
         checks++;

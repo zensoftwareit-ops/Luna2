@@ -244,6 +244,7 @@ final class Application
         $router->add('POST', '/imports/upload', [ImportController::class, 'upload']);
         $router->add('POST', '/imports/einvoice/pull', [ImportController::class, 'pullInvoices']);
         $router->add('GET', '/imports/{id}', [ImportController::class, 'preview']);
+        $router->add('GET', '/imports/files/{id}/download', [ImportController::class, 'download']);
         $router->add('POST', '/imports/{id}/commit', [ImportController::class, 'commit']);
         $router->add('POST', '/imports/{id}/rollback', [ImportController::class, 'rollback']);
 
