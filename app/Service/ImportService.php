@@ -701,7 +701,7 @@ final class ImportService
 
     private function commitVatMovements(int $batchId, array $rows): array
     {
-        $imported = 0; $errors = 0;
+        $imported = 0; $errors = 0; $skipped = 0;
         $service = new VatService($this->db, $this->organizationId, $this->userId);
         foreach ($rows as $staged) {
             $row = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
@@ -711,6 +711,8 @@ final class ImportService
                 'register_type' => $register,
                 'movement_date' => $this->dateValue($this->pick($row, ['movement_date', 'data_registrazione', 'data'])),
                 'protocol_number' => $this->pick($row, ['protocol_number', 'protocollo', 'numero_registrazione']),
+                'document_reference' => $this->pick($row, ['document_reference', 'numero_documento', 'documento']),
+                'document_reference_date' => $this->dateValue($this->pick($row, ['document_reference_date', 'data_documento'])),
                 'counterparty_name' => $this->pick($row, ['counterparty_name', 'controparte', 'nominativo']),
                 'description' => $this->pick($row, ['description', 'descrizione', 'causale']),
                 'vat_code' => $this->pick($row, ['vat_code', 'codice_iva', 'aliquota']) ?: 'N/D',
@@ -725,16 +727,50 @@ final class ImportService
                 'collectability' => mb_strtoupper($this->pick($row, ['collectability', 'esigibilita']) ?: 'IMMEDIATE'),
             ];
             try {
-                $id = $service->saveManual($data);
-                $this->db->prepare("UPDATE vat_movements SET source_type = 'IMPORT', source_import_batch_id = ? WHERE id = ? AND organization_id = ?")
-                    ->execute([$batchId, $id, $this->organizationId]);
+                $data['vat_register_id'] = $this->datevVatRegister($row, $register);
+                $sourceKey = mb_strtolower($this->pick($row, ['source_key', 'chiave_origine']) ?: '');
+                if ($sourceKey !== '' && !preg_match('/^[a-f0-9]{64}$/', $sourceKey)) {
+                    throw new InvalidArgumentException('Chiave origine IVA non valida.');
+                }
+                if ($sourceKey !== '') {
+                    $duplicate = $this->db->prepare("SELECT id FROM vat_movements WHERE organization_id=? AND source_type='DATEV_PDF' AND source_key=? LIMIT 1");
+                    $duplicate->execute([$this->organizationId, $sourceKey]);
+                    if ($existingId = $duplicate->fetchColumn()) {
+                        $this->markRow($staged['id'], 'SKIPPED', 'Riga IVA DATEV già importata.', (int) $existingId);
+                        $skipped++;
+                        continue;
+                    }
+                }
+                $id = $service->saveImported($data);
+                $sourceType = $sourceKey !== '' ? 'DATEV_PDF' : 'IMPORT';
+                $vatDescription = $this->pick($row, ['vat_description', 'descrizione_iva']);
+                $vatLegalReference = $this->pick($row, ['vat_legal_reference', 'riferimento_normativo']);
+                $this->db->prepare('UPDATE vat_movements SET source_type=?, source_import_batch_id=?, source_key=?, vat_description=COALESCE(?,vat_description), vat_legal_reference=COALESCE(?,vat_legal_reference) WHERE id=? AND organization_id=?')
+                    ->execute([$sourceType, $batchId, $sourceKey ?: null, $vatDescription, $vatLegalReference, $id, $this->organizationId]);
                 $this->recordImport($batchId, 'vat_movements', $id, 'CREATE', null);
                 $this->markRow($staged['id'], 'IMPORTED', null, $id); $imported++;
             } catch (Throwable $exception) {
                 $this->markRow($staged['id'], 'ERROR', $exception->getMessage()); $errors++;
             }
         }
-        return compact('imported', 'errors');
+        return compact('imported', 'errors', 'skipped');
+    }
+
+    private function datevVatRegister(array $row, string $registerType): ?int
+    {
+        $code = mb_strtoupper($this->pick($row, ['register_code', 'codice_sezionale']) ?: '');
+        $name = $this->pick($row, ['register_name', 'nome_sezionale']);
+        if ($code === '' || $name === '') return null;
+        if (!preg_match('/^[A-Z0-9._-]{1,20}$/', $code)) throw new InvalidArgumentException('Codice sezionale DATEV non valido.');
+        $find = $this->db->prepare('SELECT id,register_type FROM vat_registers WHERE organization_id=? AND code=?');
+        $find->execute([$this->organizationId, $code]);
+        if ($existing = $find->fetch()) {
+            if ($existing['register_type'] !== $registerType) throw new InvalidArgumentException('Il sezionale DATEV esiste con un tipo registro differente.');
+            return (int) $existing['id'];
+        }
+        $insert = $this->db->prepare('INSERT INTO vat_registers (organization_id,code,name,register_type,prefix,suffix,next_protocol,padding,is_default,active,created_by,updated_by) VALUES (?,?,?,?,\'\',\'\',1,6,0,1,?,?)');
+        $insert->execute([$this->organizationId, $code, mb_substr($name, 0, 190), $registerType, $this->userId, $this->userId]);
+        return (int) $this->db->lastInsertId();
     }
 
     private function commitFixedAssets(int $batchId, array $rows): array

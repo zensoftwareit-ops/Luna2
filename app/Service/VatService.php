@@ -136,6 +136,16 @@ final class VatService
 
     public function saveManual(array $data): int
     {
+        return $this->save($data, false);
+    }
+
+    public function saveImported(array $data): int
+    {
+        return $this->save($data, true);
+    }
+
+    private function save(array $data, bool $allowClosedPeriod): int
+    {
         $register = strtoupper((string) ($data['register_type'] ?? ''));
         $operation = strtoupper((string) ($data['operation_type'] ?? 'DOMESTIC'));
         $collectability = strtoupper((string) ($data['collectability'] ?? 'IMMEDIATE'));
@@ -150,7 +160,7 @@ final class VatService
         $deductible = $register === 'PURCHASES'
             ? ($deductibleInput === '' ? round($vat * $deductibility / 100, 2) : $this->decimal($deductibleInput))
             : 0.0;
-        $operations = ['DOMESTIC','REVERSE_CHARGE','SPLIT_PAYMENT','CASH','INTRA_EU','EXTRA_EU','MARGIN','EXEMPT','NON_TAXABLE','ADJUSTMENT'];
+        $operations = ['DOMESTIC','REVERSE_CHARGE','SELF_INVOICE','SPLIT_PAYMENT','CASH','INTRA_EU','EXTRA_EU','MARGIN','EXEMPT','NON_TAXABLE','ADJUSTMENT'];
         if (!in_array($register, self::REGISTERS, true) || !in_array($operation, $operations, true)
             || !in_array($collectability, ['IMMEDIATE','DEFERRED','SPLIT','CASH'], true)
             || trim((string) ($data['vat_code'] ?? '')) === '') {
@@ -171,7 +181,9 @@ final class VatService
         if ($deductible != 0.0 && $vat != 0.0 && ($deductible < 0) !== ($vat < 0)) {
             throw new InvalidArgumentException('IVA e IVA detraibile devono avere lo stesso segno.');
         }
-        $this->assertPeriodOpen((int) $date->format('Y'), (int) $date->format('n'));
+        if (!$allowClosedPeriod) {
+            $this->assertPeriodOpen((int) $date->format('Y'), (int) $date->format('n'));
+        }
         $metadata = $this->vatMetadata(
             trim((string) $data['vat_code']),
             isset($data['vat_rate']) && trim((string) $data['vat_rate']) !== '' ? $this->decimal($data['vat_rate']) : null,

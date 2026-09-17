@@ -283,6 +283,22 @@ Se i valori non coincidono, non importare IVA e fatture storiche e non ripetere 
 |---:|---|---|
 | 30 | `Registri IVA 2025.pdf` | Originali DATEV Koinos — acquisizione guidata |
 | 31 | `Registri IVA al 310726.pdf` | Originali DATEV Koinos — acquisizione guidata |
+| 32 | `Luna2_DATEV_IVA_2025.csv` | Registri IVA storici |
+| 33 | `Luna2_DATEV_IVA_2026_AL_3107.csv` | Registri IVA storici |
+
+I due PDF vanno acquisiti per primi come originali probatori. I due CSV analitici sono prodotti dal convertitore collaudato `tools/datev/extract_vat_pdf.py` e alimentano invece i movimenti IVA navigabili. Per ciascun CSV:
+
+1. selezionare **Registri IVA storici**;
+2. caricare il file e controllare l'anteprima;
+3. confermare il lotto una sola volta;
+4. verificare in **Contabilità → Registri IVA** acquisti, vendite, reverse/intra UE e autofatture;
+5. verificare che l'origine delle righe sia `DATEV PDF`;
+6. rieseguire lo stesso file solo come prova di idempotenza: le righe devono risultare già presenti e non devono duplicarsi.
+
+Volumi attesi dal collaudo dei PDF disponibili:
+
+- 2025: **2.478 righe IVA**, riferite a **2.152 documenti**;
+- 2026 fino al 31/07: **417 righe IVA**, riferite a **335 documenti**.
 
 Controllare per ciascun periodo e ciascun registro:
 
@@ -296,16 +312,11 @@ Controllare per ciascun periodo e ciascun registro:
 - totali del periodo;
 - coerenza con le liquidazioni IVA.
 
-### Limite operativo da non ignorare
+### Stato operativo
 
-Con i file attualmente disponibili, i PDF IVA vengono archiviati come fonte probatoria e usati per la riconciliazione. Non alimentano automaticamente tutte le righe analitiche della tabella operativa `vat_movements`.
+Il limite precedente è risolto dal convertitore analitico dedicato. Le righe conservano data e numero documento, protocollo, controparte, sezionale DATEV, articolo e aliquota IVA, imponibile, imposta, quota detraibile/indetraibile e pagina sorgente. La chiave tecnica della riga impedisce duplicazioni.
 
-Di conseguenza, una migrazione può essere considerata completa sul piano documentale e contabile Dare/Avere, ma **non ancora completa al 100% sul piano dello storico IVA navigabile** finché non viene eseguita una delle seguenti attività:
-
-1. ottenere da DATEV un export analitico IVA in CSV/XLS e importarlo; oppure
-2. completare e collaudare un importatore analitico dedicato per i due PDF IVA.
-
-Questo è un controllo bloccante prima del go-live fiscale definitivo.
+Resta obbligatoria la quadratura finale dei totali per sezionale e periodo con i riepiloghi dei PDF e con le liquidazioni IVA prima del go-live fiscale.
 
 ## 8. Fatture elettroniche storiche
 
@@ -313,8 +324,8 @@ Importare per ultime:
 
 | N. | Nome esatto del file | Tipo da selezionare | Uso |
 |---:|---|---|---|
-| 32 | `20260915_ExportFattureRicevute.zip` | Originali DATEV Koinos — acquisizione guidata | Archivio storico fatture passive XML. |
-| 33 | `20260915_ExportFattureInviate.zip` | Originali DATEV Koinos — acquisizione guidata | Archivio storico fatture attive XML. |
+| 34 | `20260915_ExportFattureRicevute.zip` | Originali DATEV Koinos — acquisizione guidata | Archivio storico fatture passive XML. |
+| 35 | `20260915_ExportFattureInviate.zip` | Originali DATEV Koinos — acquisizione guidata | Archivio storico fatture attive XML. |
 
 Non selezionare `Fatture XML FatturaPA`. I movimenti contabili 2025/2026 sono già stati importati dai CSV: l'importazione operativa degli XML potrebbe duplicare documenti, IVA, scadenze o prima nota.
 

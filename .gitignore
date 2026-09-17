@@ -12,4 +12,7 @@
 !/storage/sessions/.gitkeep
 /.idea/
 /.vscode/
+/tmp/
+__pycache__/
+*.pyc
 *.log

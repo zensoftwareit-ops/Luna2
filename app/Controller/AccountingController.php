@@ -548,7 +548,7 @@ final class AccountingController extends BaseController
         if ($register === 'REVERSE_CHARGE') {
             $sql .= " AND m.operation_type = 'REVERSE_CHARGE'";
         } elseif ($register === 'SELF_INVOICES') {
-            $sql .= " AND d.fatturapa_type IN ('TD16','TD17','TD18','TD19','TD20','TD21','TD27','TD28')";
+            $sql .= " AND (m.operation_type = 'SELF_INVOICE' OR d.fatturapa_type IN ('TD16','TD17','TD18','TD19','TD20','TD21','TD27','TD28'))";
         } else {
             $sql .= ' AND m.register_type = :register_type';
             $params['register_type'] = $register;

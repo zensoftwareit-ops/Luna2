@@ -414,7 +414,7 @@ final class OfficialPrintService
                 'VAT_SALES' => "m.register_type = 'SALES'",
                 'VAT_PURCHASES' => "m.register_type = 'PURCHASES'",
                 'VAT_REVERSE_CHARGE' => "m.operation_type = 'REVERSE_CHARGE'",
-                'VAT_SELF_INVOICES' => "d.fatturapa_type IN ('TD16','TD17','TD18','TD19','TD20','TD21','TD27','TD28')",
+                'VAT_SELF_INVOICES' => "(m.operation_type = 'SELF_INVOICE' OR d.fatturapa_type IN ('TD16','TD17','TD18','TD19','TD20','TD21','TD27','TD28'))",
                 default => "m.register_type = 'CORRISPETTIVI'",
             };
             [$columns, $rows] = $this->query(
