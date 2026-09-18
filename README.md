@@ -31,7 +31,7 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 
 Solo il `SUPERUSER` di piattaforma vede **Aziende e utenti**, **Gestione moduli** e **Stato del sistema**. Gli utenti aziendali, inclusi `OWNER` e `ADMIN`, non possono modificare la composizione del gestionale. Se lo schema non è completo, l’interfaccia indica la migrazione o la tabella mancante invece di mostrare un errore generico. I dettagli delle eccezioni sono salvati in `storage/logs/application-YYYY-MM-DD.log`.
 
-Il superuser può inoltre configurare domini personalizzati con CNAME, alias Plesk e verifica HTTPS dalla sezione **Domini personalizzati**. La configurazione server è descritta in [docs/DOMINI_PERSONALIZZATI_PLESK.md](docs/DOMINI_PERSONALIZZATI_PLESK.md).
+Il titolare o amministratore dell’azienda può configurare autonomamente un dominio personalizzato dalla sezione **Dominio personalizzato**. Luna2 predispone l’alias tramite Plesk, mostra il CNAME esatto e verifica automaticamente DNS e HTTPS. La configurazione server è descritta in [docs/DOMINI_PERSONALIZZATI_PLESK.md](docs/DOMINI_PERSONALIZZATI_PLESK.md).
 
 ## Stato del progetto
 

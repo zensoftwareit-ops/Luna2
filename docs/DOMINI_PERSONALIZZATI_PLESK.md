@@ -1,6 +1,6 @@
 # Domini personalizzati Luna2 su Plesk
 
-La funzione consente al superuser di pubblicare un'istanza Luna2 su un dominio del cliente. Il cliente configura solo un record CNAME; Luna2 verifica il DNS e crea l'alias web in Plesk. SSL It! emette e rinnova il certificato.
+La funzione consente al titolare o amministratore dell'azienda di pubblicare autonomamente l'istanza Luna2 su un proprio sottodominio. Luna2 predispone l'alias web tramite Plesk, restituisce il record CNAME esatto, verifica la propagazione DNS e controlla il certificato emesso e rinnovato da SSL It!.
 
 ## 1. Prerequisiti Plesk
 
@@ -41,14 +41,15 @@ Il comando è idempotente: ricontrolla DNS e certificato senza duplicare gli ali
 
 ## 4. Procedura cliente
 
-1. Il cliente crea `gestionale.cliente.it` come record **CNAME** verso il dominio tecnico mostrato da Luna2.
-2. Il superuser apre **Piattaforma > Domini personalizzati**, inserisce il dominio completo e conferma.
-3. Luna2 accetta il dominio solo quando il CNAME porta esattamente all'istanza corretta.
-4. Luna2 crea l'alias web senza posta e senza zona DNS in Plesk.
-5. SSL It! include l'alias nel certificato; Luna2 controlla hostname, catena e scadenza prima di mostrare lo stato **Attivo**.
+1. Il titolare o amministratore apre **Azienda > Dominio personalizzato**, inserisce per esempio `gestionale.cliente.it` e conferma.
+2. Luna2 crea immediatamente l'alias web, senza posta e senza zona DNS, tramite l'API Plesk.
+3. Luna2 mostra il record **CNAME** completo: nome scelto e destinazione tecnica dell'istanza.
+4. Il cliente copia quel valore nella propria zona DNS.
+5. Il controllo periodico riconosce la propagazione esclusivamente quando il CNAME porta all'istanza corretta.
+6. SSL It! include l'alias nel certificato; Luna2 controlla hostname, catena e scadenza prima di mostrare lo stato **Attivo**.
 
 La propagazione DNS e l'emissione del certificato possono richiedere alcuni minuti. Finché HTTPS non è valido, lo stato resta **SSL in attesa** con il dettaglio dell'ultimo controllo.
 
 ## 5. Sicurezza e rimozione
 
-Solo il superuser può creare, verificare o rimuovere domini. La rimozione elimina prima l'alias da Plesk e soltanto dopo il record Luna2. Gli eventi DNS, Plesk e TLS restano consultabili nel pannello tecnico finché il dominio è presente.
+Solo gli utenti aziendali con ruolo **Titolare** o **Amministratore** possono creare, verificare o rimuovere domini. Il superuser di piattaforma non espone questo pannello nel proprio menu. La chiave Plesk rimane esclusivamente nel file `.env` e non viene mai mostrata al cliente. La rimozione elimina prima l'alias da Plesk e soltanto dopo il record Luna2. Gli eventi di attivazione restano consultabili finché il dominio è presente.

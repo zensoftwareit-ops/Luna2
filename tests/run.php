@@ -87,8 +87,15 @@ $assert(isset($tableSchemas['custom_domains'], $tableSchemas['custom_domain_even
 $assert(is_file($base . '/app/Service/PleskApiClient.php') && is_file($base . '/app/Service/CustomDomainService.php'), 'Automazione Plesk per domini personalizzati incompleta.');
 $customDomainService = (string) file_get_contents($base . '/app/Service/CustomDomainService.php');
 $pleskClient = (string) file_get_contents($base . '/app/Service/PleskApiClient.php');
+$customDomainController = (string) file_get_contents($base . '/app/Controller/CustomDomainController.php');
+$layoutView = (string) file_get_contents($base . '/views/layout.php');
 $assert(str_contains($customDomainService, 'dns_get_record') && str_contains($customDomainService, 'verify_peer_name'), 'Verifica DNS/TLS dei domini personalizzati incompleta.');
 $assert(str_contains($pleskClient, '<site-alias><create>') && str_contains($pleskClient, '<site-alias><delete>') && str_contains($pleskClient, "'KEY' => \$key"), 'Richieste XML API Plesk incomplete.');
+$assert(substr_count($customDomainController, "requireRoles(['OWNER', 'ADMIN'])") === 4 && !str_contains($customDomainController, 'requireSuperuser()'), 'I domini personalizzati devono essere gestiti dagli amministratori aziendali.');
+$assert(str_contains($layoutView, "Auth::isAdmin()") && str_contains($layoutView, 'Dominio personalizzato'), 'Voce dominio personalizzato mancante dal menu amministratore.');
+$aliasProvision = strpos($customDomainService, 'createAlias(');
+$dnsVerification = strpos($customDomainService, 'dnsPointsTo(', $aliasProvision === false ? 0 : $aliasProvision);
+$assert($aliasProvision !== false && $dnsVerification !== false && $aliasProvision < $dnsVerification, 'L’alias Plesk deve essere predisposto prima della verifica CNAME.');
 $assert(!str_contains($schema, 'PLESK_API_KEY'), 'La chiave API Plesk non deve essere memorizzata nel database.');
 $assert(str_contains($application, "'/accounting/vat-registers'"), 'Rotta registri IVA mancante.');
 $assert(str_contains($application, "'/accounting/vat-settlements'"), 'Rotta liquidazioni IVA mancante.');
