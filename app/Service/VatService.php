@@ -172,7 +172,7 @@ final class VatService
             $register === 'PURCHASES' && $operation !== 'REVERSE_CHARGE' => 0,
             default => $vat,
         });
-        if ($taxable == 0.0 && $vat == 0.0) {
+        if (!$allowClosedPeriod && $taxable == 0.0 && $vat == 0.0) {
             throw new InvalidArgumentException('Il movimento IVA non può avere imponibile e imposta entrambi a zero.');
         }
         if (abs($deductible) > abs($vat) + .005) {

@@ -701,6 +701,9 @@ final class ImportService
 
     private function commitVatMovements(int $batchId, array $rows): array
     {
+        if (!$this->schemaColumnExists('vat_movements', 'source_key')) {
+            throw new RuntimeException('Database da aggiornare: esegui prima “php bin/luna migrate” per applicare 017_datev_vat_pdf_import.sql, poi carica nuovamente il CSV IVA.');
+        }
         $imported = 0; $errors = 0; $skipped = 0;
         $service = new VatService($this->db, $this->organizationId, $this->userId);
         foreach ($rows as $staged) {
@@ -726,6 +729,7 @@ final class ImportService
                 'operation_type' => mb_strtoupper($this->pick($row, ['operation_type', 'tipo_operazione']) ?: 'DOMESTIC'),
                 'collectability' => mb_strtoupper($this->pick($row, ['collectability', 'esigibilita']) ?: 'IMMEDIATE'),
             ];
+            $this->db->exec('SAVEPOINT import_vat_row');
             try {
                 $data['vat_register_id'] = $this->datevVatRegister($row, $register);
                 $sourceKey = mb_strtolower($this->pick($row, ['source_key', 'chiave_origine']) ?: '');
@@ -741,7 +745,8 @@ final class ImportService
                         continue;
                     }
                 }
-                $id = $service->saveImported($data);
+                $id = $sourceKey !== '' ? $this->recoverLegacyDatevVatMovement($data) : null;
+                if (!$id) $id = $service->saveImported($data);
                 $sourceType = $sourceKey !== '' ? 'DATEV_PDF' : 'IMPORT';
                 $vatDescription = $this->pick($row, ['vat_description', 'descrizione_iva']);
                 $vatLegalReference = $this->pick($row, ['vat_legal_reference', 'riferimento_normativo']);
@@ -750,10 +755,41 @@ final class ImportService
                 $this->recordImport($batchId, 'vat_movements', $id, 'CREATE', null);
                 $this->markRow($staged['id'], 'IMPORTED', null, $id); $imported++;
             } catch (Throwable $exception) {
+                $this->db->exec('ROLLBACK TO SAVEPOINT import_vat_row');
                 $this->markRow($staged['id'], 'ERROR', $exception->getMessage()); $errors++;
             }
         }
         return compact('imported', 'errors', 'skipped');
+    }
+
+    /** Reconciles rows leaked by the pre-017 importer after its metadata update failed. */
+    private function recoverLegacyDatevVatMovement(array $data): ?int
+    {
+        $description = trim((string)($data['description'] ?? ''));
+        if (!str_starts_with($description, 'Storico DATEV')) return null;
+        $statement = $this->db->prepare(
+            "SELECT id FROM vat_movements
+             WHERE organization_id=? AND document_id IS NULL AND source_type='MANUAL' AND source_import_batch_id IS NULL
+               AND register_type=? AND movement_date=? AND COALESCE(protocol_number,'')=COALESCE(?,'')
+               AND COALESCE(document_reference,'')=COALESCE(?,'') AND COALESCE(counterparty_name,'')=COALESCE(?,'')
+               AND COALESCE(description,'')=? AND vat_code=?
+               AND ABS(taxable_amount-?)<0.005 AND ABS(vat_amount-?)<0.005
+             ORDER BY id LIMIT 1"
+        );
+        $statement->execute([
+            $this->organizationId,$data['register_type'],$data['movement_date'],$data['protocol_number'] ?: null,
+            $data['document_reference'] ?: null,$data['counterparty_name'] ?: null,$description,$data['vat_code'],
+            $this->decimal($data['taxable_amount'] ?? 0),$this->decimal($data['vat_amount'] ?? 0),
+        ]);
+        $id = $statement->fetchColumn();
+        return $id ? (int)$id : null;
+    }
+
+    private function schemaColumnExists(string $table, string $column): bool
+    {
+        $statement = $this->db->prepare('SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=? AND COLUMN_NAME=?');
+        $statement->execute([$table,$column]);
+        return (bool)$statement->fetchColumn();
     }
 
     private function datevVatRegister(array $row, string $registerType): ?int
