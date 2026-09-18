@@ -18,7 +18,10 @@ $roleLabels = [
     <section class="credentials-card" role="status">
         <span class="credentials-icon"><?= View::icon('key') ?></span>
         <div><span class="section-kicker">Credenziali mostrate una sola volta</span><h2><?= View::e($credentials['name']) ?></h2><p>Copiale ora in un password manager e consegnale all’utente tramite un canale sicuro.</p></div>
-        <dl><div><dt>Email</dt><dd><code><?= View::e($credentials['email']) ?></code></dd></div><div><dt>Password temporanea</dt><dd><code><?= View::e($credentials['password']) ?></code></dd></div></dl>
+        <dl>
+            <div><dt>Email</dt><dd class="credential-copy"><input id="generated-user-email" value="<?= View::e($credentials['email']) ?>" readonly spellcheck="false"><button class="button ghost small" type="button" data-copy-target="generated-user-email">Copia</button></dd></div>
+            <div><dt>Password temporanea</dt><dd class="credential-copy"><input id="generated-user-password" value="<?= View::e($credentials['password']) ?>" readonly spellcheck="false" autocomplete="off"><button class="button ghost small" type="button" data-copy-target="generated-user-password">Copia</button></dd></div>
+        </dl>
     </section>
 <?php endif; ?>
 

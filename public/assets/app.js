@@ -16,6 +16,28 @@
     });
   });
 
+  document.querySelectorAll('[data-copy-target]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const input = document.getElementById(button.dataset.copyTarget || '');
+      if (!(input instanceof HTMLInputElement)) return;
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(input.value);
+        } else {
+          input.focus();
+          input.select();
+          document.execCommand('copy');
+        }
+        const original = button.textContent;
+        button.textContent = 'Copiato';
+        window.setTimeout(() => { button.textContent = original; }, 1600);
+      } catch (_error) {
+        input.focus();
+        input.select();
+      }
+    });
+  });
+
   document.querySelectorAll('.clickable-row').forEach((row) => {
     row.addEventListener('dblclick', () => { if (row.dataset.href) window.location.href = row.dataset.href; });
   });

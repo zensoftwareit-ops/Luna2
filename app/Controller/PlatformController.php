@@ -120,17 +120,23 @@ final class PlatformController extends BaseController
             $this->redirect('/settings/company', 'Controlla nome, email e ruolo del nuovo utente.', 'error');
         }
 
-        $password = self::randomPassword();
+        $password = '';
+        $userId = 0;
         try {
+            $password = self::randomPassword();
+            $passwordHash = self::passwordHash($password);
             $this->db->beginTransaction();
             (new UserLimitService($this->db))->assertCanActivate($organizationId);
             $statement = $this->db->prepare(
                 "INSERT INTO users (organization_id, name, email, password_hash, role, account_type, active)
                  VALUES (?, ?, ?, ?, ?, 'HUMAN', 1)"
             );
-            $statement->execute([$organizationId, $name, $email, password_hash($password, PASSWORD_ARGON2ID), $role]);
+            $statement->execute([$organizationId, $name, $email, $passwordHash, $role]);
+            // Con PDO MySQL lastInsertId deve essere letto prima del commit.
+            $userId = (int) $this->db->lastInsertId();
+            $this->assertStoredPassword($userId, $organizationId, $password);
             $this->db->commit();
-        } catch (PDOException|DomainException $exception) {
+        } catch (Throwable $exception) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
             }
@@ -140,7 +146,6 @@ final class PlatformController extends BaseController
             $this->redirect('/settings/company', $message, 'error');
         }
 
-        $userId = (int) $this->db->lastInsertId();
         $_SESSION['generated_credentials'] = ['name' => $name, 'email' => $email, 'password' => $password];
         $this->audit('CREATE_USER', 'user', $userId, ['email' => $email, 'role' => $role]);
         $this->redirect('/settings/company', 'Utente creato. Copia subito la password temporanea.');
@@ -188,8 +193,18 @@ final class PlatformController extends BaseController
         }
 
         $password = self::randomPassword();
-        $this->db->prepare('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?')
-            ->execute([password_hash($password, PASSWORD_ARGON2ID), (int) $user['id']]);
+        try {
+            $this->db->beginTransaction();
+            $this->db->prepare('UPDATE users SET password_hash = ?, updated_at = NOW() WHERE id = ?')
+                ->execute([self::passwordHash($password), (int) $user['id']]);
+            $this->assertStoredPassword((int) $user['id'], $organizationId, $password);
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            $this->redirect('/settings/company', 'Non è stato possibile generare credenziali verificabili. Riprova.', 'error');
+        }
         $_SESSION['generated_credentials'] = [
             'name' => (string) $user['name'],
             'email' => (string) $user['email'],
@@ -230,6 +245,37 @@ final class PlatformController extends BaseController
 
     private static function randomPassword(): string
     {
-        return rtrim(strtr(base64_encode(random_bytes(18)), '+/', '-_'), '=');
+        // Evita caratteri facilmente confondibili durante una consegna telefonica o manuale.
+        $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_';
+        $password = '';
+        $last = strlen($alphabet) - 1;
+        for ($index = 0; $index < 24; $index++) {
+            $password .= $alphabet[random_int(0, $last)];
+        }
+        return $password;
+    }
+
+    private static function passwordHash(string $password): string
+    {
+        $hash = password_hash($password, PASSWORD_ARGON2ID);
+        if (!is_string($hash) || $hash === '' || !password_verify($password, $hash)) {
+            throw new DomainException('Il server non è riuscito a generare un hash password verificabile.');
+        }
+        return $hash;
+    }
+
+    private function assertStoredPassword(int $userId, int $organizationId, string $password): void
+    {
+        if ($userId <= 0) {
+            throw new DomainException('Identificativo del nuovo utente non disponibile.');
+        }
+        $statement = $this->db->prepare(
+            'SELECT password_hash FROM users WHERE id = ? AND organization_id = ? AND active = 1 FOR UPDATE'
+        );
+        $statement->execute([$userId, $organizationId]);
+        $storedHash = $statement->fetchColumn();
+        if (!is_string($storedHash) || !password_verify($password, $storedHash)) {
+            throw new DomainException('Verifica delle credenziali salvate non riuscita.');
+        }
     }
 }

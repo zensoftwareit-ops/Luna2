@@ -100,6 +100,15 @@ $assert(str_contains($application, "'/settings/endpoints'"), 'Rotta endpoint fat
 $assert(str_contains($application, "'/r/{module}/vat-lookup'") && is_file($base . '/app/Service/VatLookupService.php'), 'Verifica assistita Partita IVA mancante.');
 $assert(str_contains($application, "'/imports/einvoice/pull'") && is_file($base . '/app/Service/InboundInvoiceService.php'), 'Ricezione fatture passive da endpoint mancante.');
 $assert(is_file($base . '/app/Service/PartyAutomationService.php'), 'Automatismi anagrafici e scadenze mancanti.');
+$platformController = (string) file_get_contents($base . '/app/Controller/PlatformController.php');
+$companySettingsView = (string) file_get_contents($base . '/views/settings/company.php');
+$credentialJs = (string) file_get_contents($base . '/public/assets/app.js');
+$createUserStart = strpos($platformController, 'public function createUser');
+$createUserEnd = strpos($platformController, 'public function toggleUser', $createUserStart ?: 0);
+$createUserBlock = $createUserStart !== false && $createUserEnd !== false ? substr($platformController, $createUserStart, $createUserEnd - $createUserStart) : '';
+$assert(str_contains($platformController, 'assertStoredPassword') && substr_count($platformController, 'password_verify($password, $storedHash)') === 1, 'Le password dei nuovi utenti devono essere verificate dopo il salvataggio.');
+$assert(str_contains($createUserBlock, '$userId = (int) $this->db->lastInsertId();') && strpos($createUserBlock, '$userId = (int) $this->db->lastInsertId();') < strpos($createUserBlock, '$this->db->commit();'), 'L’ID utente deve essere acquisito prima del commit MySQL.');
+$assert(substr_count($companySettingsView, 'data-copy-target=') === 2 && str_contains($credentialJs, 'navigator.clipboard'), 'Email e password temporanea devono poter essere copiate senza trascrizione manuale.');
 $assert(str_contains($schema, 'payment_month_end') && str_contains($schema, 'withholding_taxable_percent'), 'Schema automatismi pagamento/ritenuta incompleto.');
 $assert(str_contains($application, "'/r/{module}/export/{format}'"), 'Esportazioni PDF/XLSX/CSV degli archivi mancanti.');
 $assert(str_contains($application, "'/documents/{type}/export/{format}'"), 'Esportazioni documenti filtrati mancanti.');
@@ -157,6 +166,7 @@ $assert(str_contains($application, "'/settings/system/reset'") && str_contains($
 $assert(str_contains($settingsController, 'requireOrganizationAdministrator()'), 'Gestione moduli non disponibile agli amministratori aziendali.');
 $assert(str_contains($platformController, "requireRoles(['OWNER', 'ADMIN'])"), 'Pannello azienda e utenti non disponibile agli amministratori aziendali.');
 $assert(str_contains($auth, "=== 'SUPERUSER'"), 'Ruolo SUPERUSER non gestito dall’autenticazione.');
+$assert(str_contains($auth, "'password_mismatch'") && str_contains($auth, 'password_needs_rehash'), 'Diagnostica sicura o aggiornamento hash del login mancanti.');
 $assert(str_contains($schema, "ENUM('SUPERUSER','OWNER','ADMIN'"), 'Migrazione ruolo SUPERUSER mancante.');
 $assert(str_contains($schema, "account_type ENUM('HUMAN','SYSTEM','TECHNICAL')"), 'Classificazione utenti licenziati mancante.');
 $assert(is_file($base . '/app/Service/UserLimitService.php'), 'Servizio limite utenti mancante.');

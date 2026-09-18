@@ -216,3 +216,5 @@ button,input,select,textarea{font:inherit}.icon{width:20px;height:20px;display:i
 
 /* Pannello domini personalizzati. */
 .cell-note{display:block;margin-top:5px;max-width:360px;color:var(--muted);font-size:10px;line-height:1.45;white-space:normal}.inline-confirm{position:relative}.inline-confirm>summary{list-style:none;cursor:pointer}.inline-confirm>summary::-webkit-details-marker{display:none}.inline-confirm[open]>form{position:absolute;right:0;z-index:5;min-width:250px;margin-top:7px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff;box-shadow:var(--shadow)}.inline-confirm input{min-width:110px}.button.small{min-height:32px;padding:6px 10px;font-size:10px}.status-danger{background:#ffebed;color:#b52f3d}
+
+.credentials-card .credential-copy{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}.credentials-card .credential-copy input{width:100%;min-width:0;height:38px;border:1px solid #d5e3f4;border-radius:8px;padding:8px 10px;background:#fff;color:#193254;font:inherit;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}.credentials-card .credential-copy .button{min-width:64px}
