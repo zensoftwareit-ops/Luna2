@@ -35,8 +35,8 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=6.4.0">
-    <script src="/assets/app.js?v=6.4.0" defer></script>
+    <link rel="stylesheet" href="/assets/app.css?v=6.5.0">
+    <script src="/assets/app.js?v=6.5.0" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#main-page">Vai al contenuto</a>
@@ -59,6 +59,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                 <a class="nav-link<?= $active('/settings/modules') ?>" href="/settings/modules"><?= View::icon('settings') ?><span>Gestione moduli</span></a>
                 <a class="nav-link<?= $active('/settings/system') ?>" href="/settings/system"><?= View::icon('check') ?><span>Stato del sistema</span></a>
                 <a class="nav-link<?= $active('/settings/license') ?>" href="/settings/license"><?= View::icon('key') ?><span>Licenza</span></a>
+                <a class="nav-link<?= $active('/settings/domains') ?>" href="/settings/domains"><?= View::icon('globe') ?><span>Domini personalizzati</span></a>
             <?php else: ?>
             <a class="nav-link<?= $active('/dashboard') ?>" href="/dashboard"><?= View::icon('home') ?><span>Dashboard</span></a>
             <?php if (Auth::isAdmin()): ?>

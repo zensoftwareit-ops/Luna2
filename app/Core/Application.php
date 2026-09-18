@@ -9,6 +9,7 @@ use Luna\Controller\AccountingAdminController;
 use Luna\Controller\AuthController;
 use Luna\Controller\DashboardController;
 use Luna\Controller\ComplianceController;
+use Luna\Controller\CustomDomainController;
 use Luna\Controller\DocumentController;
 use Luna\Controller\ImportController;
 use Luna\Controller\IntegrationController;
@@ -256,6 +257,10 @@ final class Application
         $router->add('POST', '/settings/license/activate', [LicenseController::class, 'activate'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
         $router->add('POST', '/settings/license/sync', [LicenseController::class, 'sync'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
         $router->add('POST', '/settings/license/deactivate', [LicenseController::class, 'deactivate'], true, true, ['module' => null, 'permission' => 'settings.license', 'operation' => 'TECHNICAL']);
+        $router->add('GET', '/settings/domains', [CustomDomainController::class, 'index'], true, true, ['module' => null, 'permission' => 'settings.domains', 'operation' => 'TECHNICAL']);
+        $router->add('POST', '/settings/domains', [CustomDomainController::class, 'store'], true, true, ['module' => null, 'permission' => 'settings.domains', 'operation' => 'TECHNICAL']);
+        $router->add('POST', '/settings/domains/{id}/sync', [CustomDomainController::class, 'sync'], true, true, ['module' => null, 'permission' => 'settings.domains', 'operation' => 'TECHNICAL']);
+        $router->add('POST', '/settings/domains/{id}/remove', [CustomDomainController::class, 'remove'], true, true, ['module' => null, 'permission' => 'settings.domains', 'operation' => 'TECHNICAL']);
         $router->add('GET', '/settings/endpoints', [IntegrationController::class, 'endpoints']);
         $router->add('POST', '/settings/endpoints', [IntegrationController::class, 'saveEndpoint']);
         $router->add('GET', '/settings/company', [PlatformController::class, 'index']);

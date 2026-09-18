@@ -161,6 +161,8 @@ final class View
             'lock' => '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',
             'bank' => '<path d="M3 10h18M5 10v8M9 10v8M15 10v8M19 10v8M3 18h18M2 22h20M12 2 2 7h20L12 2Z"/>',
             'filter' => '<path d="M4 5h16M7 12h10M10 19h4"/>',
+            'globe' => '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>',
+            'link' => '<path d="M10 13a5 5 0 0 0 7.1.1l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1M14 11a5 5 0 0 0-7.1-.1l-2 2A5 5 0 0 0 12 20l1.1-1.1"/>',
         ];
         $path = $paths[$name] ?? $paths['chevron'];
         return '<svg class="icon ' . self::e($class) . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $path . '</svg>';

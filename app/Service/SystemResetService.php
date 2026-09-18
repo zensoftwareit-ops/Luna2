@@ -18,6 +18,8 @@ final class SystemResetService
         'license_module_history',
         'license_sync_logs',
         'license_overrides',
+        'custom_domains',
+        'custom_domain_events',
     ];
 
     private const RESET_DIRECTORIES = ['cache', 'imports', 'private', 'exports'];
@@ -67,6 +69,13 @@ final class SystemResetService
                          SET created_by = ?, revoked_by = CASE WHEN revoked_by = ? THEN ? ELSE NULL END'
                     );
                     $statement->execute([$superuserId, $superuserId, $superuserId]);
+                }
+
+                if (in_array('custom_domains', $tables, true)) {
+                    $statement = $this->db->prepare(
+                        'UPDATE custom_domains SET created_by = ?, updated_by = ?'
+                    );
+                    $statement->execute([$superuserId, $superuserId]);
                 }
 
                 $statement = $this->db->prepare('DELETE FROM users WHERE id <> ?');

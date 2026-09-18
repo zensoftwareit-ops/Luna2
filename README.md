@@ -31,6 +31,8 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 
 Solo il `SUPERUSER` di piattaforma vede **Aziende e utenti**, **Gestione moduli** e **Stato del sistema**. Gli utenti aziendali, inclusi `OWNER` e `ADMIN`, non possono modificare la composizione del gestionale. Se lo schema non è completo, l’interfaccia indica la migrazione o la tabella mancante invece di mostrare un errore generico. I dettagli delle eccezioni sono salvati in `storage/logs/application-YYYY-MM-DD.log`.
 
+Il superuser può inoltre configurare domini personalizzati con CNAME, alias Plesk e verifica HTTPS dalla sezione **Domini personalizzati**. La configurazione server è descritta in [docs/DOMINI_PERSONALIZZATI_PLESK.md](docs/DOMINI_PERSONALIZZATI_PLESK.md).
+
 ## Stato del progetto
 
 Questa è la release candidate 6.4 della riscrittura PHP. Il via libera al primo cliente resta subordinato alla quadratura di un export DATEV reale, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo della release in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).

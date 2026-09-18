@@ -13,6 +13,7 @@ use Luna\Service\MailService;
 use Luna\Service\RentalService;
 use Luna\Service\WorkspaceService;
 use Luna\Service\DatevKoinosImport;
+use Luna\Service\CustomDomainService;
 
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
@@ -163,6 +164,19 @@ try {
                 try { $jobs['notifications'] += (new WorkspaceService($db, (int) $organizationId, 0))->refreshOperationalNotifications(); } catch (Throwable) { $jobs['errors']++; }
             }
             echo "Scadenze: fiscali {$tax}, documenti {$documents}, noleggio {$rental}. Job: mail {$jobs['mail_sent']}, e-commerce {$jobs['commerce']}, calendari {$jobs['calendar']}, fatture noleggio {$jobs['rental_invoices']}, notifiche {$jobs['notifications']}, errori {$jobs['errors']}.\n";
+            if (tableExists($db, 'custom_domains')) {
+                $domains = (new CustomDomainService($db))->reconcileAll();
+                echo "Domini personalizzati: controllati {$domains['checked']}, attivi {$domains['active']}, in attesa {$domains['pending']}, errori {$domains['errors']}.\n";
+            }
+            break;
+
+        case 'custom-domains:sync':
+            $db = Database::connect();
+            if (!tableExists($db, 'custom_domains')) {
+                throw new RuntimeException('Esegui prima bin/luna migrate: tabella custom_domains assente.');
+            }
+            $domains = (new CustomDomainService($db))->reconcileAll();
+            echo "Domini personalizzati: controllati {$domains['checked']}, attivi {$domains['active']}, in attesa {$domains['pending']}, errori {$domains['errors']}.\n";
             break;
 
         case 'datev:materialize-invoices':
@@ -181,7 +195,7 @@ try {
 
         default:
             echo "Luna2 CLI\n\n";
-            echo "  storage:init\n  key:generate\n  migrate\n  license:status\n  license:sync\n  cron:license\n  cron:daily\n  datev:materialize-invoices\n";
+            echo "  storage:init\n  key:generate\n  migrate\n  license:status\n  license:sync\n  cron:license\n  cron:daily\n  custom-domains:sync\n  datev:materialize-invoices\n";
     }
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Errore: ' . $exception->getMessage() . PHP_EOL);

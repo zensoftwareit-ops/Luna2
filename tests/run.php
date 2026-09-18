@@ -82,6 +82,14 @@ $assert(str_contains($application, "'/settings/users'"), 'Rotta gestione utenti 
 $assert(str_contains($application, "'module' => 'ecommerce', 'permission' => 'public', 'operation' => 'WRITE'"), 'Webhook e-commerce non protetto dalla licenza.');
 $assert(str_contains($application, "'/settings/license'"), 'Pannello tecnico licenza mancante.');
 $assert(substr_count($application, "'permission' => 'settings.license', 'operation' => 'TECHNICAL'") === 4, 'Le operazioni licenza devono restare accessibili in modalità limitata.');
+$assert(str_contains($application, "'/settings/domains'") && substr_count($application, "'permission' => 'settings.domains', 'operation' => 'TECHNICAL'") === 4, 'Pannello tecnico domini personalizzati incompleto.');
+$assert(isset($tableSchemas['custom_domains'], $tableSchemas['custom_domain_events']), 'Schema domini personalizzati mancante.');
+$assert(is_file($base . '/app/Service/PleskApiClient.php') && is_file($base . '/app/Service/CustomDomainService.php'), 'Automazione Plesk per domini personalizzati incompleta.');
+$customDomainService = (string) file_get_contents($base . '/app/Service/CustomDomainService.php');
+$pleskClient = (string) file_get_contents($base . '/app/Service/PleskApiClient.php');
+$assert(str_contains($customDomainService, 'dns_get_record') && str_contains($customDomainService, 'verify_peer_name'), 'Verifica DNS/TLS dei domini personalizzati incompleta.');
+$assert(str_contains($pleskClient, '<site-alias><create>') && str_contains($pleskClient, '<site-alias><delete>') && str_contains($pleskClient, "'KEY' => \$key"), 'Richieste XML API Plesk incomplete.');
+$assert(!str_contains($schema, 'PLESK_API_KEY'), 'La chiave API Plesk non deve essere memorizzata nel database.');
 $assert(str_contains($application, "'/accounting/vat-registers'"), 'Rotta registri IVA mancante.');
 $assert(str_contains($application, "'/accounting/vat-settlements'"), 'Rotta liquidazioni IVA mancante.');
 $assert(str_contains($application, "'/accounting/vat-settlements/{id}/export/{format}'"), 'Esportazione analitica liquidazione IVA mancante.');
