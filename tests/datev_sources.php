@@ -4,6 +4,7 @@ declare(strict_types=1);
 // Uses only an isolated, randomly named local database; never reads .env.
 require dirname(__DIR__).'/vendor/autoload.php';
 use Luna\Service\ImportService;
+use Luna\Service\DatevKoinosImport;
 
 $source=$argv[1]??'';
 if (!is_dir($source)) throw new RuntimeException('Pass a directory containing the original Koinos exports.');
@@ -40,13 +41,20 @@ try {
   try{$service->commit($batch);$assert(false,'Second commit must be rejected');}catch(InvalidArgumentException){$assert(true,'Second commit rejected');}
   $assert($db->query("SELECT status FROM import_batches WHERE id=$batch")->fetchColumn()==='COMPLETED','Completed batch remains completed');
  }
- foreach(['journal_entries','vat_movements','accounting_open_items','fixed_assets','documents'] as $table)$assert((int)$db->query("SELECT COUNT(*) FROM $table WHERE organization_id=$org")->fetchColumn()===0,'No invented operational data: '.$table);
+ foreach(['journal_entries','vat_movements','accounting_open_items','fixed_assets'] as $table)$assert((int)$db->query("SELECT COUNT(*) FROM $table WHERE organization_id=$org")->fetchColumn()===0,'No invented operational data: '.$table);
+ $assert((int)$db->query("SELECT COUNT(*) FROM documents WHERE organization_id=$org AND status='HISTORICAL'")->fetchColumn()===58,'All XML invoices are visible as historical documents');
+ $assert((int)$db->query("SELECT COUNT(*) FROM documents WHERE organization_id=$org AND balance_due<>0")->fetchColumn()===0,'Historical invoices do not create receivable or payable balances');
  $summary=$db->query('SELECT record_kind,application_status,COUNT(*) n FROM datev_reference_records GROUP BY record_kind,application_status')->fetchAll();echo json_encode($summary).PHP_EOL;
  $assert((int)$db->query("SELECT COUNT(*) FROM datev_reference_records WHERE record_kind='journal_headers'")->fetchColumn()===8332,'All journal headers');
  $assert((int)$db->query("SELECT COUNT(*) FROM datev_reference_records WHERE record_kind='asset_progressives'")->fetchColumn()===787,'All asset snapshots');
  $assert((int)$db->query("SELECT COUNT(*) FROM datev_reference_records WHERE record_kind='invoice_history'")->fetchColumn()===58,'All invoice XMLs');
+ $db->exec("DELETE FROM documents WHERE organization_id=$org AND status='HISTORICAL'");
+ $materialized=(new DatevKoinosImport($db,$org,$user))->materializeHistoricalInvoices();
+ $assert($materialized['created']===58&&$materialized['errors']===0,'Legacy archived XML invoices can be materialized');
+ $assert((int)$db->query("SELECT COUNT(*) FROM documents WHERE organization_id=$org AND status='HISTORICAL'")->fetchColumn()===58,'Backfill restores every historical invoice');
  $batch=$batchIds[0];$db->exec("UPDATE import_batches SET status='READY' WHERE id=$batch");$db->exec("UPDATE import_rows SET status='STAGED' WHERE batch_id=$batch");
  $result=(new ImportService($db,$org,$user,$root))->commit($batch);$assert($result['imported']===0&&$result['skipped']>0&&$result['errors']===0,'Replay does not duplicate source or operational data');
+ $assert((int)$db->query("SELECT COUNT(*) FROM documents WHERE organization_id=$org AND status='HISTORICAL'")->fetchColumn()===58,'Replay does not duplicate historical invoices');
  $db->exec("UPDATE import_batches SET status='ERROR' WHERE id=$batch");try{(new ImportService($db,$org,$user,$root))->commit($batch);$assert(false,'Partial staging rejected');}catch(InvalidArgumentException){$assert(true,'Partial staging rejected');}
  echo "PASS $checks checks; peak memory ".round(memory_get_peak_usage(true)/1048576)." MiB\n";
 } finally {$db->exec("DROP DATABASE `$name`");}

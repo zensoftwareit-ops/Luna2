@@ -74,7 +74,7 @@ final class View
             'SUBMITTED' => 'Presentato', 'APPROVED' => 'Approvato', 'REJECTED' => 'Rifiutato',
             'ACCEPTED' => 'Accettato', 'CANCELLED' => 'Annullato', 'CANCELED' => 'Annullato',
             'CONFIRMED' => 'Confermato', 'CLOSED' => 'Chiuso', 'SENT' => 'Inviato',
-            'DELIVERED' => 'Consegnato', 'RECEIVED' => 'Ricevuto', 'ISSUED' => 'Emesso',
+            'DELIVERED' => 'Consegnato', 'RECEIVED' => 'Ricevuto', 'ISSUED' => 'Emesso', 'HISTORICAL' => 'Storico importato',
             'PAID' => 'Pagato', 'PARTIAL' => 'Parziale', 'OVERDUE' => 'Scaduto',
             'POSTED' => 'Contabilizzato', 'REVERSED' => 'Stornato', 'CALCULATED' => 'Calcolato',
             'CONNECTED' => 'Connesso', 'DISCONNECTED' => 'Disconnesso', 'SYNCED' => 'Sincronizzato',

@@ -275,6 +275,11 @@ final class DocumentController extends BaseController
     {
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES']);
         $definition = $this->type($type);
+        $current = $this->db->prepare('SELECT status FROM documents WHERE id = ? AND organization_id = ? AND document_type = ?');
+        $current->execute([(int)$id, Auth::organizationId(), $definition['code']]);
+        if ($current->fetchColumn() === 'HISTORICAL') {
+            $this->redirect('/documents/' . $type . '/' . (int)$id, 'Il documento storico è in sola consultazione e non può generare nuove registrazioni.', 'error');
+        }
         $status = strtoupper((string) ($_POST['status'] ?? ''));
         $allowed = ['DRAFT', 'SENT', 'ACCEPTED', 'REJECTED', 'CONFIRMED', 'IN_PROGRESS', 'FULFILLED', 'ISSUED', 'RECEIVED', 'PARTIALLY_PAID', 'PAID', 'OVERDUE', 'CANCELLED'];
         if (!in_array($status, $allowed, true)) {

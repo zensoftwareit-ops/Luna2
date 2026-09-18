@@ -19,7 +19,7 @@ final class DatevKoinosImport
             $record = json_decode($staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
             $decoded[] = compact('staged', 'record');
         }
-        $priority = ['accounts'=>10,'customers'=>20,'suppliers'=>20,'asset_categories'=>30,'fixed_asset_master'=>40,'asset_progressives'=>50,'asset_movements'=>60];
+        $priority = ['accounts'=>10,'customers'=>20,'suppliers'=>20,'invoice_history'=>25,'asset_categories'=>30,'fixed_asset_master'=>40,'asset_progressives'=>50,'asset_movements'=>60];
         usort($decoded, static fn (array $a, array $b): int => ($priority[$a['record']['kind']] ?? 100) <=> ($priority[$b['record']['kind']] ?? 100));
         foreach ($decoded as $item) {
             $staged = $item['staged'];
@@ -34,7 +34,18 @@ final class DatevKoinosImport
                 $find->execute([$this->organizationId, $kind, $key]); $versions = $find->fetchAll();
                 $identical = array_values(array_filter($versions, static fn ($v) => $v['content_sha256'] === $hash));
                 if ($identical) {
-                    $this->mark((int) $staged['id'], 'SKIPPED', 'Dato già acquisito: nessuna duplicazione.', (int) $identical[0]['id']); $skipped++; continue;
+                    $existingReference = $identical[0];
+                    if ($kind === 'invoice_history') {
+                        [$entityId, $note, $state, $wasCreated] = $this->historicalInvoice($key, $data, $batchId);
+                        if ($entityId !== null) {
+                            $this->db->prepare('UPDATE datev_reference_records SET application_status=?,application_note=?,entity_type=\'documents\',entity_id=? WHERE id=? AND organization_id=?')
+                                ->execute([$state,$note,$entityId,$existingReference['id'],$this->organizationId]);
+                            $this->mark((int)$staged['id'],$wasCreated ? 'IMPORTED' : 'SKIPPED',$note,(int)$existingReference['id']);
+                            if ($wasCreated) { $imported++; $state === 'APPLIED' ? $applied++ : $pending++; } else { $skipped++; }
+                            continue;
+                        }
+                    }
+                    $this->mark((int) $staged['id'], 'SKIPPED', 'Dato già acquisito: nessuna duplicazione.', (int) $existingReference['id']); $skipped++; continue;
                 }
                 $state = empty($record['issue']) ? 'REFERENCE' : 'NEEDS_DATA';
                 $note = $record['issue'] ?? 'Dato di riferimento acquisito. Non genera movimenti contabili.';
@@ -45,6 +56,8 @@ final class DatevKoinosImport
                     [$entityId, $note, $state] = $this->account($data, $batchId); $entity = 'chart_of_accounts';
                 } elseif (in_array($kind, ['customers','suppliers'], true)) {
                     [$entityId, $note, $state] = $this->party($kind, $data, $batchId); $entity = $kind;
+                } elseif ($kind === 'invoice_history') {
+                    [$entityId, $note, $state] = $this->historicalInvoice($key, $data, $batchId); $entity = 'documents';
                 } elseif ($kind === 'causes') {
                     [$entityId, $note, $state] = $this->cause($data); $entity = 'accounting_causes';
                 } elseif ($kind === 'asset_categories') {
@@ -82,6 +95,98 @@ final class DatevKoinosImport
             }
         }
         return compact('imported','errors','skipped','applied','pending','references');
+    }
+
+    /** Materializes XML invoices already archived by older DATEV imports. */
+    public function materializeHistoricalInvoices(?int $batchId = null): array
+    {
+        $sql = "SELECT id,batch_id,source_key,payload_json FROM datev_reference_records WHERE organization_id=? AND record_kind='invoice_history'";
+        $params = [$this->organizationId];
+        if ($batchId !== null) { $sql .= ' AND batch_id=?'; $params[] = $batchId; }
+        $sql .= ' ORDER BY id';
+        $query = $this->db->prepare($sql); $query->execute($params);
+        $created = 0; $linked = 0; $pending = 0; $errors = 0;
+        $started = !$this->db->inTransaction();
+        if ($started) $this->db->beginTransaction();
+        try {
+            foreach ($query->fetchAll() as $reference) {
+                $this->db->exec('SAVEPOINT datev_invoice');
+                try {
+                    $data = json_decode((string)$reference['payload_json'],true,512,JSON_THROW_ON_ERROR);
+                    [$documentId,$note,$state,$wasCreated] = $this->historicalInvoice((string)$reference['source_key'],$data,(int)$reference['batch_id']);
+                    $this->db->prepare("UPDATE datev_reference_records SET application_status=?,application_note=?,entity_type=?,entity_id=? WHERE id=? AND organization_id=?")
+                        ->execute([$state,$note,$documentId ? 'documents' : null,$documentId,$reference['id'],$this->organizationId]);
+                    if ($documentId) $wasCreated ? $created++ : $linked++; else $pending++;
+                } catch (Throwable $exception) {
+                    $this->db->exec('ROLLBACK TO SAVEPOINT datev_invoice');
+                    $this->db->prepare("UPDATE datev_reference_records SET application_status='NEEDS_DATA',application_note=? WHERE id=? AND organization_id=?")
+                        ->execute([mb_substr('Materializzazione non riuscita: '.$exception->getMessage(),0,2000),$reference['id'],$this->organizationId]);
+                    $errors++;
+                }
+            }
+            if ($started) $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($started && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+        return compact('created','linked','pending','errors');
+    }
+
+    /** Creates a read-only document shell: it deliberately creates no journal, VAT or open-item rows. */
+    private function historicalInvoice(string $sourceKey, array $data, int $batchId): array
+    {
+        $type = (string)($data['document_type'] ?? '');
+        $number = trim((string)($data['number'] ?? ''));
+        $date = $this->date($data['document_date'] ?? null);
+        $name = trim((string)($data['counterparty_name'] ?? ''));
+        if (!in_array($type,['SALES_INVOICE','PURCHASE_INVOICE','CREDIT_NOTE'],true) || $number === '' || !$date || $name === '') {
+            return [null,'XML storico privo dei dati minimi per creare il documento consultabile.','NEEDS_DATA',false];
+        }
+        $externalKey = strlen($sourceKey) === 64 ? $sourceKey : hash('sha256',$sourceKey);
+        $find = $this->db->prepare('SELECT id FROM documents WHERE organization_id=? AND external_key=? LIMIT 1');
+        $find->execute([$this->organizationId,$externalKey]);
+        if ($id = $find->fetchColumn()) return [(int)$id,'Fattura storica già consultabile: nessuna duplicazione.','APPLIED',false];
+
+        $partyTable = $type === 'PURCHASE_INVOICE' ? 'suppliers' : 'customers';
+        $partyType = $partyTable === 'suppliers' ? 'SUPPLIER' : 'CUSTOMER';
+        $country = strtoupper(trim((string)($data['counterparty_country'] ?? 'IT'))) ?: 'IT';
+        $vat = PartyAutomationService::normalizeVat($data['counterparty_vat'] ?? null,$country);
+        $tax = trim((string)($data['counterparty_tax_code'] ?? ''));
+        $party = $this->db->prepare("SELECT id FROM {$partyTable} WHERE organization_id=? AND ((?<>'' AND vat_number=?) OR (?<>'' AND tax_code=?) OR business_name=?) ORDER BY CASE WHEN vat_number=? THEN 0 WHEN tax_code=? THEN 1 ELSE 2 END,id LIMIT 1");
+        $party->execute([$this->organizationId,$vat,$vat,$tax,$tax,$name,$vat,$tax]);
+        $partyId = (int)$party->fetchColumn();
+        if (!$partyId) {
+            $insertParty = $this->db->prepare("INSERT INTO {$partyTable} (organization_id,business_name,vat_number,tax_code,address,postal_code,city,province,country_code,iban,bank_name,bank_abi,bank_cab,payment_method_code,active,source_import_batch_id,created_by,updated_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?,?,?,NOW(),NOW())");
+            $insertParty->execute([$this->organizationId,$name,$vat ?: null,$tax ?: null,($data['counterparty_address']??'') ?: null,($data['counterparty_postal_code']??'') ?: null,($data['counterparty_city']??'') ?: null,($data['counterparty_province']??'') ?: null,$country,($data['bank_iban']??'') ?: null,($data['bank_name']??'') ?: null,($data['bank_abi']??'') ?: null,($data['bank_cab']??'') ?: null,($data['payment_method_code']??'') ?: null,$batchId,$this->userId ?: null,$this->userId ?: null]);
+            $partyId = (int)$this->db->lastInsertId();
+        }
+
+        $sameNumber = $this->db->prepare('SELECT id,document_date,total FROM documents WHERE organization_id=? AND document_type=? AND fiscal_year=? AND number=? AND counterparty_id=? LIMIT 1');
+        $sameNumber->execute([$this->organizationId,$type,(int)substr($date,0,4),$number,$partyId]);
+        if ($existing = $sameNumber->fetch()) {
+            $expectedTotal = round((float)($data['total'] ?? 0),2);
+            if ($existing['document_date'] === $date && ($expectedTotal <= 0 || abs((float)$existing['total']-$expectedTotal)<.01)) {
+                $this->db->prepare('UPDATE documents SET external_key=COALESCE(external_key,?) WHERE id=? AND organization_id=?')->execute([$externalKey,$existing['id'],$this->organizationId]);
+                return [(int)$existing['id'],'Fattura storica raccordata al documento già presente.','APPLIED',false];
+            }
+            return [null,'Numero documento già presente con data o totale differenti: raccordo manuale necessario.','CONFLICT',false];
+        }
+
+        $lines = is_array($data['lines'] ?? null) ? $data['lines'] : [];
+        $summaries = is_array($data['vat_summaries'] ?? null) ? $data['vat_summaries'] : [];
+        $taxable = $summaries ? round(array_sum(array_map(fn(array $row): float => $this->decimal($row['taxable'] ?? 0),$summaries)),2) : round(array_sum(array_column($lines,'taxable_amount')),2);
+        $vatTotal = $summaries ? round(array_sum(array_map(fn(array $row): float => $this->decimal($row['vat'] ?? 0),$summaries)),2) : round(array_sum(array_column($lines,'vat_amount')),2);
+        $total = round((float)($data['total'] ?? 0),2); if ($total <= 0) $total = round($taxable+$vatTotal,2);
+        $note = 'Documento storico importato dall’XML originale DATEV. Consultazione documentale: non genera prima nota, movimenti IVA o partite aperte.';
+        $insert = $this->db->prepare('INSERT INTO documents (organization_id,document_type,number,fiscal_year,document_date,due_date,counterparty_type,counterparty_id,counterparty_name,subject,currency,taxable_total,vat_total,withholding_total,withholding_type,withholding_rate,withholding_taxable_percent,withholding_cause,total,balance_due,status,fatturapa_type,payment_method_code,bank_name,bank_abi,bank_cab,bank_iban,notes,external_key,source_import_batch_id,created_by,updated_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,\'HISTORICAL\',?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())');
+        $insert->execute([$this->organizationId,$type,$number,(int)substr($date,0,4),$date,($data['due_date']??'') ?: null,$partyType,$partyId,$name,'Storico XML FatturaPA',($data['currency']??'EUR') ?: 'EUR',$taxable,$vatTotal,(float)($data['withholding_amount']??0),($data['withholding_type']??'') ?: null,(float)($data['withholding_rate']??0),100,($data['withholding_cause']??'') ?: null,$total,0,($data['fatturapa_type']??'') ?: null,($data['payment_method_code']??'') ?: null,($data['bank_name']??'') ?: null,($data['bank_abi']??'') ?: null,($data['bank_cab']??'') ?: null,($data['bank_iban']??'') ?: null,$note,$externalKey,$batchId,$this->userId ?: null,$this->userId ?: null]);
+        $documentId = (int)$this->db->lastInsertId();
+        $insertLine = $this->db->prepare('INSERT INTO document_lines (organization_id,document_id,line_number,description,quantity,unit,unit_price,discount_percent,taxable_amount,vat_rate,vat_nature,vat_amount,total_amount,created_at,updated_at) VALUES (?,?,?,?,?,?,?,0,?,?,?,?,?,NOW(),NOW())');
+        foreach ($lines as $index => $line) {
+            $lineTaxable=round((float)($line['taxable_amount']??0),2); $lineVat=round((float)($line['vat_amount']??0),2);
+            $insertLine->execute([$this->organizationId,$documentId,$index+1,trim((string)($line['description']??'')) ?: 'Riga FatturaPA',(float)($line['quantity']??1),($line['unit']??'NR') ?: 'NR',(float)($line['unit_price']??0),$lineTaxable,(float)($line['vat_rate']??0),($line['vat_nature']??'') ?: null,$lineVat,round($lineTaxable+$lineVat,2)]);
+        }
+        return [$documentId,'Fattura XML storica resa consultabile; contabilità, IVA e scadenziario non duplicati.','APPLIED',true];
     }
 
     private function account(array $data, int $batch): array

@@ -12,6 +12,7 @@ use Luna\Service\LicenseLifecycleService;
 use Luna\Service\MailService;
 use Luna\Service\RentalService;
 use Luna\Service\WorkspaceService;
+use Luna\Service\DatevKoinosImport;
 
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
@@ -164,9 +165,23 @@ try {
             echo "Scadenze: fiscali {$tax}, documenti {$documents}, noleggio {$rental}. Job: mail {$jobs['mail_sent']}, e-commerce {$jobs['commerce']}, calendari {$jobs['calendar']}, fatture noleggio {$jobs['rental_invoices']}, notifiche {$jobs['notifications']}, errori {$jobs['errors']}.\n";
             break;
 
+        case 'datev:materialize-invoices':
+            $db = Database::connect();
+            $organizations = $db->query("SELECT DISTINCT organization_id FROM datev_reference_records WHERE record_kind='invoice_history'")->fetchAll(PDO::FETCH_COLUMN);
+            $totals = ['created'=>0,'linked'=>0,'pending'=>0,'errors'=>0];
+            foreach ($organizations as $organizationId) {
+                $user = $db->prepare("SELECT id FROM users WHERE organization_id=? AND active=1 ORDER BY FIELD(role,'OWNER','ADMIN','ACCOUNTANT'),id LIMIT 1");
+                $user->execute([(int)$organizationId]);
+                $result = (new DatevKoinosImport($db,(int)$organizationId,(int)($user->fetchColumn() ?: 0)))->materializeHistoricalInvoices();
+                foreach ($totals as $key => $_) $totals[$key] += $result[$key];
+                echo "Azienda {$organizationId}: create {$result['created']}, raccordate {$result['linked']}, da verificare {$result['pending']}, errori {$result['errors']}.\n";
+            }
+            echo "Totale: create {$totals['created']}, raccordate {$totals['linked']}, da verificare {$totals['pending']}, errori {$totals['errors']}.\n";
+            break;
+
         default:
             echo "Luna2 CLI\n\n";
-            echo "  storage:init\n  key:generate\n  migrate\n  license:status\n  license:sync\n  cron:license\n  cron:daily\n";
+            echo "  storage:init\n  key:generate\n  migrate\n  license:status\n  license:sync\n  cron:license\n  cron:daily\n  datev:materialize-invoices\n";
     }
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Errore: ' . $exception->getMessage() . PHP_EOL);
