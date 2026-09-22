@@ -55,10 +55,24 @@ final class PleskApiClient
             if (!$existing['web_enabled']) {
                 throw new RuntimeException('L’alias esiste in Plesk ma il servizio web non è abilitato. Abilitalo e riprova.');
             }
+            // Forza Plesk a rigenerare il virtual host: un alias presente nel database
+            // può altrimenti continuare a mostrare la pagina predefinita del server.
+            $this->cli('domalias', ['--update', $alias, '-web', 'true', '-mail', 'false']);
             return $existing['id'];
         }
 
-        return $this->createAlias($canonicalDomain, $alias);
+        $id = $this->createAlias($canonicalDomain, $alias);
+        $this->cli('domalias', ['--update', $alias, '-web', 'true', '-mail', 'false']);
+        return $id;
+    }
+
+    public function issueCertificateWithAliases(string $canonicalDomain): string
+    {
+        $result = $this->cli('extension', [
+            '--call', 'sslit', '--certificate', '-issue', '-domain', $canonicalDomain,
+            '-secure-domain', '-aliases',
+        ], 120);
+        return trim((string) ($result['stdout'] ?? ''));
     }
 
     public function deleteAlias(string $alias): void
@@ -156,6 +170,40 @@ final class PleskApiClient
             throw new RuntimeException('Errore Plesk' . ($code !== '' ? ' ' . $code : '') . ': ' . ($text ?: 'operazione non completata'));
         }
         return $xpath;
+    }
+
+    private function cli(string $command, array $parameters, int $timeout = 30): array
+    {
+        if ($this->transport !== null) {
+            // I test con transport simulato riguardano l'API XML. La chiamata CLI
+            // viene considerata riuscita senza introdurre una seconda transport API.
+            return ['code' => 0, 'stdout' => 'Transport di test', 'stderr' => ''];
+        }
+        $url = rtrim((string) Env::get('PLESK_API_URL', ''), '/');
+        $key = trim((string) Env::get('PLESK_API_KEY', ''));
+        if ($url === '' || $key === '') {
+            throw new RuntimeException('Configura PLESK_API_URL e PLESK_API_KEY nel file .env.');
+        }
+        try {
+            $response = (new Client([
+                'base_uri' => $url . '/', 'timeout' => $timeout, 'connect_timeout' => 8,
+                'verify' => Env::bool('PLESK_API_VERIFY_TLS', true),
+            ]))->post('api/v2/cli/' . rawurlencode($command) . '/call', [
+                'headers' => ['X-API-Key' => $key, 'Accept' => 'application/json', 'Content-Type' => 'application/json'],
+                'json' => ['params' => array_values($parameters)],
+            ]);
+        } catch (\Throwable $exception) {
+            throw new RuntimeException('Comando Plesk ' . $command . ' non eseguibile: ' . $exception->getMessage(), 0, $exception);
+        }
+        $result = json_decode((string) $response->getBody(), true);
+        if (!is_array($result)) {
+            throw new RuntimeException('Plesk ha restituito una risposta CLI non valida.');
+        }
+        if ((int) ($result['code'] ?? 1) !== 0) {
+            $detail = trim((string) ($result['stderr'] ?? $result['stdout'] ?? 'errore sconosciuto'));
+            throw new RuntimeException('Errore Plesk ' . $command . ': ' . ($detail ?: 'comando non completato'));
+        }
+        return $result;
     }
 
     private function firstInteger(DOMXPath $xpath, string $query): ?int

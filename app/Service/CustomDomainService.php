@@ -126,6 +126,18 @@ final class CustomDomainService
         $domain = $this->find($id);
 
         $tls = $this->inspectTls((string) $domain['hostname']);
+        if (($tls['valid'] ?? false) !== true && $this->shouldRequestCertificate($id)) {
+            try {
+                $detail = $this->client()->issueCertificateWithAliases((string) $domain['canonical_domain']);
+                $this->event($id, 'SSL_ISSUE', 'SUCCESS', $detail ?: 'Richiesta SSL It! completata per il dominio e i suoi alias.');
+                $tls = $this->inspectTls((string) $domain['hostname']);
+            } catch (Throwable $exception) {
+                $message = 'Emissione automatica HTTPS non riuscita: ' . $exception->getMessage();
+                $this->update($id, ['status' => 'ERROR', 'last_checked_at' => $now, 'last_error' => $message]);
+                $this->event($id, 'SSL_ISSUE', 'ERROR', $message);
+                return $this->find($id);
+            }
+        }
         if (($tls['valid'] ?? false) === true) {
             $this->update($id, [
                 'status' => 'ACTIVE', 'ssl_issued_at' => $tls['valid_from'] ?? $now,
@@ -248,6 +260,18 @@ final class CustomDomainService
             'valid_to' => isset($parsed['validTo_time_t']) ? date('Y-m-d H:i:s', (int) $parsed['validTo_time_t']) : null,
             'issuer' => implode(', ', array_filter((array) ($parsed['issuer'] ?? []), 'is_scalar')),
         ];
+    }
+
+    private function shouldRequestCertificate(int $id): bool
+    {
+        $statement = $this->db->prepare(
+            "SELECT created_at FROM custom_domain_events
+             WHERE custom_domain_id=? AND event_type='SSL_ISSUE' AND result='SUCCESS'
+             ORDER BY id DESC LIMIT 1"
+        );
+        $statement->execute([$id]);
+        $last = $statement->fetchColumn();
+        return !$last || strtotime((string) $last) < time() - 1800;
     }
 
     private function client(): PleskApiClient { return $this->plesk ?? new PleskApiClient(); }
