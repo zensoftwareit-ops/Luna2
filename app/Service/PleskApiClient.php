@@ -59,14 +59,17 @@ final class PleskApiClient
         // host. Può capitare che l'API XML esponga un record orfano non applicato.
         $cliInfo = $this->cli('domalias', ['--info', $alias], 30, true);
         if ((int) ($cliInfo['code'] ?? 1) === 0) {
-            $this->cli('domalias', ['--update', $alias, '-web', 'true', '-mail', 'false']);
+            $this->cli('domalias', [
+                '--update', $alias, '-status', 'enabled', '-web', 'true',
+                '-mail', 'false', '-seo-redirect', 'false',
+            ]);
         } else {
             if ($existing !== null) {
                 $this->deleteAlias($alias);
             }
             $this->cli('domalias', [
                 '--create', $alias, '-domain', $canonicalDomain, '-status', 'enabled',
-                '-web', 'true', '-mail', 'false', '-dns', 'false',
+                '-web', 'true', '-mail', 'false', '-dns', 'false', '-seo-redirect', 'false',
             ]);
         }
 

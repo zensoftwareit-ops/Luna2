@@ -271,7 +271,9 @@ final class CustomDomainService
         );
         $statement->execute([$id]);
         $last = $statement->fetchColumn();
-        return !$last || strtotime((string) $last) < time() - 1800;
+        // Un secondo controllo dopo la rigenerazione del virtual host deve poter
+        // completare rapidamente un ordine ACME rimasto in attesa.
+        return !$last || strtotime((string) $last) < time() - 60;
     }
 
     private function client(): PleskApiClient { return $this->plesk ?? new PleskApiClient(); }

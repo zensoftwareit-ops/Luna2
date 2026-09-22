@@ -93,6 +93,7 @@ $assert(str_contains($customDomainService, 'dns_get_record') && str_contains($cu
 $assert(str_contains($pleskClient, '<site-alias><create>') && str_contains($pleskClient, '<site-alias><get>') && str_contains($pleskClient, '<site-alias><delete>') && str_contains($pleskClient, "'KEY' => \$key"), 'Richieste XML API Plesk incomplete.');
 $assert(str_contains($pleskClient, 'ensureAlias') && str_contains($pleskClient, "info/site-id") && str_contains($customDomainService, 'ensureAlias'), 'Riconciliazione effettiva degli alias Plesk incompleta.');
 $assert(str_contains($pleskClient, 'issueCertificateWithAliases') && str_contains($pleskClient, "'-aliases'") && str_contains($pleskClient, "api/v2/cli/") && str_contains($customDomainService, 'SSL_ISSUE'), 'Emissione automatica SSL It! per gli alias incompleta.');
+$assert(str_contains($pleskClient, "'-seo-redirect', 'false'") && str_contains($pleskClient, "'-status', 'enabled'"), 'L’alias personalizzato non deve reindirizzare al dominio tecnico.');
 $assert(substr_count($customDomainController, "requireRoles(['OWNER', 'ADMIN'])") === 4 && !str_contains($customDomainController, 'requireSuperuser()'), 'I domini personalizzati devono essere gestiti dagli amministratori aziendali.');
 $assert(str_contains($layoutView, "Auth::isAdmin()") && str_contains($layoutView, 'Dominio personalizzato'), 'Voce dominio personalizzato mancante dal menu amministratore.');
 $aliasProvision = strpos($customDomainService, 'createAlias(');
