@@ -35,7 +35,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
     <meta name="csrf-token" content="<?= View::e(Csrf::token()) ?>">
     <meta name="theme-color" content="#0b1220">
     <title><?= View::e($title) ?> · Luna2</title>
-    <link rel="stylesheet" href="/assets/app.css?v=6.5.2">
+    <link rel="stylesheet" href="/assets/app.css?v=6.6.0">
     <script src="/assets/app.js?v=6.5.2" defer></script>
 </head>
 <body>
@@ -100,7 +100,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                         <a class="<?= $active('/accounting/vat-registers') ?>" href="/accounting/vat-registers">Registri IVA</a>
                         <a class="<?= $active('/accounting/vat-settlements') ?>" href="/accounting/vat-settlements">Liquidazioni IVA</a>
                         <a class="<?= $active('/accounting/treasury') ?>" href="/accounting/treasury">Tesoreria e partite</a>
-                        <a class="<?= $active('/accounting/trial-balance') ?>" href="/accounting/trial-balance">Bilancio di verifica</a>
+                        <a class="<?= $active('/accounting/trial-balance') ?>" href="/accounting/trial-balance">Situazione contabile e mastrini</a>
                         <a class="<?= $active('/accounting/compliance') ?>" href="/accounting/compliance">Adempimenti e chiusure</a>
                         <a class="<?= $active('/accounting/setup') ?>" href="/accounting/setup">Piano dei conti e causali</a>
                         <a class="<?= $active('/r/fixed-assets') ?>" href="/r/fixed-assets">Cespiti</a>

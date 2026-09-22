@@ -2,7 +2,7 @@
 use Luna\Core\View;
 $query = http_build_query(array_filter(['from' => $from, 'to' => $to, 'q' => $search]));
 ?>
-<section class="page-intro compact"><div><span class="eyebrow">Mastrino contabile</span><h1><?= View::e($account['code'] . ' · ' . $account['name']) ?></h1><p>Saldo iniziale al <?= View::date($from) ?>: <strong><?= View::money($account['opening_balance']) ?></strong></p></div><a class="button" href="/accounting/trial-balance?from=<?= View::e($from) ?>&to=<?= View::e($to) ?>">← Bilancio di verifica</a></section>
+<section class="page-intro compact"><div><span class="eyebrow">Mastrino contabile</span><h1><?= View::e($account['code'] . ' · ' . $account['name']) ?></h1><p><?= in_array(($account['account_type'] ?? 'ASSET'), ['ASSET','LIABILITY','EQUITY'], true) ? 'Saldo iniziale ripreso' : 'Saldo iniziale di esercizio' ?> al <?= View::date($from) ?>: <strong><?= View::money($account['opening_balance']) ?></strong></p></div><a class="button" href="/accounting/trial-balance?from=<?= View::e($from) ?>&to=<?= View::e($to) ?>">← Situazione contabile</a></section>
 <section class="list-toolbar exportable-toolbar">
     <p>Totali dell’intero periodo: Dare <?= View::money($account['period_debit']) ?> · Avere <?= View::money($account['period_credit']) ?> · Saldo finale <?= View::money($account['closing_balance']) ?>. La ricerca limita le righe visibili; i saldi includono tutti i movimenti.</p>
     <form method="get" class="search-form filter-form">

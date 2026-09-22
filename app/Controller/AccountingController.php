@@ -9,6 +9,7 @@ use Luna\Core\Auth;
 use Luna\Service\AccountingService;
 use Luna\Service\LedgerReportService;
 use Luna\Service\TabularExportService;
+use Luna\Service\TrialBalanceService;
 use Luna\Service\VatService;
 use RuntimeException;
 
@@ -139,33 +140,47 @@ final class AccountingController extends BaseController
     public function trialBalance(): never
     {
         $this->authorize();
-        [$accounts, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
-        $totals = ['debit' => array_sum(array_column($accounts, 'debit')), 'credit' => array_sum(array_column($accounts, 'credit'))];
-        $this->view->render('accounting/trial-balance', compact('accounts', 'totals', 'from', 'to', 'search', 'accountType') + ['title' => 'Bilancio di verifica e mastrini']);
+        [$statement, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
+        $sections = $statement['sections'];
+        $totals = $statement['totals'];
+        $opening = $statement['opening'];
+        $this->view->render('accounting/trial-balance', compact('sections', 'totals', 'opening', 'from', 'to', 'search', 'accountType') + ['title' => 'Situazione contabile e mastrini']);
     }
 
     public function exportTrialBalance(string $format): never
     {
         $this->authorize();
-        [$rows, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
-        $totals = [
-            'debit' => round((float) array_sum(array_column($rows, 'debit')), 2),
-            'credit' => round((float) array_sum(array_column($rows, 'credit')), 2),
-        ];
-        $difference = round($totals['debit'] - $totals['credit'], 2);
-        $rows[] = ['code' => '', 'name' => 'TOTALI SALDI', 'account_type' => '', 'debit' => $totals['debit'], 'credit' => $totals['credit']];
-        $rows[] = [
-            'code' => '', 'name' => 'DIFFERENZA DARE / AVERE', 'account_type' => '',
-            'debit' => $difference > 0 ? $difference : 0,
-            'credit' => $difference < 0 ? abs($difference) : 0,
-        ];
-        $this->exporter()->stream($format, 'Bilancio di verifica', [
+        [$statement, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
+        $labels = ['ASSET' => 'STATO PATRIMONIALE - ATTIVITÀ', 'EQUITY' => 'STATO PATRIMONIALE - PATRIMONIO NETTO',
+            'LIABILITY' => 'STATO PATRIMONIALE - PASSIVITÀ', 'EXPENSE' => 'CONTO ECONOMICO - COSTI',
+            'REVENUE' => 'CONTO ECONOMICO - RICAVI'];
+        $rows = [];
+        foreach (['ASSET', 'EQUITY', 'LIABILITY', 'EXPENSE', 'REVENUE'] as $type) {
+            foreach ($statement['sections'][$type] as $row) {
+                $rows[] = [
+                    'section' => $labels[$type], 'code' => $row['code'],
+                    'name' => str_repeat('  ', (int) $row['level']) . $row['name'],
+                    'opening' => $row['opening'], 'period_debit' => $row['period_debit'],
+                    'period_credit' => $row['period_credit'], 'amount' => $row['amount'],
+                ];
+            }
+        }
+        $rows[] = ['section' => 'TOTALI', 'code' => '', 'name' => 'TOTALE ATTIVITÀ / A PAREGGIO', 'amount' => $statement['totals']['balance_assets']];
+        $rows[] = ['section' => 'TOTALI', 'code' => '', 'name' => 'TOTALE PASSIVITÀ / A PAREGGIO', 'amount' => $statement['totals']['balance_liabilities']];
+        $rows[] = ['section' => 'TOTALI', 'code' => '', 'name' => ($statement['totals']['profit_loss'] >= 0 ? 'UTILE' : 'PERDITA') . ' D’ESERCIZIO', 'amount' => abs($statement['totals']['profit_loss'])];
+        $rows[] = ['section' => 'TOTALI SALDI', 'code' => '', 'name' => 'DIFFERENZA DARE / AVERE',
+            'amount' => abs($statement['totals']['debit'] - $statement['totals']['credit'])];
+        $this->exporter()->stream($format, 'Situazione contabile a sezioni per competenza', [
+            ['key' => 'section', 'label' => 'Sezione'],
             ['key' => 'code', 'label' => 'Conto'],
             ['key' => 'name', 'label' => 'Descrizione'],
-            ['key' => 'account_type', 'label' => 'Tipo'],
-            ['key' => 'debit', 'label' => 'Saldo Dare', 'type' => 'money'],
-            ['key' => 'credit', 'label' => 'Saldo Avere', 'type' => 'money'],
-        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca conto' => $search, 'Tipo conto' => $accountType]), Auth::organizationName(), 'bilancio-verifica');
+            ['key' => 'opening', 'label' => 'Ripresa saldo', 'type' => 'money'],
+            ['key' => 'period_debit', 'label' => 'Movimenti Dare', 'type' => 'money'],
+            ['key' => 'period_credit', 'label' => 'Movimenti Avere', 'type' => 'money'],
+            ['key' => 'amount', 'label' => 'Saldo', 'type' => 'money'],
+        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca conto' => $search, 'Tipo conto' => $accountType,
+            'Apertura' => $statement['opening']['posted'] ? 'Contabilizzata' : ($statement['opening']['carried'] ? 'Ripresa automatica per controllo' : 'Non necessaria')]),
+            Auth::organizationName(), 'situazione-contabile');
     }
 
     private function trialBalanceDataset(): array
@@ -174,41 +189,9 @@ final class AccountingController extends BaseController
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
         $search = trim((string) ($_GET['q'] ?? ''));
         $accountType = strtoupper(trim((string) ($_GET['account_type'] ?? '')));
-        $where = 'a.organization_id = :organization_id';
-        $params = ['date_from' => $from, 'date_to' => $to, 'organization_id' => Auth::organizationId()];
-        if ($search !== '') {
-            $where .= ' AND (a.code LIKE :search_code OR a.name LIKE :search_name)';
-            $params['search_code'] = '%' . $search . '%';
-            $params['search_name'] = '%' . $search . '%';
-        }
-        if ($accountType !== '') {
-            $where .= ' AND a.account_type = :account_type';
-            $params['account_type'] = $accountType;
-        }
-        $statement = $this->db->prepare(
-            "SELECT a.id, a.code, a.name, a.account_type,
-                    COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit ELSE 0 END), 0) AS debit,
-                    COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.credit ELSE 0 END), 0) AS credit,
-                    COALESCE(SUM(CASE WHEN e.id IS NOT NULL THEN l.debit - l.credit ELSE 0 END), 0) AS balance
-             FROM chart_of_accounts a
-             LEFT JOIN journal_entry_lines l ON l.account_id = a.id
-             LEFT JOIN journal_entries e ON e.id = l.journal_entry_id AND e.status = 'POSTED'
-                  AND e.entry_date BETWEEN :date_from AND :date_to
-             WHERE {$where}
-             GROUP BY a.id, a.code, a.name, a.account_type
-             HAVING ABS(balance) > 0.005
-             ORDER BY a.code"
-        );
-        $statement->execute($params);
-        $accounts = array_map(static function (array $account): array {
-            $balance = round((float) $account['balance'], 2);
-            $account['movement_debit'] = (float) $account['debit'];
-            $account['movement_credit'] = (float) $account['credit'];
-            $account['debit'] = $balance > 0 ? $balance : 0.0;
-            $account['credit'] = $balance < 0 ? abs($balance) : 0.0;
-            return $account;
-        }, $statement->fetchAll());
-        return [$accounts, $from, $to, $search, $accountType];
+        $statement = (new TrialBalanceService($this->db, Auth::organizationId()))
+            ->dataset($from, $to, $search, $accountType);
+        return [$statement, $from, $to, $search, $accountType];
     }
 
     public function ledger(string $id): never

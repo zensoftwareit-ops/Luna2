@@ -85,27 +85,34 @@ final class CustomDomainService
     {
         $domain = $this->find($id);
         $now = date('Y-m-d H:i:s');
-        if (empty($domain['alias_provisioned_at'])) {
-            if (!$this->client()->configured()) {
-                $message = 'Servizio di attivazione non configurato. Contatta l’assistenza Luna2.';
-                $this->update($id, ['status' => 'ERROR', 'last_checked_at' => $now, 'last_error' => $message, 'updated_by' => $userId ?: null]);
-                $this->event($id, 'PLESK_ALIAS', 'ERROR', $message);
-                return $this->find($id);
-            }
-            try {
-                $aliasId = $this->client()->createAlias((string) $domain['canonical_domain'], (string) $domain['hostname']);
-                $this->update($id, [
-                    'status' => 'PENDING_DNS', 'plesk_alias_id' => $aliasId,
-                    'alias_provisioned_at' => $now, 'last_checked_at' => $now,
-                    'last_error' => null, 'updated_by' => $userId ?: null,
-                ]);
-                $this->event($id, 'PLESK_ALIAS', 'SUCCESS', 'Alias web predisposto; SSL It! completerà il certificato dopo la propagazione DNS.');
-                $domain = $this->find($id);
-            } catch (Throwable $exception) {
-                $this->update($id, ['status' => 'ERROR', 'last_checked_at' => $now, 'last_error' => $exception->getMessage(), 'updated_by' => $userId ?: null]);
-                $this->event($id, 'PLESK_ALIAS', 'ERROR', $exception->getMessage());
-                return $this->find($id);
-            }
+        if (!$this->client()->configured()) {
+            $message = 'Servizio di attivazione non configurato. Contatta l’assistenza Luna2.';
+            $this->update($id, ['status' => 'ERROR', 'last_checked_at' => $now, 'last_error' => $message, 'updated_by' => $userId ?: null]);
+            $this->event($id, 'PLESK_ALIAS', 'ERROR', $message);
+            return $this->find($id);
+        }
+        try {
+            $aliasId = $this->client()->ensureAlias((string) $domain['canonical_domain'], (string) $domain['hostname']);
+            $wasProvisioned = !empty($domain['alias_provisioned_at']);
+            $this->update($id, [
+                'plesk_alias_id' => $aliasId,
+                'alias_provisioned_at' => $domain['alias_provisioned_at'] ?: $now,
+                'last_checked_at' => $now, 'last_error' => null,
+                'updated_by' => $userId ?: null,
+            ]);
+            $this->event(
+                $id,
+                'PLESK_ALIAS',
+                'SUCCESS',
+                $wasProvisioned
+                    ? 'Alias web verificato nel webspace Plesk corretto.'
+                    : 'Alias web predisposto; SSL It! completerà il certificato dopo la propagazione DNS.'
+            );
+            $domain = $this->find($id);
+        } catch (Throwable $exception) {
+            $this->update($id, ['status' => 'ERROR', 'last_checked_at' => $now, 'last_error' => $exception->getMessage(), 'updated_by' => $userId ?: null]);
+            $this->event($id, 'PLESK_ALIAS', 'ERROR', $exception->getMessage());
+            return $this->find($id);
         }
 
         if (!$this->dnsPointsTo((string) $domain['hostname'], (string) $domain['cname_target'])) {

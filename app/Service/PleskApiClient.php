@@ -37,16 +37,28 @@ final class PleskApiClient
             . '<manage-dns>0</manage-dns><site-id>' . $siteId . '</site-id><name>'
             . self::xml($alias) . '</name></create></site-alias></packet>';
 
-        try {
-            $response = $this->request($packet);
-        } catch (RuntimeException $exception) {
-            if (str_contains(mb_strtolower($exception->getMessage()), 'already exists')
-                || str_contains(mb_strtolower($exception->getMessage()), 'già esist')) {
-                return null;
-            }
-            throw $exception;
-        }
+        $response = $this->request($packet);
         return $this->firstInteger($response, '//site-alias/create/result/id');
+    }
+
+    public function ensureAlias(string $canonicalDomain, string $alias): ?int
+    {
+        $expectedSiteId = $this->siteId($canonicalDomain);
+        $existing = $this->aliasInfo($alias);
+        if ($existing !== null) {
+            if ((int) $existing['site_id'] !== $expectedSiteId) {
+                throw new RuntimeException(
+                    'Il dominio esiste già in Plesk ma non appartiene al webspace ' . $canonicalDomain
+                    . '. Rimuovi l’oggetto in conflitto da Plesk e riprova.'
+                );
+            }
+            if (!$existing['web_enabled']) {
+                throw new RuntimeException('L’alias esiste in Plesk ma il servizio web non è abilitato. Abilitalo e riprova.');
+            }
+            return $existing['id'];
+        }
+
+        return $this->createAlias($canonicalDomain, $alias);
     }
 
     public function deleteAlias(string $alias): void
@@ -74,7 +86,30 @@ final class PleskApiClient
         return $id;
     }
 
-    private function request(string $packet): DOMXPath
+    private function aliasInfo(string $alias): ?array
+    {
+        $packet = '<packet><site-alias><get><filter><name>' . self::xml($alias)
+            . '</name></filter></get></site-alias></packet>';
+        $xpath = $this->request($packet, true);
+        $result = $xpath->query('//site-alias/get/result[status="ok"]')->item(0);
+        if ($result === null) {
+            return null;
+        }
+
+        $id = trim((string) $xpath->evaluate('string(id)', $result));
+        $siteId = trim((string) $xpath->evaluate('string(info/site-id)', $result));
+        $web = mb_strtolower(trim((string) $xpath->evaluate('string(info/pref/web | info/prefs/web)', $result)));
+        if (!ctype_digit($siteId)) {
+            throw new RuntimeException('Plesk non ha restituito il webspace associato all’alias ' . $alias . '.');
+        }
+        return [
+            'id' => ctype_digit($id) ? (int) $id : null,
+            'site_id' => (int) $siteId,
+            'web_enabled' => in_array($web, ['1', 'true'], true),
+        ];
+    }
+
+    private function request(string $packet, bool $allowApiErrors = false): DOMXPath
     {
         if ($this->transport !== null) {
             $body = (string) ($this->transport)($packet);
@@ -114,7 +149,7 @@ final class PleskApiClient
         }
         $xpath = new DOMXPath($dom);
         $errors = $xpath->query('//result[status="error"]');
-        if ($errors !== false && $errors->length > 0) {
+        if (!$allowApiErrors && $errors !== false && $errors->length > 0) {
             $node = $errors->item(0);
             $code = trim((string) $xpath->evaluate('string(errcode)', $node));
             $text = trim((string) $xpath->evaluate('string(errtext)', $node));

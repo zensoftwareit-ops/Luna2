@@ -20,7 +20,7 @@ final class LedgerReportService
             }
         }
         if ($from > $to) { throw new InvalidArgumentException('Intervallo del mastrino non valido.'); }
-        $statement = $this->db->prepare('SELECT id, code, name FROM chart_of_accounts WHERE id = ? AND organization_id = ?');
+        $statement = $this->db->prepare('SELECT id, code, name, account_type FROM chart_of_accounts WHERE id = ? AND organization_id = ?');
         $statement->execute([$id, $this->organizationId]);
         $account = $statement->fetch();
         if (!$account) { throw new InvalidArgumentException('Conto non trovato.'); }
@@ -40,13 +40,20 @@ final class LedgerReportService
     public static function calculate(array $account, array $lines, string $from, string $to, string $search = ''): array
     {
         $balance = $opening = $debit = $credit = 0;
+        $carryForward = in_array((string) ($account['account_type'] ?? 'ASSET'), ['ASSET', 'LIABILITY', 'EQUITY'], true);
         $rows = [];
         foreach ($lines as $line) {
             if ($line['entry_date'] > $to) { continue; }
             $d = (int) round((float) $line['debit'] * 100);
             $c = (int) round((float) $line['credit'] * 100);
+            if ($line['entry_date'] < $from) {
+                if ($carryForward) {
+                    $balance += $d - $c;
+                    $opening = $balance;
+                }
+                continue;
+            }
             $balance += $d - $c;
-            if ($line['entry_date'] < $from) { $opening = $balance; continue; }
             $debit += $d; $credit += $c;
             $line['running_balance'] = $balance / 100;
             $text = implode(' ', array_map(static fn ($key): string => (string) ($line[$key] ?? ''),
