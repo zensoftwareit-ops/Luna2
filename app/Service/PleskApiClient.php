@@ -45,25 +45,36 @@ final class PleskApiClient
     {
         $expectedSiteId = $this->siteId($canonicalDomain);
         $existing = $this->aliasInfo($alias);
-        if ($existing !== null) {
-            if ((int) $existing['site_id'] !== $expectedSiteId) {
-                throw new RuntimeException(
-                    'Il dominio esiste già in Plesk ma non appartiene al webspace ' . $canonicalDomain
-                    . '. Rimuovi l’oggetto in conflitto da Plesk e riprova.'
-                );
-            }
-            if (!$existing['web_enabled']) {
-                throw new RuntimeException('L’alias esiste in Plesk ma il servizio web non è abilitato. Abilitalo e riprova.');
-            }
-            // Forza Plesk a rigenerare il virtual host: un alias presente nel database
-            // può altrimenti continuare a mostrare la pagina predefinita del server.
-            $this->cli('domalias', ['--update', $alias, '-web', 'true', '-mail', 'false']);
-            return $existing['id'];
+        if ($existing !== null && (int) $existing['site_id'] !== $expectedSiteId) {
+            throw new RuntimeException(
+                'Il dominio esiste già in Plesk ma non appartiene al webspace ' . $canonicalDomain
+                . '. Rimuovi l’oggetto in conflitto da Plesk e riprova.'
+            );
+        }
+        if ($this->transport !== null) {
+            return $existing['id'] ?? $this->createAlias($canonicalDomain, $alias);
         }
 
-        $id = $this->createAlias($canonicalDomain, $alias);
-        $this->cli('domalias', ['--update', $alias, '-web', 'true', '-mail', 'false']);
-        return $id;
+        // Il CLI è la fonte autorevole per la configurazione effettiva dei virtual
+        // host. Può capitare che l'API XML esponga un record orfano non applicato.
+        $cliInfo = $this->cli('domalias', ['--info', $alias], 30, true);
+        if ((int) ($cliInfo['code'] ?? 1) === 0) {
+            $this->cli('domalias', ['--update', $alias, '-web', 'true', '-mail', 'false']);
+        } else {
+            if ($existing !== null) {
+                $this->deleteAlias($alias);
+            }
+            $this->cli('domalias', [
+                '--create', $alias, '-domain', $canonicalDomain, '-status', 'enabled',
+                '-web', 'true', '-mail', 'false', '-dns', 'false',
+            ]);
+        }
+
+        $verified = $this->aliasInfo($alias);
+        if ($verified === null || (int) $verified['site_id'] !== $expectedSiteId || !$verified['web_enabled']) {
+            throw new RuntimeException('Plesk non ha applicato correttamente l’alias al webspace ' . $canonicalDomain . '.');
+        }
+        return $verified['id'];
     }
 
     public function issueCertificateWithAliases(string $canonicalDomain): string
@@ -172,7 +183,7 @@ final class PleskApiClient
         return $xpath;
     }
 
-    private function cli(string $command, array $parameters, int $timeout = 30): array
+    private function cli(string $command, array $parameters, int $timeout = 30, bool $allowErrors = false): array
     {
         if ($this->transport !== null) {
             // I test con transport simulato riguardano l'API XML. La chiamata CLI
@@ -199,7 +210,7 @@ final class PleskApiClient
         if (!is_array($result)) {
             throw new RuntimeException('Plesk ha restituito una risposta CLI non valida.');
         }
-        if ((int) ($result['code'] ?? 1) !== 0) {
+        if (!$allowErrors && (int) ($result['code'] ?? 1) !== 0) {
             $detail = trim((string) ($result['stderr'] ?? $result['stdout'] ?? 'errore sconosciuto'));
             throw new RuntimeException('Errore Plesk ' . $command . ': ' . ($detail ?: 'comando non completato'));
         }
