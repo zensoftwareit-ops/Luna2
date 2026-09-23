@@ -342,7 +342,7 @@ final class OfficialPrintService
             return [$columns, $rows];
         }
         if ($type === 'VAT_LIQUIDATION') {
-            $columns = ['Periodo', 'Registro', 'Codice IVA', 'Articolo IVA', 'Aliquota %', 'Natura', 'Riferimento normativo', 'Imponibile', 'IVA a debito', 'IVA detraibile', 'Credito precedente', 'Interessi', 'Saldo', 'Stato / pagamento'];
+            $columns = ['Periodo', 'Registro', 'Codice IVA', 'Articolo IVA', 'Aliquota %', 'Natura', 'Riferimento normativo', 'Imponibile', 'Imposta a debito', 'Imposta a credito', 'Esigibile / detraibile', 'Indetraibile', 'Sospesa', 'Credito precedente', 'Interessi', 'Saldo', 'Stato / pagamento'];
             $rows = [];
             $settlements = $this->db->prepare(
                 "SELECT * FROM vat_settlements
@@ -352,7 +352,11 @@ final class OfficialPrintService
             $settlements->execute([$this->organizationId, (int) substr($from, 0, 4), (int) substr($to, 0, 4)]);
             $details = $this->db->prepare(
                 "SELECT d.register_type, d.vat_code, d.vat_description, d.vat_rate,
-                        d.vat_nature, d.vat_legal_reference, d.taxable_amount, d.vat_amount, d.deductible_vat
+                        d.vat_nature, d.vat_legal_reference, d.taxable_amount,
+                        CASE WHEN d.register_type = 'PURCHASES' THEN d.vat_due_amount ELSE d.vat_amount END,
+                        CASE WHEN d.register_type = 'PURCHASES' THEN d.vat_amount ELSE 0 END,
+                        CASE WHEN d.register_type = 'PURCHASES' THEN d.deductible_vat ELSE d.vat_due_amount END,
+                        d.non_deductible_vat, d.suspended_vat
                  FROM vat_settlement_details d
                  WHERE d.organization_id = ? AND d.settlement_id = ? ORDER BY d.register_type, d.vat_code, d.vat_rate, d.vat_nature"
             );
@@ -372,7 +376,7 @@ final class OfficialPrintService
                     $rows[] = [$periodLabel, ...$detail, '', '', '', ''];
                 }
                 $deltaDebit = round((float) $settlement['vat_debit'] - array_sum(array_column($detailRows, 7)), 2);
-                $deltaCredit = round((float) $settlement['vat_credit'] - array_sum(array_column($detailRows, 8)), 2);
+                $deltaCredit = round((float) $settlement['vat_credit'] - array_sum(array_column($detailRows, 9)), 2);
                 if ($deltaDebit != 0 || $deltaCredit != 0) {
                     $adjustments = $this->db->prepare("SELECT id, adjustment_type, description, vat_debit_delta, vat_credit_delta, updated_at
                         FROM vat_adjustments WHERE organization_id = ? AND fiscal_year = ? AND period_month BETWEEN ? AND ?
@@ -385,7 +389,7 @@ final class OfficialPrintService
                     }
                     foreach ($adjustmentRows as $adjustment) {
                         $rows[] = [$periodLabel, 'RETTIFICA #' . $adjustment['id'], '', $adjustment['adjustment_type'], '', '', '', '',
-                            $adjustment['vat_debit_delta'], $adjustment['vat_credit_delta'], '', '', '', $adjustment['description']];
+                            $adjustment['vat_debit_delta'], '', $adjustment['vat_credit_delta'], '', '', '', '', '', $adjustment['description']];
                     }
                 }
                 $expected = round((float) $settlement['vat_debit'] - (float) $settlement['vat_credit'] - (float) $settlement['previous_credit'] + (float) $settlement['interest_amount'], 2);
@@ -395,7 +399,7 @@ final class OfficialPrintService
                 }
                 $rows[] = [
                     $periodLabel . ' · TOTALE LIQUIDAZIONE', '', '', '', '', '', '', 0,
-                    $settlement['vat_debit'], $settlement['vat_credit'], $settlement['previous_credit'],
+                    $settlement['vat_debit'], '', $settlement['vat_credit'], '', '', $settlement['previous_credit'],
                     $settlement['interest_amount'], $settlement['balance'],
                     $settlement['status'] . "\nScadenza: " . ($settlement['payment_due_date'] ?: 'non indicata')
                         . "\nPagamento: " . ($settlement['payment_date'] ?: '-') . "\nF24: " . ($settlement['payment_reference'] ?? '-'),
@@ -403,7 +407,7 @@ final class OfficialPrintService
                 $lipe = $this->db->prepare('SELECT id, quarter_number, status, export_checksum FROM lipe_communications WHERE organization_id = ? AND fiscal_year = ? AND quarter_number = ?');
                 $lipe->execute([$this->organizationId, $settlement['period_year'], (int) ceil((int) substr($periodEnd, 5, 2) / 3)]);
                 $lipeRow = $lipe->fetch();
-                $rows[] = [$periodLabel, 'RIFERIMENTI', '', '', '', '', '', '', '', '', '', '', '',
+                $rows[] = [$periodLabel, 'RIFERIMENTI', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
                     'Calcolo: ' . ($settlement['calculated_at'] ?: '-') . "\nNote: " . ($settlement['notes'] ?: '-')
                     . "\nLIPE: " . ($lipeRow ? '#' . $lipeRow['id'] . ' T' . $lipeRow['quarter_number'] . ' ' . $lipeRow['status'] . ' (prospetto di raccordo)' : 'nessun prospetto collegato')];
             }

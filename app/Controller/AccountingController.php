@@ -410,7 +410,7 @@ final class AccountingController extends BaseController
         }
         $statement = $this->db->prepare(
             'SELECT d.register_type, d.vat_code, d.vat_description, d.vat_rate, d.vat_nature, d.vat_legal_reference,
-                    d.taxable_amount, d.vat_amount, d.deductible_vat
+                    d.taxable_amount, d.vat_amount, d.vat_due_amount, d.deductible_vat, d.non_deductible_vat, d.suspended_vat
              FROM vat_settlement_details d
              WHERE d.settlement_id = ? AND d.organization_id = ? ORDER BY d.register_type, d.vat_code, d.vat_rate, d.vat_nature'
         );
@@ -422,7 +422,8 @@ final class AccountingController extends BaseController
         $rows[] = [
             'register_type' => 'TOTALE LIQUIDAZIONE', 'vat_code' => '', 'vat_description' => '', 'vat_rate' => null,
             'vat_nature' => '', 'vat_legal_reference' => '', 'taxable_amount' => array_sum(array_column($rows, 'taxable_amount')),
-            'vat_amount' => $settlement['vat_debit'], 'deductible_vat' => $settlement['vat_credit'],
+            'vat_amount' => 0, 'vat_due_amount' => $settlement['vat_debit'],
+            'deductible_vat' => $settlement['vat_credit'], 'non_deductible_vat' => 0, 'suspended_vat' => 0,
             'previous_credit' => $settlement['previous_credit'], 'interest_amount' => $settlement['interest_amount'],
             'balance' => $settlement['balance'],
         ];
@@ -434,8 +435,11 @@ final class AccountingController extends BaseController
             ['key' => 'vat_nature', 'label' => 'Natura'],
             ['key' => 'vat_legal_reference', 'label' => 'Riferimento normativo'],
             ['key' => 'taxable_amount', 'label' => 'Imponibile', 'type' => 'money'],
-            ['key' => 'vat_amount', 'label' => 'IVA a debito', 'type' => 'money'],
-            ['key' => 'deductible_vat', 'label' => 'IVA detraibile', 'type' => 'money'],
+            ['key' => 'vat_due_amount', 'label' => 'IVA a debito', 'type' => 'money'],
+            ['key' => 'vat_amount', 'label' => 'Imposta complessiva', 'type' => 'money'],
+            ['key' => 'deductible_vat', 'label' => 'IVA esigibile / detraibile', 'type' => 'money'],
+            ['key' => 'non_deductible_vat', 'label' => 'IVA indetraibile', 'type' => 'money'],
+            ['key' => 'suspended_vat', 'label' => 'IVA sospesa', 'type' => 'money'],
         ], $rows, [
             'Credito precedente' => number_format((float) $settlement['previous_credit'], 2, ',', '.'),
             'Interessi' => number_format((float) $settlement['interest_amount'], 2, ',', '.'),

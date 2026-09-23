@@ -352,18 +352,22 @@ final class VatService
             $details = $this->db->prepare(
                 "SELECT register_type, vat_code, vat_rate, vat_nature, vat_description, vat_legal_reference,
                         SUM(taxable_amount) AS taxable_amount,
-                        SUM(vat_amount) AS vat_amount, SUM(deductible_vat) AS deductible_vat
+                        SUM(vat_amount) AS vat_amount, SUM(vat_due_amount) AS vat_due_amount,
+                        SUM(deductible_vat) AS deductible_vat, SUM(non_deductible_vat) AS non_deductible_vat,
+                        SUM(suspended_vat) AS suspended_vat
                  FROM (
                     SELECT register_type, COALESCE(vat_code, 'N/D') AS vat_code, vat_rate, vat_nature,
-                           vat_description, vat_legal_reference, taxable_amount,
-                           vat_due_amount AS vat_amount,
-                           CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END AS deductible_vat
+                           vat_description, vat_legal_reference, taxable_amount, vat_amount, vat_due_amount,
+                           CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END AS deductible_vat,
+                           CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN vat_amount - deductible_vat ELSE 0 END AS non_deductible_vat,
+                           CASE WHEN collectability IN ('CASH','DEFERRED') THEN vat_amount ELSE 0 END AS suspended_vat
                     FROM vat_movements
                     WHERE organization_id = ? AND period_year = ? AND period_month BETWEEN ? AND ? AND lipe_excluded = 0
                     UNION ALL
                     SELECT m.register_type, COALESCE(m.vat_code, 'N/D'), m.vat_rate, m.vat_nature,
                            m.vat_description, m.vat_legal_reference, e.recognized_taxable,
-                           e.recognized_vat_due, e.recognized_vat_credit
+                           e.recognized_vat_due + e.recognized_vat_credit, e.recognized_vat_due,
+                           e.recognized_vat_credit, 0, 0
                     FROM vat_cash_events e JOIN vat_movements m ON m.id = e.vat_movement_id
                     WHERE e.organization_id = ? AND YEAR(e.recognition_date) = ? AND MONTH(e.recognition_date) BETWEEN ? AND ?
                  ) detail_rows
@@ -376,14 +380,16 @@ final class VatService
             $insert = $this->db->prepare(
                 'INSERT INTO vat_settlement_details
                  (organization_id, settlement_id, register_type, vat_code, vat_rate, vat_nature,
-                  vat_description, vat_legal_reference, taxable_amount, vat_amount, deductible_vat, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())'
+                  vat_description, vat_legal_reference, taxable_amount, vat_amount, vat_due_amount,
+                  deductible_vat, non_deductible_vat, suspended_vat, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())'
             );
             foreach ($details->fetchAll() as $detail) {
                 $insert->execute([
                     $this->organizationId, $settlementId, $detail['register_type'], $detail['vat_code'],
                     $detail['vat_rate'], $detail['vat_nature'], $detail['vat_description'], $detail['vat_legal_reference'],
-                    $detail['taxable_amount'], $detail['vat_amount'], $detail['deductible_vat'],
+                    $detail['taxable_amount'], $detail['vat_amount'], $detail['vat_due_amount'],
+                    $detail['deductible_vat'], $detail['non_deductible_vat'], $detail['suspended_vat'],
                 ]);
             }
             if ($ownsTransaction) {
