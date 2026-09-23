@@ -416,6 +416,9 @@ final class AccountingController extends BaseController
         );
         $statement->execute([(int) $id, Auth::organizationId()]);
         $rows = $statement->fetchAll();
+        if (strtolower($format) === 'pdf') {
+            $this->exporter()->streamVatSettlementPdf($settlement, $rows, 'liquidazione-iva-' . $settlement['period_year'] . '-' . $settlement['period_number']);
+        }
         $rows[] = [
             'register_type' => 'TOTALE LIQUIDAZIONE', 'vat_code' => '', 'vat_description' => '', 'vat_rate' => null,
             'vat_nature' => '', 'vat_legal_reference' => '', 'taxable_amount' => array_sum(array_column($rows, 'taxable_amount')),

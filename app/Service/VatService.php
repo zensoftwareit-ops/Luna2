@@ -43,7 +43,8 @@ final class VatService
         }
         try {
             $statement = $this->db->prepare(
-                "SELECT id, document_type, number, document_date, counterparty_name, vat_collectability
+                "SELECT id, document_type, number, document_date, counterparty_name, counterparty_type,
+                        fatturapa_type, vat_collectability
                  FROM documents WHERE id = ? AND organization_id = ? FOR UPDATE"
             );
             $statement->execute([$documentId, $this->organizationId]);
@@ -57,9 +58,9 @@ final class VatService
 
             $date = new DateTimeImmutable((string) $document['document_date']);
             $this->assertPeriodOpen((int) $date->format('Y'), (int) $date->format('n'));
-            $register = $document['document_type'] === 'PURCHASE_INVOICE' ? 'PURCHASES' : 'SALES';
+            $isCreditNote = $this->isCreditNote($document);
+            $register = $this->isPurchaseDocument($document) ? 'PURCHASES' : 'SALES';
             $registerId = $this->defaultRegisterId($register);
-            $sign = $document['document_type'] === 'CREDIT_NOTE' ? -1 : 1;
             $statement = $this->db->prepare(
                 "SELECT COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')) AS vat_code,
                         COALESCE(vat_nature, '') AS vat_nature, vat_rate,
@@ -97,7 +98,10 @@ final class VatService
                     (float) $group['vat_rate'],
                     (string) $group['vat_nature'],
                 );
-                $vat = round((float) $group['vat_amount'] * $sign, 2);
+                // I gestionali e gli XML FatturaPA espongono normalmente TD04/TD08 con importi positivi.
+                // Forziamo un unico segno negativo, evitando anche il doppio storno di sorgenti già negative.
+                $taxable = round($isCreditNote ? -abs((float) $group['taxable_amount']) : (float) $group['taxable_amount'], 2);
+                $vat = round($isCreditNote ? -abs((float) $group['vat_amount']) : (float) $group['vat_amount'], 2);
                 $operation = $this->operationType($metadata['nature'], (string) ($document['vat_collectability'] ?? ''));
                 $collectability = $this->collectability((string) ($document['vat_collectability'] ?? ''), $operation);
                 if ($this->cashVatEnabled() && $collectability === 'IMMEDIATE') {
@@ -114,9 +118,11 @@ final class VatService
                 $insert->execute([
                     $this->organizationId, $documentId, $register, $registerId, $operation, $collectability,
                     $document['document_date'], in_array($collectability, ['IMMEDIATE', 'SPLIT'], true) ? $document['document_date'] : null,
-                    $document['number'], $document['counterparty_name'], $this->documentDescription((string) $document['document_type']),
+                    $document['number'], $document['counterparty_name'], $isCreditNote
+                        ? ($register === 'PURCHASES' ? 'Nota di credito fornitore' : 'Nota di credito cliente')
+                        : $this->documentDescription((string) $document['document_type']),
                     $metadata['code'], $metadata['rate'], $metadata['nature'], $metadata['description'], $metadata['legal_reference'],
-                    round((float) $group['taxable_amount'] * $sign, 2), $vat,
+                    $taxable, $vat,
                     $vatDue, $deductible, $proRata, $proRataAmount,
                     (int) $date->format('Y'), (int) $date->format('n'), $this->userId,
                 ]);
@@ -278,6 +284,10 @@ final class VatService
         if ($settlement && in_array($settlement['status'], ['SUBMITTED', 'PAID'], true)) {
             throw new RuntimeException('La liquidazione è definitiva e non può essere ricalcolata.');
         }
+
+        // Prima di calcolare riallinea i documenti del periodo: in questo modo anche le note di credito
+        // FatturaPA TD04/TD08, comprese quelle ricevute, entrano sempre con il segno corretto.
+        $this->syncDocumentsForPeriod($year, $monthFrom, $monthTo);
 
         $summary = $this->db->prepare(
             "SELECT
@@ -478,6 +488,34 @@ final class VatService
             'CREDIT_NOTE' => 'Nota di credito',
             default => 'Documento',
         };
+    }
+
+    private function isCreditNote(array $document): bool
+    {
+        return (string) ($document['document_type'] ?? '') === 'CREDIT_NOTE'
+            || in_array(strtoupper((string) ($document['fatturapa_type'] ?? '')), ['TD04', 'TD08'], true);
+    }
+
+    private function isPurchaseDocument(array $document): bool
+    {
+        return (string) ($document['document_type'] ?? '') === 'PURCHASE_INVOICE'
+            || strtoupper((string) ($document['counterparty_type'] ?? '')) === 'SUPPLIER';
+    }
+
+    private function syncDocumentsForPeriod(int $year, int $monthFrom, int $monthTo): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT id FROM documents
+             WHERE organization_id = ?
+               AND document_type IN ('SALES_INVOICE','PURCHASE_INVOICE','CREDIT_NOTE')
+               AND status IN ('ISSUED','RECEIVED','PARTIALLY_PAID','PAID','OVERDUE')
+               AND YEAR(document_date) = ? AND MONTH(document_date) BETWEEN ? AND ?
+             ORDER BY document_date, id"
+        );
+        $statement->execute([$this->organizationId, $year, $monthFrom, $monthTo]);
+        foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $documentId) {
+            $this->syncDocument((int) $documentId);
+        }
     }
 
     private function defaultRegisterId(string $type): ?int

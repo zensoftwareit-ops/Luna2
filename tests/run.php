@@ -410,6 +410,8 @@ $assert(str_contains($trialBalanceView, 'Stato patrimoniale') && str_contains($t
 $assert(str_contains($trialBalanceView, 'Apertura non contabilizzata') && str_contains($trialBalanceView, 'Differenza Dare / Avere') && str_contains($accountingController, 'TOTALI SALDI'), 'Controlli di apertura, totali e differenza della situazione contabile mancanti.');
 $assert(str_contains($vatRegistersView, 'Totali per articolo e aliquota IVA') && str_contains($vatRegistersView, 'REVERSE_CHARGE') && str_contains($vatRegistersView, 'SELF_INVOICES'), 'Registri IVA professionali incompleti.');
 $assert(str_contains($vatSettlementView, 'Dettaglio per registro, articolo e aliquota IVA'), 'Dettaglio aliquote della liquidazione IVA mancante.');
+$assert(str_contains($vatSettlementView, 'IVA DA VERSARE') && str_contains($vatSettlementView, 'CREDITO IVA DA RIPORTARE'), 'Esito della liquidazione IVA non sufficientemente evidente.');
+$assert(str_contains($vatService, "['TD04', 'TD08']") && str_contains($vatService, '-abs('), 'Le note di credito FatturaPA devono ridurre imponibile e IVA anche sul ciclo passivo.');
 $assert(str_contains($officialPrintService, 'VAT_REVERSE_CHARGE') && str_contains($officialPrintService, 'VAT_SELF_INVOICES') && str_contains($officialPrintService, 'VAT_LIQUIDATION'), 'Tipi di stampa IVA ufficiale incompleti.');
 $assert(str_contains($vatService, 'vat_description, vat_legal_reference') && str_contains($vatService, 'GROUP BY register_type, vat_code, vat_rate'), 'Liquidazioni IVA prive del raggruppamento storico per articolo e aliquota.');
 $assert(!str_contains($workspaceService, "status = 'COMMITTED'") && !str_contains($workspaceService, "'INVALID','FAILED','PARTIAL'"), 'Stati import non compatibili con lo schema.');

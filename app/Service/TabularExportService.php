@@ -16,6 +16,39 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 final class TabularExportService
 {
     public function __construct(private readonly array $company = []) {}
+
+    /** @param array<int,array<string,mixed>> $rows */
+    public function streamVatSettlementPdf(array $settlement, array $rows, string $filename): never
+    {
+        $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $money = static fn (mixed $value): string => number_format((float) $value, 2, ',', '.') . ' €';
+        $balance = (float) $settlement['balance'];
+        $resultLabel = $balance > .005 ? 'IVA DA VERSARE' : ($balance < -.005 ? 'CREDITO IVA DA RIPORTARE' : 'LIQUIDAZIONE A ZERO');
+        $company = implode(' · ', array_filter([
+            $this->company['business_name'] ?? 'Luna2',
+            !empty($this->company['vat_number']) ? 'P.IVA ' . $this->company['vat_number'] : '',
+            !empty($this->company['tax_code']) ? 'CF ' . $this->company['tax_code'] : '',
+        ]));
+        $labels = ['SALES' => 'REGISTRO VENDITE', 'PURCHASES' => 'REGISTRO ACQUISTI', 'CORRISPETTIVI' => 'REGISTRO CORRISPETTIVI'];
+        $grouped = [];
+        foreach ($rows as $row) { $grouped[(string) $row['register_type']][] = $row; }
+        $tables = '';
+        foreach ($grouped as $register => $items) {
+            $body = '';
+            $taxable = $vat = $deductible = 0.0;
+            foreach ($items as $row) {
+                $taxable += (float) $row['taxable_amount']; $vat += (float) $row['vat_amount']; $deductible += (float) $row['deductible_vat'];
+                $body .= '<tr><td><b>' . $escape($row['vat_code']) . '</b><small>' . $escape($row['vat_description']) . '</small></td><td class="num">' . number_format((float) $row['vat_rate'], 2, ',', '.') . '%</td><td>' . $escape($row['vat_nature'] ?: '—') . '<small>' . $escape($row['vat_legal_reference']) . '</small></td><td class="num">' . $money($row['taxable_amount']) . '</td><td class="num">' . $money($row['vat_amount']) . '</td><td class="num">' . $money($row['deductible_vat']) . '</td></tr>';
+            }
+            $tables .= '<section><h2>' . $escape($labels[$register] ?? $register) . '</h2><table><thead><tr><th>Articolo IVA</th><th>Aliquota</th><th>Natura / riferimento</th><th>Imponibile</th><th>IVA</th><th>IVA detraibile</th></tr></thead><tbody>' . $body . '</tbody><tfoot><tr><th colspan="3">Totale registro</th><th class="num">' . $money($taxable) . '</th><th class="num">' . $money($vat) . '</th><th class="num">' . $money($deductible) . '</th></tr></tfoot></table></section>';
+        }
+        $period = ((string) $settlement['period_type'] === 'MONTHLY' ? 'Mese ' : 'Trimestre ') . $settlement['period_number'] . ' / ' . $settlement['period_year'];
+        $html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><style>@page{margin:12mm 10mm}body{font-family:DejaVu Sans,sans-serif;color:#172033;font-size:8px}header{border-bottom:2px solid #17365d;padding-bottom:7px;margin-bottom:9px}h1{font-size:16px;margin:0 0 3px}.meta{color:#64748b}.result{margin:10px 0 12px;padding:12px 15px;border:2px solid ' . ($balance > .005 ? '#c43d49' : '#21835e') . ';background:#f8fafc}.result span{font-size:11px;font-weight:bold}.result strong{float:right;font-size:20px;color:' . ($balance > .005 ? '#a92330' : '#087a50') . '}.formula{clear:both;padding-top:8px;color:#475569;font-size:8px}.formula b{color:#172033}section{margin-top:12px;page-break-inside:avoid}h2{font-size:10px;margin:0;padding:6px 7px;background:#17365d;color:#fff}table{width:100%;border-collapse:collapse}th,td{padding:4px;border:1px solid #d7dee8;vertical-align:top}thead th{background:#eaf0f7;text-align:left}tfoot th{background:#f2f5f9;border-top:2px solid #8291a5}.num{text-align:right;white-space:nowrap}small{display:block;color:#64748b;margin-top:2px}footer{position:fixed;bottom:-6mm;right:0;color:#64748b}</style></head><body><header><h1>Liquidazione IVA</h1><div class="meta">' . $escape($company) . ' · ' . $escape($period) . ' · elaborata il ' . date('d/m/Y H:i') . '</div></header><div class="result"><span>' . $resultLabel . '</span><strong>' . $money(abs($balance)) . '</strong><div class="formula"><b>' . $money($settlement['vat_debit']) . '</b> IVA a debito − <b>' . $money($settlement['vat_credit']) . '</b> IVA detraibile − <b>' . $money($settlement['previous_credit']) . '</b> credito precedente + <b>' . $money($settlement['interest_amount']) . '</b> interessi</div></div><p>Le note di credito sono esposte con imponibile e imposta negativi.</p>' . $tables . '<footer>Luna2 · prospetto di liquidazione IVA</footer></body></html>';
+        $options = new Options(); $options->set('isRemoteEnabled', false); $options->set('isHtml5ParserEnabled', true);
+        $pdf = new Dompdf($options); $pdf->loadHtml($html, 'UTF-8'); $pdf->setPaper('A4', 'portrait'); $pdf->render();
+        $canvas = $pdf->getCanvas(); $canvas->page_text(28, $canvas->get_height() - 20, 'Pagina {PAGE_NUM} / {PAGE_COUNT}', $pdf->getFontMetrics()->getFont('DejaVu Sans'), 7);
+        $pdf->stream($this->filename($filename) . '.pdf', ['Attachment' => true]); exit;
+    }
     /**
      * @param array<int,array{key:string,label:string,type?:string}> $columns
      * @param array<int,array<string,mixed>> $rows
