@@ -289,6 +289,15 @@ final class VatService
         // FatturaPA TD04/TD08, comprese quelle ricevute, entrano sempre con il segno corretto.
         $this->syncDocumentsForPeriod($year, $monthFrom, $monthTo);
 
+        // Corregge in modo idempotente le note di credito prodotte dalle prime versioni
+        // dell'estrattore DATEV, che azzeravano erroneamente l'IVA detraibile negativa.
+        $this->repairImportedCreditNotes($year, $monthFrom, $monthTo);
+
+        // Un registro analitico DATEV importato è la fonte fiscale autorevole per il mese e il
+        // tipo di registro che copre. Gli XML restano consultabili, ma i relativi movimenti
+        // DOCUMENT non devono essere sommati una seconda volta nella liquidazione.
+        $reconciliation = $this->sourceReconciliation($year, $monthFrom, $monthTo);
+
         $summary = $this->db->prepare(
             "SELECT
                 COALESCE(SUM(vat_debit), 0) AS vat_debit,
@@ -296,12 +305,29 @@ final class VatService
              FROM (
                 SELECT vat_due_amount AS vat_debit,
                        CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END AS vat_credit
-                FROM vat_movements
+                FROM vat_movements m
                 WHERE organization_id = ? AND period_year = ? AND period_month BETWEEN ? AND ? AND lipe_excluded = 0
+                  AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
+                      SELECT 1 FROM vat_movements authoritative
+                      WHERE authoritative.organization_id = m.organization_id
+                        AND authoritative.period_year = m.period_year
+                        AND authoritative.period_month = m.period_month
+                        AND authoritative.register_type = m.register_type
+                        AND authoritative.source_type = 'DATEV_PDF'
+                  ))
                 UNION ALL
                 SELECT e.recognized_vat_due AS vat_debit, e.recognized_vat_credit AS vat_credit
                 FROM vat_cash_events e
+                JOIN vat_movements cash_m ON cash_m.id = e.vat_movement_id
                 WHERE e.organization_id = ? AND YEAR(e.recognition_date) = ? AND MONTH(e.recognition_date) BETWEEN ? AND ?
+                  AND NOT (cash_m.source_type = 'DOCUMENT' AND EXISTS (
+                      SELECT 1 FROM vat_movements authoritative
+                      WHERE authoritative.organization_id = cash_m.organization_id
+                        AND authoritative.period_year = YEAR(e.recognition_date)
+                        AND authoritative.period_month = MONTH(e.recognition_date)
+                        AND authoritative.register_type = cash_m.register_type
+                        AND authoritative.source_type = 'DATEV_PDF'
+                  ))
                 UNION ALL
                 SELECT vat_debit_delta AS vat_debit, vat_credit_delta AS vat_credit
                 FROM vat_adjustments
@@ -330,17 +356,26 @@ final class VatService
                 "INSERT INTO vat_settlements
                  (organization_id, period_type, period_year, period_number, vat_debit, vat_credit,
                   previous_credit, interest_amount, balance, status, payment_due_date, notes,
+                  source_reconciliation_mode, excluded_document_rows, excluded_document_vat_debit,
+                  excluded_document_vat_credit, excluded_document_purchase_vat,
                   created_by, updated_by, calculated_at, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CALCULATED', ?, ?, ?, ?, NOW(), NOW(), NOW())
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CALCULATED', ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())
                  ON DUPLICATE KEY UPDATE vat_debit = VALUES(vat_debit), vat_credit = VALUES(vat_credit),
                   previous_credit = VALUES(previous_credit), interest_amount = VALUES(interest_amount),
                   balance = VALUES(balance), status = 'CALCULATED', payment_due_date = VALUES(payment_due_date),
-                  notes = VALUES(notes), updated_by = VALUES(updated_by), calculated_at = NOW(), updated_at = NOW()"
+                  notes = VALUES(notes), source_reconciliation_mode = VALUES(source_reconciliation_mode),
+                  excluded_document_rows = VALUES(excluded_document_rows),
+                  excluded_document_vat_debit = VALUES(excluded_document_vat_debit),
+                  excluded_document_vat_credit = VALUES(excluded_document_vat_credit),
+                  excluded_document_purchase_vat = VALUES(excluded_document_purchase_vat),
+                  updated_by = VALUES(updated_by), calculated_at = NOW(), updated_at = NOW()"
             );
             $upsert->execute([
                 $this->organizationId, $periodType, $year, $period, $vatDebit, $vatCredit, $previousCredit,
                 $interest, $balance, $this->nullValue($data['payment_due_date'] ?? null),
-                $this->nullValue($data['notes'] ?? null), $this->userId, $this->userId,
+                $this->nullValue($data['notes'] ?? null), $reconciliation['mode'], $reconciliation['rows'],
+                $reconciliation['vat_debit'], $reconciliation['vat_credit'], $reconciliation['purchase_vat'],
+                $this->userId, $this->userId,
             ]);
             if ($settlement) {
                 $settlementId = (int) $settlement['id'];
@@ -361,8 +396,16 @@ final class VatService
                            CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END AS deductible_vat,
                            CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN vat_amount - deductible_vat ELSE 0 END AS non_deductible_vat,
                            CASE WHEN collectability IN ('CASH','DEFERRED') THEN vat_amount ELSE 0 END AS suspended_vat
-                    FROM vat_movements
+                    FROM vat_movements m
                     WHERE organization_id = ? AND period_year = ? AND period_month BETWEEN ? AND ? AND lipe_excluded = 0
+                      AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
+                          SELECT 1 FROM vat_movements authoritative
+                          WHERE authoritative.organization_id = m.organization_id
+                            AND authoritative.period_year = m.period_year
+                            AND authoritative.period_month = m.period_month
+                            AND authoritative.register_type = m.register_type
+                            AND authoritative.source_type = 'DATEV_PDF'
+                      ))
                     UNION ALL
                     SELECT m.register_type, COALESCE(m.vat_code, 'N/D'), m.vat_rate, m.vat_nature,
                            m.vat_description, m.vat_legal_reference, e.recognized_taxable,
@@ -370,6 +413,14 @@ final class VatService
                            e.recognized_vat_credit, 0, 0
                     FROM vat_cash_events e JOIN vat_movements m ON m.id = e.vat_movement_id
                     WHERE e.organization_id = ? AND YEAR(e.recognition_date) = ? AND MONTH(e.recognition_date) BETWEEN ? AND ?
+                      AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
+                          SELECT 1 FROM vat_movements authoritative
+                          WHERE authoritative.organization_id = m.organization_id
+                            AND authoritative.period_year = YEAR(e.recognition_date)
+                            AND authoritative.period_month = MONTH(e.recognition_date)
+                            AND authoritative.register_type = m.register_type
+                            AND authoritative.source_type = 'DATEV_PDF'
+                      ))
                  ) detail_rows
                  GROUP BY register_type, vat_code, vat_rate, vat_nature, vat_description, vat_legal_reference"
             );
@@ -522,6 +573,67 @@ final class VatService
         foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $documentId) {
             $this->syncDocument((int) $documentId);
         }
+    }
+
+    private function repairImportedCreditNotes(int $year, int $monthFrom, int $monthTo): void
+    {
+        $profiles = $this->db->prepare(
+            "SELECT vat_code, MAX(deductibility_percent) AS deductibility_percent
+             FROM vat_movements
+             WHERE organization_id = ? AND period_year = ? AND period_month BETWEEN ? AND ?
+               AND source_type = 'DATEV_PDF' AND register_type = 'PURCHASES' AND vat_amount > 0
+             GROUP BY vat_code"
+        );
+        $profiles->execute([$this->organizationId, $year, $monthFrom, $monthTo]);
+        $update = $this->db->prepare(
+            "UPDATE vat_movements
+             SET deductibility_percent = ?, deductible_vat = ROUND(vat_amount * ? / 100, 2),
+                 pro_rata_amount = vat_amount - ROUND(vat_amount * ? / 100, 2), updated_at = NOW()
+             WHERE organization_id = ? AND period_year = ? AND period_month BETWEEN ? AND ?
+               AND source_type = 'DATEV_PDF' AND register_type = 'PURCHASES' AND vat_code = ?
+               AND vat_amount < 0 AND deductible_vat = 0 AND deductibility_percent = 0"
+        );
+        foreach ($profiles->fetchAll() as $profile) {
+            $percent = min(100, max(0, (float) $profile['deductibility_percent']));
+            $update->execute([
+                $percent, $percent, $percent, $this->organizationId, $year, $monthFrom, $monthTo,
+                $profile['vat_code'],
+            ]);
+        }
+    }
+
+    /** @return array{mode:string,rows:int,vat_debit:float,vat_credit:float,purchase_vat:float} */
+    private function sourceReconciliation(int $year, int $monthFrom, int $monthTo): array
+    {
+        $statement = $this->db->prepare(
+            "SELECT COUNT(*) AS excluded_rows,
+                    COALESCE(SUM(m.vat_due_amount), 0) AS vat_debit,
+                    COALESCE(SUM(CASE WHEN m.register_type = 'PURCHASES'
+                                      AND m.collectability NOT IN ('CASH','DEFERRED')
+                                 THEN m.deductible_vat ELSE 0 END), 0) AS vat_credit,
+                    COALESCE(SUM(CASE WHEN m.register_type = 'PURCHASES' THEN m.vat_amount ELSE 0 END), 0) AS purchase_vat
+             FROM vat_movements m
+             WHERE m.organization_id = ? AND m.period_year = ? AND m.period_month BETWEEN ? AND ?
+               AND m.source_type = 'DOCUMENT' AND m.lipe_excluded = 0
+               AND EXISTS (
+                   SELECT 1 FROM vat_movements authoritative
+                   WHERE authoritative.organization_id = m.organization_id
+                     AND authoritative.period_year = m.period_year
+                     AND authoritative.period_month = m.period_month
+                     AND authoritative.register_type = m.register_type
+                     AND authoritative.source_type = 'DATEV_PDF'
+               )"
+        );
+        $statement->execute([$this->organizationId, $year, $monthFrom, $monthTo]);
+        $row = $statement->fetch() ?: [];
+        $count = (int) ($row['excluded_rows'] ?? 0);
+        return [
+            'mode' => $count > 0 ? 'DATEV_PRIORITY' : 'STANDARD',
+            'rows' => $count,
+            'vat_debit' => round((float) ($row['vat_debit'] ?? 0), 2),
+            'vat_credit' => round((float) ($row['vat_credit'] ?? 0), 2),
+            'purchase_vat' => round((float) ($row['purchase_vat'] ?? 0), 2),
+        ];
     }
 
     private function defaultRegisterId(string $type): ?int

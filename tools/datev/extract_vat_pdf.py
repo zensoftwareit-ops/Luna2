@@ -259,7 +259,14 @@ def parse(pdf_path: Path, article_file: Path | None = None) -> tuple[list[dict[s
         register_code = "DK-" + hashlib.sha1(document.register.encode("utf-8")).hexdigest()[:12].upper()
         for sequence, line in enumerate(document.lines, 1):
             vat_amount = Decimal(line["vat"])
-            non_deductible = min(vat_amount, Decimal(line["non_deductible"]))
+            # DATEV stampa le note di credito con IVA negativa, mentre la colonna
+            # indetraibile può essere vuota o riportata senza segno. La quota va
+            # limitata in valore assoluto e deve seguire il segno dell'imposta;
+            # min(vat_amount, 0) trasformava invece tutta l'IVA negativa in
+            # indetraibile e azzerava erroneamente la detrazione della nota.
+            non_deductible_raw = Decimal(line["non_deductible"])
+            non_deductible_magnitude = min(abs(vat_amount), abs(non_deductible_raw))
+            non_deductible = -non_deductible_magnitude if vat_amount < 0 else non_deductible_magnitude
             deductible = vat_amount - non_deductible if register_type == "PURCHASES" or operation_type in {"REVERSE_CHARGE", "SELF_INVOICE"} else Decimal("0")
             due = vat_amount if register_type != "PURCHASES" or operation_type in {"REVERSE_CHARGE", "SELF_INVOICE"} else Decimal("0")
             percent = Decimal("100") if vat_amount == 0 else (deductible / vat_amount * 100).quantize(Decimal("0.0001"))

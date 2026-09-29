@@ -137,13 +137,30 @@ final class VatComplianceService
                 COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' THEN taxable_amount ELSE 0 END), 0) AS purchases_taxable,
                 COALESCE(SUM(vat_due_amount), 0) AS vat_debit,
                 COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END), 0) AS vat_credit
-             FROM vat_movements WHERE organization_id = ? AND period_year = ? AND lipe_excluded = 0"
+             FROM vat_movements m WHERE organization_id = ? AND period_year = ? AND lipe_excluded = 0
+               AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
+                   SELECT 1 FROM vat_movements authoritative
+                   WHERE authoritative.organization_id = m.organization_id
+                     AND authoritative.period_year = m.period_year
+                     AND authoritative.period_month = m.period_month
+                     AND authoritative.register_type = m.register_type
+                     AND authoritative.source_type = 'DATEV_PDF'
+               ))"
         );
         $movement->execute([$this->organizationId, $year]);
         $totals = $movement->fetch();
         $cash = $this->db->prepare(
-            'SELECT COALESCE(SUM(recognized_vat_due),0) AS debit, COALESCE(SUM(recognized_vat_credit),0) AS credit
-             FROM vat_cash_events WHERE organization_id = ? AND YEAR(recognition_date) = ?'
+            "SELECT COALESCE(SUM(e.recognized_vat_due),0) AS debit, COALESCE(SUM(e.recognized_vat_credit),0) AS credit
+             FROM vat_cash_events e JOIN vat_movements m ON m.id = e.vat_movement_id
+             WHERE e.organization_id = ? AND YEAR(e.recognition_date) = ?
+               AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
+                   SELECT 1 FROM vat_movements authoritative
+                   WHERE authoritative.organization_id = m.organization_id
+                     AND authoritative.period_year = YEAR(e.recognition_date)
+                     AND authoritative.period_month = MONTH(e.recognition_date)
+                     AND authoritative.register_type = m.register_type
+                     AND authoritative.source_type = 'DATEV_PDF'
+               ))"
         );
         $cash->execute([$this->organizationId, $year]);
         $cashTotals = $cash->fetch();
@@ -236,14 +253,31 @@ final class VatComplianceService
                 COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' THEN taxable_amount ELSE 0 END),0) AS passive_operations,
                 COALESCE(SUM(vat_due_amount),0) AS vat_due,
                 COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END),0) AS vat_credit
-             FROM vat_movements WHERE organization_id = ? AND period_year = ? AND period_month = ? AND lipe_excluded = 0"
+             FROM vat_movements m WHERE organization_id = ? AND period_year = ? AND period_month = ? AND lipe_excluded = 0
+               AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
+                   SELECT 1 FROM vat_movements authoritative
+                   WHERE authoritative.organization_id = m.organization_id
+                     AND authoritative.period_year = m.period_year
+                     AND authoritative.period_month = m.period_month
+                     AND authoritative.register_type = m.register_type
+                     AND authoritative.source_type = 'DATEV_PDF'
+               ))"
         );
         $statement->execute([$this->organizationId, $year, $month]);
         $row = $statement->fetch();
         $cash = $this->db->prepare(
-            'SELECT COALESCE(SUM(recognized_taxable),0) AS taxable, COALESCE(SUM(recognized_vat_due),0) AS vat_due,
-                    COALESCE(SUM(recognized_vat_credit),0) AS vat_credit
-             FROM vat_cash_events WHERE organization_id = ? AND YEAR(recognition_date) = ? AND MONTH(recognition_date) = ?'
+            "SELECT COALESCE(SUM(e.recognized_taxable),0) AS taxable, COALESCE(SUM(e.recognized_vat_due),0) AS vat_due,
+                    COALESCE(SUM(e.recognized_vat_credit),0) AS vat_credit
+             FROM vat_cash_events e JOIN vat_movements m ON m.id = e.vat_movement_id
+             WHERE e.organization_id = ? AND YEAR(e.recognition_date) = ? AND MONTH(e.recognition_date) = ?
+               AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
+                   SELECT 1 FROM vat_movements authoritative
+                   WHERE authoritative.organization_id = m.organization_id
+                     AND authoritative.period_year = YEAR(e.recognition_date)
+                     AND authoritative.period_month = MONTH(e.recognition_date)
+                     AND authoritative.register_type = m.register_type
+                     AND authoritative.source_type = 'DATEV_PDF'
+               ))"
         );
         $cash->execute([$this->organizationId, $year, $month]);
         $cashRow = $cash->fetch();

@@ -71,6 +71,25 @@ $settlement = $vat->calculateSettlement(['period_type' => 'MONTHLY', 'period_yea
     'payment_due_date' => '2026-02-16']);
 $vat->updateSettlementStatus($settlement, 'SUBMITTED');
 $vat->updateSettlementStatus($settlement, 'PAID', '2026-02-16', 'F24-TEST-123');
+$add('vat_movements', ['organization_id' => $org, 'source_type' => 'DATEV_PDF', 'register_type' => 'PURCHASES',
+    'movement_date' => '2026-02-10', 'vat_code' => '22%', 'taxable_amount' => 100, 'vat_amount' => 22,
+    'deductible_vat' => 22, 'period_year' => 2026, 'period_month' => 2]);
+$legacyCreditNote = $add('vat_movements', ['organization_id' => $org, 'source_type' => 'DATEV_PDF', 'register_type' => 'PURCHASES',
+    'movement_date' => '2026-02-11', 'vat_code' => '22%', 'taxable_amount' => -50, 'vat_amount' => -11,
+    'deductible_vat' => 0, 'deductibility_percent' => 0, 'period_year' => 2026, 'period_month' => 2]);
+$add('vat_movements', ['organization_id' => $org, 'source_type' => 'DOCUMENT', 'register_type' => 'PURCHASES',
+    'movement_date' => '2026-02-10', 'vat_code' => '22%', 'taxable_amount' => 100, 'vat_amount' => 22,
+    'deductible_vat' => 22, 'period_year' => 2026, 'period_month' => 2]);
+$reconciledSettlement = $vat->calculateSettlement(['period_type' => 'MONTHLY', 'period_year' => 2026, 'period_number' => 2]);
+$statement = $db->prepare('SELECT vat_credit, source_reconciliation_mode, excluded_document_rows, excluded_document_purchase_vat FROM vat_settlements WHERE id = ?');
+$statement->execute([$reconciledSettlement]);
+$reconciled = $statement->fetch();
+$assert((float) $reconciled['vat_credit'] === 11.0, 'DATEV register takes precedence over duplicate XML VAT');
+$assert($reconciled['source_reconciliation_mode'] === 'DATEV_PRIORITY' && (int) $reconciled['excluded_document_rows'] === 1
+    && (float) $reconciled['excluded_document_purchase_vat'] === 22.0, 'VAT source reconciliation is auditable');
+$statement = $db->prepare('SELECT deductible_vat FROM vat_movements WHERE id = ?');
+$statement->execute([$legacyCreditNote]);
+$assert((float) $statement->fetchColumn() === -11.0, 'Legacy DATEV purchase credit note keeps negative deductible VAT');
 $asset = $add('fixed_assets', ['organization_id' => $org, 'asset_code' => 'CES-01', 'description' => 'Macchinario di collaudo',
     'purchase_date' => '2024-01-15', 'purchase_cost' => 10000, 'depreciation_rate' => 20, 'net_book_value' => 8000]);
 $assetService = new AssetService($db, $org, $user);
