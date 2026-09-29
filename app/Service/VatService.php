@@ -84,12 +84,12 @@ final class VatService
                 ->execute([$this->organizationId, $documentId]);
             $insert = $this->db->prepare(
                 'INSERT INTO vat_movements
-                 (organization_id, document_id, source_type, register_type, vat_register_id, operation_type, collectability,
+                 (organization_id, document_id, source_type, document_fiscal_type, register_type, vat_register_id, operation_type, collectability,
                   movement_date, tax_point_date, protocol_number, counterparty_name, description, vat_code,
                   vat_rate, vat_nature, vat_description, vat_legal_reference,
                   taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent, pro_rata_amount,
                   period_year, period_month, created_by, created_at, updated_at)
-                 VALUES (?, ?, \'DOCUMENT\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+                 VALUES (?, ?, \'DOCUMENT\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
             );
             $proRata = $this->proRataPercent();
             foreach ($groups as $group) {
@@ -99,9 +99,9 @@ final class VatService
                     (string) $group['vat_nature'],
                 );
                 // I gestionali e gli XML FatturaPA espongono normalmente TD04/TD08 con importi positivi.
-                // Forziamo un unico segno negativo, evitando anche il doppio storno di sorgenti già negative.
-                $taxable = round($isCreditNote ? -abs((float) $group['taxable_amount']) : (float) $group['taxable_amount'], 2);
-                $vat = round($isCreditNote ? -abs((float) $group['vat_amount']) : (float) $group['vat_amount'], 2);
+                // Il verso contabile viene determinato dal tipo documento, non dal segno degli importi.
+                $taxable = round($isCreditNote ? abs((float) $group['taxable_amount']) : (float) $group['taxable_amount'], 2);
+                $vat = round($isCreditNote ? abs((float) $group['vat_amount']) : (float) $group['vat_amount'], 2);
                 $operation = $this->operationType($metadata['nature'], (string) ($document['vat_collectability'] ?? ''));
                 $collectability = $this->collectability((string) ($document['vat_collectability'] ?? ''), $operation);
                 if ($this->cashVatEnabled() && $collectability === 'IMMEDIATE') {
@@ -116,7 +116,9 @@ final class VatService
                     default => $vat,
                 };
                 $insert->execute([
-                    $this->organizationId, $documentId, $register, $registerId, $operation, $collectability,
+                    $this->organizationId, $documentId,
+                    strtoupper((string) ($document['fatturapa_type'] ?: ($isCreditNote ? 'TD04' : 'TD01'))),
+                    $register, $registerId, $operation, $collectability,
                     $document['document_date'], in_array($collectability, ['IMMEDIATE', 'SPLIT'], true) ? $document['document_date'] : null,
                     $document['number'], $document['counterparty_name'], $isCreditNote
                         ? ($register === 'PURCHASES' ? 'Nota di credito fornitore' : 'Nota di credito cliente')
@@ -157,6 +159,10 @@ final class VatService
         $collectability = strtoupper((string) ($data['collectability'] ?? 'IMMEDIATE'));
         $date = $this->isoDate($data['movement_date'] ?? date('Y-m-d'));
         $documentReference = trim((string) ($data['document_reference'] ?? ''));
+        $documentFiscalType = strtoupper(trim((string) ($data['document_fiscal_type'] ?? ''))) ?: 'TD01';
+        if (!preg_match('/^TD[0-9]{2}$/', $documentFiscalType)) {
+            throw new InvalidArgumentException('Tipo documento fiscale non valido.');
+        }
         $documentDate = !empty($data['document_reference_date']) ? $this->isoDate($data['document_reference_date'])->format('Y-m-d') : null;
         if (strlen($documentReference) > 100) { throw new InvalidArgumentException('Numero documento troppo lungo.'); }
         $taxable = $this->decimal($data['taxable_amount'] ?? 0);
@@ -166,6 +172,11 @@ final class VatService
         $deductible = $register === 'PURCHASES'
             ? ($deductibleInput === '' ? round($vat * $deductibility / 100, 2) : $this->decimal($deductibleInput))
             : 0.0;
+        if (in_array($documentFiscalType, ['TD04', 'TD08'], true)) {
+            $taxable = abs($taxable);
+            $vat = abs($vat);
+            $deductible = abs($deductible);
+        }
         $operations = ['DOMESTIC','REVERSE_CHARGE','SELF_INVOICE','SPLIT_PAYMENT','CASH','INTRA_EU','EXTRA_EU','MARGIN','EXEMPT','NON_TAXABLE','ADJUSTMENT'];
         if (!in_array($register, self::REGISTERS, true) || !in_array($operation, $operations, true)
             || !in_array($collectability, ['IMMEDIATE','DEFERRED','SPLIT','CASH'], true)
@@ -178,6 +189,9 @@ final class VatService
             $register === 'PURCHASES' && $operation !== 'REVERSE_CHARGE' => 0,
             default => $vat,
         });
+        if (in_array($documentFiscalType, ['TD04', 'TD08'], true)) {
+            $vatDue = abs($vatDue);
+        }
         if (!$allowClosedPeriod && $taxable == 0.0 && $vat == 0.0) {
             throw new InvalidArgumentException('Il movimento IVA non può avere imponibile e imposta entrambi a zero.');
         }
@@ -202,15 +216,15 @@ final class VatService
         try {
             $statement = $this->db->prepare(
                 'INSERT INTO vat_movements
-                 (organization_id, document_id, source_type, register_type, vat_register_id, operation_type, collectability,
+                 (organization_id, document_id, source_type, document_fiscal_type, register_type, vat_register_id, operation_type, collectability,
                   movement_date, tax_point_date, protocol_number, counterparty_name, description, vat_code,
                   vat_rate, vat_nature, vat_description, vat_legal_reference,
                   taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent, pro_rata_amount,
                   period_year, period_month, created_by, created_at, updated_at)
-                 VALUES (?, NULL, \'MANUAL\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+                 VALUES (?, NULL, \'MANUAL\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
             );
             $statement->execute([
-                $this->organizationId, $register, $registerId, $operation, $collectability, $date->format('Y-m-d'),
+                $this->organizationId, $documentFiscalType, $register, $registerId, $operation, $collectability, $date->format('Y-m-d'),
                 in_array($collectability, ['IMMEDIATE', 'SPLIT'], true) ? $date->format('Y-m-d') : null,
                 $this->nullValue($data['protocol_number'] ?? null),
                 $this->nullValue($data['counterparty_name'] ?? null), $this->nullValue($data['description'] ?? null),
@@ -303,8 +317,9 @@ final class VatService
                 COALESCE(SUM(vat_debit), 0) AS vat_debit,
                 COALESCE(SUM(vat_credit), 0) AS vat_credit
              FROM (
-                SELECT vat_due_amount AS vat_debit,
-                       CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END AS vat_credit
+                SELECT vat_due_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END AS vat_debit,
+                       CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED')
+                            THEN deductible_vat * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END AS vat_credit
                 FROM vat_movements m
                 WHERE organization_id = ? AND period_year = ? AND period_month BETWEEN ? AND ? AND lipe_excluded = 0
                   AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
@@ -392,10 +407,16 @@ final class VatService
                         SUM(suspended_vat) AS suspended_vat
                  FROM (
                     SELECT register_type, COALESCE(vat_code, 'N/D') AS vat_code, vat_rate, vat_nature,
-                           vat_description, vat_legal_reference, taxable_amount, vat_amount, vat_due_amount,
-                           CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END AS deductible_vat,
-                           CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN vat_amount - deductible_vat ELSE 0 END AS non_deductible_vat,
-                           CASE WHEN collectability IN ('CASH','DEFERRED') THEN vat_amount ELSE 0 END AS suspended_vat
+                           vat_description, vat_legal_reference,
+                           taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END AS taxable_amount,
+                           vat_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END AS vat_amount,
+                           vat_due_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END AS vat_due_amount,
+                           CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED')
+                                THEN deductible_vat * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END AS deductible_vat,
+                           CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED')
+                                THEN (vat_amount - deductible_vat) * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END AS non_deductible_vat,
+                           CASE WHEN collectability IN ('CASH','DEFERRED')
+                                THEN vat_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END AS suspended_vat
                     FROM vat_movements m
                     WHERE organization_id = ? AND period_year = ? AND period_month BETWEEN ? AND ? AND lipe_excluded = 0
                       AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
@@ -607,11 +628,12 @@ final class VatService
     {
         $statement = $this->db->prepare(
             "SELECT COUNT(*) AS excluded_rows,
-                    COALESCE(SUM(m.vat_due_amount), 0) AS vat_debit,
+                    COALESCE(SUM(m.vat_due_amount * CASE WHEN m.document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END), 0) AS vat_debit,
                     COALESCE(SUM(CASE WHEN m.register_type = 'PURCHASES'
                                       AND m.collectability NOT IN ('CASH','DEFERRED')
-                                 THEN m.deductible_vat ELSE 0 END), 0) AS vat_credit,
-                    COALESCE(SUM(CASE WHEN m.register_type = 'PURCHASES' THEN m.vat_amount ELSE 0 END), 0) AS purchase_vat
+                                 THEN m.deductible_vat * CASE WHEN m.document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS vat_credit,
+                    COALESCE(SUM(CASE WHEN m.register_type = 'PURCHASES'
+                                 THEN m.vat_amount * CASE WHEN m.document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS purchase_vat
              FROM vat_movements m
              WHERE m.organization_id = ? AND m.period_year = ? AND m.period_month BETWEEN ? AND ?
                AND m.source_type = 'DOCUMENT' AND m.lipe_excluded = 0

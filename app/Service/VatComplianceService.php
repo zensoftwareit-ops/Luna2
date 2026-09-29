@@ -133,10 +133,10 @@ final class VatComplianceService
         $settings = $this->settings();
         $movement = $this->db->prepare(
             "SELECT
-                COALESCE(SUM(CASE WHEN register_type IN ('SALES','CORRISPETTIVI') THEN taxable_amount ELSE 0 END), 0) AS sales_taxable,
-                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' THEN taxable_amount ELSE 0 END), 0) AS purchases_taxable,
-                COALESCE(SUM(vat_due_amount), 0) AS vat_debit,
-                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END), 0) AS vat_credit
+                COALESCE(SUM(CASE WHEN register_type IN ('SALES','CORRISPETTIVI') THEN taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS sales_taxable,
+                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' THEN taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS purchases_taxable,
+                COALESCE(SUM(vat_due_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END), 0) AS vat_debit,
+                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS vat_credit
              FROM vat_movements m WHERE organization_id = ? AND period_year = ? AND lipe_excluded = 0
                AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
                    SELECT 1 FROM vat_movements authoritative
@@ -249,10 +249,10 @@ final class VatComplianceService
     {
         $statement = $this->db->prepare(
             "SELECT
-                COALESCE(SUM(CASE WHEN register_type IN ('SALES','CORRISPETTIVI') THEN taxable_amount ELSE 0 END),0) AS active_operations,
-                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' THEN taxable_amount ELSE 0 END),0) AS passive_operations,
-                COALESCE(SUM(vat_due_amount),0) AS vat_due,
-                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat ELSE 0 END),0) AS vat_credit
+                COALESCE(SUM(CASE WHEN register_type IN ('SALES','CORRISPETTIVI') THEN taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END),0) AS active_operations,
+                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' THEN taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END),0) AS passive_operations,
+                COALESCE(SUM(vat_due_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END),0) AS vat_due,
+                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END),0) AS vat_credit
              FROM vat_movements m WHERE organization_id = ? AND period_year = ? AND period_month = ? AND lipe_excluded = 0
                AND NOT (m.source_type = 'DOCUMENT' AND EXISTS (
                    SELECT 1 FROM vat_movements authoritative

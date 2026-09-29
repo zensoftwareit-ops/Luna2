@@ -217,14 +217,18 @@ final class ComplianceWorkspaceService
                 [$this->organizationId, $year],
             );
             $payload['vat_totals'] = $this->rows(
-                'SELECT register_type, SUM(taxable_amount) AS taxable, SUM(vat_amount) AS vat, SUM(deductible_vat) AS deductible
-                 FROM vat_movements WHERE organization_id = ? AND period_year = ? GROUP BY register_type',
+                "SELECT register_type,
+                        SUM(taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END) AS taxable,
+                        SUM(vat_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END) AS vat,
+                        SUM(deductible_vat * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END) AS deductible
+                 FROM vat_movements WHERE organization_id = ? AND period_year = ? GROUP BY register_type",
                 [$this->organizationId, $year],
             );
         } elseif ($type === 'INTRASTAT') {
             $payload['eu_operations'] = $this->rows(
                 "SELECT register_type, operation_type, vat_code, COUNT(*) AS movements,
-                        SUM(taxable_amount) AS taxable, SUM(vat_amount) AS vat
+                        SUM(taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END) AS taxable,
+                        SUM(vat_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END) AS vat
                  FROM vat_movements WHERE organization_id = ? AND period_year = ?
                    AND operation_type IN ('REVERSE_CHARGE','INTRA_EU')
                  GROUP BY register_type, operation_type, vat_code",

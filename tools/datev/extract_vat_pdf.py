@@ -258,7 +258,9 @@ def parse(pdf_path: Path, article_file: Path | None = None) -> tuple[list[dict[s
         register_type, operation_type = mapping(document.register)
         register_code = "DK-" + hashlib.sha1(document.register.encode("utf-8")).hexdigest()[:12].upper()
         for sequence, line in enumerate(document.lines, 1):
+            taxable_amount = Decimal(line["taxable"])
             vat_amount = Decimal(line["vat"])
+            is_credit_note = taxable_amount < 0 or vat_amount < 0
             # DATEV stampa le note di credito con IVA negativa, mentre la colonna
             # indetraibile può essere vuota o riportata senza segno. La quota va
             # limitata in valore assoluto e deve seguire il segno dell'imposta;
@@ -279,6 +281,7 @@ def parse(pdf_path: Path, article_file: Path | None = None) -> tuple[list[dict[s
             rows.append({
                 "source_key": source_key,
                 "register_type": register_type,
+                "document_fiscal_type": "TD04" if is_credit_note else "TD01",
                 "register_code": register_code,
                 "register_name": document.register,
                 "operation_type": operation_type,
@@ -294,19 +297,20 @@ def parse(pdf_path: Path, article_file: Path | None = None) -> tuple[list[dict[s
                 "vat_nature": nature,
                 "vat_description": description or f"Articolo IVA DATEV {line['article_code']}",
                 "vat_legal_reference": "",
-                "taxable_amount": line["taxable"],
-                "vat_amount": line["vat"],
-                "vat_due_amount": str(due.quantize(MONEY)),
-                "deductible_vat": str(deductible.quantize(MONEY)),
-                "deductibility_percent": str(percent),
+                "taxable_amount": str(abs(taxable_amount).quantize(MONEY)),
+                "vat_amount": str(abs(vat_amount).quantize(MONEY)),
+                "vat_due_amount": str(abs(due).quantize(MONEY)),
+                "deductible_vat": str(abs(deductible).quantize(MONEY)),
+                "deductibility_percent": str(abs(percent)),
                 "datev_rate_code": line["rate_code"],
                 "source_page": str(document.page),
             })
     detail_totals: dict[tuple[str, str, str], list[Decimal]] = defaultdict(lambda: [Decimal("0"), Decimal("0")])
     for row in rows:
         key = (row["register_name"], row["datev_rate_code"], row["vat_code"])
-        detail_totals[key][0] += Decimal(row["taxable_amount"])
-        detail_totals[key][1] += Decimal(row["vat_amount"])
+        sign = Decimal("-1") if row["document_fiscal_type"] in {"TD04", "TD08"} else Decimal("1")
+        detail_totals[key][0] += Decimal(row["taxable_amount"]) * sign
+        detail_totals[key][1] += Decimal(row["vat_amount"]) * sign
     for key in sorted(set(detail_totals) | set(summary_totals)):
         detail = detail_totals.get(key, [Decimal("0"), Decimal("0")])
         summary = summary_totals.get(key, [Decimal("0"), Decimal("0")])
@@ -344,9 +348,10 @@ def main() -> int:
     totals: dict[tuple[str, str], list[Decimal | int]] = defaultdict(lambda: [0, Decimal("0"), Decimal("0")])
     for row in rows:
         item = totals[(row["register_name"], row["movement_date"][:4])]
+        sign = Decimal("-1") if row["document_fiscal_type"] in {"TD04", "TD08"} else Decimal("1")
         item[0] += 1
-        item[1] += Decimal(row["taxable_amount"])
-        item[2] += Decimal(row["vat_amount"])
+        item[1] += Decimal(row["taxable_amount"]) * sign
+        item[2] += Decimal(row["vat_amount"]) * sign
     print(f"Creato {args.output}: {len(rows)} righe IVA da {len(documents := set((r['register_name'], r['protocol_number'], r['movement_date']) for r in rows))} documenti.")
     for (register, year), (count, taxable, vat) in sorted(totals.items()):
         print(f"{year} | {register} | righe {count} | imponibile {taxable:.2f} | IVA {vat:.2f}")

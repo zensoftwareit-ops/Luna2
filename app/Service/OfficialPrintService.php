@@ -460,7 +460,7 @@ final class OfficialPrintService
                         CONCAT(m.register_type, ' / ', COALESCE(r.code, 'UNICO')),
                         CONCAT(COALESCE(d.number, m.document_reference, ''), ' / ', COALESCE(d.document_date, m.document_reference_date, '')),
                         CONCAT(m.period_year, '-', LPAD(m.period_month, 2, '0')),
-                        CONCAT('ID ', m.id, ' ', COALESCE(d.fatturapa_type,''), ' ', m.operation_type, ' Orig.: ', COALESCE(src.number,''))
+                        CONCAT('ID ', m.id, ' ', COALESCE(m.document_fiscal_type,d.fatturapa_type,''), ' ', m.operation_type, ' Orig.: ', COALESCE(src.number,''))
                  FROM vat_movements m
                  LEFT JOIN documents d ON d.id = m.document_id AND d.organization_id = m.organization_id
                  LEFT JOIN documents src ON src.id = d.source_document_id AND src.organization_id = m.organization_id
@@ -480,8 +480,10 @@ final class OfficialPrintService
                 if (!isset($summary[$key])) {
                     $summary[$key] = ['', 'RIEPILOGO', '', $row[3], $row[4], $row[5], $row[6], $row[7], 0.0, 0.0, 0.0, 0.0, $row[12], '', '', ''];
                 }
+                $sign = str_contains((string) ($row[15] ?? ''), ' TD04 ')
+                    || str_contains((string) ($row[15] ?? ''), ' TD08 ') ? -1 : 1;
                 foreach ([8, 9, 10, 11] as $index) {
-                    $summary[$key][$index] += (float) ($row[$index] ?? 0);
+                    $summary[$key][$index] += (float) ($row[$index] ?? 0) * $sign;
                 }
             }
             foreach ($summary as $total) {

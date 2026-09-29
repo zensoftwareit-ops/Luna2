@@ -712,6 +712,7 @@ final class ImportService
             $register = str_contains($registerRaw, 'ACQ') || str_contains($registerRaw, 'PUR') ? 'PURCHASES' : (str_contains($registerRaw, 'CORR') ? 'CORRISPETTIVI' : 'SALES');
             $data = [
                 'register_type' => $register,
+                'document_fiscal_type' => mb_strtoupper($this->pick($row, ['document_fiscal_type', 'fatturapa_type', 'tipo_documento']) ?: ''),
                 'movement_date' => $this->dateValue($this->pick($row, ['movement_date', 'data_registrazione', 'data'])),
                 'protocol_number' => $this->pick($row, ['protocol_number', 'protocollo', 'numero_registrazione']),
                 'document_reference' => $this->pick($row, ['document_reference', 'numero_documento', 'documento']),

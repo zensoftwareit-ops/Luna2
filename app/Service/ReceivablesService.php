@@ -322,11 +322,12 @@ final class ReceivablesService
         );
         $count = 0;
         foreach ($statement->fetchAll() as $movement) {
+            $sign = in_array((string) ($movement['document_fiscal_type'] ?? ''), ['TD04', 'TD08'], true) ? -1 : 1;
             $insert->execute([
                 $this->organizationId, $movement['id'], $paymentId, $date,
-                round((float) $movement['taxable_amount'] * $ratio, 2),
-                $movement['register_type'] === 'PURCHASES' ? 0 : round((float) $movement['vat_amount'] * $ratio, 2),
-                $movement['register_type'] === 'PURCHASES' ? round((float) $movement['deductible_vat'] * $ratio, 2) : 0,
+                round((float) $movement['taxable_amount'] * $ratio * $sign, 2),
+                $movement['register_type'] === 'PURCHASES' ? 0 : round((float) $movement['vat_amount'] * $ratio * $sign, 2),
+                $movement['register_type'] === 'PURCHASES' ? round((float) $movement['deductible_vat'] * $ratio * $sign, 2) : 0,
             ]);
             $count++;
         }
@@ -339,7 +340,9 @@ final class ReceivablesService
             return [];
         }
         $statement = $this->db->prepare(
-            "SELECT register_type, SUM(vat_amount) AS vat_amount, SUM(deductible_vat) AS deductible_vat
+            "SELECT register_type,
+                    SUM(vat_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END) AS vat_amount,
+                    SUM(deductible_vat * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END) AS deductible_vat
              FROM vat_movements WHERE organization_id = ? AND document_id = ? AND collectability IN ('CASH','DEFERRED')
              GROUP BY register_type"
         );
@@ -351,12 +354,13 @@ final class ReceivablesService
             if (abs($recognized) <= .005) {
                 continue;
             }
+            $value = abs($recognized);
             if ($row['register_type'] === 'PURCHASES') {
-                $lines[] = ['account_id' => $this->mapping('VAT_RECEIVABLE'), 'debit' => $recognized, 'credit' => 0, 'description' => 'Esigibilità IVA acquisti'];
-                $lines[] = ['account_id' => $this->mapping('VAT_CLEARING'), 'debit' => 0, 'credit' => $recognized, 'description' => 'Esigibilità IVA acquisti'];
+                $lines[] = ['account_id' => $this->mapping('VAT_RECEIVABLE'), 'debit' => $recognized > 0 ? $value : 0, 'credit' => $recognized < 0 ? $value : 0, 'description' => 'Esigibilità IVA acquisti'];
+                $lines[] = ['account_id' => $this->mapping('VAT_CLEARING'), 'debit' => $recognized < 0 ? $value : 0, 'credit' => $recognized > 0 ? $value : 0, 'description' => 'Esigibilità IVA acquisti'];
             } else {
-                $lines[] = ['account_id' => $this->mapping('VAT_CLEARING'), 'debit' => $recognized, 'credit' => 0, 'description' => 'Esigibilità IVA vendite'];
-                $lines[] = ['account_id' => $this->mapping('VAT_PAYABLE'), 'debit' => 0, 'credit' => $recognized, 'description' => 'Esigibilità IVA vendite'];
+                $lines[] = ['account_id' => $this->mapping('VAT_CLEARING'), 'debit' => $recognized > 0 ? $value : 0, 'credit' => $recognized < 0 ? $value : 0, 'description' => 'Esigibilità IVA vendite'];
+                $lines[] = ['account_id' => $this->mapping('VAT_PAYABLE'), 'debit' => $recognized < 0 ? $value : 0, 'credit' => $recognized > 0 ? $value : 0, 'description' => 'Esigibilità IVA vendite'];
             }
         }
         return $lines;

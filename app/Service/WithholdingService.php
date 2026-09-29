@@ -233,11 +233,12 @@ final class WithholdingService
         );
         $count = 0;
         foreach ($statement->fetchAll() as $movement) {
+            $sign = in_array((string) ($movement['document_fiscal_type'] ?? ''), ['TD04', 'TD08'], true) ? -1 : 1;
             $insert->execute([
                 $this->organizationId, $movement['id'], $paymentId, $date,
-                round((float) $movement['taxable_amount'] * $ratio, 2),
-                $movement['register_type'] === 'PURCHASES' ? 0 : round((float) $movement['vat_amount'] * $ratio, 2),
-                $movement['register_type'] === 'PURCHASES' ? round((float) $movement['deductible_vat'] * $ratio, 2) : 0,
+                round((float) $movement['taxable_amount'] * $ratio * $sign, 2),
+                $movement['register_type'] === 'PURCHASES' ? 0 : round((float) $movement['vat_amount'] * $ratio * $sign, 2),
+                $movement['register_type'] === 'PURCHASES' ? round((float) $movement['deductible_vat'] * $ratio * $sign, 2) : 0,
             ]);
             $count++;
         }
@@ -250,14 +251,18 @@ final class WithholdingService
             return [];
         }
         $statement = $this->db->prepare(
-            "SELECT SUM(deductible_vat) FROM vat_movements
+            "SELECT SUM(deductible_vat * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END) FROM vat_movements
              WHERE organization_id = ? AND document_id = ? AND register_type = 'PURCHASES' AND collectability IN ('CASH','DEFERRED')"
         );
         $statement->execute([$this->organizationId, $item['document_id']]);
         $recognized = round((float) $statement->fetchColumn() * min(1, $amount / $this->documentTotal((int) $item['document_id'])), 2);
-        return abs($recognized) <= .005 ? [] : [
-            ['account_id' => $this->mapping('VAT_RECEIVABLE'), 'debit' => $recognized, 'credit' => 0, 'description' => 'Esigibilità IVA acquisti'],
-            ['account_id' => $this->mapping('VAT_CLEARING'), 'debit' => 0, 'credit' => $recognized, 'description' => 'Esigibilità IVA acquisti'],
+        if (abs($recognized) <= .005) {
+            return [];
+        }
+        $value = abs($recognized);
+        return [
+            ['account_id' => $this->mapping('VAT_RECEIVABLE'), 'debit' => $recognized > 0 ? $value : 0, 'credit' => $recognized < 0 ? $value : 0, 'description' => 'Esigibilità IVA acquisti'],
+            ['account_id' => $this->mapping('VAT_CLEARING'), 'debit' => $recognized < 0 ? $value : 0, 'credit' => $recognized > 0 ? $value : 0, 'description' => 'Esigibilità IVA acquisti'],
         ];
     }
 

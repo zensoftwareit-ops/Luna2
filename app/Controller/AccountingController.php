@@ -246,9 +246,9 @@ final class AccountingController extends BaseController
         [$movements, $register, $year, $month, $search] = $this->vatMovementsDataset();
         $summary = $this->vatSummary($movements);
         $totals = [
-            'taxable' => array_sum(array_column($movements, 'taxable_amount')),
-            'vat' => array_sum(array_column($movements, 'vat_amount')),
-            'deductible' => array_sum(array_column($movements, 'deductible_vat')),
+            'taxable' => array_sum(array_column($summary, 'taxable_amount')),
+            'vat' => array_sum(array_column($summary, 'vat_amount')),
+            'deductible' => array_sum(array_column($summary, 'deductible_vat')),
         ];
         $vatCodes = $this->db->prepare('SELECT code, description, rate, nature FROM vat_codes WHERE organization_id = ? AND active = 1 ORDER BY rate DESC, code');
         $vatCodes->execute([Auth::organizationId()]);
@@ -289,6 +289,7 @@ final class AccountingController extends BaseController
             ['key' => 'protocol_number', 'label' => 'Protocollo'],
             ['key' => 'counterparty_name', 'label' => 'Controparte'],
             ['key' => 'description', 'label' => 'Descrizione'],
+            ['key' => 'document_fiscal_type', 'label' => 'Tipo documento'],
             ['key' => 'vat_code', 'label' => 'Codice IVA'],
             ['key' => 'vat_rate', 'label' => 'Aliquota %', 'type' => 'decimal'],
             ['key' => 'vat_description', 'label' => 'Articolo IVA'],
@@ -533,7 +534,8 @@ final class AccountingController extends BaseController
                        COALESCE(m.vat_code, \'N/D\') AS vat_code, COALESCE(m.vat_description, m.vat_code, \'N/D\') AS vat_description,
                        m.vat_rate, m.vat_nature, m.vat_legal_reference,
                        m.taxable_amount, m.vat_amount, m.vat_due_amount, m.deductible_vat, m.deductibility_percent,
-                        m.operation_type, m.collectability, m.vat_register_id,
+                       m.operation_type, m.collectability, m.vat_register_id,
+                       COALESCE(NULLIF(m.document_fiscal_type,\'\'), NULLIF(d.fatturapa_type,\'\'), \'TD01\') AS document_fiscal_type,
                         COALESCE(d.number, m.document_reference) AS document_reference,
                         COALESCE(d.document_date, m.document_reference_date) AS document_reference_date,
                         COALESCE(r.code, m.register_type) AS register_code
@@ -591,8 +593,9 @@ final class AccountingController extends BaseController
                     'deductible_vat' => 0.0,
                 ];
             }
+            $sign = in_array(strtoupper((string) ($movement['document_fiscal_type'] ?? '')), ['TD04','TD08'], true) ? -1 : 1;
             foreach (['taxable_amount', 'vat_amount', 'vat_due_amount', 'deductible_vat'] as $amount) {
-                $summary[$key][$amount] += (float) ($movement[$amount] ?? 0);
+                $summary[$key][$amount] += (float) ($movement[$amount] ?? 0) * $sign;
             }
         }
         foreach ($summary as &$row) {
