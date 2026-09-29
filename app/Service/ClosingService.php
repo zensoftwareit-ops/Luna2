@@ -171,6 +171,10 @@ final class ClosingService
                  VALUES (?, 'ACCOUNTING', ?, ?, ?, ?, NOW())"
             )->execute([$this->organizationId, $startsOn, $endsOn, 'Chiusura esercizio ' . $year, $this->userId]);
             $this->db->prepare(
+                "UPDATE journal_entries SET is_finalized = 1, finalized_at = NOW(), finalized_by = ?, updated_at = NOW()
+                 WHERE organization_id = ? AND status = 'POSTED' AND entry_date BETWEEN ? AND ?"
+            )->execute([$this->userId, $this->organizationId, $startsOn, $endsOn]);
+            $this->db->prepare(
                 "UPDATE accounting_closing_runs SET status = 'POSTED', closing_journal_entry_id = ?, opening_journal_entry_id = ?,
                  posted_by = ?, posted_at = NOW(), updated_at = NOW() WHERE id = ? AND organization_id = ?"
             )->execute([$closingEntryId, $openingEntryId, $this->userId, $runId, $this->organizationId]);

@@ -74,6 +74,7 @@ final class AccountingService
             ]);
             $entryId = (int) $this->db->lastInsertId();
             $this->insertLines($entryId, $normalized);
+            $this->invalidateJournalPrints(null, $entryDate);
             if ($ownsTransaction) {
                 $this->db->commit();
             }
@@ -113,19 +114,33 @@ final class AccountingService
             $totalDebit = array_sum(array_column($normalized, 'debit'));
             $totalCredit = array_sum(array_column($normalized, 'credit'));
             $status = $post ? 'POSTED' : 'DRAFT';
+            $previousEntryDate = null;
             if ($entryId !== null) {
                 $lock = $this->db->prepare(
-                    "SELECT id FROM journal_entries
-                     WHERE id = ? AND organization_id = ? AND status = 'DRAFT' AND source_type = 'MANUAL' FOR UPDATE"
+                    "SELECT * FROM journal_entries
+                     WHERE id = ? AND organization_id = ? AND status IN ('DRAFT','POSTED')
+                       AND source_type = 'MANUAL' AND is_finalized = 0 FOR UPDATE"
                 );
                 $lock->execute([$entryId, $this->organizationId]);
-                if (!$lock->fetchColumn()) {
-                    throw new InvalidArgumentException('È possibile modificare soltanto una bozza manuale.');
+                $current = $lock->fetch();
+                if (!$current) {
+                    throw new InvalidArgumentException('La scrittura è definitiva, stornata oppure collegata a un automatismo e non può essere modificata.');
+                }
+                $previousEntryDate = (string) $current['entry_date'];
+                $this->assertAccountingPeriodOpen((string) $current['entry_date']);
+                if ($current['status'] === 'POSTED') {
+                    $reason = trim((string) ($header['change_reason'] ?? ''));
+                    if ($reason === '') {
+                        throw new InvalidArgumentException('Indicare il motivo della modifica della scrittura provvisoria.');
+                    }
+                    $this->saveRevision($current, $reason);
+                    $status = 'POSTED';
                 }
                 $statement = $this->db->prepare(
                     "UPDATE journal_entries SET entry_date = ?, competence_date = ?, entry_type = ?, cause_id = ?, vat_register_id = ?, status = ?,
                      description = ?, document_number = ?, source_protocol = ?, counterparty = ?, total_debit = ?, total_credit = ?,
-                     notes = ?, updated_by = ?, posted_at = IF(? = 'POSTED', NOW(), NULL), updated_at = NOW()
+                     notes = ?, updated_by = ?, revision_number = revision_number + 1,
+                     posted_at = IF(? = 'POSTED', COALESCE(posted_at, NOW()), NULL), updated_at = NOW()
                      WHERE id = ? AND organization_id = ?"
                 );
                 $statement->execute([
@@ -160,6 +175,9 @@ final class AccountingService
                 $entryId = (int) $this->db->lastInsertId();
             }
             $this->insertLines($entryId, $normalized);
+            if ($status === 'POSTED') {
+                $this->invalidateJournalPrints($previousEntryDate, $entryDate);
+            }
             if ($ownsTransaction) {
                 $this->db->commit();
             }
@@ -201,6 +219,7 @@ final class AccountingService
         if ($update->rowCount() === 0) {
             throw new InvalidArgumentException('Bozza non trovata.');
         }
+        $this->invalidateJournalPrints(null, (string) $entryDate);
     }
 
     public function deleteDraft(int $entryId): bool
@@ -211,6 +230,40 @@ final class AccountingService
         );
         $statement->execute([$entryId, $this->organizationId]);
         return $statement->rowCount() > 0;
+    }
+
+    private function saveRevision(array $entry, string $reason): void
+    {
+        $lines = $this->db->prepare(
+            'SELECT line_number, account_id, debit, credit, description, cost_center_id, customer_id, supplier_id
+             FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ? ORDER BY line_number, id'
+        );
+        $lines->execute([(int) $entry['id'], $this->organizationId]);
+        $insert = $this->db->prepare(
+            'INSERT INTO journal_entry_revisions
+             (organization_id, journal_entry_id, revision_number, change_reason, header_json, lines_json, changed_by, changed_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())'
+        );
+        $insert->execute([
+            $this->organizationId, (int) $entry['id'], (int) $entry['revision_number'], mb_substr($reason, 0, 500),
+            json_encode($entry, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            json_encode($lines->fetchAll(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $this->userId,
+        ]);
+    }
+
+    private function invalidateJournalPrints(?string $previousDate, string $newDate): void
+    {
+        $dates = array_values(array_unique(array_filter([$previousDate, $newDate])));
+        foreach ($dates as $date) {
+            $statement = $this->db->prepare(
+                "UPDATE official_print_runs
+                 SET status = 'CANCELLED', notes = CONCAT(COALESCE(notes, ''), ?), updated_at = NOW()
+                 WHERE organization_id = ? AND print_type = 'JOURNAL' AND status IN ('GENERATED','VALIDATED')
+                   AND ? BETWEEN period_start AND period_end"
+            );
+            $statement->execute(["\nAnnullata automaticamente: prima nota modificata dopo la generazione.", $this->organizationId, $date]);
+        }
     }
 
     public function postDocument(int $documentId): ?int

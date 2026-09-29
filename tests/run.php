@@ -415,6 +415,10 @@ $assert(str_contains($vatSettlementView, 'Imposta a credito') && str_contains($v
 $assert(str_contains($vatService, "['TD04', 'TD08']") && str_contains($vatService, '-abs('), 'Le note di credito FatturaPA devono ridurre imponibile e IVA anche sul ciclo passivo.');
 $assert(str_contains($officialPrintService, 'VAT_REVERSE_CHARGE') && str_contains($officialPrintService, 'VAT_SELF_INVOICES') && str_contains($officialPrintService, 'VAT_LIQUIDATION'), 'Tipi di stampa IVA ufficiale incompleti.');
 $assert(str_contains($vatService, 'vat_description, vat_legal_reference') && str_contains($vatService, 'GROUP BY register_type, vat_code, vat_rate'), 'Liquidazioni IVA prive del raggruppamento storico per articolo e aliquota.');
+$accountingService = (string) file_get_contents($base . '/app/Service/AccountingService.php');
+$journalView = (string) file_get_contents($base . '/views/accounting/journal.php');
+$assert(str_contains($accountingService, 'journal_entry_revisions') && str_contains($accountingService, 'is_finalized = 0'), 'Revisioni delle scritture provvisorie mancanti.');
+$assert(str_contains($journalView, 'Provvisoria') && str_contains($officialPrintService, "is_finalized = 1"), 'Stato provvisorio o finalizzazione del libro giornale mancanti.');
 $assert(!str_contains($workspaceService, "status = 'COMMITTED'") && !str_contains($workspaceService, "'INVALID','FAILED','PARTIAL'"), 'Stati import non compatibili con lo schema.');
 $assert(!str_contains($complianceWorkspaceService, 'api_endpoint_configs WHERE id = ? AND organization_id = ? AND active = 1'), 'Gli endpoint professionali devono usare il campo enabled.');
 $assert(str_contains($complianceWorkspaceService, 'e.display_name AS endpoint_name'), 'Il Centro professionale deve usare la colonna display_name degli endpoint.');

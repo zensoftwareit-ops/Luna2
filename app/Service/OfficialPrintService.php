@@ -188,13 +188,39 @@ final class OfficialPrintService
     {
         [, $row] = $this->file($id);
         $this->snapshot($row);
-        $statement = $this->db->prepare(
-            "UPDATE official_print_runs SET status = 'LOCKED', locked_at = NOW(), updated_at = NOW()
-             WHERE id = ? AND organization_id = ? AND status = 'VALIDATED' AND file_sha256 IS NOT NULL"
-        );
-        $statement->execute([$id, $this->organizationId]);
-        if ($statement->rowCount() !== 1) {
-            throw new InvalidArgumentException('Validare la stampa prima di bloccarla.');
+        $this->db->beginTransaction();
+        try {
+            $statement = $this->db->prepare(
+                "UPDATE official_print_runs SET status = 'LOCKED', locked_at = NOW(), updated_at = NOW()
+                 WHERE id = ? AND organization_id = ? AND status = 'VALIDATED' AND file_sha256 IS NOT NULL"
+            );
+            $statement->execute([$id, $this->organizationId]);
+            if ($statement->rowCount() !== 1) {
+                throw new InvalidArgumentException('Validare la stampa prima di bloccarla.');
+            }
+            if ((string) $row['print_type'] === 'JOURNAL') {
+                $this->db->prepare(
+                    "UPDATE journal_entries SET is_finalized = 1, finalized_at = NOW(), finalized_by = ?,
+                            finalized_print_run_id = ?, updated_at = NOW()
+                     WHERE organization_id = ? AND status = 'POSTED' AND is_finalized = 0
+                       AND entry_date BETWEEN ? AND ?"
+                )->execute([$this->userId, $id, $this->organizationId, $row['period_start'], $row['period_end']]);
+                $lock = $this->db->prepare(
+                    "INSERT INTO accounting_period_locks
+                     (organization_id, scope, starts_on, ends_on, reason, locked_by, created_at)
+                     SELECT ?, 'ACCOUNTING', ?, ?, ?, ?, NOW()
+                     WHERE NOT EXISTS (
+                         SELECT 1 FROM accounting_period_locks WHERE organization_id = ? AND scope = 'ACCOUNTING'
+                           AND unlocked_at IS NULL AND starts_on <= ? AND ends_on >= ?
+                     )"
+                );
+                $lock->execute([$this->organizationId, $row['period_start'], $row['period_end'],
+                    'Libro giornale definitivo #' . $id, $this->userId, $this->organizationId, $row['period_start'], $row['period_end']]);
+            }
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) { $this->db->rollBack(); }
+            throw $exception;
         }
     }
 
@@ -286,6 +312,11 @@ final class OfficialPrintService
             return [['Conto', 'Data', 'Protocollo', 'Descrizione', 'Documento', 'Controparte', 'Dare', 'Avere', 'Saldo'], $rows];
         }
         if ($type === 'JOURNAL') {
+            $drafts = $this->db->prepare("SELECT COUNT(*) FROM journal_entries WHERE organization_id = ? AND status = 'DRAFT' AND entry_date BETWEEN ? AND ?");
+            $drafts->execute([$this->organizationId, $from, $to]);
+            if ((int) $drafts->fetchColumn() > 0) {
+                $this->issues[] = 'Libro giornale: sono presenti scritture incomplete in bozza nel periodo selezionato.';
+            }
             [$columns, $rows] = $this->query(
                 ['Data', 'Protocollo', 'Conto', 'Descrizione', 'Documento', 'Controparte', 'Tipo', 'Dare', 'Avere'],
                 "SELECT e.entry_date, e.protocol_number, CONCAT(a.code, ' · ', a.name), COALESCE(NULLIF(l.description,''), e.description),

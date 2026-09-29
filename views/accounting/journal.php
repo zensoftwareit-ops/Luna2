@@ -1,6 +1,6 @@
 <?php use Luna\Core\View; ?>
 <section class="page-intro compact">
-    <div><span class="eyebrow">Contabilità generale</span><h1>Prima nota</h1><p>Scritture manuali e automatiche, bozze, protocolli e quadratura Dare/Avere.</p></div>
+    <div><span class="eyebrow">Contabilità generale</span><h1>Prima nota</h1><p>Le scritture provvisorie partecipano a mastrini e bilanci e restano modificabili fino alla stampa definitiva o alla chiusura.</p></div>
     <a class="button primary" href="/accounting/journal/create"><?= View::icon('plus') ?> Nuova registrazione</a>
 </section>
 
@@ -17,7 +17,7 @@
         <span class="search-control"><?= View::icon('search') ?><input type="search" name="q" value="<?= View::e($search) ?>" placeholder="Protocollo, descrizione, documento…"></span>
         <label>Dal <input type="date" name="from" value="<?= View::e($from) ?>"></label>
         <label>Al <input type="date" name="to" value="<?= View::e($to) ?>"></label>
-        <select name="status"><option value="">Tutti gli stati</option><option value="DRAFT" <?= $status === 'DRAFT' ? 'selected' : '' ?>>Bozze</option><option value="POSTED" <?= $status === 'POSTED' ? 'selected' : '' ?>>Contabilizzate</option><option value="REVERSED" <?= $status === 'REVERSED' ? 'selected' : '' ?>>Stornate</option></select>
+        <select name="status"><option value="">Tutti gli stati</option><option value="DRAFT" <?= $status === 'DRAFT' ? 'selected' : '' ?>>Bozze incomplete</option><option value="POSTED" <?= $status === 'POSTED' ? 'selected' : '' ?>>Contabilizzate (provvisorie e definitive)</option><option value="REVERSED" <?= $status === 'REVERSED' ? 'selected' : '' ?>>Stornate</option></select>
         <select name="account_id"><option value="">Tutti i conti</option><?php foreach ($accounts as $account): ?><option value="<?= (int) $account['id'] ?>" <?= $accountId === (int) $account['id'] ? 'selected' : '' ?>><?= View::e($account['code'] . ' · ' . $account['name']) ?></option><?php endforeach; ?></select>
         <button class="button" type="submit">Filtra</button>
     </form>
@@ -33,8 +33,8 @@
             <td><?= View::e($entry['entry_type']) ?></td><td><?= View::e($entry['description']) ?></td>
             <td><?= View::e($entry['document_number'] ?: '—') ?><small class="cell-subtitle"><?= View::e($entry['counterparty'] ?: '') ?></small></td>
             <td><?= View::money($entry['total_debit']) ?></td><td><?= View::money($entry['total_credit']) ?></td>
-            <td><span class="badge status-<?= strtolower((string) $entry['status']) ?>"><?= match ($entry['status']) { 'DRAFT' => 'Bozza', 'POSTED' => 'Contabilizzata', 'REVERSED' => 'Stornata', default => View::e($entry['status']) } ?></span></td>
-            <td class="row-actions"><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>">Apri</a><?php if ($entry['status'] === 'DRAFT' && $entry['source_type'] === 'MANUAL'): ?><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>/edit">Modifica</a><?php endif; ?></td>
+            <td><span class="badge status-<?= !empty($entry['is_finalized']) ? 'locked' : strtolower((string) $entry['status']) ?>"><?= match (true) { $entry['status'] === 'DRAFT' => 'Bozza incompleta', $entry['status'] === 'POSTED' && !empty($entry['is_finalized']) => 'Definitiva', $entry['status'] === 'POSTED' => 'Provvisoria', $entry['status'] === 'REVERSED' => 'Stornata', default => View::e($entry['status']) } ?></span></td>
+            <td class="row-actions"><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>">Apri</a><?php if (in_array($entry['status'], ['DRAFT','POSTED'], true) && $entry['source_type'] === 'MANUAL' && empty($entry['is_finalized'])): ?><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>/edit">Modifica</a><?php endif; ?></td>
         </tr>
     <?php endforeach; ?>
     <?php if (!$entries): ?><tr><td colspan="9"><div class="table-empty"><span><?= View::icon('calculator') ?></span><strong>Nessuna registrazione</strong><small>Modifica i filtri o inserisci la prima scrittura.</small></div></td></tr><?php endif; ?>

@@ -77,8 +77,8 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         [$entry, $lines] = $this->entry((int) $id);
-        if ($entry['status'] !== 'DRAFT' || $entry['source_type'] !== 'MANUAL') {
-            $this->redirect('/accounting/journal/' . (int) $id, 'Solo le bozze manuali possono essere modificate.', 'error');
+        if (!in_array($entry['status'], ['DRAFT', 'POSTED'], true) || $entry['source_type'] !== 'MANUAL' || !empty($entry['is_finalized'])) {
+            $this->redirect('/accounting/journal/' . (int) $id, 'La scrittura è definitiva, stornata o collegata a un automatismo.', 'error');
         }
         $accounts = $this->accounts();
         [$causes, $vatRegisters] = $this->journalOptions();
@@ -89,7 +89,17 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         [$entry, $lines] = $this->entry((int) $id);
-        $this->view->render('accounting/entry', compact('entry', 'lines') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
+        $revisions = [];
+        if ($this->tableExists('journal_entry_revisions')) {
+            $statement = $this->db->prepare(
+                'SELECT r.*, u.name AS changed_by_name FROM journal_entry_revisions r
+                 LEFT JOIN users u ON u.id = r.changed_by
+                 WHERE r.journal_entry_id = ? AND r.organization_id = ? ORDER BY r.revision_number DESC'
+            );
+            $statement->execute([(int) $id, Auth::organizationId()]);
+            $revisions = $statement->fetchAll();
+        }
+        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
     }
 
     public function save(): never
@@ -101,7 +111,7 @@ final class AccountingController extends BaseController
         $service = new AccountingService($this->db, Auth::organizationId(), Auth::id());
         try {
             $id = $service->saveManual($header, (array) ($_POST['lines'] ?? []), !empty($_POST['id']) ? (int) $_POST['id'] : null, $post);
-        } catch (InvalidArgumentException $exception) {
+        } catch (InvalidArgumentException|RuntimeException $exception) {
             $path = !empty($_POST['id']) ? '/accounting/journal/' . (int) $_POST['id'] . '/edit' : '/accounting/journal/create';
             $this->redirect($path, $exception->getMessage(), 'error');
         }
@@ -652,6 +662,14 @@ final class AccountingController extends BaseController
             'source_protocol' => $_POST['source_protocol'] ?? null,
             'counterparty' => $_POST['counterparty'] ?? null,
             'notes' => $_POST['notes'] ?? null,
+            'change_reason' => $_POST['change_reason'] ?? null,
         ];
+    }
+
+    private function tableExists(string $table): bool
+    {
+        $statement = $this->db->prepare('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?');
+        $statement->execute([$table]);
+        return (int) $statement->fetchColumn() > 0;
     }
 }
