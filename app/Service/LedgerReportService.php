@@ -11,7 +11,7 @@ final class LedgerReportService
 {
     public function __construct(private readonly PDO $db, private readonly int $organizationId) {}
 
-    public function dataset(int $id, string $from, string $to, string $search = ''): array
+    public function dataset(int $id, string $from, string $to, string $search = '', bool $includeClosing = false): array
     {
         foreach ([$from, $to] as $value) {
             $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
@@ -25,14 +25,15 @@ final class LedgerReportService
         $account = $statement->fetch();
         if (!$account) { throw new InvalidArgumentException('Conto non trovato.'); }
         $statement = $this->db->prepare(
-            "SELECT e.id AS entry_id, e.entry_date, e.protocol_number, e.description AS entry_description,
+            "SELECT e.id AS entry_id, e.entry_date, e.entry_type, e.protocol_number, e.source_protocol, e.description AS entry_description,
                     e.document_number, e.counterparty, l.description, l.debit, l.credit
              FROM journal_entry_lines l JOIN journal_entries e
                ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
              WHERE l.organization_id = ? AND l.account_id = ? AND e.status = 'POSTED'
+               AND (? = 1 OR e.entry_type <> 'CLOSING')
                AND e.entry_date <= ? ORDER BY e.entry_date, e.id, l.line_number, l.id"
         );
-        $statement->execute([$this->organizationId, $id, $to]);
+        $statement->execute([$this->organizationId, $id, $includeClosing ? 1 : 0, $to]);
         return self::calculate($account, $statement->fetchAll(), $from, $to, $search);
     }
 
@@ -41,13 +42,21 @@ final class LedgerReportService
     {
         $balance = $opening = $debit = $credit = 0;
         $carryForward = in_array((string) ($account['account_type'] ?? 'ASSET'), ['ASSET', 'LIABILITY', 'EQUITY'], true);
+        $hasPostedOpening = false;
+        foreach ($lines as $line) {
+            if (($line['entry_type'] ?? '') === 'OPENING'
+                && ($line['entry_date'] ?? '') >= $from && ($line['entry_date'] ?? '') <= $to) {
+                $hasPostedOpening = true;
+                break;
+            }
+        }
         $rows = [];
         foreach ($lines as $line) {
             if ($line['entry_date'] > $to) { continue; }
             $d = (int) round((float) $line['debit'] * 100);
             $c = (int) round((float) $line['credit'] * 100);
             if ($line['entry_date'] < $from) {
-                if ($carryForward) {
+                if ($carryForward && !$hasPostedOpening) {
                     $balance += $d - $c;
                     $opening = $balance;
                 }
@@ -57,7 +66,7 @@ final class LedgerReportService
             $debit += $d; $credit += $c;
             $line['running_balance'] = $balance / 100;
             $text = implode(' ', array_map(static fn ($key): string => (string) ($line[$key] ?? ''),
-                ['protocol_number', 'entry_description', 'description', 'document_number', 'counterparty']));
+                ['protocol_number', 'source_protocol', 'entry_description', 'description', 'document_number', 'counterparty']));
             if ($search === '' || mb_stripos($text, $search) !== false) { $rows[] = $line; }
         }
         $account += ['opening_balance' => $opening / 100, 'closing_balance' => $balance / 100,

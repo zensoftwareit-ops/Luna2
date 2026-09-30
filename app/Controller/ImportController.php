@@ -80,7 +80,11 @@ final class ImportController extends BaseController
         if (array_key_exists('references', $result)) {
             $this->redirect('/imports/' . (int)$id, sprintf('Acquisizione: %d applicati, %d di riferimento, %d da completare o riconciliare, %d già presenti, %d errori. Non equivale al completamento della migrazione contabile.', $result['applied'], $result['references'], $result['pending'], $result['skipped'], $result['errors']), ($result['errors'] || $result['pending']) ? 'warning' : 'success');
         }
-        $this->redirect('/imports/' . $id, sprintf('Importazione conclusa: %d righe importate, %d errori.', $result['imported'], $result['errors']), $result['errors'] ? 'warning' : 'success');
+        $skipped = (int) ($result['skipped'] ?? 0);
+        $this->redirect('/imports/' . $id, sprintf(
+            'Importazione conclusa: %d righe importate, %d già presenti, %d errori.',
+            $result['imported'], $skipped, $result['errors'],
+        ), $result['errors'] ? 'warning' : 'success');
     }
 
     public function rollback(string $id): never

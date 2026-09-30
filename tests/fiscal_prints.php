@@ -5,6 +5,7 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/vendor/autoload.php';
 use Luna\Service\OfficialPrintService;
 use Luna\Service\LedgerReportService;
+use Luna\Service\TrialBalanceService;
 use Luna\Service\AssetService;
 use Luna\Service\VatService;
 
@@ -58,6 +59,33 @@ $assert($found[0]['running_balance'] === $expected['running_balance'], 'Filtered
 $assert($empty['opening_balance'] == 9000 && $empty['closing_balance'] == 9000, 'No movement carry forward');
 try { (new LedgerReportService($db, $other))->dataset($account, '2026-01-01', '2026-12-31'); $assert(false, 'Tenant isolation'); }
 catch (InvalidArgumentException $e) { $assert(true, 'Tenant isolation'); }
+
+$closing = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'CLOSE-2026', 'entry_date' => '2026-12-31',
+    'competence_date' => '2026-12-31', 'entry_type' => 'CLOSING', 'status' => 'POSTED', 'description' => 'Chiusura esercizio 2026',
+    'total_debit' => 9000, 'total_credit' => 9000]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $closing, 'line_number' => 1, 'account_id' => $account, 'debit' => 0, 'credit' => 9000]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $closing, 'line_number' => 2, 'account_id' => $offset, 'debit' => 9000, 'credit' => 0]);
+[$beforeClosing] = $ledger->dataset($account, '2026-01-01', '2026-12-31');
+[$afterClosing] = $ledger->dataset($account, '2026-01-01', '2026-12-31', '', true);
+$assert($beforeClosing['closing_balance'] == 9000 && $afterClosing['closing_balance'] == 0,
+    'Ledger excludes closing entries by default and includes them on request');
+$trialBalance = new TrialBalanceService($db, $org);
+$statementBeforeClosing = $trialBalance->dataset('2026-01-01', '2026-12-31');
+$statementAfterClosing = $trialBalance->dataset('2026-01-01', '2026-12-31', '', '', true);
+$assert($statementBeforeClosing['totals']['assets'] == 9000 && $statementAfterClosing['totals']['assets'] == 0,
+    'Trial balance excludes closing entries by default and includes them on request');
+
+$openingEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'OPEN-2027', 'entry_date' => '2027-01-01',
+    'competence_date' => '2027-01-01', 'entry_type' => 'OPENING', 'status' => 'POSTED', 'description' => 'Apertura esercizio 2027',
+    'total_debit' => 9000, 'total_credit' => 9000]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $openingEntry, 'line_number' => 1, 'account_id' => $account, 'debit' => 9000, 'credit' => 0]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $openingEntry, 'line_number' => 2, 'account_id' => $offset, 'debit' => 0, 'credit' => 9000]);
+[$opened] = $ledger->dataset($account, '2027-01-01', '2027-12-31');
+$assert($opened['opening_balance'] == 0 && $opened['closing_balance'] == 9000,
+    'A posted opening replaces, rather than duplicates, prior balance-sheet carry-forward');
+$openedStatement = $trialBalance->dataset('2027-01-01', '2027-12-31');
+$assert($openedStatement['totals']['assets'] == 9000,
+    'Trial balance does not duplicate prior balances when a posted opening exists');
 
 $vat = new VatService($db, $org, $user);
 foreach (['SALES', 'PURCHASES'] as $register) {

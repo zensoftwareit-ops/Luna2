@@ -1,13 +1,14 @@
 <?php
 use Luna\Core\View;
-$query = http_build_query(array_filter(['from' => $from, 'to' => $to, 'q' => $search, 'account_type' => $accountType]));
-$renderSection = static function (array $rows, string $from, string $to): void {
+$query = http_build_query(array_filter(['from' => $from, 'to' => $to, 'q' => $search, 'account_type' => $accountType,
+    'include_closing' => $includeClosing ? '1' : '']));
+$renderSection = static function (array $rows, string $from, string $to, bool $includeClosing): void {
     foreach ($rows as $row) {
         $isGroup = empty($row['is_postable']);
         ?><tr class="<?= $isGroup ? 'statement-group' : 'statement-account' ?>">
             <td style="--statement-level:<?= (int) $row['level'] ?>">
                 <?php if (!$isGroup && (int) $row['id'] > 0): ?>
-                    <a class="statement-account-link" href="/accounting/ledger/<?= (int) $row['id'] ?>?from=<?= View::e($from) ?>&amp;to=<?= View::e($to) ?>" title="Apri mastrino <?= View::e($row['code']) ?>"><?= View::e($row['code']) ?></a>
+                    <a class="statement-account-link" href="/accounting/ledger/<?= (int) $row['id'] ?>?<?= View::e(http_build_query(array_filter(['from' => $from, 'to' => $to, 'include_closing' => $includeClosing ? '1' : '']))) ?>" title="Apri mastrino <?= View::e($row['code']) ?>"><?= View::e($row['code']) ?></a>
                 <?php else: ?><span><?= View::e($row['code']) ?></span><?php endif; ?>
                 <span class="statement-name"><?= View::e($row['name']) ?></span>
             </td>
@@ -27,12 +28,19 @@ $renderSection = static function (array $rows, string $from, string $to): void {
 <div class="alert neutral-banner"><?= View::icon('help') ?><div><strong>Nessun saldo precedente da riprendere</strong><br>Il prospetto usa esclusivamente i movimenti del periodo selezionato.</div></div>
 <?php endif; ?>
 
+<?php if ($includeClosing): ?>
+<div class="alert alert-warning"><?= View::icon('alert') ?><div><strong>Vista post-chiusura</strong><br>Sono comprese anche le scritture che azzerano i conti a fine esercizio. Disattiva “Includi scritture di chiusura” per il bilancio di verifica ante-chiusura.</div></div>
+<?php else: ?>
+<div class="alert neutral-banner"><?= View::icon('help') ?><div><strong>Vista ante-chiusura</strong><br>Le scritture di chiusura sono escluse; i saldi mostrano la situazione utile al controllo dell’esercizio.</div></div>
+<?php endif; ?>
+
 <section class="list-toolbar exportable-toolbar">
     <form method="get" class="search-form filter-form">
-        <span class="search-control"><?= View::icon('search') ?><input type="search" name="q" value="<?= View::e($search) ?>" placeholder="Codice o descrizione conto…"></span>
+        <span class="search-control"><?= View::icon('search') ?><input type="search" name="q" value="<?= View::e($search) ?>" placeholder="Codice o descrizione, anche senza saldo…"></span>
         <label>Dal <input type="date" name="from" value="<?= View::e($from) ?>"></label>
         <label>Al <input type="date" name="to" value="<?= View::e($to) ?>"></label>
         <label>Tipo <select name="account_type"><option value="">Tutti i tipi</option><?php foreach (['ASSET'=>'Attività','LIABILITY'=>'Passività','EQUITY'=>'Patrimonio netto','REVENUE'=>'Ricavi','EXPENSE'=>'Costi'] as $value => $label): ?><option value="<?= $value ?>" <?= $accountType === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></label>
+        <label><input type="checkbox" name="include_closing" value="1" <?= $includeClosing ? 'checked' : '' ?>> Includi scritture di chiusura</label>
         <button class="button">Filtra</button><a class="button ghost" href="/accounting/trial-balance">Azzera</a>
     </form>
     <div class="export-actions"><a class="button ghost" href="/accounting/trial-balance/export/pdf?<?= View::e($query) ?>">PDF</a><a class="button ghost" href="/accounting/trial-balance/export/xlsx?<?= View::e($query) ?>">XLSX</a><a class="button ghost" href="/accounting/trial-balance/export/csv?<?= View::e($query) ?>">CSV</a></div>
@@ -42,13 +50,13 @@ $renderSection = static function (array $rows, string $from, string $to): void {
     <header><span>Situazione contabile a sezioni per competenza</span><strong><?= View::date($from) ?> – <?= View::date($to) ?></strong></header>
     <h2>Stato patrimoniale</h2>
     <div class="statement-columns">
-        <section class="card statement-section"><h3>Attività</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection($sections['ASSET'], $from, $to); ?></tbody><tfoot><tr><th>Totale attività</th><th class="numeric"><?= View::money($totals['assets']) ?></th></tr><?php if ($totals['profit_loss'] < 0): ?><tr><th>Perdita d’esercizio</th><th class="numeric"><?= View::money(abs($totals['profit_loss'])) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money($totals['balance_assets']) ?></th></tr></tfoot></table></div></section>
-        <section class="card statement-section"><h3>Passività e patrimonio netto</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection(array_merge($sections['EQUITY'], $sections['LIABILITY']), $from, $to); ?></tbody><tfoot><tr><th>Totale passività e patrimonio netto</th><th class="numeric"><?= View::money($totals['liabilities']) ?></th></tr><?php if ($totals['profit_loss'] >= 0): ?><tr><th>Utile d’esercizio</th><th class="numeric"><?= View::money($totals['profit_loss']) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money($totals['balance_liabilities']) ?></th></tr></tfoot></table></div></section>
+        <section class="card statement-section"><h3>Attività</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection($sections['ASSET'], $from, $to, $includeClosing); ?></tbody><tfoot><tr><th>Totale attività</th><th class="numeric"><?= View::money($totals['assets']) ?></th></tr><?php if ($totals['profit_loss'] < 0): ?><tr><th>Perdita d’esercizio</th><th class="numeric"><?= View::money(abs($totals['profit_loss'])) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money($totals['balance_assets']) ?></th></tr></tfoot></table></div></section>
+        <section class="card statement-section"><h3>Passività e patrimonio netto</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection(array_merge($sections['EQUITY'], $sections['LIABILITY']), $from, $to, $includeClosing); ?></tbody><tfoot><tr><th>Totale passività e patrimonio netto</th><th class="numeric"><?= View::money($totals['liabilities']) ?></th></tr><?php if ($totals['profit_loss'] >= 0): ?><tr><th>Utile d’esercizio</th><th class="numeric"><?= View::money($totals['profit_loss']) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money($totals['balance_liabilities']) ?></th></tr></tfoot></table></div></section>
     </div>
     <h2>Conto economico</h2>
     <div class="statement-columns">
-        <section class="card statement-section"><h3>Costi</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection($sections['EXPENSE'], $from, $to); ?></tbody><tfoot><tr><th>Totale costi</th><th class="numeric"><?= View::money($totals['expenses']) ?></th></tr><?php if ($totals['profit_loss'] >= 0): ?><tr><th>Utile d’esercizio</th><th class="numeric"><?= View::money($totals['profit_loss']) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money(max($totals['expenses'], $totals['revenues'])) ?></th></tr></tfoot></table></div></section>
-        <section class="card statement-section"><h3>Ricavi</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection($sections['REVENUE'], $from, $to); ?></tbody><tfoot><tr><th>Totale ricavi</th><th class="numeric"><?= View::money($totals['revenues']) ?></th></tr><?php if ($totals['profit_loss'] < 0): ?><tr><th>Perdita d’esercizio</th><th class="numeric"><?= View::money(abs($totals['profit_loss'])) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money(max($totals['expenses'], $totals['revenues'])) ?></th></tr></tfoot></table></div></section>
+        <section class="card statement-section"><h3>Costi</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection($sections['EXPENSE'], $from, $to, $includeClosing); ?></tbody><tfoot><tr><th>Totale costi</th><th class="numeric"><?= View::money($totals['expenses']) ?></th></tr><?php if ($totals['profit_loss'] >= 0): ?><tr><th>Utile d’esercizio</th><th class="numeric"><?= View::money($totals['profit_loss']) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money(max($totals['expenses'], $totals['revenues'])) ?></th></tr></tfoot></table></div></section>
+        <section class="card statement-section"><h3>Ricavi</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection($sections['REVENUE'], $from, $to, $includeClosing); ?></tbody><tfoot><tr><th>Totale ricavi</th><th class="numeric"><?= View::money($totals['revenues']) ?></th></tr><?php if ($totals['profit_loss'] < 0): ?><tr><th>Perdita d’esercizio</th><th class="numeric"><?= View::money(abs($totals['profit_loss'])) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money(max($totals['expenses'], $totals['revenues'])) ?></th></tr></tfoot></table></div></section>
     </div>
     <footer><span>Totali saldi Dare <?= View::money($totals['debit']) ?> · Avere <?= View::money($totals['credit']) ?></span><strong class="<?= abs($totals['debit'] - $totals['credit']) > .005 ? 'danger-text' : '' ?>">Differenza Dare / Avere: <?= View::money(abs($totals['debit'] - $totals['credit'])) ?></strong></footer>
 </section>

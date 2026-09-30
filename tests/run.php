@@ -404,10 +404,26 @@ $complianceWorkspaceService = (string) file_get_contents($base . '/app/Service/C
 $officialPrintService = (string) file_get_contents($base . '/app/Service/OfficialPrintService.php');
 $vatService = (string) file_get_contents($base . '/app/Service/VatService.php');
 $trialBalanceView = (string) file_get_contents($base . '/views/accounting/trial-balance.php');
+$trialBalanceService = (string) file_get_contents($base . '/app/Service/TrialBalanceService.php');
+$ledgerService = (string) file_get_contents($base . '/app/Service/LedgerReportService.php');
+$importService = (string) file_get_contents($base . '/app/Service/ImportService.php');
 $vatRegistersView = (string) file_get_contents($base . '/views/accounting/vat-registers.php');
 $vatSettlementView = (string) file_get_contents($base . '/views/accounting/vat-settlement.php');
 $assert(str_contains($trialBalanceView, 'Stato patrimoniale') && str_contains($trialBalanceView, 'Conto economico') && str_contains($trialBalanceView, 'statement-account-link'), 'La situazione contabile deve essere gerarchica e collegata ai mastrini.');
 $assert(str_contains($trialBalanceView, 'Apertura non contabilizzata') && str_contains($trialBalanceView, 'Differenza Dare / Avere') && str_contains($accountingController, 'TOTALI SALDI'), 'Controlli di apertura, totali e differenza della situazione contabile mancanti.');
+$assert(str_contains($trialBalanceView, 'Includi scritture di chiusura')
+    && str_contains($trialBalanceService, "e.entry_type <> 'CLOSING'")
+    && str_contains($ledgerService, "e.entry_type <> 'CLOSING'"),
+    'Situazione contabile e mastrini devono mostrare per default i saldi ante-chiusura.');
+$assert(str_contains($importService, "'C80' => 'OPENING'")
+    && str_contains($importService, "'C82', 'C84', 'C86' => 'CLOSING'"),
+    'Le causali DATEV di apertura e chiusura devono essere classificate contabilmente.');
+$assert(str_contains($importService, 'journalAccountId')
+    && str_contains($importService, 'Protocollo già importato: nessuna duplicazione.'),
+    'L’import dei movimenti DATEV deve recuperare i sottoconti mancanti e impedire la duplicazione dei protocolli.');
+$assert(str_contains($trialBalanceView, 'anche senza saldo')
+    && str_contains($trialBalanceService, "\$search === '' && abs((int) \$row['total_net_cents']) < 1"),
+    'La ricerca mastrini deve rendere consultabili anche i conti senza saldo nel periodo.');
 $assert(str_contains($vatRegistersView, 'Totali per articolo e aliquota IVA') && str_contains($vatRegistersView, 'REVERSE_CHARGE') && str_contains($vatRegistersView, 'SELF_INVOICES'), 'Registri IVA professionali incompleti.');
 $assert(str_contains($vatSettlementView, 'Dettaglio per registro, articolo e aliquota IVA'), 'Dettaglio aliquote della liquidazione IVA mancante.');
 $assert(str_contains($vatSettlementView, 'IVA DA VERSARE') && str_contains($vatSettlementView, 'CREDITO IVA DA RIPORTARE'), 'Esito della liquidazione IVA non sufficientemente evidente.');

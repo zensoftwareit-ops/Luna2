@@ -50,6 +50,7 @@ final class AccountingController extends BaseController
         $this->exporter()->stream($format, 'Prima nota', [
             ['key' => 'entry_date', 'label' => 'Data', 'type' => 'date'],
             ['key' => 'protocol_number', 'label' => 'Protocollo'],
+            ['key' => 'source_protocol', 'label' => 'Protocollo origine'],
             ['key' => 'entry_type', 'label' => 'Tipo'],
             ['key' => 'description', 'label' => 'Descrizione'],
             ['key' => 'document_number', 'label' => 'Documento'],
@@ -150,17 +151,17 @@ final class AccountingController extends BaseController
     public function trialBalance(): never
     {
         $this->authorize();
-        [$statement, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
+        [$statement, $from, $to, $search, $accountType, $includeClosing] = $this->trialBalanceDataset();
         $sections = $statement['sections'];
         $totals = $statement['totals'];
         $opening = $statement['opening'];
-        $this->view->render('accounting/trial-balance', compact('sections', 'totals', 'opening', 'from', 'to', 'search', 'accountType') + ['title' => 'Situazione contabile e mastrini']);
+        $this->view->render('accounting/trial-balance', compact('sections', 'totals', 'opening', 'from', 'to', 'search', 'accountType', 'includeClosing') + ['title' => 'Situazione contabile e mastrini']);
     }
 
     public function exportTrialBalance(string $format): never
     {
         $this->authorize();
-        [$statement, $from, $to, $search, $accountType] = $this->trialBalanceDataset();
+        [$statement, $from, $to, $search, $accountType, $includeClosing] = $this->trialBalanceDataset();
         $labels = ['ASSET' => 'STATO PATRIMONIALE - ATTIVITÀ', 'EQUITY' => 'STATO PATRIMONIALE - PATRIMONIO NETTO',
             'LIABILITY' => 'STATO PATRIMONIALE - PASSIVITÀ', 'EXPENSE' => 'CONTO ECONOMICO - COSTI',
             'REVENUE' => 'CONTO ECONOMICO - RICAVI'];
@@ -189,6 +190,7 @@ final class AccountingController extends BaseController
             ['key' => 'period_credit', 'label' => 'Movimenti Avere', 'type' => 'money'],
             ['key' => 'amount', 'label' => 'Saldo', 'type' => 'money'],
         ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca conto' => $search, 'Tipo conto' => $accountType,
+            'Scritture di chiusura' => $includeClosing ? 'Incluse' : 'Escluse',
             'Apertura' => $statement['opening']['posted'] ? 'Contabilizzata' : ($statement['opening']['carried'] ? 'Ripresa automatica per controllo' : 'Non necessaria')]),
             Auth::organizationName(), 'situazione-contabile');
     }
@@ -199,29 +201,31 @@ final class AccountingController extends BaseController
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
         $search = trim((string) ($_GET['q'] ?? ''));
         $accountType = strtoupper(trim((string) ($_GET['account_type'] ?? '')));
+        $includeClosing = (string) ($_GET['include_closing'] ?? '') === '1';
         $statement = (new TrialBalanceService($this->db, Auth::organizationId()))
-            ->dataset($from, $to, $search, $accountType);
-        return [$statement, $from, $to, $search, $accountType];
+            ->dataset($from, $to, $search, $accountType, $includeClosing);
+        return [$statement, $from, $to, $search, $accountType, $includeClosing];
     }
 
     public function ledger(string $id): never
     {
         $this->authorize();
-        [$account, $lines, $from, $to, $search] = $this->ledgerDataset((int) $id);
+        [$account, $lines, $from, $to, $search, $includeClosing] = $this->ledgerDataset((int) $id);
         $accounts = $this->accounts();
-        $this->view->render('accounting/ledger', compact('account', 'lines', 'from', 'to', 'search', 'accounts') + ['title' => 'Mastrino ' . $account['code']]);
+        $this->view->render('accounting/ledger', compact('account', 'lines', 'from', 'to', 'search', 'accounts', 'includeClosing') + ['title' => 'Mastrino ' . $account['code']]);
     }
 
     public function exportLedger(string $id, string $format): never
     {
         $this->authorize();
-        [$account, $rows, $from, $to, $search] = $this->ledgerDataset((int) $id);
+        [$account, $rows, $from, $to, $search, $includeClosing] = $this->ledgerDataset((int) $id);
         array_unshift($rows, ['entry_description' => 'SALDO INIZIALE', 'running_balance' => $account['opening_balance']]);
         $rows[] = ['entry_description' => 'TOTALI INTERO PERIODO / SALDO FINALE', 'debit' => $account['period_debit'],
             'credit' => $account['period_credit'], 'running_balance' => $account['closing_balance']];
         $this->exporter()->stream($format, 'Mastrino ' . $account['code'] . ' · ' . $account['name'], [
             ['key' => 'entry_date', 'label' => 'Data', 'type' => 'date'],
             ['key' => 'protocol_number', 'label' => 'Protocollo'],
+            ['key' => 'source_protocol', 'label' => 'Protocollo origine'],
             ['key' => 'entry_description', 'label' => 'Registrazione'],
             ['key' => 'description', 'label' => 'Descrizione riga'],
             ['key' => 'document_number', 'label' => 'Documento'],
@@ -229,7 +233,8 @@ final class AccountingController extends BaseController
             ['key' => 'debit', 'label' => 'Dare', 'type' => 'money'],
             ['key' => 'credit', 'label' => 'Avere', 'type' => 'money'],
             ['key' => 'running_balance', 'label' => 'Saldo progressivo', 'type' => 'money'],
-        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca' => $search]), Auth::organizationName(), 'mastrino-' . $account['code']);
+        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca' => $search,
+            'Scritture di chiusura' => $includeClosing ? 'Incluse' : 'Escluse']), Auth::organizationName(), 'mastrino-' . $account['code']);
     }
 
     private function ledgerDataset(int $id): array
@@ -237,7 +242,11 @@ final class AccountingController extends BaseController
         $from = (string) ($_GET['from'] ?? date('Y-01-01'));
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
         $search = trim((string) ($_GET['q'] ?? ''));
-        return (new LedgerReportService($this->db, Auth::organizationId()))->dataset($id, $from, $to, $search);
+        $includeClosing = (string) ($_GET['include_closing'] ?? '') === '1';
+        return array_merge(
+            (new LedgerReportService($this->db, Auth::organizationId()))->dataset($id, $from, $to, $search, $includeClosing),
+            [$includeClosing],
+        );
     }
 
     public function vatRegisters(): never
@@ -492,8 +501,8 @@ final class AccountingController extends BaseController
         $type = strtoupper((string) ($_GET['type'] ?? ''));
         $search = trim((string) ($_GET['q'] ?? ''));
         $accountId = max(0, (int) ($_GET['account_id'] ?? 0));
-        $sql = 'SELECT id, protocol_number, entry_date, competence_date, entry_type, description, document_number,
-                       counterparty, total_debit, total_credit, status, source_type
+        $sql = 'SELECT id, protocol_number, source_protocol, entry_date, competence_date, entry_type, description, document_number,
+                       counterparty, total_debit, total_credit, status, source_type, is_finalized
                 FROM journal_entries e WHERE organization_id = :organization_id AND entry_date BETWEEN :date_from AND :date_to';
         $params = ['organization_id' => Auth::organizationId(), 'date_from' => $from, 'date_to' => $to];
         if (in_array($status, ['DRAFT', 'POSTED', 'REVERSED'], true)) {
@@ -505,8 +514,8 @@ final class AccountingController extends BaseController
             $params['entry_type'] = $type;
         }
         if ($search !== '') {
-            $sql .= ' AND (protocol_number LIKE :search_protocol OR description LIKE :search_description OR document_number LIKE :search_document OR counterparty LIKE :search_party)';
-            foreach (['search_protocol', 'search_description', 'search_document', 'search_party'] as $key) { $params[$key] = '%' . $search . '%'; }
+            $sql .= ' AND (protocol_number LIKE :search_protocol OR source_protocol LIKE :search_source_protocol OR description LIKE :search_description OR document_number LIKE :search_document OR counterparty LIKE :search_party)';
+            foreach (['search_protocol', 'search_source_protocol', 'search_description', 'search_document', 'search_party'] as $key) { $params[$key] = '%' . $search . '%'; }
         }
         if ($accountId > 0) {
             $sql .= ' AND EXISTS (SELECT 1 FROM journal_entry_lines fl WHERE fl.journal_entry_id = e.id AND fl.organization_id = e.organization_id AND fl.account_id = :account_id)';

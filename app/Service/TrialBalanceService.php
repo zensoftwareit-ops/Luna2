@@ -14,7 +14,7 @@ final class TrialBalanceService
 
     public function __construct(private readonly PDO $db, private readonly int $organizationId) {}
 
-    public function dataset(string $from, string $to, string $search = '', string $accountType = ''): array
+    public function dataset(string $from, string $to, string $search = '', string $accountType = '', bool $includeClosing = false): array
     {
         foreach ([$from, $to] as $value) {
             $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
@@ -49,6 +49,7 @@ final class TrialBalanceService
              LEFT JOIN journal_entry_lines l ON l.account_id = a.id AND l.organization_id = a.organization_id
              LEFT JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = a.organization_id
                   AND e.status = 'POSTED' AND e.entry_date <= :maximum_date
+                  AND (:include_closing = 1 OR e.entry_type <> 'CLOSING')
              WHERE a.organization_id = :organization_id
              GROUP BY a.id, a.code, a.name, a.account_type, a.parent_id, a.is_postable
              ORDER BY a.code"
@@ -57,7 +58,8 @@ final class TrialBalanceService
             'prior_before' => $from, 'prior_before_credit' => $from,
             'period_from_debit' => $from, 'period_to_debit' => $to,
             'period_from_credit' => $from, 'period_to_credit' => $to,
-            'maximum_date' => $to, 'organization_id' => $this->organizationId,
+            'maximum_date' => $to, 'include_closing' => $includeClosing ? 1 : 0,
+            'organization_id' => $this->organizationId,
         ]);
         $accounts = [];
         foreach ($statement->fetchAll() as $row) {
@@ -131,9 +133,9 @@ final class TrialBalanceService
             }
             return false;
         };
-        $flatten = function (int $id, int $level = 0) use (&$flatten, $accounts, $matches): array {
+        $flatten = function (int $id, int $level = 0) use (&$flatten, $accounts, $matches, $search): array {
             $row = $accounts[$id];
-            if (abs((int) $row['total_net_cents']) < 1 || !$matches($id)) {
+            if (!$matches($id) || ($search === '' && abs((int) $row['total_net_cents']) < 1)) {
                 return [];
             }
             $result = [[
@@ -215,6 +217,7 @@ final class TrialBalanceService
                 'carried' => !$hasPostedOpening && $priorBalanceSheetNet !== 0,
                 'adjustment' => $openingAdjustment / 100,
             ],
+            'include_closing' => $includeClosing,
         ];
     }
 

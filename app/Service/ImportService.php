@@ -583,17 +583,32 @@ final class ImportService
             }
             $groups[$protocol][] = [$staged, $row];
         }
-        $imported = 0; $errors = count($rows) - array_sum(array_map('count', $groups));
+        $imported = 0; $skipped = 0; $errors = count($rows) - array_sum(array_map('count', $groups));
         $service = new AccountingService($this->db, $this->organizationId, $this->userId);
         foreach ($groups as $protocol => $items) {
             $this->db->exec('SAVEPOINT import_journal_group');
+            $originNote = 'Protocollo origine: ' . $protocol;
+            $originNotePrefix = $originNote . ' ·';
+            $existingEntry = $this->db->prepare(
+                'SELECT id FROM journal_entries
+                 WHERE organization_id = ?
+                   AND (source_protocol = ? OR notes = ? OR LEFT(notes, CHAR_LENGTH(?)) = ?)
+                 ORDER BY id LIMIT 1'
+            );
+            $existingEntry->execute([$this->organizationId, $protocol, $originNote, $originNotePrefix, $originNotePrefix]);
+            if ($existingEntryId = (int) $existingEntry->fetchColumn()) {
+                foreach ($items as [$staged]) {
+                    $this->markRow($staged['id'], 'SKIPPED', 'Protocollo già importato: nessuna duplicazione.', $existingEntryId);
+                    $skipped++;
+                }
+                continue;
+            }
             $lines = [];
             $groupError = null;
             foreach ($items as [$staged, $row]) {
                 $accountCode = $this->pick($row, ['account_code', 'codice_conto', 'conto']);
-                $find = $this->db->prepare('SELECT id FROM chart_of_accounts WHERE organization_id = ? AND code = ?');
-                $find->execute([$this->organizationId, $accountCode]);
-                $accountId = (int) $find->fetchColumn();
+                $accountName = $this->pick($row, ['account_name', 'nome_conto', 'descrizione_conto']);
+                $accountId = $this->journalAccountId((string) $accountCode, (string) $accountName, $batchId);
                 if (!$accountId) {
                     $groupError = 'Conto non trovato: ' . $accountCode;
                     break;
@@ -606,6 +621,7 @@ final class ImportService
                 ];
             }
             if ($groupError !== null) {
+                $this->db->exec('ROLLBACK TO SAVEPOINT import_journal_group');
                 foreach ($items as [$staged]) {
                     $this->markRow($staged['id'], 'ERROR', $groupError);
                     $errors++;
@@ -613,15 +629,23 @@ final class ImportService
                 continue;
             }
             $first = $items[0][1];
+            $causeCode = mb_strtoupper($this->pick($first, ['cause_code', 'codice_causale']) ?: '');
+            $entryType = match ($causeCode) {
+                'C80' => 'OPENING',
+                'C82', 'C84', 'C86' => 'CLOSING',
+                default => 'DATEV_IMPORT',
+            };
             try {
                 $entryId = $service->postManual([
                     'entry_date' => $this->dateValue($this->pick($first, ['entry_date', 'data', 'data_registrazione'])),
                     'competence_date' => $this->dateValue($this->pick($first, ['competence_date', 'data_competenza'])),
-                    'entry_type' => 'DATEV_IMPORT',
+                    'entry_type' => $entryType,
                     'description' => $this->pick($first, ['entry_description', 'causale', 'descrizione']) ?: 'Import DATEV ' . $protocol,
                     'document_number' => $this->pick($first, ['document_number', 'numero_documento']),
+                    'source_protocol' => $protocol,
                     'source_type' => 'DATEV_IMPORT', 'source_id' => null,
-                    'counterparty' => $this->pick($first, ['counterparty', 'controparte', 'nominativo']), 'notes' => 'Protocollo origine: ' . $protocol,
+                    'counterparty' => $this->pick($first, ['counterparty', 'controparte', 'nominativo']),
+                    'notes' => 'Protocollo origine: ' . $protocol . ($causeCode !== '' ? ' · Causale DATEV: ' . $causeCode : ''),
                 ], $lines);
                 $this->recordImport($batchId, 'journal_entries', $entryId, 'CREATE', null);
                 foreach ($items as [$staged]) {
@@ -634,7 +658,56 @@ final class ImportService
                 }
             }
         }
-        return compact('imported', 'errors');
+        return compact('imported', 'errors', 'skipped');
+    }
+
+    /**
+     * DATEV may expose bank and loan subaccounts in the journal that are omitted
+     * from the printed chart of accounts. Create only a leaf whose closest
+     * existing prefix provides an unambiguous accounting classification.
+     */
+    private function journalAccountId(string $code, string $name, int $batchId): int
+    {
+        $code = trim($code);
+        $name = trim($name);
+        if ($code === '' || mb_strlen($code) > 50) {
+            return 0;
+        }
+        $find = $this->db->prepare('SELECT id FROM chart_of_accounts WHERE organization_id = ? AND code = ?');
+        $find->execute([$this->organizationId, $code]);
+        if ($accountId = (int) $find->fetchColumn()) {
+            return $accountId;
+        }
+        if ($name === '') {
+            return 0;
+        }
+        $parent = $this->db->prepare(
+            "SELECT id, account_type, normal_balance, classification_code, statement_section
+             FROM chart_of_accounts
+             WHERE organization_id = ? AND active = 1 AND code <> ? AND ? LIKE CONCAT(code, '%')
+             ORDER BY CHAR_LENGTH(code) DESC LIMIT 1"
+        );
+        $parent->execute([$this->organizationId, $code, $code]);
+        $parentAccount = $parent->fetch();
+        if (!$parentAccount) {
+            return 0;
+        }
+        $insert = $this->db->prepare(
+            'INSERT INTO chart_of_accounts
+             (organization_id, code, name, account_type, normal_balance, parent_id, classification_code,
+              statement_section, is_postable, active, source_import_batch_id, created_by, updated_by, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, NOW(), NOW())'
+        );
+        $insert->execute([
+            $this->organizationId, $code, $name, $parentAccount['account_type'], $parentAccount['normal_balance'],
+            $parentAccount['id'], $parentAccount['classification_code'], $parentAccount['statement_section'],
+            $batchId, $this->userId, $this->userId,
+        ]);
+        $accountId = (int) $this->db->lastInsertId();
+        $this->db->prepare('UPDATE chart_of_accounts SET is_postable = 0, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+            ->execute([$parentAccount['id'], $this->organizationId]);
+        $this->recordImport($batchId, 'chart_of_accounts', $accountId, 'CREATE', null);
+        return $accountId;
     }
 
     private function commitPayments(int $batchId, array $rows): array

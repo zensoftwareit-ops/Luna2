@@ -181,6 +181,63 @@ def parse(pdf_path: Path, article_file: Path | None = None) -> tuple[list[dict[s
             in_summary = not any(DATE_RE.match(compact(chars, 0, 49)) for _, chars in groups)
             current: Document | None = None
 
+            # DATEV can render the same report with two slightly different
+            # fixed-width column layouts.  The compact layout moves the first
+            # protocol inside the legacy date range, so detect it from the
+            # first detail row instead of assuming one set of coordinates.
+            compact_layout = False
+            for _, candidate_chars in groups:
+                if DATE_RE.match(compact(candidate_chars, 0, 49)):
+                    break
+                if DATE_RE.match(compact(candidate_chars, 0, 47)):
+                    compact_layout = True
+                    break
+
+            if compact_layout:
+                columns = {
+                    "movement_end": 47,
+                    "protocol_end": 95,
+                    "document_date_end": 143,
+                    "document_number_end": 191,
+                    "counterparty_start": 191,
+                    "counterparty_end": 390,
+                    "total_start": 390,
+                    "taxable_start": 390,
+                    "rate_start": 435,
+                    "article_start": 457,
+                    "vat_start": 500,
+                    "non_deductible_start": 550,
+                    "summary_article_start": 85,
+                    "summary_description_start": 110,
+                    "summary_taxable_start": 278,
+                    "summary_vat_start": 345,
+                    "summary_vat_end": 410,
+                }
+            else:
+                columns = {
+                    "movement_end": 49,
+                    "protocol_end": 99,
+                    "document_date_end": 149,
+                    "document_number_end": 198,
+                    "counterparty_start": 198,
+                    "counterparty_end": 399,
+                    "total_start": 399,
+                    "taxable_start": 404,
+                    "rate_start": 449,
+                    "article_start": 471,
+                    "vat_start": 507,
+                    "non_deductible_start": 570,
+                    "summary_article_start": 94,
+                    "summary_description_start": 117,
+                    "summary_taxable_start": 278,
+                    "summary_vat_start": 355,
+                    "summary_vat_end": 418,
+                }
+
+            in_summary = not any(
+                DATE_RE.match(compact(chars, 0, columns["movement_end"])) for _, chars in groups
+            )
+
             for _, chars in groups:
                 whole = text(chars, 0, 595)
                 compact_whole = re.sub(r"\s+", "", whole).upper()
@@ -190,43 +247,53 @@ def parse(pdf_path: Path, article_file: Path | None = None) -> tuple[list[dict[s
                     continue
 
                 if in_summary:
-                    rate_field = compact(chars, 0, 94)
+                    rate_field = compact(chars, 0, columns["summary_article_start"])
                     rate_match = re.match(r"(\d{3}|[A-Z]{2})", rate_field)
                     rate_code = rate_match.group(1) if rate_match else ""
-                    article_code = compact(chars, 94, 117)
-                    description = text(chars, 117, 296)
+                    article_code = compact(
+                        chars, columns["summary_article_start"], columns["summary_description_start"]
+                    )
+                    description = text(chars, columns["summary_description_start"], columns["summary_taxable_start"])
                     if rate_code in seen_rate_codes[title] and re.fullmatch(r"[A-Z0-9]{2,5}", article_code) and description:
                         article_labels[(title, rate_code, article_code)] = description
-                        taxable_summary = compact(chars, 278, 355)
-                        vat_summary = compact(chars, 355, 418)
+                        taxable_summary = compact(
+                            chars, columns["summary_taxable_start"], columns["summary_vat_start"]
+                        )
+                        vat_summary = compact(chars, columns["summary_vat_start"], columns["summary_vat_end"])
                         if taxable_summary and vat_summary:
                             summary_totals[(title, rate_code, article_code)][0] += money(taxable_summary)
                             summary_totals[(title, rate_code, article_code)][1] += money(vat_summary)
                     continue
 
-                movement = compact(chars, 0, 49)
-                protocol = compact(chars, 49, 99)
+                movement = compact(chars, 0, columns["movement_end"])
+                protocol = compact(chars, columns["movement_end"], columns["protocol_end"])
                 if DATE_RE.match(movement) and protocol:
                     current = Document(
                         page=page_number,
                         register=title,
                         movement_date=iso_date(movement),
                         protocol=protocol,
-                        document_date=iso_date(compact(chars, 99, 149)),
-                        document_number=compact(chars, 149, 198),
-                        counterparty=clean_counterparty(text(chars, 198, 399)),
-                        total=money(compact(chars, 399, 449), required=True),
+                        document_date=iso_date(
+                            compact(chars, columns["protocol_end"], columns["document_date_end"])
+                        ),
+                        document_number=compact(
+                            chars, columns["document_date_end"], columns["document_number_end"]
+                        ),
+                        counterparty=clean_counterparty(
+                            text(chars, columns["counterparty_start"], columns["counterparty_end"])
+                        ),
+                        total=money(compact(chars, columns["total_start"], 449), required=True),
                     )
                     documents.append(current)
                     continue
 
                 if current is None:
                     continue
-                taxable_raw = compact(chars, 404, 449)
-                rate_code = compact(chars, 449, 471)
-                article_code = compact(chars, 471, 507)
-                vat_raw = compact(chars, 507, 570)
-                non_deductible_raw = compact(chars, 570, 595)
+                taxable_raw = compact(chars, columns["taxable_start"], columns["rate_start"])
+                rate_code = compact(chars, columns["rate_start"], columns["article_start"])
+                article_code = compact(chars, columns["article_start"], columns["vat_start"])
+                vat_raw = compact(chars, columns["vat_start"], columns["non_deductible_start"])
+                non_deductible_raw = compact(chars, columns["non_deductible_start"], 595)
                 if taxable_raw and rate_code and article_code and vat_raw:
                     if article_code.endswith("-"):
                         article_code = article_code[:-1]
@@ -239,10 +306,20 @@ def parse(pdf_path: Path, article_file: Path | None = None) -> tuple[list[dict[s
                         "non_deductible": str(money(non_deductible_raw)),
                     })
                     seen_rate_codes[title].add(rate_code)
-                elif not current.counterparty:
-                    continuation = clean_counterparty(text(chars, 198, 404))
-                    if continuation:
-                        current.counterparty = continuation
+                else:
+                    # Long DATEV document references and counterparties wrap
+                    # onto the line immediately below the document header.
+                    # Reassemble both fields before the first VAT detail row.
+                    document_continuation = compact(
+                        chars, columns["document_date_end"], columns["document_number_end"]
+                    )
+                    counterparty_continuation = clean_counterparty(
+                        text(chars, columns["counterparty_start"], columns["taxable_start"])
+                    )
+                    if document_continuation:
+                        current.document_number += document_continuation
+                    if counterparty_continuation:
+                        current.counterparty = (current.counterparty + " " + counterparty_continuation).strip()
 
     for document in documents:
         if not document.lines:
