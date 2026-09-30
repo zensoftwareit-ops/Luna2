@@ -109,6 +109,22 @@ final class TrialBalanceService
             [$accounts[$id]['total_net_cents'], $accounts[$id]['opening_total_cents']] = $sum((int) $id);
         }
 
+        $branchBalances = [];
+        $hasBranchBalance = function (int $id) use (&$hasBranchBalance, &$branchBalances, $accounts): bool {
+            if (array_key_exists($id, $branchBalances)) {
+                return $branchBalances[$id];
+            }
+            if (abs((int) $accounts[$id]['direct_net_cents']) >= 1) {
+                return $branchBalances[$id] = true;
+            }
+            foreach ($accounts[$id]['children'] as $child) {
+                if ($hasBranchBalance((int) $child)) {
+                    return $branchBalances[$id] = true;
+                }
+            }
+            return $branchBalances[$id] = false;
+        };
+
         $roots = ['ASSET' => [], 'LIABILITY' => [], 'EQUITY' => [], 'EXPENSE' => [], 'REVENUE' => []];
         foreach ($accounts as $id => $row) {
             $parent = (int) ($row['parent_id'] ?? 0);
@@ -133,9 +149,9 @@ final class TrialBalanceService
             }
             return false;
         };
-        $flatten = function (int $id, int $level = 0) use (&$flatten, $accounts, $matches, $search): array {
+        $flatten = function (int $id, int $level = 0) use (&$flatten, $accounts, $matches, $search, $hasBranchBalance): array {
             $row = $accounts[$id];
-            if (!$matches($id) || ($search === '' && abs((int) $row['total_net_cents']) < 1)) {
+            if (!$matches($id) || ($search === '' && !$hasBranchBalance($id))) {
                 return [];
             }
             $result = [[

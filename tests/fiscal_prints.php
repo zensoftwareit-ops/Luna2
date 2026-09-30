@@ -87,6 +87,19 @@ $openedStatement = $trialBalance->dataset('2027-01-01', '2027-12-31');
 $assert($openedStatement['totals']['assets'] == 9000,
     'Trial balance does not duplicate prior balances when a posted opening exists');
 
+$assetParent = $add('chart_of_accounts', ['organization_id' => $org, 'code' => '05025', 'name' => 'Immobilizzazioni immateriali', 'account_type' => 'ASSET', 'is_postable' => 0]);
+$assetCost = $add('chart_of_accounts', ['organization_id' => $org, 'code' => '050251015', 'name' => 'Licenze', 'account_type' => 'ASSET', 'parent_id' => $assetParent]);
+$assetFund = $add('chart_of_accounts', ['organization_id' => $org, 'code' => '050251510', 'name' => 'Fondo ammortamento licenze', 'account_type' => 'ASSET', 'parent_id' => $assetParent]);
+$offsettingEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'OPEN-2028-ASSET', 'entry_date' => '2028-01-01',
+    'competence_date' => '2028-01-01', 'entry_type' => 'OPENING', 'status' => 'POSTED', 'description' => 'Costo e fondo interamente compensati',
+    'total_debit' => 1081.97, 'total_credit' => 1081.97]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $offsettingEntry, 'line_number' => 1, 'account_id' => $assetCost, 'debit' => 1081.97, 'credit' => 0]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $offsettingEntry, 'line_number' => 2, 'account_id' => $assetFund, 'debit' => 0, 'credit' => 1081.97]);
+$offsettingStatement = $trialBalance->dataset('2028-01-01', '2028-12-31');
+$visibleAssetCodes = array_column($offsettingStatement['sections']['ASSET'], 'code');
+$assert(in_array('050251015', $visibleAssetCodes, true) && in_array('050251510', $visibleAssetCodes, true),
+    'Offsetting asset cost and depreciation fund remain visible as individual ledgers');
+
 $vat = new VatService($db, $org, $user);
 foreach (['SALES', 'PURCHASES'] as $register) {
     for ($i = 0; $i < 35; $i++) {
