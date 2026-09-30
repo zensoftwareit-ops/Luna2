@@ -514,8 +514,8 @@ final class AccountingController extends BaseController
             $params['entry_type'] = $type;
         }
         if ($search !== '') {
-            $sql .= ' AND (protocol_number LIKE :search_protocol OR source_protocol LIKE :search_source_protocol OR description LIKE :search_description OR document_number LIKE :search_document OR counterparty LIKE :search_party)';
-            foreach (['search_protocol', 'search_source_protocol', 'search_description', 'search_document', 'search_party'] as $key) { $params[$key] = '%' . $search . '%'; }
+            $sql .= ' AND (protocol_number LIKE :search_protocol OR source_protocol LIKE :search_source_protocol OR notes LIKE :search_notes OR description LIKE :search_description OR document_number LIKE :search_document OR counterparty LIKE :search_party)';
+            foreach (['search_protocol', 'search_source_protocol', 'search_notes', 'search_description', 'search_document', 'search_party'] as $key) { $params[$key] = '%' . $search . '%'; }
         }
         if ($accountId > 0) {
             $sql .= ' AND EXISTS (SELECT 1 FROM journal_entry_lines fl WHERE fl.journal_entry_id = e.id AND fl.organization_id = e.organization_id AND fl.account_id = :account_id)';

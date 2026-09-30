@@ -421,6 +421,9 @@ $assert(str_contains($importService, "'C80' => 'OPENING'")
 $assert(str_contains($importService, 'journalAccountId')
     && str_contains($importService, 'Protocollo già importato: nessuna duplicazione.'),
     'L’import dei movimenti DATEV deve recuperare i sottoconti mancanti e impedire la duplicazione dei protocolli.');
+$assert(str_contains($accountingController, 'notes LIKE :search_notes')
+    && is_file($base . '/database/migrations/024_datev_source_protocol_backfill.sql'),
+    'I protocolli DATEV storici devono essere ricercabili e riversati nel campo dedicato.');
 $assert(str_contains($trialBalanceView, 'anche senza saldo')
     && str_contains($trialBalanceService, "\$search === '' && abs((int) \$row['total_net_cents']) < 1"),
     'La ricerca mastrini deve rendere consultabili anche i conti senza saldo nel periodo.');
