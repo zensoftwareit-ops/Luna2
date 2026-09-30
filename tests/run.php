@@ -436,8 +436,12 @@ $assert(str_contains($officialPrintService, 'VAT_REVERSE_CHARGE') && str_contain
 $assert(str_contains($vatService, 'vat_description, vat_legal_reference') && str_contains($vatService, 'GROUP BY register_type, vat_code, vat_rate'), 'Liquidazioni IVA prive del raggruppamento storico per articolo e aliquota.');
 $accountingService = (string) file_get_contents($base . '/app/Service/AccountingService.php');
 $journalView = (string) file_get_contents($base . '/views/accounting/journal.php');
+$entryView = (string) file_get_contents($base . '/views/accounting/entry.php');
 $assert(str_contains($accountingService, 'journal_entry_revisions') && str_contains($accountingService, 'is_finalized = 0'), 'Revisioni delle scritture provvisorie mancanti.');
 $assert(str_contains($journalView, 'Provvisoria') && str_contains($officialPrintService, "is_finalized = 1"), 'Stato provvisorio o finalizzazione del libro giornale mancanti.');
+$assert(str_contains($entryView, '/accounting/ledger/')
+    && is_file($base . '/database/migrations/025_reactivate_used_leaf_accounts.sql'),
+    'Ogni conto movimentato deve restare consultabile direttamente dalla scrittura e nei mastrini.');
 $assert(!str_contains($workspaceService, "status = 'COMMITTED'") && !str_contains($workspaceService, "'INVALID','FAILED','PARTIAL'"), 'Stati import non compatibili con lo schema.');
 $assert(!str_contains($complianceWorkspaceService, 'api_endpoint_configs WHERE id = ? AND organization_id = ? AND active = 1'), 'Gli endpoint professionali devono usare il campo enabled.');
 $assert(str_contains($complianceWorkspaceService, 'e.display_name AS endpoint_name'), 'Il Centro professionale deve usare la colonna display_name degli endpoint.');
