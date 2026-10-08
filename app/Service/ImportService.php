@@ -534,6 +534,11 @@ final class ImportService
                 $entityId = (int) $this->db->lastInsertId();
                 $this->recordImport($batchId, $table, $entityId, 'CREATE', null);
             }
+            $prefix = $table === 'suppliers' ? 'FOR-' : 'CLI-';
+            $this->db->prepare(
+                "UPDATE {$table} SET code = CONCAT(?, LPAD(id, 8, '0')), updated_at = NOW()"
+                . " WHERE id = ? AND organization_id = ? AND (code IS NULL OR TRIM(code) = '')"
+            )->execute([$prefix, $entityId, $this->organizationId]);
             $this->markRow($staged['id'], 'IMPORTED', null, $entityId); $imported++;
         }
         return compact('imported', 'errors');
@@ -790,14 +795,26 @@ final class ImportService
             if (!$partyName || !$issueDate || !$dueDate || $original <= 0 || !$accountId) {
                 $this->markRow($staged['id'], 'ERROR', 'Controparte, date, importo o conto della partita non validi.'); $errors++; continue;
             }
+            $partyType = $direction === 'PAYABLE' ? 'SUPPLIER' : 'CUSTOMER';
+            $partyTable = $partyType === 'SUPPLIER' ? 'suppliers' : 'customers';
+            $party = $this->db->prepare(
+                "SELECT id FROM {$partyTable} WHERE organization_id = ?"
+                . ' AND LOWER(TRIM(business_name)) = LOWER(TRIM(?)) ORDER BY id LIMIT 2'
+            );
+            $party->execute([$this->organizationId, $partyName]);
+            $partyMatches = $party->fetchAll(PDO::FETCH_COLUMN);
+            $partyId = count($partyMatches) === 1 ? (int) $partyMatches[0] : null;
+            if (!$partyId) {
+                $partyType = 'OTHER';
+            }
             $status = $settled >= $original - .005 ? 'SETTLED' : ($settled > .005 ? 'PARTIAL' : ($dueDate < date('Y-m-d') ? 'OVERDUE' : 'OPEN'));
             $statement = $this->db->prepare(
                 'INSERT INTO accounting_open_items
-                 (organization_id, direction, party_type, party_name, account_id, reference, issue_date, due_date,
+                 (organization_id, direction, party_type, party_id, party_name, account_id, reference, issue_date, due_date,
                   original_amount, settled_amount, currency, status, source_import_batch_id, created_by, updated_by, created_at, updated_at)
-                 VALUES (?, ?, \'OTHER\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
             );
-            $statement->execute([$this->organizationId, $direction, $partyName, $accountId, $this->pick($row, ['reference', 'riferimento', 'numero_documento', 'fattura']), $issueDate, $dueDate, $original, $settled, mb_strtoupper($this->pick($row, ['currency', 'valuta']) ?: 'EUR'), $status, $batchId, $this->userId, $this->userId]);
+            $statement->execute([$this->organizationId, $direction, $partyType, $partyId, $partyName, $accountId, $this->pick($row, ['reference', 'riferimento', 'numero_documento', 'fattura']), $issueDate, $dueDate, $original, $settled, mb_strtoupper($this->pick($row, ['currency', 'valuta']) ?: 'EUR'), $status, $batchId, $this->userId, $this->userId]);
             $id = (int) $this->db->lastInsertId();
             $this->recordImport($batchId, 'accounting_open_items', $id, 'CREATE', null);
             $this->markRow($staged['id'], 'IMPORTED', null, $id); $imported++;
@@ -1024,6 +1041,11 @@ final class ImportService
                 $partyId = (int) $this->db->lastInsertId();
                 $this->recordImport($batchId, $partyTable, $partyId, 'CREATE', null);
             }
+            $partyPrefix = $partyTable === 'suppliers' ? 'FOR-' : 'CLI-';
+            $this->db->prepare(
+                "UPDATE {$partyTable} SET code = CONCAT(?, LPAD(id, 8, '0')), updated_at = NOW()"
+                . " WHERE id = ? AND organization_id = ? AND (code IS NULL OR TRIM(code) = '')"
+            )->execute([$partyPrefix, $partyId, $this->organizationId]);
             $externalKey = hash('sha256', implode('|', [$data['issuer_vat'], $data['recipient_vat'], $data['document_date'], $data['number'], $data['fatturapa_type'], $data['total']]));
             $find = $this->db->prepare('SELECT id FROM documents WHERE organization_id = ? AND external_key = ? LIMIT 1');
             $find->execute([$this->organizationId, $externalKey]);

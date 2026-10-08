@@ -105,13 +105,18 @@ final class ReceivablesService
             )->execute([$newSettled, $newStatus, $this->userId, $openItemId, $this->organizationId]);
 
             $partyAccountId = (int) $item['account_id'];
+            $partyTag = !empty($item['party_id'])
+                ? ($item['party_type'] === 'SUPPLIER'
+                    ? ['supplier_id' => (int) $item['party_id']]
+                    : ['customer_id' => (int) $item['party_id']])
+                : [];
             $lines = $paymentType === 'RECEIPT'
                 ? [
                     ['account_id' => $cashAccountId, 'debit' => $amount, 'credit' => 0, 'description' => 'Incasso ' . $item['party_name']],
-                    ['account_id' => $partyAccountId, 'debit' => 0, 'credit' => $amount, 'description' => 'Chiusura credito ' . ($item['reference'] ?: '')],
+                    ['account_id' => $partyAccountId, 'debit' => 0, 'credit' => $amount, 'description' => 'Chiusura credito ' . ($item['reference'] ?: '')] + $partyTag,
                 ]
                 : [
-                    ['account_id' => $partyAccountId, 'debit' => $amount, 'credit' => 0, 'description' => 'Chiusura debito ' . ($item['reference'] ?: '')],
+                    ['account_id' => $partyAccountId, 'debit' => $amount, 'credit' => 0, 'description' => 'Chiusura debito ' . ($item['reference'] ?: '')] + $partyTag,
                     ['account_id' => $cashAccountId, 'debit' => 0, 'credit' => $amount, 'description' => 'Pagamento ' . $item['party_name']],
                 ];
             $lines = array_merge($lines, $this->cashVatLines($item, $amount));
@@ -171,14 +176,19 @@ final class ReceivablesService
             $amount = (float) $payment['allocated_amount'];
             $cashAccountId = $this->cashOrBankAccount($payment['bank_account_id'] ? (int) $payment['bank_account_id'] : null);
             $partyAccountId = (int) $openItem['account_id'];
+            $partyTag = !empty($openItem['party_id'])
+                ? ($openItem['party_type'] === 'SUPPLIER'
+                    ? ['supplier_id' => (int) $openItem['party_id']]
+                    : ['customer_id' => (int) $openItem['party_id']])
+                : [];
             $lines = $payment['payment_type'] === 'RECEIPT'
                 ? [
-                    ['account_id' => $partyAccountId, 'debit' => $amount, 'credit' => 0, 'description' => 'Storno incasso'],
+                    ['account_id' => $partyAccountId, 'debit' => $amount, 'credit' => 0, 'description' => 'Storno incasso'] + $partyTag,
                     ['account_id' => $cashAccountId, 'debit' => 0, 'credit' => $amount, 'description' => 'Storno incasso'],
                 ]
                 : [
                     ['account_id' => $cashAccountId, 'debit' => $amount, 'credit' => 0, 'description' => 'Storno pagamento'],
-                    ['account_id' => $partyAccountId, 'debit' => 0, 'credit' => $amount, 'description' => 'Storno pagamento'],
+                    ['account_id' => $partyAccountId, 'debit' => 0, 'credit' => $amount, 'description' => 'Storno pagamento'] + $partyTag,
                 ];
             $entryId = (new AccountingService($this->db, $this->organizationId, $this->userId))->postAutomated([
                 'entry_date' => $date, 'competence_date' => $date, 'entry_type' => 'PAYMENT_REVERSAL',
@@ -236,12 +246,14 @@ final class ReceivablesService
             $statement->execute([$this->organizationId, $document['id']]);
             $schedules = $statement->fetchAll();
         }
-        $direction = $document['document_type'] === 'PURCHASE_INVOICE' ? 'PAYABLE' : 'RECEIVABLE';
-        if ($document['document_type'] === 'CREDIT_NOTE') {
-            $direction = 'PAYABLE';
-        }
         $partyType = $document['counterparty_type'] === 'SUPPLIER' ? 'SUPPLIER' : 'CUSTOMER';
-        $accountId = $this->mapping($direction === 'RECEIVABLE' ? 'TRADE_RECEIVABLES' : 'TRADE_PAYABLES');
+        $direction = $partyType === 'SUPPLIER' ? 'PAYABLE' : 'RECEIVABLE';
+        $isCreditNote = $document['document_type'] === 'CREDIT_NOTE'
+            || in_array(strtoupper((string) ($document['fatturapa_type'] ?? '')), ['TD04', 'TD08'], true);
+        if ($isCreditNote) {
+            $direction = $direction === 'PAYABLE' ? 'RECEIVABLE' : 'PAYABLE';
+        }
+        $accountId = $this->mapping($partyType === 'SUPPLIER' ? 'TRADE_PAYABLES' : 'TRADE_RECEIVABLES');
         $insert = $this->db->prepare(
             'INSERT INTO accounting_open_items
              (organization_id, direction, party_type, party_id, party_name, document_id, payment_schedule_id,

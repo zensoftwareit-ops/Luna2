@@ -123,6 +123,8 @@ $assert(str_contains($schema, 'payment_month_end') && str_contains($schema, 'wit
 $assert(str_contains($application, "'/r/{module}/export/{format}'"), 'Esportazioni PDF/XLSX/CSV degli archivi mancanti.');
 $assert(str_contains($application, "'/documents/{type}/export/{format}'"), 'Esportazioni documenti filtrati mancanti.');
 $assert(str_contains($application, "'/accounting/ledger/{id}/export/{format}'"), 'Esportazioni mastrino mancanti.');
+$assert(str_contains($application, "'/accounting/subledgers'") && str_contains($application, "'/accounting/subledgers/export/{format}'"), 'Rotte del partitario clienti/fornitori mancanti.');
+$assert(is_file($base . '/app/Service/PartyLedgerService.php') && is_file($base . '/views/accounting/subledgers.php'), 'Partitario analitico clienti/fornitori incompleto.');
 $assert(is_file($base . '/app/Service/TabularExportService.php'), 'Servizio esportazioni tabellari mancante.');
 $tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportService.php');
 $assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
@@ -444,6 +446,13 @@ $journalView = (string) file_get_contents($base . '/views/accounting/journal.php
 $entryView = (string) file_get_contents($base . '/views/accounting/entry.php');
 $assert(str_contains($accountingService, 'journal_entry_revisions') && str_contains($accountingService, 'is_finalized = 0'), 'Revisioni delle scritture provvisorie mancanti.');
 $assert(str_contains($accountingService, 'changeLineAccount') && str_contains($entryView, 'Cambia conto') && str_contains($entryView, 'data-account-search') && str_contains($appJs, 'data-account-change-dialog'), 'Cambio rapido ricercabile del conto sulle righe contabili mancante.');
+$partyLedgerService = (string) file_get_contents($base . '/app/Service/PartyLedgerService.php');
+$receivablesService = (string) file_get_contents($base . '/app/Service/ReceivablesService.php');
+$resourceController = (string) file_get_contents($base . '/app/Controller/ResourceController.php');
+$assert(str_contains($partyLedgerService, 'journal_entry_lines') && str_contains($partyLedgerService, 'accounting_open_items') && str_contains($partyLedgerService, 'signed_outstanding'), 'Il partitario deve integrare movimenti, partite e note di credito.');
+$assert(str_contains($accountingService, "['supplier_id' => \$partyId]") && str_contains($accountingService, "['customer_id' => \$partyId]"), 'Le fatture devono alimentare automaticamente il sottoconto cliente/fornitore.');
+$assert(str_contains($receivablesService, "['supplier_id' => (int) \$item['party_id']]") && str_contains($receivablesService, "['customer_id' => (int) \$item['party_id']]"), 'Incassi e pagamenti devono alimentare automaticamente il sottoconto cliente/fornitore.');
+$assert(str_contains($resourceController, "'CLI-'") && str_contains($resourceController, "'FOR-'") && substr_count($importService, "LPAD(id, 8, '0')") >= 2, 'I codici sottoconto devono essere generati automaticamente per anagrafiche e importazioni.');
 $assert(str_contains($accountingService, 'accounting_account_mappings m')
     && str_contains($accountingService, 'Automatismi contabili incompleti'),
     'Le scritture automatiche devono rispettare i collegamenti del piano dei conti importato.');

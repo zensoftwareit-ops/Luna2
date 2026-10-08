@@ -222,6 +222,15 @@ final class ResourceController extends BaseController
             throw $exception;
         }
 
+        if (in_array($slug, ['customers', 'suppliers'], true)) {
+            $prefix = $slug === 'customers' ? 'CLI-' : 'FOR-';
+            $this->db->prepare(
+                'UPDATE ' . $this->identifier($module['table'])
+                . " SET code = CONCAT(?, LPAD(id, 8, '0')), updated_at = NOW()"
+                . " WHERE id = ? AND organization_id = ? AND (code IS NULL OR TRIM(code) = '')"
+            )->execute([$prefix, $id, Auth::organizationId()]);
+        }
+
         $this->audit($action, $module['table'], $id, $values);
         $this->redirect('/r/' . $slug, $module['singular'] . ' salvato correttamente.');
     }

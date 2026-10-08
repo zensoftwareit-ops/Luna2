@@ -389,6 +389,10 @@ final class AccountingService
                 || in_array(strtoupper((string) ($document['fatturapa_type'] ?? '')), ['TD04', 'TD08'], true);
             $isPurchase = $document['document_type'] === 'PURCHASE_INVOICE'
                 || strtoupper((string) ($document['counterparty_type'] ?? '')) === 'SUPPLIER';
+            $partyId = (int) ($document['counterparty_id'] ?? 0);
+            $partyTag = $partyId > 0
+                ? ($isPurchase ? ['supplier_id' => $partyId] : ['customer_id' => $partyId])
+                : [];
             $requiredAccounts = $isPurchase
                 ? ['TRADE_PAYABLES', 'PURCHASE_COSTS']
                 : ['TRADE_RECEIVABLES', 'SALES_REVENUE'];
@@ -399,7 +403,7 @@ final class AccountingService
 
             if (!$isCreditNote && !$isPurchase) {
                 $lines = [
-                    ['account_id' => $accounts['TRADE_RECEIVABLES'], 'debit' => $total, 'credit' => 0.0, 'description' => 'Credito verso ' . $document['counterparty_name']],
+                    ['account_id' => $accounts['TRADE_RECEIVABLES'], 'debit' => $total, 'credit' => 0.0, 'description' => 'Credito verso ' . $document['counterparty_name']] + $partyTag,
                     ['account_id' => $accounts['SALES_REVENUE'], 'debit' => 0.0, 'credit' => $net, 'description' => 'Ricavi documento ' . $document['number']],
                 ];
                 if ($vat > 0) {
@@ -408,7 +412,7 @@ final class AccountingService
             } elseif ($isCreditNote && !$isPurchase) {
                 $lines = [
                     ['account_id' => $accounts['SALES_REVENUE'], 'debit' => $net, 'credit' => 0.0, 'description' => 'Storno ricavi ' . $document['number']],
-                    ['account_id' => $accounts['TRADE_RECEIVABLES'], 'debit' => 0.0, 'credit' => $total, 'description' => 'Storno credito verso ' . $document['counterparty_name']],
+                    ['account_id' => $accounts['TRADE_RECEIVABLES'], 'debit' => 0.0, 'credit' => $total, 'description' => 'Storno credito verso ' . $document['counterparty_name']] + $partyTag,
                 ];
                 if ($vat > 0) {
                     $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_PAYABLE'], 'debit' => $vat, 'credit' => 0.0, 'description' => $vatAccount ? 'Storno IVA differita' : 'Storno IVA a debito'];
@@ -416,14 +420,14 @@ final class AccountingService
             } elseif (!$isCreditNote) {
                 $lines = [
                     ['account_id' => $accounts['PURCHASE_COSTS'], 'debit' => $net, 'credit' => 0.0, 'description' => 'Costo documento ' . $document['number']],
-                    ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => 0.0, 'credit' => $total, 'description' => 'Debito verso ' . $document['counterparty_name']],
+                    ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => 0.0, 'credit' => $total, 'description' => 'Debito verso ' . $document['counterparty_name']] + $partyTag,
                 ];
                 if ($vat > 0) {
                     $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_RECEIVABLE'], 'debit' => $vat, 'credit' => 0.0, 'description' => $vatAccount ? 'IVA differita' : 'IVA a credito'];
                 }
             } else {
                 $lines = [
-                    ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => $total, 'credit' => 0.0, 'description' => 'Storno debito verso ' . $document['counterparty_name']],
+                    ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => $total, 'credit' => 0.0, 'description' => 'Storno debito verso ' . $document['counterparty_name']] + $partyTag,
                     ['account_id' => $accounts['PURCHASE_COSTS'], 'debit' => 0.0, 'credit' => $net, 'description' => 'Storno costi ' . $document['number']],
                 ];
                 if ($vat > 0) {

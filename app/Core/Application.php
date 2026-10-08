@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Luna\Core;
 
 use Luna\Controller\AccountingController;
+use Luna\Controller\PartyLedgerController;
 use Luna\Controller\AccountingAdminController;
 use Luna\Controller\AuthController;
 use Luna\Controller\DashboardController;
@@ -197,6 +198,8 @@ final class Application
         $router->add('GET', '/accounting/trial-balance/export/{format}', [AccountingController::class, 'exportTrialBalance']);
         $router->add('GET', '/accounting/ledger/{id}', [AccountingController::class, 'ledger']);
         $router->add('GET', '/accounting/ledger/{id}/export/{format}', [AccountingController::class, 'exportLedger']);
+        $router->add('GET', '/accounting/subledgers', [PartyLedgerController::class, 'index']);
+        $router->add('GET', '/accounting/subledgers/export/{format}', [PartyLedgerController::class, 'export']);
         $router->add('GET', '/accounting/vat-registers', [AccountingController::class, 'vatRegisters']);
         $router->add('GET', '/accounting/vat-registers/export/{format}', [AccountingController::class, 'exportVatRegisters']);
         $router->add('POST', '/accounting/vat-registers/manual', [AccountingController::class, 'saveVatMovement']);
