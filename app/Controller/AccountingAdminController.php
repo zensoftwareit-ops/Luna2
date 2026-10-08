@@ -37,7 +37,10 @@ final class AccountingAdminController extends BaseController
         $selectedRegister = $this->selected($registers, (int) ($_GET['register_id'] ?? 0));
         $selectedCause = $this->selected($causes, (int) ($_GET['cause_id'] ?? 0));
         $mappingLabels = AccountingSetupService::MAPPING_LABELS;
-        $this->view->render('accounting/setup', compact('accounts', 'settings', 'registers', 'causes', 'mappings', 'mappingLabels', 'selectedAccount', 'selectedRegister', 'selectedCause') + [
+        $mappingGroups = AccountingSetupService::MAPPING_GROUPS;
+        $mappingHelp = AccountingSetupService::MAPPING_HELP;
+        $mappingSuggestions = $this->service()->suggestedMappings();
+        $this->view->render('accounting/setup', compact('accounts', 'settings', 'registers', 'causes', 'mappings', 'mappingLabels', 'mappingGroups', 'mappingHelp', 'mappingSuggestions', 'selectedAccount', 'selectedRegister', 'selectedCause') + [
             'title' => 'Configurazione contabile',
         ]);
     }
@@ -109,6 +112,22 @@ final class AccountingAdminController extends BaseController
             $this->service()->saveMapping((string) ($_POST['mapping_key'] ?? ''), (int) ($_POST['account_id'] ?? 0));
             $this->audit('SAVE', 'accounting_account_mappings', (string) ($_POST['mapping_key'] ?? ''));
             $this->redirect('/accounting/setup#mappings', 'Collegamento automatico salvato.');
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/setup#mappings', $exception->getMessage(), 'error');
+        }
+    }
+
+    public function applySuggestedMappings(): never
+    {
+        $this->authorize();
+        try {
+            $result = $this->service()->applySuggestedMappings();
+            $this->audit('APPLY_SUGGESTED', 'accounting_account_mappings', Auth::organizationId());
+            $message = sprintf(
+                'Configurazione guidata completata: %d collegamenti applicati, %d gia configurati, %d da scegliere manualmente.',
+                $result['applied'], $result['already_configured'], $result['unavailable']
+            );
+            $this->redirect('/accounting/setup#mappings', $message);
         } catch (InvalidArgumentException|RuntimeException $exception) {
             $this->redirect('/accounting/setup#mappings', $exception->getMessage(), 'error');
         }

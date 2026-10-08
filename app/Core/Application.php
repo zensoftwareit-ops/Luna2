@@ -215,6 +215,7 @@ final class Application
         $router->add('POST', '/accounting/setup/registers', [AccountingAdminController::class, 'saveRegister']);
         $router->add('POST', '/accounting/setup/causes', [AccountingAdminController::class, 'saveCause']);
         $router->add('POST', '/accounting/setup/mappings', [AccountingAdminController::class, 'saveMapping']);
+        $router->add('POST', '/accounting/setup/mappings/suggested', [AccountingAdminController::class, 'applySuggestedMappings']);
 
         $router->add('GET', '/accounting/treasury', [TreasuryController::class, 'index']);
         $router->add('POST', '/accounting/treasury/sync', [TreasuryController::class, 'sync']);

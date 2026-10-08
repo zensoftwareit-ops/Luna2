@@ -35,6 +35,60 @@ final class AccountingSetupService
         'DEFERRED_INCOME' => 'Risconti passivi',
     ];
 
+    /**
+     * Collegamenti DATEV sufficientemente univoci da poter essere proposti e
+     * applicati senza sostituire scelte gia effettuate dall'utente.
+     */
+    public const DATEV_SAFE_DEFAULTS = [
+        'TRADE_RECEIVABLES' => '100101003',
+        'TRADE_PAYABLES' => '3901010',
+        'CASH' => '1202010',
+        'VAT_RECEIVABLE' => '440101530',
+        'VAT_PAYABLE' => '440101515',
+        'VAT_CLEARING' => '440101510',
+        'SALES_REVENUE' => '600151010',
+        'PURCHASE_COSTS' => '6901201',
+        'OPENING_BALANCE' => '5001010',
+        'ACCRUED_EXPENSES' => '4801010',
+        'PREPAID_EXPENSES' => '1401510',
+        'ACCRUED_INCOME' => '1401010',
+    ];
+
+    public const MAPPING_GROUPS = [
+        'essential' => [
+            'title' => 'Essenziali per fatture e IVA',
+            'description' => 'Sono i conti predefiniti usati per generare le scritture di vendite, acquisti e liquidazioni IVA.',
+            'keys' => ['TRADE_RECEIVABLES', 'TRADE_PAYABLES', 'VAT_RECEIVABLE', 'VAT_PAYABLE', 'VAT_CLEARING', 'SALES_REVENUE', 'PURCHASE_COSTS'],
+        ],
+        'operational' => [
+            'title' => 'Operativi',
+            'description' => 'Servono per cassa, aperture, ratei e risconti. Possono essere completati quando si usa la relativa funzione.',
+            'keys' => ['BANK', 'CASH', 'OPENING_BALANCE', 'ACCRUED_EXPENSES', 'PREPAID_EXPENSES', 'ACCRUED_INCOME', 'DEFERRED_INCOME'],
+        ],
+        'advanced' => [
+            'title' => 'Avanzati',
+            'description' => 'Dipendono dalla natura della singola azienda: è preferibile farli confermare dal consulente.',
+            'keys' => ['PAYMENT_DIFFERENCES', 'PROFIT_LOSS', 'RETAINED_EARNINGS', 'DEPRECIATION_EXPENSE', 'ACCUMULATED_DEPRECIATION', 'WITHHOLDING_PAYABLE', 'SOCIAL_SECURITY_PAYABLE'],
+        ],
+    ];
+
+    public const MAPPING_HELP = [
+        'TRADE_RECEIVABLES' => 'Conto collettivo usato nelle fatture emesse.',
+        'TRADE_PAYABLES' => 'Conto collettivo usato nelle fatture ricevute.',
+        'VAT_RECEIVABLE' => 'IVA detraibile sugli acquisti.',
+        'VAT_PAYABLE' => 'IVA dovuta sulle vendite.',
+        'VAT_CLEARING' => 'Conto di giro della liquidazione IVA.',
+        'SALES_REVENUE' => 'Ricavo predefinito; la singola fattura potra essere riclassificata.',
+        'PURCHASE_COSTS' => 'Costo predefinito; la singola fattura potra essere riclassificata.',
+        'BANK' => 'Scegliere il conto della banca usata piu spesso.',
+        'CASH' => 'Cassa contanti della sede.',
+        'OPENING_BALANCE' => 'Contropartita tecnica per le scritture di apertura.',
+        'DEPRECIATION_EXPENSE' => 'Dipende dalla categoria del cespite.',
+        'ACCUMULATED_DEPRECIATION' => 'Dipende dalla categoria del cespite.',
+        'WITHHOLDING_PAYABLE' => 'Scegliere in base al tipo di ritenuta effettivamente gestito.',
+        'SOCIAL_SECURITY_PAYABLE' => 'Scegliere l’ente previdenziale effettivamente utilizzato.',
+    ];
+
     public function __construct(
         private readonly PDO $db,
         private readonly int $organizationId,
@@ -264,6 +318,55 @@ final class AccountingSetupService
              ON DUPLICATE KEY UPDATE account_id = VALUES(account_id), description = VALUES(description), updated_at = NOW()'
         );
         $statement->execute([$this->organizationId, $mappingKey, $accountId, self::MAPPING_LABELS[$mappingKey]]);
+    }
+
+    public function suggestedMappings(): array
+    {
+        $codes = array_values(self::DATEV_SAFE_DEFAULTS);
+        $placeholders = implode(',', array_fill(0, count($codes), '?'));
+        $statement = $this->db->prepare(
+            "SELECT id, code, name FROM chart_of_accounts
+             WHERE organization_id = ? AND active = 1 AND is_postable = 1 AND code IN ($placeholders)"
+        );
+        $statement->execute(array_merge([$this->organizationId], $codes));
+        $accountsByCode = [];
+        foreach ($statement->fetchAll() as $account) {
+            $accountsByCode[(string) $account['code']] = $account;
+        }
+
+        $suggestions = [];
+        foreach (self::DATEV_SAFE_DEFAULTS as $key => $code) {
+            if (isset($accountsByCode[$code])) {
+                $suggestions[$key] = $accountsByCode[$code];
+            }
+        }
+        return $suggestions;
+    }
+
+    /** @return array{applied:int, already_configured:int, unavailable:int} */
+    public function applySuggestedMappings(): array
+    {
+        $suggestions = $this->suggestedMappings();
+        $statement = $this->db->prepare(
+            'SELECT mapping_key FROM accounting_account_mappings WHERE organization_id = ?'
+        );
+        $statement->execute([$this->organizationId]);
+        $configured = array_fill_keys(array_map('strval', $statement->fetchAll(PDO::FETCH_COLUMN)), true);
+        $result = ['applied' => 0, 'already_configured' => 0, 'unavailable' => 0];
+
+        foreach (self::DATEV_SAFE_DEFAULTS as $key => $code) {
+            if (isset($configured[$key])) {
+                $result['already_configured']++;
+                continue;
+            }
+            if (!isset($suggestions[$key])) {
+                $result['unavailable']++;
+                continue;
+            }
+            $this->saveMapping($key, (int) $suggestions[$key]['id']);
+            $result['applied']++;
+        }
+        return $result;
     }
 
     private function account(int $accountId): array
