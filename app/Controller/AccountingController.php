@@ -100,7 +100,8 @@ final class AccountingController extends BaseController
             $statement->execute([(int) $id, Auth::organizationId()]);
             $revisions = $statement->fetchAll();
         }
-        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
+        $accounts = $this->accounts();
+        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions', 'accounts') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
     }
 
     public function save(): never
@@ -146,6 +147,26 @@ final class AccountingController extends BaseController
             $this->audit('DELETE_DRAFT', 'journal_entries', (int) $id);
         }
         $this->redirect('/accounting/journal', $deleted ? 'Bozza eliminata.' : 'La registrazione non è una bozza eliminabile.', $deleted ? 'success' : 'error');
+    }
+
+    public function changeLineAccount(string $id, string $lineId): never
+    {
+        $this->authorize();
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))->changeLineAccount(
+                (int) $id,
+                (int) $lineId,
+                (int) ($_POST['account_id'] ?? 0),
+                (string) ($_POST['reason'] ?? '')
+            );
+            $this->audit('CHANGE_ACCOUNT', 'journal_entry_lines', (int) $lineId, $result);
+            $this->redirect(
+                '/accounting/journal/' . (int) $id,
+                sprintf('Conto cambiato da %s a %s. Importi e collegamento al documento sono rimasti invariati.', $result['old_account_code'], $result['new_account_code'])
+            );
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
+        }
     }
 
     public function trialBalance(): never
@@ -653,7 +674,7 @@ final class AccountingController extends BaseController
             $this->redirect('/accounting/journal', 'Registrazione non trovata.', 'error');
         }
         $statement = $this->db->prepare(
-            'SELECT l.*, a.code AS account_code, a.name AS account_name
+            'SELECT l.*, a.code AS account_code, a.name AS account_name, a.account_type
              FROM journal_entry_lines l JOIN chart_of_accounts a ON a.id = l.account_id
              WHERE l.journal_entry_id = ? AND l.organization_id = ? ORDER BY l.line_number'
         );

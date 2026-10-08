@@ -232,6 +232,93 @@ final class AccountingService
         return $statement->rowCount() > 0;
     }
 
+    /** @return array{old_account_id:int,new_account_id:int,old_account_code:string,new_account_code:string} */
+    public function changeLineAccount(int $entryId, int $lineId, int $newAccountId, string $reason): array
+    {
+        $reason = trim($reason);
+        if ($entryId <= 0 || $lineId <= 0 || $newAccountId <= 0) {
+            throw new InvalidArgumentException('Registrazione, riga o nuovo conto non validi.');
+        }
+        if ($reason === '') {
+            throw new InvalidArgumentException('Indicare il motivo del cambio conto.');
+        }
+
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
+        try {
+            $entryStatement = $this->db->prepare(
+                "SELECT * FROM journal_entries
+                 WHERE id = ? AND organization_id = ? AND status IN ('DRAFT','POSTED') AND is_finalized = 0
+                 FOR UPDATE"
+            );
+            $entryStatement->execute([$entryId, $this->organizationId]);
+            $entry = $entryStatement->fetch();
+            if (!$entry) {
+                throw new InvalidArgumentException('La scrittura è definitiva, stornata o non modificabile.');
+            }
+            $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+
+            $lineStatement = $this->db->prepare(
+                'SELECT l.id, l.account_id, a.code, a.name, a.account_type
+                 FROM journal_entry_lines l
+                 JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
+                 WHERE l.id = ? AND l.journal_entry_id = ? AND l.organization_id = ? FOR UPDATE'
+            );
+            $lineStatement->execute([$lineId, $entryId, $this->organizationId]);
+            $line = $lineStatement->fetch();
+            if (!$line) {
+                throw new InvalidArgumentException('Riga contabile non trovata.');
+            }
+
+            $accountStatement = $this->db->prepare(
+                'SELECT id, code, name, account_type FROM chart_of_accounts
+                 WHERE id = ? AND organization_id = ? AND active = 1 AND is_postable = 1'
+            );
+            $accountStatement->execute([$newAccountId, $this->organizationId]);
+            $newAccount = $accountStatement->fetch();
+            if (!$newAccount) {
+                throw new InvalidArgumentException('Il nuovo conto non è attivo o movimentabile.');
+            }
+            if ((int) $line['account_id'] === $newAccountId) {
+                throw new InvalidArgumentException('La riga utilizza già il conto selezionato.');
+            }
+            if ((string) $line['account_type'] !== (string) $newAccount['account_type']) {
+                throw new InvalidArgumentException('Il nuovo conto deve appartenere alla stessa categoria contabile di quello sostituito.');
+            }
+
+            $revisionReason = sprintf(
+                'Cambio conto %s → %s. %s',
+                (string) $line['code'], (string) $newAccount['code'], mb_substr($reason, 0, 350)
+            );
+            $this->saveRevision($entry, $revisionReason);
+            $this->db->prepare(
+                'UPDATE journal_entry_lines SET account_id = ? WHERE id = ? AND journal_entry_id = ? AND organization_id = ?'
+            )->execute([$newAccountId, $lineId, $entryId, $this->organizationId]);
+            $this->db->prepare(
+                'UPDATE journal_entries SET revision_number = revision_number + 1, updated_by = ?, updated_at = NOW()
+                 WHERE id = ? AND organization_id = ?'
+            )->execute([$this->userId, $entryId, $this->organizationId]);
+            $this->invalidateJournalPrints(null, (string) $entry['entry_date']);
+
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
+            return [
+                'old_account_id' => (int) $line['account_id'],
+                'new_account_id' => $newAccountId,
+                'old_account_code' => (string) $line['code'],
+                'new_account_code' => (string) $newAccount['code'],
+            ];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
     private function saveRevision(array $entry, string $reason): void
     {
         $lines = $this->db->prepare(

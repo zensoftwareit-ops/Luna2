@@ -443,6 +443,7 @@ $accountingService = (string) file_get_contents($base . '/app/Service/Accounting
 $journalView = (string) file_get_contents($base . '/views/accounting/journal.php');
 $entryView = (string) file_get_contents($base . '/views/accounting/entry.php');
 $assert(str_contains($accountingService, 'journal_entry_revisions') && str_contains($accountingService, 'is_finalized = 0'), 'Revisioni delle scritture provvisorie mancanti.');
+$assert(str_contains($accountingService, 'changeLineAccount') && str_contains($entryView, 'Cambia conto'), 'Cambio rapido del conto sulle righe contabili mancante.');
 $assert(str_contains($accountingService, 'accounting_account_mappings m')
     && str_contains($accountingService, 'Automatismi contabili incompleti'),
     'Le scritture automatiche devono rispettare i collegamenti del piano dei conti importato.');
