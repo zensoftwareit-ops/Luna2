@@ -239,10 +239,6 @@ final class AccountingService
         if ($entryId <= 0 || $lineId <= 0 || $newAccountId <= 0) {
             throw new InvalidArgumentException('Registrazione, riga o nuovo conto non validi.');
         }
-        if ($reason === '') {
-            throw new InvalidArgumentException('Indicare il motivo del cambio conto.');
-        }
-
         $ownsTransaction = !$this->db->inTransaction();
         if ($ownsTransaction) {
             $this->db->beginTransaction();
@@ -288,10 +284,10 @@ final class AccountingService
                 throw new InvalidArgumentException('Il nuovo conto deve appartenere alla stessa categoria contabile di quello sostituito.');
             }
 
-            $revisionReason = sprintf(
-                'Cambio conto %s → %s. %s',
-                (string) $line['code'], (string) $newAccount['code'], mb_substr($reason, 0, 350)
-            );
+            $revisionReason = sprintf('Cambio conto %s → %s', (string) $line['code'], (string) $newAccount['code']);
+            if ($reason !== '') {
+                $revisionReason .= '. ' . mb_substr($reason, 0, 350);
+            }
             $this->saveRevision($entry, $revisionReason);
             $this->db->prepare(
                 'UPDATE journal_entry_lines SET account_id = ? WHERE id = ? AND journal_entry_id = ? AND organization_id = ?'

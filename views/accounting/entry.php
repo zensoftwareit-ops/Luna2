@@ -14,7 +14,7 @@
         <header><div><span class="section-kicker">Riclassificazione rapida</span><h2 id="account-change-title">Cambia conto</h2><p data-account-change-line></p></div><button type="button" class="dialog-close" data-close-account-change aria-label="Chiudi">×</button></header>
         <div class="account-change-body">
             <label class="field"><span>Cerca il nuovo conto *</span><div class="account-lookup" data-account-lookup><input type="search" data-account-search placeholder="Digita codice o descrizione…" autocomplete="off" required aria-autocomplete="list" aria-expanded="false"><input type="hidden" name="account_id" data-account-value><div class="account-lookup-results" data-account-results role="listbox" hidden></div></div><small>Sono mostrati soltanto conti compatibili con la riga selezionata.</small></label>
-            <label class="field"><span>Motivo della modifica *</span><input name="reason" maxlength="350" placeholder="Es. corretta classificazione del costo" required></label>
+            <label class="field"><span>Motivo della modifica <small>(facoltativo)</small></span><input name="reason" maxlength="350" placeholder="Es. corretta classificazione del costo"></label>
         </div>
         <footer><button class="button ghost" type="button" data-close-account-change>Annulla</button><button class="button primary" type="submit">Conferma cambio</button></footer>
     </form>
