@@ -440,3 +440,112 @@ document.querySelectorAll('[data-withholding-form]').forEach((form) => {
     item?.addEventListener('change', refresh);
     form.querySelector('[name="record_date"]')?.addEventListener('change', refresh);
 });
+
+(() => {
+    const dialog = document.querySelector('[data-account-change-dialog]');
+    const catalogNode = document.querySelector('[data-account-catalog]');
+    if (!(dialog instanceof HTMLDialogElement) || !catalogNode) return;
+
+    let accounts = [];
+    try { accounts = JSON.parse(catalogNode.textContent || '[]'); } catch (_error) { return; }
+    const form = dialog.querySelector('[data-account-change-form]');
+    const search = dialog.querySelector('[data-account-search]');
+    const value = dialog.querySelector('[data-account-value]');
+    const results = dialog.querySelector('[data-account-results]');
+    const lineLabel = dialog.querySelector('[data-account-change-line]');
+    let allowed = [];
+    let activeIndex = -1;
+
+    const normalize = (text) => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
+    const hideResults = () => {
+        results.hidden = true;
+        search.setAttribute('aria-expanded', 'false');
+        activeIndex = -1;
+    };
+    const choose = (account) => {
+        value.value = String(account.id);
+        search.value = `${account.code} · ${account.name}`;
+        search.setCustomValidity('');
+        hideResults();
+    };
+    const render = () => {
+        const query = normalize(search.value.trim());
+        const matches = allowed.filter((account) => !query || normalize(`${account.code} ${account.name}`).includes(query)).slice(0, 40);
+        results.replaceChildren();
+        activeIndex = -1;
+        if (matches.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'account-lookup-empty';
+            empty.textContent = 'Nessun conto compatibile trovato.';
+            results.appendChild(empty);
+        } else {
+            matches.forEach((account) => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'account-lookup-option';
+                option.setAttribute('role', 'option');
+                const code = document.createElement('strong');
+                code.textContent = account.code;
+                const name = document.createElement('small');
+                name.textContent = account.name;
+                option.append(code, name);
+                option.addEventListener('click', () => choose(account));
+                results.appendChild(option);
+            });
+        }
+        results.hidden = false;
+        search.setAttribute('aria-expanded', 'true');
+    };
+    const moveActive = (direction) => {
+        const options = [...results.querySelectorAll('.account-lookup-option')];
+        if (options.length === 0) return;
+        activeIndex = (activeIndex + direction + options.length) % options.length;
+        options.forEach((option, index) => option.classList.toggle('active', index === activeIndex));
+        options[activeIndex].scrollIntoView({block: 'nearest'});
+    };
+
+    document.querySelectorAll('[data-open-account-change]').forEach((button) => {
+        button.addEventListener('click', () => {
+            form.action = button.dataset.action || '';
+            lineLabel.textContent = button.dataset.lineLabel || '';
+            const current = Number(button.dataset.currentAccount || 0);
+            allowed = accounts.filter((account) => account.type === button.dataset.accountType && Number(account.id) !== current);
+            form.reset();
+            value.value = '';
+            hideResults();
+            dialog.showModal();
+            window.setTimeout(() => search.focus(), 0);
+        });
+    });
+    dialog.querySelectorAll('[data-close-account-change]').forEach((button) => button.addEventListener('click', () => dialog.close()));
+    dialog.addEventListener('click', (event) => {
+        if (event.target === dialog) dialog.close();
+    });
+    search.addEventListener('focus', render);
+    search.addEventListener('input', () => {
+        value.value = '';
+        search.setCustomValidity('');
+        render();
+    });
+    search.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            if (results.hidden) render();
+            moveActive(event.key === 'ArrowDown' ? 1 : -1);
+        } else if (event.key === 'Enter' && activeIndex >= 0) {
+            event.preventDefault();
+            results.querySelectorAll('.account-lookup-option')[activeIndex]?.click();
+        } else if (event.key === 'Escape' && !results.hidden) {
+            event.preventDefault();
+            hideResults();
+        }
+    });
+    form.addEventListener('submit', (event) => {
+        if (value.value) return;
+        event.preventDefault();
+        search.setCustomValidity('Seleziona un conto dai risultati della ricerca.');
+        search.reportValidity();
+        search.focus();
+        render();
+    });
+})();
