@@ -296,7 +296,6 @@ final class AccountingService
                 return (int) $id;
             }
 
-            $accounts = $this->systemAccounts();
             $date = (string) $document['document_date'];
             $lines = [];
             $total = (float) $document['total'];
@@ -307,6 +306,13 @@ final class AccountingService
                 || in_array(strtoupper((string) ($document['fatturapa_type'] ?? '')), ['TD04', 'TD08'], true);
             $isPurchase = $document['document_type'] === 'PURCHASE_INVOICE'
                 || strtoupper((string) ($document['counterparty_type'] ?? '')) === 'SUPPLIER';
+            $requiredAccounts = $isPurchase
+                ? ['TRADE_PAYABLES', 'PURCHASE_COSTS']
+                : ['TRADE_RECEIVABLES', 'SALES_REVENUE'];
+            if ($vat > 0) {
+                $requiredAccounts[] = $vatAccount ?: ($isPurchase ? 'VAT_RECEIVABLE' : 'VAT_PAYABLE');
+            }
+            $accounts = $this->systemAccounts($requiredAccounts);
 
             if (!$isCreditNote && !$isPurchase) {
                 $lines = [
@@ -449,11 +455,20 @@ final class AccountingService
         }
     }
 
-    private function systemAccounts(): array
+    private function systemAccounts(array $keys): array
     {
-        $keys = ['TRADE_RECEIVABLES', 'TRADE_PAYABLES', 'SALES_REVENUE', 'PURCHASE_COSTS', 'VAT_PAYABLE', 'VAT_RECEIVABLE', 'VAT_CLEARING'];
+        $keys = array_values(array_unique($keys));
         $placeholders = implode(',', array_fill(0, count($keys), '?'));
-        $statement = $this->db->prepare("SELECT id, system_key FROM chart_of_accounts WHERE organization_id = ? AND system_key IN ({$placeholders})");
+        // Imported plans of accounts (for example DATEV) deliberately keep their
+        // original codes and have no system_key. The user-facing mappings are the
+        // authoritative link between those accounts and Luna2 automations.
+        $statement = $this->db->prepare(
+            "SELECT a.id, m.mapping_key AS system_key
+             FROM accounting_account_mappings m
+             JOIN chart_of_accounts a ON a.id = m.account_id AND a.organization_id = m.organization_id
+             WHERE m.organization_id = ? AND m.mapping_key IN ({$placeholders})
+               AND a.active = 1 AND a.is_postable = 1"
+        );
         $statement->execute(array_merge([$this->organizationId], $keys));
         $accounts = [];
         foreach ($statement->fetchAll() as $row) {
@@ -461,7 +476,23 @@ final class AccountingService
         }
         $missing = array_diff($keys, array_keys($accounts));
         if ($missing !== []) {
-            throw new RuntimeException('Piano dei conti incompleto: mancano ' . implode(', ', $missing) . '.');
+            $fallbackPlaceholders = implode(',', array_fill(0, count($missing), '?'));
+            $fallback = $this->db->prepare(
+                "SELECT id, system_key FROM chart_of_accounts
+                 WHERE organization_id = ? AND system_key IN ({$fallbackPlaceholders})
+                   AND active = 1 AND is_postable = 1"
+            );
+            $fallback->execute(array_merge([$this->organizationId], array_values($missing)));
+            foreach ($fallback->fetchAll() as $row) {
+                $accounts[$row['system_key']] = (int) $row['id'];
+            }
+        }
+        $missing = array_diff($keys, array_keys($accounts));
+        if ($missing !== []) {
+            throw new RuntimeException(
+                'Automatismi contabili incompleti: collega i conti per ' . implode(', ', $missing)
+                . ' in Contabilità → Piano dei conti e causali → Automatismi.'
+            );
         }
         return $accounts;
     }

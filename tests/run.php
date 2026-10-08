@@ -443,6 +443,9 @@ $accountingService = (string) file_get_contents($base . '/app/Service/Accounting
 $journalView = (string) file_get_contents($base . '/views/accounting/journal.php');
 $entryView = (string) file_get_contents($base . '/views/accounting/entry.php');
 $assert(str_contains($accountingService, 'journal_entry_revisions') && str_contains($accountingService, 'is_finalized = 0'), 'Revisioni delle scritture provvisorie mancanti.');
+$assert(str_contains($accountingService, 'accounting_account_mappings m')
+    && str_contains($accountingService, 'Automatismi contabili incompleti'),
+    'Le scritture automatiche devono rispettare i collegamenti del piano dei conti importato.');
 $assert(str_contains($journalView, 'Provvisoria') && str_contains($officialPrintService, "is_finalized = 1"), 'Stato provvisorio o finalizzazione del libro giornale mancanti.');
 $assert(str_contains($entryView, '/accounting/ledger/')
     && is_file($base . '/database/migrations/025_reactivate_used_leaf_accounts.sql'),
