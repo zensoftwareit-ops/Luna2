@@ -200,6 +200,7 @@ final class Application
         $router->add('GET', '/accounting/ledger/{id}/export/{format}', [AccountingController::class, 'exportLedger']);
         $router->add('GET', '/accounting/subledgers', [PartyLedgerController::class, 'index']);
         $router->add('GET', '/accounting/subledgers/export/{format}', [PartyLedgerController::class, 'export']);
+        $router->add('POST', '/accounting/subledgers/reconcile', [PartyLedgerController::class, 'reconcile']);
         $router->add('GET', '/accounting/vat-registers', [AccountingController::class, 'vatRegisters']);
         $router->add('GET', '/accounting/vat-registers/export/{format}', [AccountingController::class, 'exportVatRegisters']);
         $router->add('POST', '/accounting/vat-registers/manual', [AccountingController::class, 'saveVatMovement']);

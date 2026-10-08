@@ -116,7 +116,83 @@ final class PartyLedgerService
             $statement->execute([$mapping, $this->organizationId]);
             $counts['historical'] += $statement->rowCount();
         }
+        $counts['open_items'] += $this->matchOpenItemsByCanonicalName();
+        $counts['historical'] += $this->matchHistoricalLines();
         return $counts;
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function unassigned(string $type, int $limit = 100): array
+    {
+        [, $idColumn, , ] = $this->typeConfig($type);
+        $mapping = $type === 'SUPPLIER' ? 'TRADE_PAYABLES' : 'TRADE_RECEIVABLES';
+        $limit = max(1, min(500, $limit));
+        $statement = $this->db->prepare(
+            "SELECT l.id AS line_id, e.id AS entry_id, e.entry_date, e.protocol_number, e.source_protocol,
+                    e.document_number, e.counterparty, e.description AS entry_description,
+                    a.code AS account_code, a.name AS account_name, l.description, l.debit, l.credit
+             FROM journal_entry_lines l
+             JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+             JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
+             JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
+               AND m.mapping_key = ? AND m.account_id = l.account_id
+             WHERE l.organization_id = ? AND l.{$idColumn} IS NULL AND e.status = 'POSTED'
+             ORDER BY e.entry_date DESC, e.id DESC, l.id DESC LIMIT {$limit}"
+        );
+        $statement->execute([$mapping, $this->organizationId]);
+        return $statement->fetchAll();
+    }
+
+    public function unassignedCount(string $type): int
+    {
+        [, $idColumn, , ] = $this->typeConfig($type);
+        $mapping = $type === 'SUPPLIER' ? 'TRADE_PAYABLES' : 'TRADE_RECEIVABLES';
+        $statement = $this->db->prepare(
+            "SELECT COUNT(*) FROM journal_entry_lines l
+             JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+             JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
+               AND m.mapping_key = ? AND m.account_id = l.account_id
+             WHERE l.organization_id = ? AND l.{$idColumn} IS NULL AND e.status = 'POSTED'"
+        );
+        $statement->execute([$mapping, $this->organizationId]);
+        return (int) $statement->fetchColumn();
+    }
+
+    /** @return array<int,array{id:int,code:string,business_name:string}> */
+    public function partyChoices(string $type): array
+    {
+        [$table] = $this->typeConfig($type);
+        $statement = $this->db->prepare(
+            "SELECT id, code, business_name FROM {$table} WHERE organization_id = ? AND active = 1 ORDER BY business_name, code LIMIT 5000"
+        );
+        $statement->execute([$this->organizationId]);
+        return $statement->fetchAll();
+    }
+
+    /** @return array<string,mixed> */
+    public function assignLine(string $type, int $lineId, int $partyId): array
+    {
+        [$table, $idColumn] = $this->typeConfig($type);
+        $mapping = $type === 'SUPPLIER' ? 'TRADE_PAYABLES' : 'TRADE_RECEIVABLES';
+        $party = $this->db->prepare("SELECT id, code, business_name FROM {$table} WHERE id = ? AND organization_id = ? AND active = 1");
+        $party->execute([$partyId, $this->organizationId]);
+        $partyRow = $party->fetch();
+        if (!$partyRow) {
+            throw new InvalidArgumentException('Cliente o fornitore selezionato non valido.');
+        }
+        $otherColumn = $idColumn === 'supplier_id' ? 'customer_id' : 'supplier_id';
+        $statement = $this->db->prepare(
+            "UPDATE journal_entry_lines l
+             JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
+               AND m.mapping_key = ? AND m.account_id = l.account_id
+             SET l.{$idColumn} = ?, l.{$otherColumn} = NULL
+             WHERE l.id = ? AND l.organization_id = ?"
+        );
+        $statement->execute([$mapping, $partyId, $lineId, $this->organizationId]);
+        if ($statement->rowCount() !== 1) {
+            throw new InvalidArgumentException('Riga non trovata oppure non appartenente al conto collettivo selezionato.');
+        }
+        return ['line_id' => $lineId, 'party_id' => $partyId, 'party_code' => $partyRow['code'], 'party_name' => $partyRow['business_name']];
     }
 
     public function overview(string $type, string $from, string $to, string $search = ''): array
@@ -236,6 +312,167 @@ final class PartyLedgerService
             'SUPPLIER' => ['suppliers', 'supplier_id', 'PAYABLE', -1],
             default => throw new InvalidArgumentException('Tipo di partitario non valido.'),
         };
+    }
+
+    private function matchOpenItemsByCanonicalName(): int
+    {
+        $updated = 0;
+        foreach ([['SUPPLIER', 'suppliers'], ['CUSTOMER', 'customers']] as [$type, $table]) {
+            $parties = $this->partyMatchIndex($table);
+            $statement = $this->db->prepare(
+                "SELECT id, party_name FROM accounting_open_items
+                 WHERE organization_id = ? AND party_id IS NULL AND party_name IS NOT NULL AND TRIM(party_name) <> ''"
+            );
+            $statement->execute([$this->organizationId]);
+            $save = $this->db->prepare(
+                'UPDATE accounting_open_items SET party_type = ?, party_id = ?, updated_at = NOW() WHERE id = ? AND organization_id = ? AND party_id IS NULL'
+            );
+            foreach ($statement->fetchAll() as $item) {
+                $ids = $parties['names'][$this->canonical((string) $item['party_name'])] ?? [];
+                if (count($ids) !== 1) {
+                    continue;
+                }
+                $save->execute([$type, $ids[0], $item['id'], $this->organizationId]);
+                $updated += $save->rowCount();
+            }
+        }
+        return $updated;
+    }
+
+    private function matchHistoricalLines(): int
+    {
+        $updated = 0;
+        foreach ([
+            ['SUPPLIER', 'suppliers', 'supplier_id', 'TRADE_PAYABLES'],
+            ['CUSTOMER', 'customers', 'customer_id', 'TRADE_RECEIVABLES'],
+        ] as [$type, $table, $idColumn, $mapping]) {
+            $parties = $this->partyMatchIndex($table);
+            $documentMap = $this->documentPartyMap($type);
+            $statement = $this->db->prepare(
+                "SELECT l.id AS line_id, e.id AS entry_id, e.entry_date, e.document_number, e.counterparty,
+                        e.description AS entry_description,
+                        GROUP_CONCAT(COALESCE(all_lines.description, '') SEPARATOR ' ') AS line_descriptions
+                 FROM journal_entry_lines l
+                 JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+                 JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
+                   AND m.mapping_key = ? AND m.account_id = l.account_id
+                 LEFT JOIN journal_entry_lines all_lines ON all_lines.journal_entry_id = e.id
+                   AND all_lines.organization_id = e.organization_id
+                 WHERE l.organization_id = ? AND l.{$idColumn} IS NULL AND e.status = 'POSTED'
+                 GROUP BY l.id, e.id, e.entry_date, e.document_number, e.counterparty, e.description
+                 ORDER BY e.entry_date, e.id, l.id LIMIT 10000"
+            );
+            $statement->execute([$mapping, $this->organizationId]);
+            $save = $this->db->prepare("UPDATE journal_entry_lines SET {$idColumn} = ? WHERE id = ? AND organization_id = ? AND {$idColumn} IS NULL");
+            foreach ($statement->fetchAll() as $line) {
+                $partyId = $this->candidateForLine($line, $parties, $documentMap);
+                if (!$partyId) {
+                    continue;
+                }
+                $save->execute([$partyId, $line['line_id'], $this->organizationId]);
+                $updated += $save->rowCount();
+            }
+        }
+        return $updated;
+    }
+
+    /** @return array{names:array<string,array<int,int>>,parties:array<int,array<string,mixed>>} */
+    private function partyMatchIndex(string $table): array
+    {
+        $statement = $this->db->prepare("SELECT id, business_name, vat_number, tax_code FROM {$table} WHERE organization_id = ? AND active = 1");
+        $statement->execute([$this->organizationId]);
+        $names = [];
+        $parties = [];
+        foreach ($statement->fetchAll() as $party) {
+            $party['canonical_name'] = $this->canonical((string) $party['business_name']);
+            $party['vat_digits'] = preg_replace('/\D+/', '', (string) ($party['vat_number'] ?? '')) ?: '';
+            $party['tax_key'] = $this->canonical((string) ($party['tax_code'] ?? ''));
+            if ($party['canonical_name'] !== '') {
+                $names[$party['canonical_name']][] = (int) $party['id'];
+            }
+            $parties[] = $party;
+        }
+        return compact('names', 'parties');
+    }
+
+    /** @return array<string,array<int,int>> */
+    private function documentPartyMap(string $type): array
+    {
+        $statement = $this->db->prepare(
+            'SELECT counterparty_id, number, document_date FROM documents
+             WHERE organization_id = ? AND counterparty_type = ? AND counterparty_id IS NOT NULL'
+        );
+        $statement->execute([$this->organizationId, $type]);
+        $map = [];
+        foreach ($statement->fetchAll() as $document) {
+            $number = $this->canonicalDocument((string) $document['number']);
+            if ($number === '') {
+                continue;
+            }
+            $year = substr((string) $document['document_date'], 0, 4);
+            $map[$year . '|' . $number][] = (int) $document['counterparty_id'];
+        }
+        foreach ($map as &$ids) {
+            $ids = array_values(array_unique($ids));
+        }
+        unset($ids);
+        return $map;
+    }
+
+    /** @param array<string,mixed> $line @param array<string,mixed> $parties @param array<string,array<int,int>> $documentMap */
+    private function candidateForLine(array $line, array $parties, array $documentMap): ?int
+    {
+        $counterpartyKey = $this->canonical((string) ($line['counterparty'] ?? ''));
+        $exact = $parties['names'][$counterpartyKey] ?? [];
+        if (count($exact) === 1) {
+            return $exact[0];
+        }
+        $documentKey = substr((string) $line['entry_date'], 0, 4) . '|'
+            . $this->canonicalDocument((string) ($line['document_number'] ?? ''));
+        $documentIds = $documentMap[$documentKey] ?? [];
+        if (count($documentIds) === 1) {
+            return $documentIds[0];
+        }
+        $rawHaystack = implode(' ', array_filter([
+            $line['counterparty'] ?? null, $line['entry_description'] ?? null, $line['line_descriptions'] ?? null,
+        ]));
+        $canonicalHaystack = $this->canonical($rawHaystack);
+        $digitHaystack = preg_replace('/\D+/', '', $rawHaystack) ?: '';
+        $matches = [];
+        foreach ($parties['parties'] as $party) {
+            if ($party['vat_digits'] !== '' && strlen($party['vat_digits']) >= 8 && str_contains($digitHaystack, $party['vat_digits'])) {
+                $matches[] = (int) $party['id'];
+                continue;
+            }
+            if ($party['tax_key'] !== '' && strlen($party['tax_key']) >= 8 && str_contains($canonicalHaystack, $party['tax_key'])) {
+                $matches[] = (int) $party['id'];
+                continue;
+            }
+            if ($party['canonical_name'] !== '' && strlen($party['canonical_name']) >= 5
+                && str_contains($canonicalHaystack, $party['canonical_name'])) {
+                $matches[] = (int) $party['id'];
+            }
+        }
+        $matches = array_values(array_unique($matches));
+        return count($matches) === 1 ? $matches[0] : null;
+    }
+
+    private function canonical(string $value): string
+    {
+        $value = mb_strtoupper(trim($value));
+        if (function_exists('iconv')) {
+            $transliterated = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+            if ($transliterated !== false) {
+                $value = $transliterated;
+            }
+        }
+        $value = preg_replace('/\b(SRL|SRLS|SPA|SAPA|SAS|SNC|SCARL|SOC COOP|SOCIETA A RESPONSABILITA LIMITATA)\b/', ' ', $value) ?? $value;
+        return trim(preg_replace('/[^A-Z0-9]+/', ' ', $value) ?? '');
+    }
+
+    private function canonicalDocument(string $value): string
+    {
+        return preg_replace('/[^A-Z0-9]+/', '', mb_strtoupper(trim($value))) ?? '';
     }
 
     private function assertDates(string $from, string $to): void

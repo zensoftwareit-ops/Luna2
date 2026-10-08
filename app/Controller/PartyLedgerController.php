@@ -29,6 +29,13 @@ final class PartyLedgerController extends BaseController
             $synchronized = $service->synchronize();
             $parties = $service->overview($type, $from, $to, $search);
             $detail = $partyId > 0 ? $service->detail($type, $partyId, $from, $to) : [];
+            $unassigned = $service->unassigned($type);
+            $unassignedCount = $service->unassignedCount($type);
+            $reconcileLineId = max(0, (int) ($_GET['reconcile_line'] ?? 0));
+            $reconcileLine = $reconcileLineId > 0
+                ? (array_values(array_filter($unassigned, static fn (array $line): bool => (int) $line['line_id'] === $reconcileLineId))[0] ?? [])
+                : [];
+            $partyChoices = $reconcileLine !== [] ? $service->partyChoices($type) : [];
         } catch (InvalidArgumentException $exception) {
             $this->redirect('/accounting/subledgers', $exception->getMessage(), 'error');
         }
@@ -39,8 +46,26 @@ final class PartyLedgerController extends BaseController
             'outstanding' => array_sum(array_column($parties, 'outstanding')),
         ];
         $this->view->render('accounting/subledgers', compact(
-            'type', 'from', 'to', 'search', 'parties', 'partyId', 'detail', 'totals', 'synchronized'
+            'type', 'from', 'to', 'search', 'parties', 'partyId', 'detail', 'totals', 'synchronized',
+            'unassigned', 'unassignedCount', 'reconcileLineId', 'reconcileLine', 'partyChoices'
         ) + ['title' => 'Partitario clienti e fornitori']);
+    }
+
+    public function reconcile(): never
+    {
+        $this->authorize();
+        $type = strtoupper((string) ($_POST['party_type'] ?? ''));
+        try {
+            $result = $this->service()->assignLine(
+                $type,
+                (int) ($_POST['line_id'] ?? 0),
+                (int) ($_POST['party_id'] ?? 0),
+            );
+            $this->audit('RECONCILE_PARTY_SUBLEDGER', 'journal_entry_lines', $result['line_id'], $result);
+            $this->redirect('/accounting/subledgers?party_type=' . rawurlencode($type), 'Movimento associato al sottoconto “' . $result['party_name'] . '”.');
+        } catch (InvalidArgumentException $exception) {
+            $this->redirect('/accounting/subledgers?party_type=' . rawurlencode($type ?: 'SUPPLIER'), $exception->getMessage(), 'error');
+        }
     }
 
     public function export(string $format): never
