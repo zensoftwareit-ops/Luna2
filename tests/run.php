@@ -433,6 +433,10 @@ $assert(str_contains($vatSettlementView, 'Dettaglio per registro, articolo e ali
 $assert(str_contains($vatSettlementView, 'IVA DA VERSARE') && str_contains($vatSettlementView, 'CREDITO IVA DA RIPORTARE'), 'Esito della liquidazione IVA non sufficientemente evidente.');
 $assert(str_contains($vatSettlementView, 'Imposta a credito') && str_contains($vatSettlementView, 'Indetraibile') && str_contains($vatSettlementView, 'Sospesa'), 'Prospetto di liquidazione privo della quadratura fiscale completa.');
 $assert(str_contains($vatService, "['TD04', 'TD08']") && str_contains($vatService, '-abs('), 'Le note di credito FatturaPA devono ridurre imponibile e IVA anche sul ciclo passivo.');
+$assert(str_contains($importService, "'vat_summaries' => \$summaries")
+    && str_contains($importService, 'Rettifica riepilogo FatturaPA')
+    && str_contains($importService, 'ROLLBACK TO SAVEPOINT'),
+    'L’import FatturaPA deve usare i riepiloghi fiscali e isolare gli errori della singola fattura.');
 $assert(str_contains($officialPrintService, 'VAT_REVERSE_CHARGE') && str_contains($officialPrintService, 'VAT_SELF_INVOICES') && str_contains($officialPrintService, 'VAT_LIQUIDATION'), 'Tipi di stampa IVA ufficiale incompleti.');
 $assert(str_contains($vatService, 'vat_description, vat_legal_reference') && str_contains($vatService, 'GROUP BY register_type, vat_code, vat_rate'), 'Liquidazioni IVA prive del raggruppamento storico per articolo e aliquota.');
 $accountingService = (string) file_get_contents($base . '/app/Service/AccountingService.php');

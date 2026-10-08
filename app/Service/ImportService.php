@@ -409,6 +409,51 @@ final class ImportService
                     'vat_amount' => round($taxable * $vatRate / 100, 2),
                 ];
             }
+            $summaries = [];
+            foreach (($body->xpath('.//*[local-name()="DatiRiepilogo"]') ?: []) as $summary) {
+                $summaries[] = [
+                    'rate' => $this->decimal($this->xpathText($summary, './*[local-name()="AliquotaIVA"]')),
+                    'nature' => $this->xpathText($summary, './*[local-name()="Natura"]') ?: null,
+                    'taxable' => $this->decimal($this->xpathText($summary, './*[local-name()="ImponibileImporto"]')),
+                    'vat' => $this->decimal($this->xpathText($summary, './*[local-name()="Imposta"]')),
+                    'collectability' => $this->xpathText($summary, './*[local-name()="EsigibilitaIVA"]') ?: null,
+                    'legal_reference' => $this->xpathText($summary, './*[local-name()="RiferimentoNormativo"]') ?: null,
+                ];
+            }
+            // DatiRiepilogo is fiscally authoritative. Detail lines may omit pension-fund
+            // contributions and may round VAT differently on each row. Add only the
+            // residuals so documents, accounting entries and VAT registers stay aligned.
+            $summaryGroups = [];
+            foreach ($summaries as $summary) {
+                $groupKey = number_format((float) $summary['rate'], 4, '.', '') . '|' . (string) ($summary['nature'] ?? '');
+                if (!isset($summaryGroups[$groupKey])) {
+                    $summaryGroups[$groupKey] = $summary;
+                    continue;
+                }
+                $summaryGroups[$groupKey]['taxable'] += (float) $summary['taxable'];
+                $summaryGroups[$groupKey]['vat'] += (float) $summary['vat'];
+            }
+            foreach ($summaryGroups as $summary) {
+                $lineTaxable = 0.0;
+                $lineVat = 0.0;
+                foreach ($lines as $line) {
+                    if (abs((float) $line['vat_rate'] - (float) $summary['rate']) < .0001
+                        && (string) ($line['vat_nature'] ?? '') === (string) ($summary['nature'] ?? '')) {
+                        $lineTaxable += (float) $line['taxable_amount'];
+                        $lineVat += (float) $line['vat_amount'];
+                    }
+                }
+                $taxableResidual = round((float) $summary['taxable'] - $lineTaxable, 2);
+                $vatResidual = round((float) $summary['vat'] - $lineVat, 2);
+                if (abs($taxableResidual) > .005 || abs($vatResidual) > .005) {
+                    $lines[] = [
+                        'description' => 'Rettifica riepilogo FatturaPA (cassa previdenziale/arrotondamenti)',
+                        'quantity' => 1, 'unit' => 'NR', 'unit_price' => $taxableResidual,
+                        'taxable_amount' => $taxableResidual, 'vat_rate' => (float) $summary['rate'],
+                        'vat_nature' => $summary['nature'], 'vat_amount' => $vatResidual,
+                    ];
+                }
+            }
             $normalized = [
                 'document_type' => in_array($type, ['TD04', 'TD08'], true) && $direction === 'SALES_INVOICE' ? 'CREDIT_NOTE' : $direction,
                 'fatturapa_type' => $type, 'number' => $number, 'document_date' => $date,
@@ -432,21 +477,9 @@ final class ImportService
                 'withholding_amount' => $withholdingNode ? $this->decimal($this->xpathText($withholdingNode, './*[local-name()="ImportoRitenuta"]')) : 0,
                 'withholding_rate' => $withholdingNode ? $this->decimal($this->xpathText($withholdingNode, './*[local-name()="AliquotaRitenuta"]')) : 0,
                 'withholding_cause' => $withholdingNode ? ($this->xpathText($withholdingNode, './*[local-name()="CausalePagamento"]') ?: null) : null,
-                'lines' => $lines,
+                'lines' => $lines, 'vat_summaries' => $summaries,
             ];
             if ($history) {
-                $summaries = [];
-                foreach (($body->xpath('.//*[local-name()="DatiRiepilogo"]') ?: []) as $summary) {
-                    $summaries[] = [
-                        'rate' => $this->xpathText($summary, './*[local-name()="AliquotaIVA"]'),
-                        'nature' => $this->xpathText($summary, './*[local-name()="Natura"]'),
-                        'taxable' => $this->xpathText($summary, './*[local-name()="ImponibileImporto"]'),
-                        'vat' => $this->xpathText($summary, './*[local-name()="Imposta"]'),
-                        'collectability' => $this->xpathText($summary, './*[local-name()="EsigibilitaIVA"]'),
-                        'legal_reference' => $this->xpathText($summary, './*[local-name()="RiferimentoNormativo"]'),
-                    ];
-                }
-                $normalized['vat_summaries'] = $summaries;
                 $key = hash('sha256', implode('|', [$issuerVat,$recipientVat,$date,$number,$type]));
                 $normalized = ['kind'=>'invoice_history','key'=>$key,'line'=>$index+1,'data'=>$normalized,'issue'=>'Fattura storica acquisita senza generare prima nota, movimenti IVA o partite aperte. Stato dei pagamenti da riconciliare con la contabilità originaria.'];
             }
@@ -967,12 +1000,15 @@ final class ImportService
 
     private function commitFatturaPa(int $batchId, array $rows): array
     {
-        $imported = 0; $errors = 0;
+        $imported = 0; $errors = 0; $skipped = 0;
         foreach ($rows as $staged) {
-            $data = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
-            if (empty($data['number']) || empty($data['document_date']) || empty($data['counterparty_name'])) {
-                $this->markRow($staged['id'], 'ERROR', 'Dati minimi FatturaPA mancanti.'); $errors++; continue;
-            }
+            $savepoint = 'fatturapa_row_' . (int) $staged['id'];
+            $this->db->exec('SAVEPOINT ' . $savepoint);
+            try {
+                $data = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+                if (empty($data['number']) || empty($data['document_date']) || empty($data['counterparty_name'])) {
+                    throw new InvalidArgumentException('Dati minimi FatturaPA mancanti.');
+                }
             $data['counterparty_vat'] = PartyAutomationService::normalizeVat($data['counterparty_vat'] ?? null, (string) ($data['counterparty_country'] ?? 'IT'));
             $partyTable = $data['document_type'] === 'PURCHASE_INVOICE' ? 'suppliers' : 'customers';
             $find = $this->db->prepare("SELECT id FROM {$partyTable} WHERE organization_id = ? AND vat_number = ? LIMIT 1");
@@ -992,10 +1028,18 @@ final class ImportService
             $find = $this->db->prepare('SELECT id FROM documents WHERE organization_id = ? AND external_key = ? LIMIT 1');
             $find->execute([$this->organizationId, $externalKey]);
             if ($existingId = $find->fetchColumn()) {
-                $this->markRow($staged['id'], 'SKIPPED', 'Documento già importato.', (int) $existingId); continue;
+                $this->markRow($staged['id'], 'SKIPPED', 'Documento già importato.', (int) $existingId);
+                $this->db->exec('RELEASE SAVEPOINT ' . $savepoint);
+                $skipped++;
+                continue;
             }
-            $taxable = round(array_sum(array_column($data['lines'], 'taxable_amount')), 2);
-            $vat = round(array_sum(array_column($data['lines'], 'vat_amount')), 2);
+            $summaries = is_array($data['vat_summaries'] ?? null) ? $data['vat_summaries'] : [];
+            $taxable = $summaries !== []
+                ? round(array_sum(array_map(static fn (array $row): float => (float) ($row['taxable'] ?? 0), $summaries)), 2)
+                : round(array_sum(array_column($data['lines'], 'taxable_amount')), 2);
+            $vat = $summaries !== []
+                ? round(array_sum(array_map(static fn (array $row): float => (float) ($row['vat'] ?? 0), $summaries)), 2)
+                : round(array_sum(array_column($data['lines'], 'vat_amount')), 2);
             $total = $data['total'] > 0 ? round((float) $data['total'], 2) : round($taxable + $vat, 2);
             $status = $data['document_type'] === 'PURCHASE_INVOICE' ? 'RECEIVED' : 'ISSUED';
             $this->db->prepare(
@@ -1014,8 +1058,15 @@ final class ImportService
             (new ReceivablesService($this->db, $this->organizationId, $this->userId))->syncDocumentById($documentId);
             $this->recordImport($batchId, 'documents', $documentId, 'CREATE', null);
             $this->markRow($staged['id'], 'IMPORTED', null, $documentId); $imported++;
+                $this->db->exec('RELEASE SAVEPOINT ' . $savepoint);
+            } catch (Throwable $exception) {
+                $this->db->exec('ROLLBACK TO SAVEPOINT ' . $savepoint);
+                $this->db->exec('RELEASE SAVEPOINT ' . $savepoint);
+                $this->markRow((int) $staged['id'], 'ERROR', $exception->getMessage());
+                $errors++;
+            }
         }
-        return compact('imported', 'errors');
+        return compact('imported', 'skipped', 'errors');
     }
 
     private function insertStagedRow(int $batchId, int $fileId, int $rowNumber, array $raw, array $normalized): void
