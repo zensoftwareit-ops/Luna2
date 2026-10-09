@@ -349,6 +349,89 @@ final class AccountingService
         }
     }
 
+    public function changeDocumentRegistrationDate(int $documentId, string $registrationDate): array
+    {
+        $registrationDate = trim($registrationDate);
+        if (!$this->isIsoDate($registrationDate)) {
+            throw new InvalidArgumentException('La data di registrazione non è valida.');
+        }
+
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) {
+            $this->db->beginTransaction();
+        }
+        try {
+            $statement = $this->db->prepare('SELECT * FROM documents WHERE id = ? AND organization_id = ? FOR UPDATE');
+            $statement->execute([$documentId, $this->organizationId]);
+            $document = $statement->fetch();
+            if (!$document || !in_array($document['document_type'], ['SALES_INVOICE', 'PURCHASE_INVOICE', 'CREDIT_NOTE'], true)) {
+                throw new InvalidArgumentException('Fattura o nota di credito non trovata.');
+            }
+            if (($document['status'] ?? '') === 'HISTORICAL') {
+                throw new InvalidArgumentException('Il documento è un originale storico e non genera prima nota o IVA operativa.');
+            }
+            if ($registrationDate < (string) $document['document_date']) {
+                throw new InvalidArgumentException('La data di registrazione non può precedere la data documento.');
+            }
+
+            $previousDate = (string) ($document['registration_date'] ?: $document['document_date']);
+            if ($previousDate === $registrationDate) {
+                if ($ownsTransaction) {
+                    $this->db->commit();
+                }
+                return ['previous_date' => $previousDate, 'registration_date' => $registrationDate, 'journal_entry_id' => null];
+            }
+
+            $this->assertAccountingPeriodOpen($previousDate);
+            $this->assertAccountingPeriodOpen($registrationDate);
+            $vatService = new VatService($this->db, $this->organizationId, $this->userId);
+            $vatService->invalidateForDate($previousDate);
+
+            $entryStatement = $this->db->prepare(
+                "SELECT * FROM journal_entries
+                 WHERE organization_id = ? AND source_type = 'DOCUMENT' AND source_id = ? FOR UPDATE"
+            );
+            $entryStatement->execute([$this->organizationId, $documentId]);
+            $entry = $entryStatement->fetch();
+            if ($entry && ((int) ($entry['is_finalized'] ?? 0) === 1 || !in_array($entry['status'], ['DRAFT', 'POSTED'], true))) {
+                throw new InvalidArgumentException('La scrittura collegata è definitiva, stornata o non modificabile.');
+            }
+
+            $this->db->prepare(
+                'UPDATE documents SET registration_date = ?, updated_by = ?, updated_at = NOW()
+                 WHERE id = ? AND organization_id = ?'
+            )->execute([$registrationDate, $this->userId, $documentId, $this->organizationId]);
+
+            $entryId = null;
+            if ($entry) {
+                $entryId = (int) $entry['id'];
+                $this->saveRevision($entry, 'Correzione data di registrazione del documento ' . $document['number']);
+                $protocol = (string) $entry['protocol_number'];
+                if (substr($previousDate, 0, 4) !== substr($registrationDate, 0, 4)) {
+                    $protocol = $this->nextProtocol($registrationDate);
+                }
+                $this->db->prepare(
+                    'UPDATE journal_entries
+                     SET protocol_number = ?, entry_date = ?, competence_date = ?, updated_by = ?,
+                         revision_number = revision_number + 1, updated_at = NOW()
+                     WHERE id = ? AND organization_id = ?'
+                )->execute([$protocol, $registrationDate, $registrationDate, $this->userId, $entryId, $this->organizationId]);
+            }
+
+            $vatService->syncDocument($documentId);
+            $this->invalidateJournalPrints($previousDate, $registrationDate);
+            if ($ownsTransaction) {
+                $this->db->commit();
+            }
+            return ['previous_date' => $previousDate, 'registration_date' => $registrationDate, 'journal_entry_id' => $entryId];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
     public function postDocument(int $documentId): ?int
     {
         $statement = $this->db->prepare('SELECT * FROM documents WHERE id = ? AND organization_id = ? FOR UPDATE');
@@ -379,7 +462,7 @@ final class AccountingService
                 return (int) $id;
             }
 
-            $date = (string) $document['document_date'];
+            $date = (string) ($document['registration_date'] ?: $document['document_date']);
             $lines = [];
             $total = (float) $document['total'];
             $net = (float) $document['taxable_total'];

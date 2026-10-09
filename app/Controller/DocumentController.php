@@ -229,6 +229,28 @@ final class DocumentController extends BaseController
         $this->redirect('/documents/' . $targetSlug . '/' . $targetId, 'Documento convertito correttamente.');
     }
 
+    public function registrationDate(string $type, string $id): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
+        $definition = $this->type($type);
+        if (!in_array($definition['code'], ['SALES_INVOICE', 'PURCHASE_INVOICE', 'CREDIT_NOTE'], true)) {
+            $this->redirect('/documents/' . $type . '/' . (int) $id, 'La data di registrazione è disponibile solo per fatture e note di credito.', 'error');
+        }
+
+        try {
+            $this->loadDocument((int) $id, $definition['code']);
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))
+                ->changeDocumentRegistrationDate((int) $id, (string) ($_POST['registration_date'] ?? ''));
+            $this->audit('REGISTRATION_DATE_CHANGE', 'documents', (int) $id, $result);
+            $this->redirect(
+                '/documents/' . $type . '/' . (int) $id,
+                sprintf('Data di registrazione aggiornata da %s a %s. Prima nota e IVA sono state riallineate.', $result['previous_date'], $result['registration_date']),
+            );
+        } catch (Throwable $exception) {
+            $this->redirect('/documents/' . $type . '/' . (int) $id, 'Data non modificata: ' . $exception->getMessage(), 'error');
+        }
+    }
+
     public function pdf(string $type, string $id): never
     {
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);

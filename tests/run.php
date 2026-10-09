@@ -142,6 +142,7 @@ $assert(str_contains($application, "'/imports/einvoice/pull'") && is_file($base 
 $assert(is_file($base . '/app/Service/PartyAutomationService.php'), 'Automatismi anagrafici e scadenze mancanti.');
 $platformController = (string) file_get_contents($base . '/app/Controller/PlatformController.php');
 $companySettingsView = (string) file_get_contents($base . '/views/settings/company.php');
+$userEditView = (string) file_get_contents($base . '/views/settings/user-edit.php');
 $credentialJs = (string) file_get_contents($base . '/public/assets/app.js');
 $createUserStart = strpos($platformController, 'public function createUser');
 $createUserEnd = strpos($platformController, 'public function toggleUser', $createUserStart ?: 0);
@@ -149,12 +150,34 @@ $createUserBlock = $createUserStart !== false && $createUserEnd !== false ? subs
 $assert(str_contains($platformController, 'assertStoredPassword') && substr_count($platformController, 'password_verify($password, $storedHash)') === 1, 'Le password dei nuovi utenti devono essere verificate dopo il salvataggio.');
 $assert(str_contains($createUserBlock, '$userId = (int) $this->db->lastInsertId();') && strpos($createUserBlock, '$userId = (int) $this->db->lastInsertId();') < strpos($createUserBlock, '$this->db->commit();'), 'L’ID utente deve essere acquisito prima del commit MySQL.');
 $assert(substr_count($companySettingsView, 'data-copy-target=') === 2 && str_contains($credentialJs, 'navigator.clipboard'), 'Email e password temporanea devono poter essere copiate senza trascrizione manuale.');
+$assert(
+    str_contains($application, "'/settings/users/{id}/edit'")
+    && str_contains($application, "'/settings/users/{id}/update'")
+    && str_contains($platformController, 'public function updateUser')
+    && str_contains($companySettingsView, '>Modifica</a>')
+    && str_contains($userEditView, 'name="role"'),
+    'Modifica utenti e ruoli incompleta.'
+);
+$assert(
+    str_contains($platformController, 'assertOwnerContinuity')
+    && str_contains($platformController, "role = 'OWNER' AND active = 1")
+    && str_contains($platformController, 'ORDER BY id FOR UPDATE')
+    && str_contains($platformController, 'Non puoi disattivare il tuo stesso account.'),
+    'Vincoli di sicurezza per Titolare e auto-disattivazione mancanti.'
+);
 $assert(str_contains($schema, 'payment_month_end') && str_contains($schema, 'withholding_taxable_percent'), 'Schema automatismi pagamento/ritenuta incompleto.');
 $assert(str_contains($application, "'/r/{module}/export/{format}'"), 'Esportazioni PDF/XLSX/CSV degli archivi mancanti.');
 $assert(str_contains($application, "'/documents/{type}/export/{format}'"), 'Esportazioni documenti filtrati mancanti.');
 $assert(str_contains($application, "'/accounting/ledger/{id}/export/{format}'"), 'Esportazioni mastrino mancanti.');
 $assert(str_contains($application, "'/accounting/subledgers'") && str_contains($application, "'/accounting/subledgers/export/{format}'"), 'Rotte del partitario clienti/fornitori mancanti.');
 $assert(is_file($base . '/app/Service/PartyLedgerService.php') && is_file($base . '/views/accounting/subledgers.php'), 'Partitario analitico clienti/fornitori incompleto.');
+$subledgerView = (string) file_get_contents($base . '/views/accounting/subledgers.php');
+$assert(
+    str_contains($subledgerView, "['party_id' => \$party['id']]")
+    && str_contains($subledgerView, "'#scheda'")
+    && str_contains($subledgerView, '>Apri</a>'),
+    'L’apertura del dettaglio del sottoconto deve conservare il soggetto selezionato e portare alla scheda analitica.'
+);
 $assert(is_file($base . '/app/Service/TabularExportService.php'), 'Servizio esportazioni tabellari mancante.');
 $tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportService.php');
 $assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
@@ -441,6 +464,7 @@ $ledgerService = (string) file_get_contents($base . '/app/Service/LedgerReportSe
 $importService = (string) file_get_contents($base . '/app/Service/ImportService.php');
 $vatRegistersView = (string) file_get_contents($base . '/views/accounting/vat-registers.php');
 $vatSettlementView = (string) file_get_contents($base . '/views/accounting/vat-settlement.php');
+$importPreviewView = (string) file_get_contents($base . '/views/imports/preview.php');
 $assert(str_contains($trialBalanceView, 'Stato patrimoniale') && str_contains($trialBalanceView, 'Conto economico') && str_contains($trialBalanceView, 'statement-account-link'), 'La situazione contabile deve essere gerarchica e collegata ai mastrini.');
 $assert(str_contains($trialBalanceView, 'Apertura non contabilizzata') && str_contains($trialBalanceView, 'Differenza Dare / Avere') && str_contains($accountingController, 'TOTALI SALDI'), 'Controlli di apertura, totali e differenza della situazione contabile mancanti.');
 $assert(str_contains($trialBalanceView, 'Includi scritture di chiusura')
@@ -469,12 +493,30 @@ $assert(str_contains($importService, "'vat_summaries' => \$summaries")
     && str_contains($importService, 'Rettifica riepilogo FatturaPA')
     && str_contains($importService, 'ROLLBACK TO SAVEPOINT'),
     'L’import FatturaPA deve usare i riepiloghi fiscali e isolare gli errori della singola fattura.');
+$assert(is_file($base . '/database/migrations/026_document_registration_date.sql')
+    && str_contains($importService, 'registration_date')
+    && str_contains($importPreviewView, 'name="registration_date"')
+    && str_contains($importService, 'non può precedere la data documento'),
+    'L’import FatturaPA deve richiedere e conservare una data di registrazione distinta dalla data documento.');
 $assert(str_contains($officialPrintService, 'VAT_REVERSE_CHARGE') && str_contains($officialPrintService, 'VAT_SELF_INVOICES') && str_contains($officialPrintService, 'VAT_LIQUIDATION'), 'Tipi di stampa IVA ufficiale incompleti.');
 $assert(str_contains($vatService, 'vat_description, vat_legal_reference') && str_contains($vatService, 'GROUP BY register_type, vat_code, vat_rate'), 'Liquidazioni IVA prive del raggruppamento storico per articolo e aliquota.');
 $accountingService = (string) file_get_contents($base . '/app/Service/AccountingService.php');
 $journalView = (string) file_get_contents($base . '/views/accounting/journal.php');
 $entryView = (string) file_get_contents($base . '/views/accounting/entry.php');
 $assert(str_contains($accountingService, 'journal_entry_revisions') && str_contains($accountingService, 'is_finalized = 0'), 'Revisioni delle scritture provvisorie mancanti.');
+$assert(str_contains($accountingService, "\$document['registration_date'] ?: \$document['document_date']")
+    && str_contains($vatService, "\$registrationDate = (string) (\$document['registration_date'] ?: \$document['document_date'])")
+    && str_contains($vatService, "\$document['document_date'] : null"),
+    'Prima nota e periodo IVA devono usare la data registrazione conservando la data documento come data fiscale.');
+$assert(str_contains($application, "'/documents/{type}/{id}/registration-date'")
+    && str_contains($application, "'/imports/{id}/registration-date'")
+    && str_contains($application, "'/accounting/journal/{id}/registration-date'")
+    && str_contains($accountingService, 'changeDocumentRegistrationDate')
+    && str_contains($importService, 'changeFatturaPaRegistrationDate')
+    && str_contains($accountingService, 'Correzione data di registrazione del documento')
+    && str_contains($entryView, 'Documento collegato')
+    && str_contains((string) file_get_contents($base . '/views/documents/view.php'), 'Correggi data di registrazione'),
+    'La data di registrazione dei documenti già importati deve poter essere corretta riallineando prima nota e IVA.');
 $assert(str_contains($accountingService, 'changeLineAccount') && str_contains($entryView, 'Cambia conto') && str_contains($entryView, 'data-account-search') && str_contains($appJs, 'data-account-change-dialog'), 'Cambio rapido ricercabile del conto sulle righe contabili mancante.');
 $partyLedgerService = (string) file_get_contents($base . '/app/Service/PartyLedgerService.php');
 $receivablesService = (string) file_get_contents($base . '/app/Service/ReceivablesService.php');

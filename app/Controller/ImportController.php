@@ -63,7 +63,19 @@ final class ImportController extends BaseController
             $row['data'] = json_decode((string) $row['normalized_data_json'], true) ?: [];
         }
         unset($row);
-        $this->view->render('imports/preview', compact('batch', 'rows') + ['title' => 'Anteprima import #' . $id]);
+        $proposedRegistrationDate = substr((string) ($batch['created_at'] ?? ''), 0, 10) ?: date('Y-m-d');
+        if ($batch['import_type'] === 'fatturapa' && in_array($batch['status'], ['COMPLETED', 'COMPLETED_WITH_ERRORS'], true)) {
+            $dates = $this->db->prepare(
+                'SELECT MIN(registration_date) AS first_date, MAX(registration_date) AS last_date
+                 FROM documents WHERE organization_id = ? AND source_import_batch_id = ?'
+            );
+            $dates->execute([Auth::organizationId(), (int) $id]);
+            $range = $dates->fetch() ?: [];
+            if (!empty($range['first_date']) && $range['first_date'] === $range['last_date']) {
+                $proposedRegistrationDate = (string) $range['first_date'];
+            }
+        }
+        $this->view->render('imports/preview', compact('batch', 'rows', 'proposedRegistrationDate') + ['title' => 'Anteprima import #' . $id]);
     }
 
     public function commit(string $id): never
@@ -75,7 +87,10 @@ final class ImportController extends BaseController
         if ($check->fetchColumn() === 'datev_koinos' && ($_POST['confirm_destination'] ?? '') !== '1') {
             $this->redirect('/imports/' . (int)$id, 'Conferma l’azienda destinataria e il backup prima di acquisire i dati.', 'error');
         }
-        $result = $this->service()->commit((int) $id);
+        $result = $this->service()->commit(
+            (int) $id,
+            isset($_POST['registration_date']) ? (string) $_POST['registration_date'] : null,
+        );
         $this->audit('COMMIT', 'import_batches', (int) $id, $result);
         if (array_key_exists('references', $result)) {
             $this->redirect('/imports/' . (int)$id, sprintf('Acquisizione: %d applicati, %d di riferimento, %d da completare o riconciliare, %d già presenti, %d errori. Non equivale al completamento della migrazione contabile.', $result['applied'], $result['references'], $result['pending'], $result['skipped'], $result['errors']), ($result['errors'] || $result['pending']) ? 'warning' : 'success');
@@ -94,6 +109,25 @@ final class ImportController extends BaseController
         $count = $this->service()->rollback((int) $id);
         $this->audit('ROLLBACK', 'import_batches', (int) $id, ['records' => $count]);
         $this->redirect('/imports/' . $id, sprintf('Rollback completato: %d record ripristinati o rimossi.', $count));
+    }
+
+    public function registrationDate(string $id): never
+    {
+        $this->guard();
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
+        try {
+            $result = $this->service()->changeFatturaPaRegistrationDate(
+                (int) $id,
+                (string) ($_POST['registration_date'] ?? ''),
+            );
+            $this->audit('REGISTRATION_DATE_CHANGE', 'import_batches', (int) $id, $result);
+            $this->redirect('/imports/' . (int) $id, sprintf(
+                'Data di registrazione aggiornata su %d documenti del lotto. Prima nota e IVA sono state riallineate.',
+                $result['updated'],
+            ));
+        } catch (Throwable $exception) {
+            $this->redirect('/imports/' . (int) $id, 'Date non modificate: ' . $exception->getMessage(), 'error');
+        }
     }
 
     private function service(): ImportService

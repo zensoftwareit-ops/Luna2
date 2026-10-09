@@ -126,6 +126,7 @@ final class Application
         $router->add('GET', '/documents/{type}/{id}/pdf', [DocumentController::class, 'pdf']);
         $router->add('GET', '/documents/{type}/{id}/xml', [DocumentController::class, 'xml']);
         $router->add('POST', '/documents/{type}/{id}/status', [DocumentController::class, 'status']);
+        $router->add('POST', '/documents/{type}/{id}/registration-date', [DocumentController::class, 'registrationDate']);
         $router->add('POST', '/documents/{type}/{id}/convert', [DocumentController::class, 'convert']);
 
         $router->add('GET', '/operations/logistics', [LogisticsController::class, 'index']);
@@ -192,6 +193,7 @@ final class Application
         $router->add('GET', '/accounting/journal/{id}/edit', [AccountingController::class, 'edit']);
         $router->add('POST', '/accounting/journal/{id}/post', [AccountingController::class, 'postDraft']);
         $router->add('POST', '/accounting/journal/{id}/delete', [AccountingController::class, 'deleteDraft']);
+        $router->add('POST', '/accounting/journal/{id}/registration-date', [AccountingController::class, 'registrationDate']);
         $router->add('POST', '/accounting/journal/{id}/lines/{lineId}/account', [AccountingController::class, 'changeLineAccount']);
         $router->add('GET', '/accounting/journal/{id}', [AccountingController::class, 'show']);
         $router->add('GET', '/accounting/trial-balance', [AccountingController::class, 'trialBalance']);
@@ -253,6 +255,7 @@ final class Application
         $router->add('GET', '/imports/{id}', [ImportController::class, 'preview']);
         $router->add('GET', '/imports/files/{id}/download', [ImportController::class, 'download']);
         $router->add('POST', '/imports/{id}/commit', [ImportController::class, 'commit']);
+        $router->add('POST', '/imports/{id}/registration-date', [ImportController::class, 'registrationDate']);
         $router->add('POST', '/imports/{id}/rollback', [ImportController::class, 'rollback']);
 
         $router->add('GET', '/settings/modules', [SettingsController::class, 'modules']);
@@ -274,6 +277,8 @@ final class Application
         $router->add('POST', '/settings/company/update', [PlatformController::class, 'updateCompany']);
         $router->add('POST', '/settings/company/{id}/select', [PlatformController::class, 'selectCompany']);
         $router->add('POST', '/settings/users', [PlatformController::class, 'createUser']);
+        $router->add('GET', '/settings/users/{id}/edit', [PlatformController::class, 'editUser']);
+        $router->add('POST', '/settings/users/{id}/update', [PlatformController::class, 'updateUser']);
         $router->add('POST', '/settings/users/{id}/toggle', [PlatformController::class, 'toggleUser']);
         $router->add('POST', '/settings/users/{id}/reset-password', [PlatformController::class, 'resetUserPassword']);
         $router->add('POST', '/settings/security/password', [PlatformController::class, 'changePassword']);

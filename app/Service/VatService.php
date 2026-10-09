@@ -43,7 +43,7 @@ final class VatService
         }
         try {
             $statement = $this->db->prepare(
-                "SELECT id, document_type, number, document_date, counterparty_name, counterparty_type,
+                "SELECT id, document_type, number, document_date, registration_date, counterparty_name, counterparty_type,
                         fatturapa_type, vat_collectability
                  FROM documents WHERE id = ? AND organization_id = ? FOR UPDATE"
             );
@@ -56,7 +56,8 @@ final class VatService
                 return 0;
             }
 
-            $date = new DateTimeImmutable((string) $document['document_date']);
+            $registrationDate = (string) ($document['registration_date'] ?: $document['document_date']);
+            $date = new DateTimeImmutable($registrationDate);
             $this->assertPeriodOpen((int) $date->format('Y'), (int) $date->format('n'));
             $isCreditNote = $this->isCreditNote($document);
             $register = $this->isPurchaseDocument($document) ? 'PURCHASES' : 'SALES';
@@ -119,7 +120,7 @@ final class VatService
                     $this->organizationId, $documentId,
                     strtoupper((string) ($document['fatturapa_type'] ?: ($isCreditNote ? 'TD04' : 'TD01'))),
                     $register, $registerId, $operation, $collectability,
-                    $document['document_date'], in_array($collectability, ['IMMEDIATE', 'SPLIT'], true) ? $document['document_date'] : null,
+                    $registrationDate, in_array($collectability, ['IMMEDIATE', 'SPLIT'], true) ? $document['document_date'] : null,
                     $document['number'], $document['counterparty_name'], $isCreditNote
                         ? ($register === 'PURCHASES' ? 'Nota di credito fornitore' : 'Nota di credito cliente')
                         : $this->documentDescription((string) $document['document_type']),

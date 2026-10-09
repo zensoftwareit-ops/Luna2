@@ -132,6 +132,7 @@ $roleLabels = [
         <div class="table-wrap"><table><thead><tr><th>Utente</th><th>Ruolo</th><th>Stato</th><th>Ultimo accesso</th><th class="actions-column">Azioni</th></tr></thead><tbody>
         <?php foreach ($users as $user): ?>
             <tr><td class="primary-cell"><strong><?= View::e($user['name']) ?></strong><small><?= View::e($user['email']) ?></small></td><td><?= View::e($roleLabels[$user['role']] ?? $user['role']) ?></td><td><span class="badge <?= $user['active'] ? 'status-active' : 'status-muted' ?>"><?= $user['active'] ? 'Attivo' : 'Disattivato' ?></span></td><td><?= $user['last_login_at'] ? View::date($user['last_login_at']) : 'Mai' ?></td><td class="row-actions">
+                <a class="table-action" href="/settings/users/<?= (int) $user['id'] ?>/edit">Modifica</a>
                 <form method="post" action="/settings/users/<?= (int) $user['id'] ?>/reset-password"><input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>"><button class="table-action" type="submit">Nuova password</button></form>
                 <form method="post" action="/settings/users/<?= (int) $user['id'] ?>/toggle"><input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>"><button class="table-action <?= $user['active'] ? 'danger-text' : '' ?>" type="submit"><?= $user['active'] ? 'Disattiva' : 'Riattiva' ?></button></form>
             </td></tr>

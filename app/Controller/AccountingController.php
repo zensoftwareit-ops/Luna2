@@ -101,7 +101,16 @@ final class AccountingController extends BaseController
             $revisions = $statement->fetchAll();
         }
         $accounts = $this->accounts();
-        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions', 'accounts') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
+        $sourceDocument = null;
+        if ($entry['source_type'] === 'DOCUMENT' && !empty($entry['source_id'])) {
+            $statement = $this->db->prepare(
+                'SELECT id, document_type, number, document_date, registration_date
+                 FROM documents WHERE id = ? AND organization_id = ?'
+            );
+            $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
+            $sourceDocument = $statement->fetch() ?: null;
+        }
+        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions', 'accounts', 'sourceDocument') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
     }
 
     public function save(): never
@@ -166,6 +175,33 @@ final class AccountingController extends BaseController
             );
         } catch (InvalidArgumentException|RuntimeException $exception) {
             $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
+        }
+    }
+
+    public function registrationDate(string $id): never
+    {
+        $this->authorize();
+        [$entry] = $this->entry((int) $id);
+        if ($entry['source_type'] !== 'DOCUMENT' || empty($entry['source_id'])) {
+            $this->redirect(
+                '/accounting/journal/' . (int) $id . ($entry['source_type'] === 'MANUAL' ? '/edit' : ''),
+                $entry['source_type'] === 'MANUAL'
+                    ? 'Per una scrittura manuale modifica la data dal modulo completo.'
+                    : 'Questa scrittura non è collegata a una fattura e non può riallineare automaticamente il registro IVA.',
+                $entry['source_type'] === 'MANUAL' ? 'success' : 'error',
+            );
+        }
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))
+                ->changeDocumentRegistrationDate((int) $entry['source_id'], (string) ($_POST['registration_date'] ?? ''));
+            $this->audit('REGISTRATION_DATE_CHANGE', 'journal_entries', (int) $id, $result);
+            $this->redirect('/accounting/journal/' . (int) $id, sprintf(
+                'Data aggiornata da %s a %s. Documento e registro IVA sono stati riallineati.',
+                $result['previous_date'],
+                $result['registration_date'],
+            ));
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id, 'Data non modificata: ' . $exception->getMessage(), 'error');
         }
     }
 

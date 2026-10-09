@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Luna\Service;
 
+use DateTimeImmutable;
 use InvalidArgumentException;
 use PDO;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -80,7 +81,7 @@ final class ImportService
         return $batchId;
     }
 
-    public function commit(int $batchId): array
+    public function commit(int $batchId, ?string $registrationDate = null): array
     {
         $this->db->beginTransaction();
         $started = false;
@@ -88,6 +89,11 @@ final class ImportService
             $batch = $this->batch($batchId, true);
             if (!in_array($batch['status'], ['READY', 'ERROR'], true)) throw new InvalidArgumentException('Il lotto non è pronto per l’importazione.');
             if ($batch['import_type'] === 'datev_koinos' && $batch['status'] !== 'READY') throw new InvalidArgumentException('Analisi Koinos incompleta: correggere il file e caricare un nuovo lotto. Nessuna acquisizione parziale consentita.');
+            if ($batch['import_type'] === 'fatturapa') {
+                $registrationDate = $this->registrationDate(
+                    $registrationDate ?: substr((string) ($batch['created_at'] ?? ''), 0, 10),
+                );
+            }
             $started = true;
             $this->db->prepare("UPDATE import_batches SET status = 'IMPORTING', updated_at = NOW() WHERE id = ?")->execute([$batchId]);
             $statement = $this->db->prepare("SELECT * FROM import_rows WHERE batch_id = ? AND organization_id = ? AND status IN ('STAGED','VALID') ORDER BY source_file_id, source_row_number");
@@ -103,7 +109,7 @@ final class ImportService
                 'vat_movements' => $this->commitVatMovements($batchId, $rows),
                 'fixed_assets' => $this->commitFixedAssets($batchId, $rows),
                 'bank_transactions' => $this->commitBankTransactions($batchId, $rows),
-                'fatturapa' => $this->commitFatturaPa($batchId, $rows),
+                'fatturapa' => $this->commitFatturaPa($batchId, $rows, (string) $registrationDate),
                 'datev_koinos' => (new DatevKoinosImport($this->db, $this->organizationId, $this->userId))->commit($batchId, $rows),
                 default => throw new InvalidArgumentException('Importazione non gestita.'),
             };
@@ -133,6 +139,41 @@ final class ImportService
         $batchId=(int)$this->db->lastInsertId();
         try{foreach($files as $index=>$file){$name=basename((string)($file['name']??('fattura-'.($index+1).'.xml')));if(mb_strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='xml')continue;$path=$directory.'/'.($index+1).'.xml';if(file_put_contents($path,(string)$file['content'],LOCK_EX)===false){throw new RuntimeException('Impossibile archiviare una fattura ricevuta.');}$this->stageFile($batchId,$path,$name,'fatturapa',$maxBytes,0);} $this->refreshCounters($batchId,'READY');return $batchId;}
         catch(Throwable $exception){$this->db->prepare("UPDATE import_batches SET status='ERROR',error_message=?,updated_at=NOW() WHERE id=?")->execute([mb_substr($exception->getMessage(),0,2000),$batchId]);throw $exception;}
+    }
+
+    public function changeFatturaPaRegistrationDate(int $batchId, string $registrationDate): array
+    {
+        $registrationDate = $this->registrationDate($registrationDate);
+        $this->db->beginTransaction();
+        try {
+            $batch = $this->batch($batchId, true);
+            if ($batch['import_type'] !== 'fatturapa' || !in_array($batch['status'], ['COMPLETED', 'COMPLETED_WITH_ERRORS'], true)) {
+                throw new InvalidArgumentException('Il lotto non è un’importazione FatturaPA già completata.');
+            }
+            $statement = $this->db->prepare(
+                'SELECT id FROM documents
+                 WHERE organization_id = ? AND source_import_batch_id = ?
+                   AND document_type IN (\'SALES_INVOICE\',\'PURCHASE_INVOICE\',\'CREDIT_NOTE\')
+                 ORDER BY id FOR UPDATE'
+            );
+            $statement->execute([$this->organizationId, $batchId]);
+            $documentIds = array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
+            if ($documentIds === []) {
+                throw new InvalidArgumentException('Nel lotto non risultano documenti operativi da aggiornare.');
+            }
+
+            $service = new AccountingService($this->db, $this->organizationId, $this->userId);
+            foreach ($documentIds as $documentId) {
+                $service->changeDocumentRegistrationDate($documentId, $registrationDate);
+            }
+            $this->db->commit();
+            return ['updated' => count($documentIds), 'registration_date' => $registrationDate];
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $exception;
+        }
     }
 
     public function rollback(int $batchId): int
@@ -1015,7 +1056,7 @@ final class ImportService
         return compact('imported', 'errors');
     }
 
-    private function commitFatturaPa(int $batchId, array $rows): array
+    private function commitFatturaPa(int $batchId, array $rows, string $registrationDate): array
     {
         $imported = 0; $errors = 0; $skipped = 0;
         foreach ($rows as $staged) {
@@ -1025,6 +1066,13 @@ final class ImportService
                 $data = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
                 if (empty($data['number']) || empty($data['document_date']) || empty($data['counterparty_name'])) {
                     throw new InvalidArgumentException('Dati minimi FatturaPA mancanti.');
+                }
+                if ($registrationDate < (string) $data['document_date']) {
+                    throw new InvalidArgumentException(sprintf(
+                        'La data di registrazione %s non può precedere la data documento %s.',
+                        $registrationDate,
+                        $data['document_date'],
+                    ));
                 }
             $data['counterparty_vat'] = PartyAutomationService::normalizeVat($data['counterparty_vat'] ?? null, (string) ($data['counterparty_country'] ?? 'IT'));
             $partyTable = $data['document_type'] === 'PURCHASE_INVOICE' ? 'suppliers' : 'customers';
@@ -1065,8 +1113,8 @@ final class ImportService
             $total = $data['total'] > 0 ? round((float) $data['total'], 2) : round($taxable + $vat, 2);
             $status = $data['document_type'] === 'PURCHASE_INVOICE' ? 'RECEIVED' : 'ISSUED';
             $this->db->prepare(
-                'INSERT INTO documents (organization_id, document_type, number, fiscal_year, document_date, due_date, counterparty_type, counterparty_id, counterparty_name, currency, taxable_total, vat_total, withholding_total, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause, total, balance_due, status, fatturapa_type, payment_method_code, bank_name, bank_abi, bank_cab, bank_iban, external_key, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
-            )->execute([$this->organizationId, $data['document_type'], $data['number'], (int) substr($data['document_date'], 0, 4), $data['document_date'], $data['due_date'] ?: null, $partyTable === 'suppliers' ? 'SUPPLIER' : 'CUSTOMER', $partyId, $data['counterparty_name'], $data['currency'], $taxable, $vat,
+                'INSERT INTO documents (organization_id, document_type, number, fiscal_year, document_date, registration_date, due_date, counterparty_type, counterparty_id, counterparty_name, currency, taxable_total, vat_total, withholding_total, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause, total, balance_due, status, fatturapa_type, payment_method_code, bank_name, bank_abi, bank_cab, bank_iban, external_key, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+            )->execute([$this->organizationId, $data['document_type'], $data['number'], (int) substr($data['document_date'], 0, 4), $data['document_date'], $registrationDate, $data['due_date'] ?: null, $partyTable === 'suppliers' ? 'SUPPLIER' : 'CUSTOMER', $partyId, $data['counterparty_name'], $data['currency'], $taxable, $vat,
                 $data['withholding_amount'] ?: 0, $data['withholding_type'] ?: null, $data['withholding_rate'] ?: 0, $data['withholding_cause'] ?: null,
                 $total, round($total - (float) ($data['withholding_amount'] ?? 0), 2), $status, $data['fatturapa_type'], $data['payment_method_code'] ?: null,
                 $data['bank_name'] ?: null, $data['bank_abi'] ?: null, $data['bank_cab'] ?: null, $data['bank_iban'] ?: null,
@@ -1095,6 +1143,16 @@ final class ImportService
     {
         $statement = $this->db->prepare('INSERT INTO import_rows (organization_id, batch_id, source_file_id, source_row_number, raw_data_json, normalized_data_json, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, \'STAGED\', NOW(), NOW())');
         $statement->execute([$this->organizationId, $batchId, $fileId, $rowNumber, json_encode($raw, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
+    }
+
+    private function registrationDate(string $value): string
+    {
+        $date = DateTimeImmutable::createFromFormat('!Y-m-d', trim($value));
+        $errors = DateTimeImmutable::getLastErrors();
+        if ($date === false || ($errors !== false && ($errors['warning_count'] > 0 || $errors['error_count'] > 0))) {
+            throw new InvalidArgumentException('La data di registrazione delle fatture non è valida.');
+        }
+        return $date->format('Y-m-d');
     }
 
     private function refreshCounters(int $batchId, string $status): void

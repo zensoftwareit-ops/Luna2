@@ -151,22 +151,114 @@ final class PlatformController extends BaseController
         $this->redirect('/settings/company', 'Utente creato. Copia subito la password temporanea.');
     }
 
+    public function editUser(string $id): never
+    {
+        $organizationId = $this->requireOrganizationAdministrator();
+        $statement = $this->db->prepare(
+            "SELECT id, name, email, role, active, last_login_at, created_at
+             FROM users
+             WHERE id = ? AND organization_id = ? AND role <> 'SUPERUSER'"
+        );
+        $statement->execute([(int) $id, $organizationId]);
+        $user = $statement->fetch();
+        if (!$user) {
+            $this->redirect('/settings/company', 'Utente non trovato.', 'error');
+        }
+
+        $roles = self::USER_ROLES;
+        $isCurrentUser = !Auth::isSuperuser() && (int) $user['id'] === Auth::id();
+        $this->view->render('settings/user-edit', compact('user', 'roles', 'isCurrentUser') + [
+            'title' => 'Modifica utente',
+        ]);
+    }
+
+    public function updateUser(string $id): never
+    {
+        $organizationId = $this->requireOrganizationAdministrator();
+        $name = trim((string) ($_POST['name'] ?? ''));
+        $email = mb_strtolower(trim((string) ($_POST['email'] ?? '')));
+        $role = (string) ($_POST['role'] ?? '');
+        if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || !in_array($role, self::USER_ROLES, true)) {
+            $this->redirect('/settings/users/' . (int) $id . '/edit', 'Controlla nome, email e ruolo dell’utente.', 'error');
+        }
+
+        $user = null;
+        try {
+            $this->db->beginTransaction();
+            $statement = $this->db->prepare(
+                "SELECT id, name, email, role, active
+                 FROM users
+                 WHERE id = ? AND organization_id = ? AND role <> 'SUPERUSER'
+                 FOR UPDATE"
+            );
+            $statement->execute([(int) $id, $organizationId]);
+            $user = $statement->fetch();
+            if (!$user) {
+                throw new DomainException('Utente non trovato.');
+            }
+            if (!Auth::isSuperuser() && (int) $user['id'] === Auth::id() && $role !== (string) $user['role']) {
+                throw new DomainException('Per modificare il tuo ruolo deve intervenire un altro Titolare o Amministratore.');
+            }
+
+            $this->assertOwnerContinuity(
+                $organizationId,
+                (int) $user['id'],
+                (string) $user['role'],
+                (bool) $user['active'],
+                $role,
+                (bool) $user['active'],
+            );
+            $this->db->prepare(
+                'UPDATE users SET name = ?, email = ?, role = ?, updated_at = NOW()
+                 WHERE id = ? AND organization_id = ?'
+            )->execute([$name, $email, $role, (int) $user['id'], $organizationId]);
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            $message = str_contains(strtolower($exception->getMessage()), 'duplicate')
+                ? 'Esiste già un utente con questo indirizzo email.'
+                : ($exception instanceof DomainException ? $exception->getMessage() : 'Non è stato possibile aggiornare l’utente.');
+            $this->redirect('/settings/users/' . (int) $id . '/edit', $message, 'error');
+        }
+
+        $this->audit('UPDATE_USER', 'user', (int) $id, [
+            'before' => ['name' => $user['name'], 'email' => $user['email'], 'role' => $user['role']],
+            'after' => ['name' => $name, 'email' => $email, 'role' => $role],
+        ]);
+        $this->redirect('/settings/company', 'Utente e ruolo aggiornati.');
+    }
+
     public function toggleUser(string $id): never
     {
         $organizationId = $this->requireOrganizationAdministrator();
         try {
             $this->db->beginTransaction();
-            $statement = $this->db->prepare("SELECT active FROM users WHERE id = ? AND organization_id = ? AND role <> 'SUPERUSER' FOR UPDATE");
+            $statement = $this->db->prepare("SELECT id, role, active FROM users WHERE id = ? AND organization_id = ? AND role <> 'SUPERUSER' FOR UPDATE");
             $statement->execute([(int) $id, $organizationId]);
-            $active = $statement->fetchColumn();
-            if ($active === false) {
+            $user = $statement->fetch();
+            if (!$user) {
                 throw new DomainException('Utente non trovato.');
             }
-            if (!(bool) $active) {
+            $active = (bool) $user['active'];
+            $newActive = !$active;
+            if (!Auth::isSuperuser() && (int) $user['id'] === Auth::id() && !$newActive) {
+                throw new DomainException('Non puoi disattivare il tuo stesso account.');
+            }
+            $this->assertOwnerContinuity(
+                $organizationId,
+                (int) $user['id'],
+                (string) $user['role'],
+                $active,
+                (string) $user['role'],
+                $newActive,
+            );
+            if ($newActive) {
                 (new UserLimitService($this->db))->assertCanActivate($organizationId);
             }
             $this->db->prepare('UPDATE users SET active = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
-                ->execute([(bool) $active ? 0 : 1, (int) $id, $organizationId]);
+                ->execute([$newActive ? 1 : 0, (int) $id, $organizationId]);
             $this->db->commit();
         } catch (Throwable $exception) {
             if ($this->db->inTransaction()) {
@@ -175,7 +267,7 @@ final class PlatformController extends BaseController
             $message = $exception instanceof DomainException ? $exception->getMessage() : 'Non è stato possibile aggiornare lo stato dell’utente.';
             $this->redirect('/settings/company', $message, 'error');
         }
-        $this->audit('TOGGLE_USER', 'user', (int) $id);
+        $this->audit('TOGGLE_USER', 'user', (int) $id, ['active' => $newActive]);
         $this->redirect('/settings/company', 'Stato dell’utente aggiornato.');
     }
 
@@ -276,6 +368,30 @@ final class PlatformController extends BaseController
         $storedHash = $statement->fetchColumn();
         if (!is_string($storedHash) || !password_verify($password, $storedHash)) {
             throw new DomainException('Verifica delle credenziali salvate non riuscita.');
+        }
+    }
+
+    private function assertOwnerContinuity(
+        int $organizationId,
+        int $userId,
+        string $currentRole,
+        bool $currentActive,
+        string $newRole,
+        bool $newActive,
+    ): void {
+        if ($currentRole !== 'OWNER' || !$currentActive || ($newRole === 'OWNER' && $newActive)) {
+            return;
+        }
+
+        $statement = $this->db->prepare(
+            "SELECT id FROM users
+             WHERE organization_id = ? AND role = 'OWNER' AND active = 1
+             ORDER BY id FOR UPDATE"
+        );
+        $statement->execute([$organizationId]);
+        $activeOwnerIds = array_map('intval', $statement->fetchAll(\PDO::FETCH_COLUMN));
+        if (count(array_diff($activeOwnerIds, [$userId])) === 0) {
+            throw new DomainException('L’azienda deve mantenere almeno un Titolare attivo.');
         }
     }
 }

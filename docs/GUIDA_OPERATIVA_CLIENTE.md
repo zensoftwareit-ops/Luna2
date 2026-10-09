@@ -144,7 +144,17 @@ Questi dati vengono ripresi in documenti, XML e stampe. Una modifica non corregg
 
 Per sospendere un accesso usare **Disattiva**. Non riutilizzare l'account di una persona uscita dall'azienda per un nuovo dipendente.
 
-### 6.3 Attivare i moduli
+### 6.3 Modificare un utente o il suo ruolo
+
+1. Aprire **Azienda e utenti**.
+2. Nella tabella **Utenti aziendali**, individuare la persona interessata.
+3. Premere **Modifica**.
+4. Correggere nome o e-mail e selezionare il nuovo **Ruolo**.
+5. Premere **Salva modifiche**.
+
+Il ruolo determina le aree e le operazioni disponibili. **Titolare** e **Amministratore** possono gestire utenti e configurazione aziendale; assegnarli solo a persone autorizzate. Il sistema impedisce di rimuovere o disattivare l'ultimo Titolare attivo e impedisce a un amministratore di cambiare il proprio ruolo. Per sospendere l'accesso senza cancellare lo storico, usare **Disattiva** dalla tabella utenti.
+
+### 6.4 Attivare i moduli
 
 Percorso: **Moduli aziendali**.
 
@@ -155,7 +165,7 @@ Percorso: **Moduli aziendali**.
 
 Disattivare un modulo nasconde l'area, ma non equivale a cancellarne i dati.
 
-### 6.4 Dominio personalizzato
+### 6.5 Dominio personalizzato
 
 Percorso: **Dominio personalizzato**, disponibile a Titolare e Amministratore.
 
@@ -330,9 +340,27 @@ Percorso: **Importazioni**.
 3. Premere **Carica e analizza**.
 4. Controllare azienda destinataria, tipo documento, emittente, destinatario, date, imponibile, IVA e totale.
 5. Leggere tutte le segnalazioni.
-6. Confermare l'importazione solo se l'anteprima è corretta.
-7. Verificare il risultato in **Fatture passive** o **Fatture attive**.
-8. Aprire la prima nota, il registro IVA e la partita generati.
+6. Impostare la **Data registrazione**. Questa data determina il giorno della prima nota, il protocollo e il periodo IVA; la **Data documento** originale dell'XML non viene modificata.
+7. Confermare l'importazione solo se l'anteprima è corretta.
+8. Verificare il risultato in **Fatture passive** o **Fatture attive**.
+9. Aprire la prima nota, il registro IVA e la partita generati e verificare che riportino il periodo scelto.
+
+Esempio: una fattura datata 30 settembre ricevuta quando settembre è già chiuso deve essere importata con **Data registrazione** in ottobre. Rimane un documento di settembre, ma alimenta la prima nota e il registro IVA di ottobre. Se un lotto contiene fatture da registrare in mesi diversi, dividerlo in più caricamenti, uno per ciascuna data di registrazione.
+
+Luna rifiuta la contabilizzazione se la data di registrazione appartiene a un periodo contabile o IVA già chiuso. Non riaprire un periodo solo per forzare l'importazione: verificare prima la data con il responsabile contabile.
+
+#### Correggere una data dopo l'importazione
+
+1. Aprire la fattura da **Fatture passive**, **Fatture attive** o **Note di credito**.
+2. Nel riquadro **Correggi data di registrazione**, inserire la data corretta.
+3. Premere **Aggiorna data** e confermare.
+4. Controllare la data della prima nota e il mese del registro IVA.
+
+La correzione non modifica la data documento. Luna aggiorna in un'unica operazione documento, scrittura contabile e movimento IVA e conserva la revisione. L'operazione viene rifiutata se il vecchio o il nuovo periodo è chiuso, se la liquidazione IVA è definitiva oppure se la scrittura è stata finalizzata con il libro giornale.
+
+La stessa correzione è disponibile da **Contabilità - Prima nota**: aprire la registrazione originata dalla fattura, usare il riquadro **Correggi data di registrazione** e confermare. Per evitare disallineamenti non viene modificata soltanto la riga di prima nota: Luna applica sempre la correzione sincronizzata anche al documento e all'IVA. Le scritture manuali si modificano invece con il pulsante **Modifica**.
+
+Per assegnare la stessa data a tutte le fatture di un caricamento già concluso, aprire il lotto da **Importazioni**, compilare **Nuova data dell'intero lotto** e premere **Correggi date lotto**. L'operazione è atomica: se anche una sola fattura non può essere aggiornata, nessun documento del lotto viene modificato. Usare invece la scheda della singola fattura quando le date devono essere differenti.
 
 L'import operativo crea o riutilizza l'anagrafica tramite Partita IVA, genera documento, righe, contabilità, IVA, scadenza e sottoconto della controparte.
 
