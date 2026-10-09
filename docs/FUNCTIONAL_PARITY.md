@@ -19,6 +19,7 @@ Legenda: **Operativo** = workflow applicativo completo nella release PHP; **Vali
 | Registri e liquidazioni IVA | Operativo / Validazione fiscale | IVA per cassa, esigibilità, detraibilità, pro-rata, rettifiche e blocchi |
 | LIPE e raccordo IVA annuale | Operativo / Validazione fiscale | Prospetti di controllo non trasmissivi |
 | Pagamenti, partite, banche e riconciliazione | Operativo | Allocazioni, insoluti, storni, import CSV/CAMT.053/MT940 e matching assistito controllato |
+| Partitario clienti/fornitori | Operativo / Validazione cliente | Sottoconti automatici da anagrafica, saldi progressivi, note di credito, pagamenti e riconciliazione dello storico DATEV |
 | Ratei, risconti, chiusura/apertura | Operativo / Validazione cliente | Assestamenti, blocco esercizio e riapertura patrimoniale |
 | Cespiti e ammortamenti | Operativo / Validazione fiscale | Libro cespiti e quote civilistiche/fiscali |
 | Magazzino atomico | Operativo | Saldi bloccati in transazione, no negativo, costo medio e movimenti idempotenti |
@@ -35,7 +36,7 @@ Legenda: **Operativo** = workflow applicativo completo nella release PHP; **Vali
 
 ## Cosa significa “pacchetto completo”
 
-La release PHP contiene tutti i workflow applicativi sopra elencati e le migrazioni `008_full_erp_parity.sql` e `009_professional_workspace.sql`. Non sostituisce le attività che dipendono da terze parti o da responsabilità professionali:
+La release PHP contiene tutti i workflow applicativi sopra elencati. Le migrazioni `008_full_erp_parity.sql` e `009_professional_workspace.sql` ne costituiscono la base storica; un'installazione corrente deve applicare l'intera serie presente nel repository (al 9 ottobre 2026 fino alla `025`). Non sostituisce le attività che dipendono da terze parti o da responsabilità professionali:
 
 1. gli adapter marketplace, calendario, SMTP e il futuro SDI vanno collaudati con credenziali reali;
 2. un esercizio DATEV anonimizzato va importato e quadrato contro bilancio, IVA, partitari, banche e cespiti;

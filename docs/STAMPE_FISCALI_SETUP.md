@@ -4,7 +4,7 @@
 
 1. Effettuare il backup del database e dei file privati.
 2. Eseguire il pull del branch `luna2-php` in Plesk.
-3. Eseguire `bin/luna migrate` con la versione PHP del dominio: la nuova migrazione è `015_fiscal_print_evidence.sql`. Non eliminare il database. I dati esistenti rimangono disponibili.
+3. Eseguire `bin/luna migrate` con la versione PHP del dominio. La funzione è stata introdotta da `015_fiscal_print_evidence.sql`, ma devono essere applicate tutte le migrazioni successive presenti nel repository (al 9 ottobre 2026 fino alla `025`). Non eliminare il database. I dati esistenti rimangono disponibili.
 4. Verificare ragione sociale, codice fiscale e sede in Azienda e utenti.
 5. Rigenerare le stampe nel Centro professionale. I PDF già archiviati rimangono invariati; quelli precedenti a questo aggiornamento non contengono il nuovo fascicolo.
 

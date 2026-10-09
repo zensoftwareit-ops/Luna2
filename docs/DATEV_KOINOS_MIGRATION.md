@@ -33,6 +33,7 @@ Il formato tedesco DATEV non va assunto uguale al prodotto italiano DATEV Koinos
 6. **Importazione** – usa transazioni, chiavi esterne idempotenti e `import_records`.
 7. **Riconciliazione** – confronta conteggi e totali con report Koinos firmati dal cliente.
 8. **Conferma o rollback** – il lotto rimane auditabile; il rollback ripristina record aggiornati e rimuove quelli creati.
+9. **Partitari** – le righe sui conti collettivi vengono collegate alle anagrafiche; gli abbinamenti non univoci si completano dal pannello di riconciliazione, senza modificare Dare/Avere.
 
 ## Ordine di caricamento
 
@@ -47,6 +48,8 @@ Il formato tedesco DATEV non va assunto uguale al prodotto italiano DATEV Koinos
 
 Se si importano sia fatture sia prima nota, le fatture storiche non vanno contabilizzate automaticamente: prevalgono le scritture originali Koinos, evitando duplicazioni.
 
+Dopo il cutover, gli XML dei nuovi mesi seguono invece il percorso operativo **Fatture XML FatturaPA** e generano documento, prima nota, IVA, partita e sottoconto. La distinzione è descritta in [PROCEDURA_OPERATIVA_MENSILE.md](PROCEDURA_OPERATIVA_MENSILE.md).
+
 ## Quadrature obbligatorie
 
 Per ogni esercizio e per il totale storico:
@@ -58,6 +61,7 @@ Per ogni esercizio e per il totale storico:
 - conto economico e stato patrimoniale uguali ai prospetti approvati;
 - registri IVA e liquidazioni uguali per periodo, inclusi crediti riportati;
 - partitari e scadenze aperte uguali alla data di cutover;
+- totale dei sottoconti uguale ai conti collettivi e nessun movimento storico non associato, salvo eccezioni verbalizzate;
 - saldo di ogni banca e cassa uguale all’estratto conto;
 - costo storico, fondo e valore netto dei cespiti uguali al registro;
 - checksum e conteggio degli XML FatturaPA originali.

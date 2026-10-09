@@ -51,7 +51,9 @@ Creare da **Attività pianificate → Aggiungi attività → Esegui un comando**
 
 Il task elabora in modo idempotente e-mail, code marketplace, calendari, ticket/SLA, rinnovi, fatture ricorrenti e notifiche del workspace. Il futuro adapter SDI resta separato e verrà attivato solo dopo la scelta del provider.
 
-Per questa release eseguire `migrate` sul database esistente: non cancellarlo. Devono comparire `008_full_erp_parity.sql` e `009_professional_workspace.sql`; al termine controllare **Stato del sistema**. La `009` aggiunge soltanto strutture incrementali per workspace, stampe, fascicoli e import bancari. Le credenziali e gli esempi di collaudo sono in [ERP_PARITY_RELEASE.md](ERP_PARITY_RELEASE.md).
+Ad ogni aggiornamento eseguire `migrate` sul database esistente: non cancellarlo e non applicare a mano singoli file SQL. In **Stato del sistema** devono risultare applicate tutte le migrazioni presenti nel repository; al 9 ottobre 2026 la serie arriva a `025_reactivate_used_leaf_accounts.sql`. Le migrazioni sono incrementali e comprendono, oltre al workspace professionale, domini personalizzati, contabilità provvisoria, liquidazioni IVA e completamento della migrazione DATEV 2025/2026. Le credenziali e gli esempi di collaudo sono in [ERP_PARITY_RELEASE.md](ERP_PARITY_RELEASE.md).
+
+Se sono attivi i domini personalizzati, aggiungere anche il task ogni 5 minuti descritto in [DOMINI_PERSONALIZZATI_PLESK.md](DOMINI_PERSONALIZZATI_PLESK.md). Il solo `cron:daily` effettua un controllo riepilogativo, ma non sostituisce la sincronizzazione frequente durante l'attivazione di DNS e certificato.
 
 Dopo la migrazione accedere con un utente aziendale `OWNER`, `ADMIN` o `ACCOUNTANT` e aprire **Centro professionale**. Verificare:
 

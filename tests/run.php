@@ -73,6 +73,27 @@ $assert(is_array($composer) && isset($composer['require']['php']), 'composer.jso
 $assert(is_file($base . '/public/index.php') && is_file($base . '/public/.htaccess'), 'Webroot incompleta.');
 $assert(is_file($base . '/docs/DATEV_KOINOS_MIGRATION.md'), 'Piano migrazione Koinos mancante.');
 $assert(is_file($base . '/docs/ACCOUNTING_PARITY.md'), 'Matrice parità contabile Koinos mancante.');
+$documentationIndex = (string) file_get_contents($base . '/docs/README.md');
+$monthlyProcedure = (string) file_get_contents($base . '/docs/PROCEDURA_OPERATIVA_MENSILE.md');
+$subledgerProcedure = (string) file_get_contents($base . '/docs/PARTITARI_CLIENTI_FORNITORI.md');
+$assert(
+    str_contains($documentationIndex, 'PROCEDURA_IMPORT_DATEV_2025_2026.md')
+    && str_contains($documentationIndex, 'PROCEDURA_OPERATIVA_MENSILE.md')
+    && str_contains($documentationIndex, 'PARTITARI_CLIENTI_FORNITORI.md'),
+    'Indice della documentazione operativa incompleto.'
+);
+$assert(
+    str_contains($monthlyProcedure, 'Fatture XML FatturaPA')
+    && str_contains($monthlyProcedure, 'Registri IVA storici')
+    && str_contains($monthlyProcedure, 'Cambia conto'),
+    'Procedura mensile priva dei passaggi operativi essenziali.'
+);
+$assert(
+    str_contains($subledgerProcedure, 'TRADE_RECEIVABLES')
+    && str_contains($subledgerProcedure, 'TRADE_PAYABLES')
+    && str_contains($subledgerProcedure, 'Riconciliazione dello storico DATEV'),
+    'Procedura del partitario clienti/fornitori incompleta.'
+);
 $assert(is_file($base . '/views/settings/modules.php') && is_file($base . '/views/settings/system.php') && is_file($base . '/views/settings/company.php'), 'Pannello impostazioni incompleto.');
 $application = (string) file_get_contents($base . '/app/Core/Application.php');
 $assert(str_contains($application, "'/settings/modules'"), 'Rotta gestione moduli mancante.');

@@ -11,6 +11,7 @@ Il branch PHP non richiede Java, Maven, Tomcat, JSP o un processo applicativo re
 - piano dei conti gerarchico e classificato, causali, sezionali, prima nota, automatismi, giornale, mastrini e bilancio di verifica;
 - registri IVA con regimi/esigibilità/detraibilità, IVA per cassa, pro-rata, liquidazioni, rettifiche e blocchi periodo;
 - partite clienti/fornitori, incassi/pagamenti, ritenute, banche e riconciliazione manuale controllata;
+- partitario analitico clienti/fornitori con sottoconti automatici, riconciliazione dello storico DATEV ed esportazioni;
 - stato patrimoniale e conto economico riclassificati, assestamenti, chiusura/apertura e cespiti civilistici/fiscali;
 - prospetti di raccordo LIPE e IVA annuale, esplicitamente non trasmissibili fino alla validazione del futuro servizio;
 - endpoint e-invoice e verifica Partita IVA configurabili senza memorizzare segreti nel database;
@@ -35,7 +36,7 @@ Il titolare o amministratore dell’azienda può configurare autonomamente un do
 
 ## Stato del progetto
 
-Questa è la release candidate 6.4 della riscrittura PHP. Il via libera al primo cliente resta subordinato alla quadratura di un export DATEV reale, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. La matrice puntuale è in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo della release in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
+Il branch `luna2-php` è aggiornato alle funzioni operative documentate al 9 ottobre 2026. Il via libera al primo cliente resta subordinato alla quadratura dei dati DATEV reali, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. L’indice aggiornato è in [docs/README.md](docs/README.md), la matrice puntuale in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo esteso in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
 
 ## Requisiti
 
@@ -79,6 +80,8 @@ Aprire **Importazioni**. Ogni caricamento crea un lotto immutabile con checksum.
 
 Per l’archivio proprietario **Esporta archivio** serve almeno un export reale e anonimizzato del cliente. Il piano completo è in [docs/DATEV_KOINOS_MIGRATION.md](docs/DATEV_KOINOS_MIGRATION.md).
 
+Per la migrazione BASIC usare la procedura nominativa [docs/PROCEDURA_IMPORT_DATEV_2025_2026.md](docs/PROCEDURA_IMPORT_DATEV_2025_2026.md). Per i mesi successivi al cutover usare [docs/PROCEDURA_OPERATIVA_MENSILE.md](docs/PROCEDURA_OPERATIVA_MENSILE.md): i due flussi non sono intercambiabili.
+
 ## SDI
 
 L’applicazione genera XML FatturaPA, ma non simula un endpoint pubblico inesistente. La trasmissione deve avvenire tramite:
@@ -96,6 +99,7 @@ Gli URL dei servizi si configurano in **Contabilità → Endpoint e-invoice**. L
 - giorni, fine mese e metodo di pagamento salvati in anagrafica calcolano la scadenza del documento; ABI, CAB e banca vengono richiamati automaticamente per la Ri.Ba.;
 - ritenuta, imponibile e aliquota possono essere configurati sull’azienda o sul fornitore e sono riportati su documento, XML e PDF;
 - le fatture passive FatturaPA importano anche dati fiscali del fornitore, scadenza, modalità, banca e ritenuta.
+- fatture, note di credito, incassi e pagamenti alimentano il sottoconto analitico della controparte; lo storico DATEV si completa da **Contabilità → Partitario clienti/fornitori** seguendo [docs/PARTITARI_CLIENTI_FORNITORI.md](docs/PARTITARI_CLIENTI_FORNITORI.md).
 
 ## Test
 

@@ -53,3 +53,21 @@ La propagazione DNS e l'emissione del certificato possono richiedere alcuni minu
 ## 5. Sicurezza e rimozione
 
 Solo gli utenti aziendali con ruolo **Titolare** o **Amministratore** possono creare, verificare o rimuovere domini. Il superuser di piattaforma non espone questo pannello nel proprio menu. La chiave Plesk rimane esclusivamente nel file `.env` e non viene mai mostrata al cliente. La rimozione elimina prima l'alias da Plesk e soltanto dopo il record Luna2. Gli eventi di attivazione restano consultabili finché il dominio è presente.
+
+## 6. Diagnostica
+
+### DNS verificato, ma stato `SSL_PENDING`
+
+1. controllare in Plesk che il dominio compaia come alias del webspace indicato da `PLESK_PRIMARY_DOMAIN`;
+2. verificare che il CNAME sia esattamente quello mostrato da Luna2, senza proxy o record A concorrenti;
+3. verificare che le porte 80 e 443 siano raggiungibili pubblicamente per il nome personalizzato;
+4. in **SSL It!** controllare che il certificato del dominio principale includa gli alias e, se necessario, eseguire una sola riemissione manuale;
+5. eseguire `php bin/luna custom-domains:sync` e poi usare **Ricontrolla**.
+
+Il messaggio `HTTPS non ancora valido: connessione non disponibile` indica che il DNS è corretto ma il server non presenta ancora un certificato valido per quel nome; attendere senza modificare ripetutamente il record DNS.
+
+### Errore Plesk `Object not found`
+
+L'alias registrato in precedenza non esiste più nel webspace o appartiene a una subscription diversa. Verificare che `PLESK_PRIMARY_DOMAIN` sia il nome principale reale della subscription e che la chiave API appartenga a un amministratore Plesk. La sincronizzazione tenta di riconciliare o ricreare l'alias; se continua a fallire, rimuovere il dominio da Luna2, eliminare l'eventuale alias residuo in Plesk e predisporlo nuovamente.
+
+Non impostare `PLESK_API_VERIFY_TLS=false` in produzione: è ammesso soltanto come prova diagnostica temporanea su un endpoint Plesk interno.

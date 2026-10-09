@@ -18,6 +18,8 @@ Luna2 PHP è una monolite modulare: un solo deploy Plesk, un solo database per i
 
 Il modello unifica documenti commerciali in `documents` + `document_lines`, mantenendo tipi e workflow distinti. Le scritture contabili sono `journal_entries` + `journal_entry_lines`; ogni riga accetta solo Dare oppure Avere e il servizio rifiuta registrazioni non quadrate.
 
+I saldi clienti e fornitori usano conti collettivi nel piano dei conti e dimensioni analitiche sulle righe (`customer_id`/`supplier_id`). L’anagrafica costituisce quindi il sottoconto senza moltiplicare i conti generali. Documenti, pagamenti e storni valorizzano automaticamente la dimensione; la riconciliazione dello storico assegna solo tale collegamento e non modifica Dare/Avere.
+
 Tutte le tabelle operative hanno `organization_id`. Gli identificativi esterni usano chiavi uniche per rendere import e sincronizzazioni idempotenti. Gli aggiornamenti significativi confluiscono in `audit_logs`.
 
 ## Integrazioni
@@ -34,7 +36,7 @@ Le integrazioni sono adapter, non dipendenze del dominio:
 - un documento emesso/ricevuto viene contabilizzato una sola volta grazie a `source_type + source_id`;
 - i protocolli sono assegnati dentro transazione e bloccati con `SELECT … FOR UPDATE`;
 - una registrazione deve avere almeno due righe e totale Dare = totale Avere al centesimo;
-- correzioni e chiusure devono produrre scritture, non modificare silenziosamente il passato;
+- le scritture non finalizzate possono essere corrette con revisione auditata; la modifica del conto conserva importi e origine, mentre correzioni di periodi finalizzati e chiusure devono produrre scritture esplicite;
 - gli esercizi chiusi e la conservazione documentale richiederanno un blocco applicativo nel gate di produzione.
 
 ## Estensioni previste

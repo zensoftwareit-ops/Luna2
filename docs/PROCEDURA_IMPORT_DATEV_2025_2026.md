@@ -1,11 +1,15 @@
 # Procedura operativa di importazione DATEV Koinos → Luna2
 
+> **Revisione 9 ottobre 2026.** La sequenza originaria fino al 31 luglio resta la baseline verificata. Sono stati aggiunti chiusura 2025, apertura 2026, IVA agosto 2026, gestione mensile degli XML e riconciliazione dei sottoconti. Per i mesi successivi usare anche [PROCEDURA_OPERATIVA_MENSILE.md](PROCEDURA_OPERATIVA_MENSILE.md).
+
 ## Perimetro della migrazione
 
 Questa procedura importa nell'ordine corretto i dati disponibili di **BASIC S.R.L.S.**, P. IVA **02572350185**, per gli esercizi:
 
 - 2025 completo;
 - 2026 dal 1° gennaio al 31 luglio 2026;
+- scritture DATEV di chiusura 2025 e apertura 2026;
+- registro IVA di agosto 2026 come integrazione successiva alla baseline;
 - cespiti storici necessari a ricostruire valori iniziali, progressivi e movimenti fino al 2026;
 - fatture elettroniche disponibili come archivio storico.
 
@@ -22,6 +26,7 @@ La procedura deve essere eseguita prima su una copia dell'azienda. Solo dopo la 
 7. Non eliminare il database esistente. Le migrazioni strutturali si applicano sopra il database.
 8. Non chiudere gli esercizi 2025 e 2026 prima della fine dell'importazione e della riconciliazione.
 9. Conservare una copia immutabile di tutti i file DATEV originali e del pacchetto Luna2.
+10. Distinguere sempre **originale probatorio**, **CSV contabile operativo**, **CSV IVA analitico** e **XML FatturaPA operativo**: selezionare il tipo sbagliato può produrre duplicazioni o una semplice archiviazione senza dati navigabili.
 
 ## 0. Preparazione obbligatoria
 
@@ -265,9 +270,30 @@ Controllare:
 5. progressivi iniziali coerenti con la chiusura 2025;
 6. nessun movimento duplicato rispetto a eventuali dati già presenti.
 
+### 6.3 Chiusura 2025 e apertura 2026
+
+Questi file completano il raccordo patrimoniale tra gli esercizi:
+
+| Ordine | Nome esatto del file | Tipo da selezionare |
+|---:|---|---|
+| 29A | `Luna2_movimenti_contabili_chiusura_2025.csv` | Prima nota / movimenti |
+| 29B | `Luna2_movimenti_contabili_apertura_2026.csv` | Prima nota / movimenti |
+
+Importare prima la chiusura e poi l’apertura. Le causali DATEV `C82`, `C84` e `C86` vengono classificate come `CLOSING`; la causale `C80` come `OPENING`. Il protocollo origine rende il caricamento idempotente: un secondo caricamento deve risultare già presente e non creare duplicati.
+
+Dopo i due file verificare:
+
+1. presenza della scrittura `DATEV-OPEN-2026-0001` in prima nota;
+2. saldi iniziali 2026 nei mastrini, inclusi `050101010` e `050251015` quando presenti nella sorgente;
+3. apertura patrimoniale quadrata;
+4. situazione contabile 2025 con scritture di chiusura escluse/incluse secondo il filtro scelto;
+5. nessuna duplicazione dei protocolli DATEV.
+
+Il collaudo automatizzato dell’insieme base più chiusura/apertura attende **8.335 registrazioni** e Dare/Avere complessivi pari a **€ 15.218.218,41**. Questo totale non va confrontato con il solo insieme base indicato sotto.
+
 ### Controllo complessivo della prima nota
 
-Dopo entrambi i CSV:
+Dopo i due CSV di base, senza chiusura/apertura:
 
 - registrazioni totali: **8.315**;
 - righe contabili totali: **21.547**;
@@ -318,6 +344,17 @@ Il limite precedente è risolto dal convertitore analitico dedicato. Le righe co
 
 Resta obbligatoria la quadratura finale dei totali per sezionale e periodo con i riepiloghi dei PDF e con le liquidazioni IVA prima del go-live fiscale.
 
+### 7.1 Integrazione IVA agosto 2026
+
+1. Caricare `Registri IVA agosto 2026.pdf` come **Originali DATEV Koinos — acquisizione guidata**.
+2. Generare il CSV analitico con `tools/datev/extract_vat_pdf.py`, conservando PDF, CSV e log del convertitore.
+3. Usare un nome non ambiguo, ad esempio `Luna2_DATEV_IVA_2026_08.csv`.
+4. Importare il CSV come **Registri IVA storici — CSV analitico DATEV**.
+5. Controllare esclusivamente il periodo 01/08/2026–31/08/2026 e verificare acquisti, vendite, reverse charge/autofatture, note di credito e detraibilità.
+6. Confrontare i totali con la liquidazione DATEV di agosto e annotare l’esito nel verbale.
+
+Il PDF da solo non alimenta i registri navigabili. Non indicare un numero atteso di righe finché il CSV di agosto non è stato prodotto e collaudato sul documento definitivo.
+
 ## 8. Fatture elettroniche storiche
 
 Importare per ultime:
@@ -361,6 +398,17 @@ Compilare e firmare un verbale con almeno questi controlli:
 - controllo mastrini banca, cassa, clienti, fornitori, IVA, costi e ricavi;
 - controllo saldi di apertura 2026.
 
+### Partitari clienti e fornitori
+
+- aprire **Contabilità → Partitario clienti/fornitori**;
+- lasciare completare l’associazione automatica per documento, P. IVA, C.F. e denominazione;
+- completare manualmente **Riconciliazione storico DATEV** finché il contatore `da associare` è zero;
+- confrontare il totale dei sottoconti clienti con il conto collettivo crediti;
+- confrontare il totale dei sottoconti fornitori con il conto collettivo debiti;
+- verificare fatture, note di credito, pagamenti e saldo progressivo di almeno cinque controparti per tipo.
+
+La procedura dettagliata è in [PARTITARI_CLIENTI_FORNITORI.md](PARTITARI_CLIENTI_FORNITORI.md).
+
 ### IVA
 
 - totali per registro;
@@ -397,6 +445,7 @@ La migrazione definitiva è autorizzabile solo quando:
 4. cespiti e progressivi coincidono con il registro 2025;
 5. lo storico IVA è stato riconciliato e l'eventuale limite operativo è stato risolto o formalmente accettato;
 6. il commercialista del cliente firma il verbale di quadratura.
+7. tutti i movimenti sui conti collettivi clienti/fornitori risultano associati oppure sono elencati e formalmente giustificati nel verbale.
 
 ## 11. Ripetizione sul database definitivo
 

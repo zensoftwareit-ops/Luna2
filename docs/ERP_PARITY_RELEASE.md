@@ -8,7 +8,7 @@ Dopo il pull del branch `luna2-php`, eseguire da **Plesk → Siti web e domini �
 /opt/plesk/php/8.4/bin/php /var/www/vhosts/DOMINIO/httpdocs/bin/luna migrate
 ```
 
-Le migrazioni `008_full_erp_parity.sql` e `009_professional_workspace.sql` sono incrementali: non cancellare il database esistente. La `009` aggiunge centro professionale, notifiche, viste salvate, checklist, stampe controllate e import bancari. Poi aprire **Stato del sistema** e verificare che tutte le migrazioni risultino applicate.
+Le migrazioni `008_full_erp_parity.sql` e `009_professional_workspace.sql` hanno introdotto questa area, ma non rappresentano più il punto finale dello schema. Non cancellare il database esistente: eseguire il comando una sola volta e lasciare che applichi in ordine tutte le migrazioni pendenti; al 9 ottobre 2026 la serie arriva a `025_reactivate_used_leaf_accounts.sql`. Poi aprire **Stato del sistema** e verificare che tutte risultino applicate.
 
 Il task ricorrente consigliato, ogni 5 minuti, è:
 
