@@ -6,6 +6,7 @@ Stato verificato sul branch `luna2-php` il **9 ottobre 2026**. Questo indice dis
 
 | Documento | Quando usarlo |
 |---|---|
+| [GUIDA_OPERATIVA_CLIENTE.md](GUIDA_OPERATIVA_CLIENTE.md) | Manuale completo da consegnare agli utenti aziendali per l'uso quotidiano del software |
 | [PLESK_DEPLOY.md](PLESK_DEPLOY.md) | Prima installazione, aggiornamento, cron, backup e rollback del codice |
 | [PROCEDURA_IMPORT_DATEV_2025_2026.md](PROCEDURA_IMPORT_DATEV_2025_2026.md) | Migrazione specifica BASIC da DATEV, file per file e con quadrature attese |
 | [PROCEDURA_OPERATIVA_MENSILE.md](PROCEDURA_OPERATIVA_MENSILE.md) | Fatture XML, registri IVA e controlli contabili dei mesi successivi al cutover |

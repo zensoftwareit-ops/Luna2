@@ -74,6 +74,7 @@ $assert(is_file($base . '/public/index.php') && is_file($base . '/public/.htacce
 $assert(is_file($base . '/docs/DATEV_KOINOS_MIGRATION.md'), 'Piano migrazione Koinos mancante.');
 $assert(is_file($base . '/docs/ACCOUNTING_PARITY.md'), 'Matrice parità contabile Koinos mancante.');
 $documentationIndex = (string) file_get_contents($base . '/docs/README.md');
+$customerGuide = (string) file_get_contents($base . '/docs/GUIDA_OPERATIVA_CLIENTE.md');
 $monthlyProcedure = (string) file_get_contents($base . '/docs/PROCEDURA_OPERATIVA_MENSILE.md');
 $subledgerProcedure = (string) file_get_contents($base . '/docs/PARTITARI_CLIENTI_FORNITORI.md');
 $assert(
@@ -81,6 +82,14 @@ $assert(
     && str_contains($documentationIndex, 'PROCEDURA_OPERATIVA_MENSILE.md')
     && str_contains($documentationIndex, 'PARTITARI_CLIENTI_FORNITORI.md'),
     'Indice della documentazione operativa incompleto.'
+);
+$assert(
+    str_contains($documentationIndex, 'GUIDA_OPERATIVA_CLIENTE.md')
+    && str_contains($customerGuide, 'Primo accesso e sicurezza')
+    && str_contains($customerGuide, 'Fatture XML FatturaPA')
+    && str_contains($customerGuide, 'Partitario clienti e fornitori')
+    && str_contains($customerGuide, 'Checklist operative'),
+    'Guida operativa cliente mancante o incompleta.'
 );
 $assert(
     str_contains($monthlyProcedure, 'Fatture XML FatturaPA')

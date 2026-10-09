@@ -38,6 +38,8 @@ Il titolare o amministratore dell’azienda può configurare autonomamente un do
 
 Il branch `luna2-php` è aggiornato alle funzioni operative documentate al 9 ottobre 2026. Il via libera al primo cliente resta subordinato alla quadratura dei dati DATEV reali, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. L’indice aggiornato è in [docs/README.md](docs/README.md), la matrice puntuale in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo esteso in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
 
+Il manuale destinato agli utenti finali è [docs/GUIDA_OPERATIVA_CLIENTE.md](docs/GUIDA_OPERATIVA_CLIENTE.md); la versione impaginata è disponibile in `output/pdf/Luna2_Guida_Operativa_Cliente.pdf`.
+
 ## Requisiti
 
 - PHP 8.2 o successivo (consigliato PHP 8.4 su Plesk)
