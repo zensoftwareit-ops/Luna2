@@ -1095,14 +1095,6 @@ final class ImportService
                 . " WHERE id = ? AND organization_id = ? AND (code IS NULL OR TRIM(code) = '')"
             )->execute([$partyPrefix, $partyId, $this->organizationId]);
             $externalKey = hash('sha256', implode('|', [$data['issuer_vat'], $data['recipient_vat'], $data['document_date'], $data['number'], $data['fatturapa_type'], $data['total']]));
-            $find = $this->db->prepare('SELECT id FROM documents WHERE organization_id = ? AND external_key = ? LIMIT 1');
-            $find->execute([$this->organizationId, $externalKey]);
-            if ($existingId = $find->fetchColumn()) {
-                $this->markRow($staged['id'], 'SKIPPED', 'Documento già importato.', (int) $existingId);
-                $this->db->exec('RELEASE SAVEPOINT ' . $savepoint);
-                $skipped++;
-                continue;
-            }
             $summaries = is_array($data['vat_summaries'] ?? null) ? $data['vat_summaries'] : [];
             $taxable = $summaries !== []
                 ? round(array_sum(array_map(static fn (array $row): float => (float) ($row['taxable'] ?? 0), $summaries)), 2)
@@ -1110,8 +1102,103 @@ final class ImportService
             $vat = $summaries !== []
                 ? round(array_sum(array_map(static fn (array $row): float => (float) ($row['vat'] ?? 0), $summaries)), 2)
                 : round(array_sum(array_column($data['lines'], 'vat_amount')), 2);
-            $total = $data['total'] > 0 ? round((float) $data['total'], 2) : round($taxable + $vat, 2);
+            $sourceTotal = round((float) ($data['total'] ?? 0), 2);
+            $reverseAmounts = $taxable < 0 || (abs($taxable) < 0.005 && ($vat < 0 || $sourceTotal < 0));
+            if ($reverseAmounts) {
+                foreach ($data['lines'] as &$line) {
+                    foreach (['unit_price', 'taxable_amount', 'vat_amount'] as $field) {
+                        $line[$field] = -(float) ($line[$field] ?? 0);
+                    }
+                }
+                unset($line);
+            }
+            $taxable = abs($taxable);
+            $vat = abs($vat);
+            $total = abs($sourceTotal !== 0.0 ? $sourceTotal : round($taxable + $vat, 2));
+
+            $find = $this->db->prepare('SELECT * FROM documents WHERE organization_id = ? AND external_key = ? LIMIT 1');
+            $find->execute([$this->organizationId, $externalKey]);
+            $existing = $find->fetch();
+            if (!$existing) {
+                $find = $this->db->prepare(
+                    'SELECT * FROM documents
+                     WHERE organization_id = ? AND document_type = ? AND fiscal_year = ?
+                       AND number = ? AND counterparty_id = ? LIMIT 1'
+                );
+                $find->execute([
+                    $this->organizationId, $data['document_type'], (int) substr($data['document_date'], 0, 4),
+                    $data['number'], $partyId,
+                ]);
+                $existing = $find->fetch();
+            }
             $status = $data['document_type'] === 'PURCHASE_INVOICE' ? 'RECEIVED' : 'ISSUED';
+            if ($existing) {
+                if ((string) $existing['document_date'] !== (string) $data['document_date']
+                    || abs(abs((float) $existing['total']) - $total) > 0.02) {
+                    throw new InvalidArgumentException(sprintf(
+                        'Il documento %s esiste già per la stessa controparte, ma data o totale non coincidono. Verifica il documento #%d.',
+                        $data['number'],
+                        (int) $existing['id'],
+                    ));
+                }
+                $entry = $this->db->prepare(
+                    "SELECT id FROM journal_entries
+                     WHERE organization_id = ? AND source_type = 'DOCUMENT' AND source_id = ? LIMIT 1"
+                );
+                $entry->execute([$this->organizationId, (int) $existing['id']]);
+                if ($entry->fetchColumn()) {
+                    $existingRegistrationDate = (string) ($existing['registration_date'] ?: $existing['document_date']);
+                    if ($existingRegistrationDate !== $registrationDate) {
+                        $this->recordImport($batchId, 'documents', (int) $existing['id'], 'UPDATE', $existing);
+                        $this->db->prepare(
+                            'UPDATE documents SET external_key = ?, source_import_batch_id = ?, updated_by = ?, updated_at = NOW()
+                             WHERE id = ? AND organization_id = ?'
+                        )->execute([$externalKey, $batchId, $this->userId, (int) $existing['id'], $this->organizationId]);
+                        (new AccountingService($this->db, $this->organizationId, $this->userId))
+                            ->changeDocumentRegistrationDate((int) $existing['id'], $registrationDate);
+                        (new ReceivablesService($this->db, $this->organizationId, $this->userId))
+                            ->syncDocumentById((int) $existing['id']);
+                        $this->markRow($staged['id'], 'IMPORTED', 'Documento già presente: data, prima nota e IVA riallineate.', (int) $existing['id']);
+                        $this->db->exec('RELEASE SAVEPOINT ' . $savepoint);
+                        $imported++;
+                        continue;
+                    }
+                    $this->db->prepare(
+                        'UPDATE documents SET external_key = ?, updated_by = ?, updated_at = NOW()
+                         WHERE id = ? AND organization_id = ?'
+                    )->execute([$externalKey, $this->userId, (int) $existing['id'], $this->organizationId]);
+                    $this->markRow($staged['id'], 'SKIPPED', 'Documento già importato e presente in prima nota.', (int) $existing['id']);
+                    $this->db->exec('RELEASE SAVEPOINT ' . $savepoint);
+                    $skipped++;
+                    continue;
+                }
+
+                $this->recordImport($batchId, 'documents', (int) $existing['id'], 'UPDATE', $existing);
+                $this->db->prepare(
+                    'UPDATE documents SET registration_date = ?, due_date = ?, counterparty_name = ?, currency = ?,
+                        taxable_total = ?, vat_total = ?, withholding_total = ?, withholding_type = ?, withholding_rate = ?,
+                        withholding_taxable_percent = 100, withholding_cause = ?, total = ?, balance_due = ?, status = ?,
+                        fatturapa_type = ?, payment_method_code = ?, bank_name = ?, bank_abi = ?, bank_cab = ?, bank_iban = ?,
+                        external_key = ?, source_import_batch_id = ?, updated_by = ?, updated_at = NOW()
+                     WHERE id = ? AND organization_id = ?'
+                )->execute([
+                    $registrationDate, $data['due_date'] ?: null, $data['counterparty_name'], $data['currency'],
+                    $taxable, $vat, $data['withholding_amount'] ?: 0, $data['withholding_type'] ?: null,
+                    $data['withholding_rate'] ?: 0, $data['withholding_cause'] ?: null, $total,
+                    round($total - (float) ($data['withholding_amount'] ?? 0), 2), $status,
+                    $data['fatturapa_type'], $data['payment_method_code'] ?: null, $data['bank_name'] ?: null,
+                    $data['bank_abi'] ?: null, $data['bank_cab'] ?: null, $data['bank_iban'] ?: null,
+                    $externalKey, $batchId, $this->userId, (int) $existing['id'], $this->organizationId,
+                ]);
+                $documentId = (int) $existing['id'];
+                $this->replaceFatturaPaLines($documentId, $data['lines']);
+                (new AccountingService($this->db, $this->organizationId, $this->userId))->postDocument($documentId);
+                (new ReceivablesService($this->db, $this->organizationId, $this->userId))->syncDocumentById($documentId);
+                $this->markRow($staged['id'], 'IMPORTED', 'Documento esistente completato con prima nota, IVA e scadenza.', $documentId);
+                $imported++;
+                $this->db->exec('RELEASE SAVEPOINT ' . $savepoint);
+                continue;
+            }
             $this->db->prepare(
                 'INSERT INTO documents (organization_id, document_type, number, fiscal_year, document_date, registration_date, due_date, counterparty_type, counterparty_id, counterparty_name, currency, taxable_total, vat_total, withholding_total, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause, total, balance_due, status, fatturapa_type, payment_method_code, bank_name, bank_abi, bank_cab, bank_iban, external_key, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
             )->execute([$this->organizationId, $data['document_type'], $data['number'], (int) substr($data['document_date'], 0, 4), $data['document_date'], $registrationDate, $data['due_date'] ?: null, $partyTable === 'suppliers' ? 'SUPPLIER' : 'CUSTOMER', $partyId, $data['counterparty_name'], $data['currency'], $taxable, $vat,
@@ -1120,10 +1207,7 @@ final class ImportService
                 $data['bank_name'] ?: null, $data['bank_abi'] ?: null, $data['bank_cab'] ?: null, $data['bank_iban'] ?: null,
                 $externalKey, $batchId, $this->userId, $this->userId]);
             $documentId = (int) $this->db->lastInsertId();
-            $insert = $this->db->prepare('INSERT INTO document_lines (organization_id, document_id, line_number, description, quantity, unit, unit_price, discount_percent, taxable_amount, vat_rate, vat_nature, vat_amount, total_amount, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NOW(), NOW())');
-            foreach ($data['lines'] as $index => $line) {
-                $insert->execute([$this->organizationId, $documentId, $index + 1, $line['description'], $line['quantity'], $line['unit'], $line['unit_price'], $line['taxable_amount'], $line['vat_rate'], $line['vat_nature'], $line['vat_amount'], round($line['taxable_amount'] + $line['vat_amount'], 2)]);
-            }
+            $this->replaceFatturaPaLines($documentId, $data['lines']);
             (new AccountingService($this->db, $this->organizationId, $this->userId))->postDocument($documentId);
             (new ReceivablesService($this->db, $this->organizationId, $this->userId))->syncDocumentById($documentId);
             $this->recordImport($batchId, 'documents', $documentId, 'CREATE', null);
@@ -1137,6 +1221,25 @@ final class ImportService
             }
         }
         return compact('imported', 'skipped', 'errors');
+    }
+
+    private function replaceFatturaPaLines(int $documentId, array $lines): void
+    {
+        $this->db->prepare('DELETE FROM document_lines WHERE organization_id = ? AND document_id = ?')
+            ->execute([$this->organizationId, $documentId]);
+        $insert = $this->db->prepare(
+            'INSERT INTO document_lines
+             (organization_id, document_id, line_number, description, quantity, unit, unit_price, discount_percent,
+              taxable_amount, vat_rate, vat_nature, vat_amount, total_amount, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NOW(), NOW())'
+        );
+        foreach ($lines as $index => $line) {
+            $insert->execute([
+                $this->organizationId, $documentId, $index + 1, $line['description'], $line['quantity'], $line['unit'],
+                $line['unit_price'], $line['taxable_amount'], $line['vat_rate'], $line['vat_nature'], $line['vat_amount'],
+                round((float) $line['taxable_amount'] + (float) $line['vat_amount'], 2),
+            ]);
+        }
     }
 
     private function insertStagedRow(int $batchId, int $fileId, int $rowNumber, array $raw, array $normalized): void
@@ -1199,6 +1302,7 @@ final class ImportService
         return match ($table) {
             'customers', 'suppliers' => ['code', 'business_name', 'vat_number', 'tax_code', 'sdi_code', 'pec', 'email', 'phone', 'address', 'postal_code', 'city', 'province', 'country_code', 'iban', 'bank_name', 'bank_abi', 'bank_cab', 'payment_terms', 'payment_days', 'payment_month_end', 'payment_method_code', 'active'],
             'chart_of_accounts' => ['code', 'name', 'account_type', 'normal_balance', 'parent_id', 'classification_code', 'statement_section', 'tax_mapping_code', 'is_postable', 'active'],
+            'documents' => ['registration_date', 'due_date', 'counterparty_name', 'currency', 'taxable_total', 'vat_total', 'withholding_total', 'withholding_type', 'withholding_rate', 'withholding_taxable_percent', 'withholding_cause', 'total', 'balance_due', 'status', 'fatturapa_type', 'payment_method_code', 'bank_name', 'bank_abi', 'bank_cab', 'bank_iban', 'external_key', 'source_import_batch_id'],
             default => [],
         };
     }

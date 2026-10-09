@@ -64,7 +64,7 @@
                 </dl>
             </td>
             <td><span class="badge"><?= View::e(View::label($row['status'])) ?></span></td>
-            <td class="danger-text"><?= View::e($row['error_message']) ?></td>
+            <td class="<?= $row['status'] === 'ERROR' ? 'danger-text' : '' ?>"><?= View::e($row['error_message']) ?></td>
         </tr>
     <?php endforeach; ?>
     <?php if (!$rows): ?><tr><td colspan="4"><div class="table-empty"><strong>Nessuna riga disponibile</strong><small>Verifica il contenuto e il formato del file importato.</small></div></td></tr><?php endif; ?>

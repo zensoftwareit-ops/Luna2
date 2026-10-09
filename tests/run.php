@@ -493,6 +493,12 @@ $assert(str_contains($importService, "'vat_summaries' => \$summaries")
     && str_contains($importService, 'Rettifica riepilogo FatturaPA')
     && str_contains($importService, 'ROLLBACK TO SAVEPOINT'),
     'L’import FatturaPA deve usare i riepiloghi fiscali e isolare gli errori della singola fattura.');
+$assert(str_contains($importService, 'Documento esistente completato con prima nota, IVA e scadenza.')
+    && str_contains($importService, 'replaceFatturaPaLines')
+    && str_contains($importService, "source_type = 'DOCUMENT' AND source_id = ?")
+    && str_contains($importService, '$reverseAmounts')
+    && str_contains($importService, '$total = abs('),
+    'L’import FatturaPA deve recuperare i documenti storici o incompleti senza duplicarli.');
 $assert(is_file($base . '/database/migrations/026_document_registration_date.sql')
     && str_contains($importService, 'registration_date')
     && str_contains($importPreviewView, 'name="registration_date"')
