@@ -55,6 +55,7 @@ final class AccountingController extends BaseController
             ['key' => 'description', 'label' => 'Descrizione'],
             ['key' => 'document_number', 'label' => 'Documento'],
             ['key' => 'counterparty', 'label' => 'Controparte'],
+            ['key' => 'document_items', 'label' => 'Articoli documento'],
             ['key' => 'account_code', 'label' => 'Codice conto'],
             ['key' => 'account_name', 'label' => 'Conto'],
             ['key' => 'line_description', 'label' => 'Descrizione riga'],
@@ -102,15 +103,28 @@ final class AccountingController extends BaseController
         }
         $accounts = $this->accounts();
         $sourceDocument = null;
+        $sourceDocumentLines = [];
+        $vatGroups = [];
         if ($entry['source_type'] === 'DOCUMENT' && !empty($entry['source_id'])) {
             $statement = $this->db->prepare(
-                'SELECT id, document_type, number, document_date, registration_date
+                'SELECT id, document_type, number, document_date, registration_date, fatturapa_type, taxable_total, vat_total, total
                  FROM documents WHERE id = ? AND organization_id = ?'
             );
             $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
             $sourceDocument = $statement->fetch() ?: null;
+            if ($sourceDocument) {
+                $statement = $this->db->prepare('SELECT line_number, description, quantity, unit, unit_price, taxable_amount, vat_code, vat_rate, vat_nature, vat_amount, total_amount, deductible_percent FROM document_lines WHERE document_id = ? AND organization_id = ? ORDER BY line_number');
+                $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
+                $sourceDocumentLines = $statement->fetchAll();
+                if ($sourceDocument['document_type'] === 'PURCHASE_INVOICE') {
+                    $statement = $this->db->prepare("SELECT COALESCE(vat_code,'') vat_code, vat_rate, COALESCE(vat_nature,'') vat_nature, deductible_percent, SUM(taxable_amount) taxable_amount, SUM(vat_amount) vat_amount FROM document_lines WHERE document_id = ? AND organization_id = ? GROUP BY COALESCE(vat_code,''), vat_rate, COALESCE(vat_nature,''), deductible_percent ORDER BY vat_rate DESC, vat_code");
+                    $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
+                    $vatGroups = $statement->fetchAll();
+                }
+            }
         }
-        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions', 'accounts', 'sourceDocument') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
+        [$previousEntryId, $nextEntryId] = $this->adjacentDocumentEntries($entry);
+        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions', 'accounts', 'sourceDocument', 'sourceDocumentLines', 'vatGroups', 'previousEntryId', 'nextEntryId') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
     }
 
     public function save(): never
@@ -169,10 +183,45 @@ final class AccountingController extends BaseController
                 (string) ($_POST['reason'] ?? '')
             );
             $this->audit('CHANGE_ACCOUNT', 'journal_entry_lines', (int) $lineId, $result);
+            $destination = (($_POST['continue'] ?? '') === 'next') ? $this->nextDocumentEntryId((int) $id) : null;
             $this->redirect(
-                '/accounting/journal/' . (int) $id,
+                '/accounting/journal/' . ($destination ?: (int) $id),
                 sprintf('Conto cambiato da %s a %s. Importi e collegamento al documento sono rimasti invariati.', $result['old_account_code'], $result['new_account_code'])
             );
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
+        }
+    }
+
+    public function splitLine(string $id, string $lineId): never
+    {
+        $this->authorize();
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))->splitLine(
+                (int) $id, (int) $lineId, (array) ($_POST['allocations'] ?? []), (string) ($_POST['reason'] ?? '')
+            );
+            $this->audit('SPLIT_ACCOUNT_LINE', 'journal_entry_lines', (int) $lineId, $result);
+            $destination = (($_POST['continue'] ?? '') === 'next') ? $this->nextDocumentEntryId((int) $id) : null;
+            $this->redirect('/accounting/journal/' . ($destination ?: (int) $id), sprintf('Importo ripartito correttamente su %d conti.', $result['allocations']));
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
+        }
+    }
+
+    public function vatDeductibility(string $id): never
+    {
+        $this->authorize();
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))->changeDocumentVatDeductibility(
+                (int) $id, (string) ($_POST['vat_code'] ?? ''), (float) ($_POST['vat_rate'] ?? 0),
+                (string) ($_POST['vat_nature'] ?? ''), (float) ($_POST['deductible_percent'] ?? 100)
+            );
+            $this->audit('VAT_DEDUCTIBILITY_CHANGE', 'journal_entries', (int) $id, $result);
+            $destination = (($_POST['continue'] ?? '') === 'next') ? $this->nextDocumentEntryId((int) $id) : null;
+            $this->redirect('/accounting/journal/' . ($destination ?: (int) $id), sprintf(
+                'Detraibilità aggiornata al %.2f%%: IVA detraibile %s, indetraibile %s.',
+                $result['deductibility_percent'], number_format($result['deductible_vat'], 2, ',', '.'), number_format($result['non_deductible_vat'], 2, ',', '.')
+            ));
         } catch (InvalidArgumentException|RuntimeException $exception) {
             $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
         }
@@ -559,7 +608,8 @@ final class AccountingController extends BaseController
         $search = trim((string) ($_GET['q'] ?? ''));
         $accountId = max(0, (int) ($_GET['account_id'] ?? 0));
         $sql = 'SELECT id, protocol_number, source_protocol, entry_date, competence_date, entry_type, description, document_number,
-                       counterparty, total_debit, total_credit, status, source_type, is_finalized
+                       counterparty, total_debit, total_credit, status, source_type, source_id, is_finalized, revision_number,
+                       CASE WHEN source_type = \'DOCUMENT\' THEN (SELECT GROUP_CONCAT(dl.description ORDER BY dl.line_number SEPARATOR \' | \') FROM document_lines dl WHERE dl.organization_id = e.organization_id AND dl.document_id = e.source_id) ELSE NULL END AS document_items
                 FROM journal_entries e WHERE organization_id = :organization_id AND entry_date BETWEEN :date_from AND :date_to';
         $params = ['organization_id' => Auth::organizationId(), 'date_from' => $from, 'date_to' => $to];
         if (in_array($status, ['DRAFT', 'POSTED', 'REVERSED'], true)) {
@@ -689,6 +739,26 @@ final class AccountingController extends BaseController
         );
         $statement->execute([Auth::organizationId()]);
         return $statement->fetchAll();
+    }
+
+    /** @return array{0:?int,1:?int} */
+    private function adjacentDocumentEntries(array $entry): array
+    {
+        $previous = $this->db->prepare("SELECT id FROM journal_entries WHERE organization_id = ? AND source_type = 'DOCUMENT' AND entry_type = ? AND (entry_date < ? OR (entry_date = ? AND id < ?)) ORDER BY entry_date DESC, id DESC LIMIT 1");
+        $previous->execute([Auth::organizationId(), $entry['entry_type'], $entry['entry_date'], $entry['entry_date'], $entry['id']]);
+        $next = $this->db->prepare("SELECT id FROM journal_entries WHERE organization_id = ? AND source_type = 'DOCUMENT' AND entry_type = ? AND (entry_date > ? OR (entry_date = ? AND id > ?)) ORDER BY entry_date, id LIMIT 1");
+        $next->execute([Auth::organizationId(), $entry['entry_type'], $entry['entry_date'], $entry['entry_date'], $entry['id']]);
+        return [($id = $previous->fetchColumn()) ? (int) $id : null, ($id = $next->fetchColumn()) ? (int) $id : null];
+    }
+
+    private function nextDocumentEntryId(int $entryId): ?int
+    {
+        $statement = $this->db->prepare('SELECT id, entry_date, entry_type FROM journal_entries WHERE id = ? AND organization_id = ?');
+        $statement->execute([$entryId, Auth::organizationId()]);
+        $entry = $statement->fetch();
+        if (!$entry) return null;
+        [, $next] = $this->adjacentDocumentEntries($entry);
+        return $next;
     }
 
     private function journalOptions(): array

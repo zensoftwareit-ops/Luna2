@@ -509,7 +509,8 @@ document.querySelectorAll('[data-withholding-form]').forEach((form) => {
             form.action = button.dataset.action || '';
             lineLabel.textContent = button.dataset.lineLabel || '';
             const current = Number(button.dataset.currentAccount || 0);
-            allowed = accounts.filter((account) => account.type === button.dataset.accountType && Number(account.id) !== current);
+            const allowedTypes = String(button.dataset.allowedTypes || '').split(',').filter(Boolean);
+            allowed = accounts.filter((account) => allowedTypes.includes(account.type) && Number(account.id) !== current);
             form.reset();
             value.value = '';
             hideResults();
@@ -547,5 +548,73 @@ document.querySelectorAll('[data-withholding-form]').forEach((form) => {
         search.reportValidity();
         search.focus();
         render();
+    });
+})();
+
+(() => {
+    const dialog = document.querySelector('[data-line-split-dialog]');
+    const catalogNode = document.querySelector('[data-account-catalog]');
+    if (!(dialog instanceof HTMLDialogElement) || !catalogNode) return;
+    let accounts = [];
+    try { accounts = JSON.parse(catalogNode.textContent || '[]'); } catch (_error) { return; }
+    const form = dialog.querySelector('[data-line-split-form]');
+    const rows = dialog.querySelector('[data-line-split-rows]');
+    const list = dialog.querySelector('[data-split-account-options]');
+    const label = dialog.querySelector('[data-line-split-label]');
+    const totalNode = dialog.querySelector('[data-line-split-total]');
+    const addButton = dialog.querySelector('[data-add-line-split]');
+    const listId = `split-account-options-${Math.random().toString(36).slice(2)}`;
+    list.id = listId;
+    let allowed = [];
+    let total = 0;
+    let sequence = 0;
+    const money = (value) => new Intl.NumberFormat('it-IT', {style: 'currency', currency: 'EUR'}).format(value);
+    const accountLabel = (account) => `${account.code} · ${account.name}`;
+    const matchAccount = (value) => allowed.find((account) => accountLabel(account) === value || account.code === value.trim());
+    const addRow = (amount = '') => {
+        const index = sequence++;
+        const row = document.createElement('div');
+        row.className = 'line-split-row';
+        row.innerHTML = `<label><span>Conto</span><input type="search" class="split-account-search" list="${listId}" placeholder="Cerca codice o descrizione…" autocomplete="off" required><input type="hidden" name="allocations[${index}][account_id]"></label><label><span>Importo</span><input type="number" name="allocations[${index}][amount]" min="0.01" step="0.01" value="${amount}" required></label><label><span>Descrizione</span><input name="allocations[${index}][description]" maxlength="500" placeholder="Facoltativa"></label><button type="button" class="dialog-close split-remove" aria-label="Rimuovi">×</button>`;
+        const search = row.querySelector('.split-account-search');
+        const hidden = row.querySelector('input[type="hidden"]');
+        search.addEventListener('input', () => { hidden.value = ''; search.setCustomValidity(''); });
+        search.addEventListener('change', () => {
+            const account = matchAccount(search.value);
+            hidden.value = account ? String(account.id) : '';
+            search.setCustomValidity(account ? '' : 'Seleziona un conto dall’elenco.');
+        });
+        row.querySelector('.split-remove').addEventListener('click', () => { if (rows.children.length > 2) row.remove(); });
+        rows.appendChild(row);
+    };
+    document.querySelectorAll('[data-open-line-split]').forEach((button) => button.addEventListener('click', () => {
+        form.action = button.dataset.action || '';
+        label.textContent = button.dataset.lineLabel || '';
+        total = Number(button.dataset.lineAmount || 0);
+        totalNode.textContent = money(total);
+        const allowedTypes = String(button.dataset.allowedTypes || '').split(',').filter(Boolean);
+        allowed = accounts.filter((account) => allowedTypes.includes(account.type));
+        list.replaceChildren(...allowed.map((account) => {
+            const option = document.createElement('option'); option.value = accountLabel(account); return option;
+        }));
+        rows.replaceChildren(); sequence = 0;
+        addRow(total ? (total / 2).toFixed(2) : '');
+        addRow(total ? (total - Number((total / 2).toFixed(2))).toFixed(2) : '');
+        dialog.showModal();
+    }));
+    addButton.addEventListener('click', () => addRow(''));
+    dialog.querySelectorAll('[data-close-line-split]').forEach((button) => button.addEventListener('click', () => dialog.close()));
+    dialog.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    form.addEventListener('submit', (event) => {
+        let valid = true;
+        rows.querySelectorAll('.line-split-row').forEach((row) => {
+            const search = row.querySelector('.split-account-search');
+            const hidden = row.querySelector('input[type="hidden"]');
+            const account = matchAccount(search.value);
+            hidden.value = account ? String(account.id) : '';
+            search.setCustomValidity(account ? '' : 'Seleziona un conto dall’elenco.');
+            if (!account) valid = false;
+        });
+        if (!valid) { event.preventDefault(); form.reportValidity(); }
     });
 })();

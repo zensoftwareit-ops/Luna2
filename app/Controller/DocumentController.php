@@ -52,22 +52,55 @@ final class DocumentController extends BaseController
         $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT', 'SALES', 'WAREHOUSE', 'VIEWER']);
         $definition = $this->type($type);
         [$documents, $search, $from, $to, $counterpartyId, $status] = $this->documentList($definition, false);
+        $isInvoiceExport = in_array($definition['code'], ['SALES_INVOICE', 'PURCHASE_INVOICE', 'CREDIT_NOTE'], true);
+        $exportRows = $documents;
+        $columns = [
+            ['key' => 'number', 'label' => 'Documento'],
+            ['key' => 'document_date', 'label' => 'Data', 'type' => 'date'],
+            ['key' => 'due_date', 'label' => 'Scadenza', 'type' => 'date'],
+            ['key' => 'counterparty_name', 'label' => $definition['counterparty'] === 'customer' ? 'Cliente' : 'Fornitore'],
+            ['key' => 'subject', 'label' => 'Oggetto'],
+            ['key' => 'taxable_total', 'label' => 'Imponibile', 'type' => 'money'],
+            ['key' => 'vat_total', 'label' => 'IVA', 'type' => 'money'],
+            ['key' => 'total', 'label' => 'Totale', 'type' => 'money'],
+            ['key' => 'balance_due', 'label' => 'Residuo', 'type' => 'money'],
+            ['key' => 'status', 'label' => 'Stato'],
+        ];
+        if ($isInvoiceExport) {
+            $exportRows = [];
+            $lineStatement = $this->db->prepare('SELECT line_number, description, quantity, unit, unit_price, taxable_amount, vat_code, vat_rate, vat_nature, vat_amount, total_amount FROM document_lines WHERE document_id = ? AND organization_id = ? ORDER BY line_number');
+            foreach ($documents as $document) {
+                $lineStatement->execute([(int) $document['id'], Auth::organizationId()]);
+                $lines = $lineStatement->fetchAll() ?: [[
+                    'line_number' => null, 'description' => $document['subject'] ?: 'Documento senza righe analitiche', 'quantity' => null,
+                    'unit' => null, 'unit_price' => null, 'taxable_amount' => $document['taxable_total'], 'vat_code' => null,
+                    'vat_rate' => null, 'vat_nature' => null, 'vat_amount' => $document['vat_total'], 'total_amount' => $document['total'],
+                ]];
+                $creditNote = (string) $document['document_type'] === 'CREDIT_NOTE' || in_array(strtoupper((string) ($document['fatturapa_type'] ?? '')), ['TD04','TD08'], true);
+                foreach ($lines as $line) {
+                    $exportRows[] = array_merge($document, $line, [
+                        'document_kind' => $creditNote ? 'NOTA DI CREDITO' : 'FATTURA',
+                        'vat_treatment' => trim((string) ($line['vat_code'] ?: $line['vat_nature'] ?: (($line['vat_rate'] ?? '') !== '' ? $line['vat_rate'] . '%' : ''))),
+                    ]);
+                }
+            }
+            $columns = [
+                ['key' => 'document_kind', 'label' => 'Tipo'], ['key' => 'number', 'label' => 'Numero documento'],
+                ['key' => 'document_date', 'label' => 'Data documento', 'type' => 'date'],
+                ['key' => 'registration_date', 'label' => 'Data registrazione', 'type' => 'date'],
+                ['key' => 'counterparty_name', 'label' => $definition['counterparty'] === 'customer' ? 'Cliente' : 'Fornitore'],
+                ['key' => 'line_number', 'label' => 'Riga'], ['key' => 'description', 'label' => 'Articolo / descrizione'],
+                ['key' => 'quantity', 'label' => 'Quantità'], ['key' => 'unit', 'label' => 'UM'],
+                ['key' => 'unit_price', 'label' => 'Prezzo', 'type' => 'money'], ['key' => 'taxable_amount', 'label' => 'Imponibile riga', 'type' => 'money'],
+                ['key' => 'vat_treatment', 'label' => 'IVA'], ['key' => 'vat_amount', 'label' => 'Imposta', 'type' => 'money'],
+                ['key' => 'total_amount', 'label' => 'Totale riga', 'type' => 'money'], ['key' => 'status', 'label' => 'Stato'],
+            ];
+        }
         (new TabularExportService())->stream(
             $format,
             $definition['title'],
-            [
-                ['key' => 'number', 'label' => 'Documento'],
-                ['key' => 'document_date', 'label' => 'Data', 'type' => 'date'],
-                ['key' => 'due_date', 'label' => 'Scadenza', 'type' => 'date'],
-                ['key' => 'counterparty_name', 'label' => $definition['counterparty'] === 'customer' ? 'Cliente' : 'Fornitore'],
-                ['key' => 'subject', 'label' => 'Oggetto'],
-                ['key' => 'taxable_total', 'label' => 'Imponibile', 'type' => 'money'],
-                ['key' => 'vat_total', 'label' => 'IVA', 'type' => 'money'],
-                ['key' => 'total', 'label' => 'Totale', 'type' => 'money'],
-                ['key' => 'balance_due', 'label' => 'Residuo', 'type' => 'money'],
-                ['key' => 'status', 'label' => 'Stato'],
-            ],
-            $documents,
+            $columns,
+            $exportRows,
             array_filter([
                 'Ricerca' => $search,
                 'Dal' => $from,
@@ -381,8 +414,8 @@ final class DocumentController extends BaseController
                 $page = min($page, $pages);
                 $offset = ($page - 1) * $perPage;
             }
-            $sql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
-                           taxable_total, vat_total, total, balance_due, status' . $where
+            $sql = 'SELECT id, document_type, fatturapa_type, number, document_date, registration_date, due_date,
+                           counterparty_id, counterparty_name, subject, taxable_total, vat_total, total, balance_due, status' . $where
                 . ' ORDER BY `' . $sort . '` ' . $direction . ', id ' . $direction;
             if ($paginate) {
                 $sql .= ' LIMIT ' . $perPage . ' OFFSET ' . $offset;
@@ -410,8 +443,8 @@ final class DocumentController extends BaseController
                 $legacyWhere .= ' AND status = ?';
                 $legacyParams[] = $status;
             }
-            $legacySql = 'SELECT id, number, document_date, due_date, counterparty_id, counterparty_name, subject,
-                                 taxable_total, vat_total, total, balance_due, status' . $legacyWhere
+            $legacySql = 'SELECT id, document_type, fatturapa_type, number, document_date, registration_date, due_date,
+                                 counterparty_id, counterparty_name, subject, taxable_total, vat_total, total, balance_due, status' . $legacyWhere
                 . ' ORDER BY document_date DESC, id DESC' . ($paginate ? ' LIMIT 1500' : '');
             $statement = $this->db->prepare($legacySql);
             $statement->execute($legacyParams);

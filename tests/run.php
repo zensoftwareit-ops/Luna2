@@ -524,6 +524,22 @@ $assert(str_contains($application, "'/documents/{type}/{id}/registration-date'")
     && str_contains((string) file_get_contents($base . '/views/documents/view.php'), 'Correggi data di registrazione'),
     'La data di registrazione dei documenti già importati deve poter essere corretta riallineando prima nota e IVA.');
 $assert(str_contains($accountingService, 'changeLineAccount') && str_contains($entryView, 'Cambia conto') && str_contains($entryView, 'data-account-search') && str_contains($appJs, 'data-account-change-dialog'), 'Cambio rapido ricercabile del conto sulle righe contabili mancante.');
+$assert(is_file($base . '/database/migrations/027_invoice_accounting_classification.sql')
+    && str_contains($accountingService, 'changeDocumentVatDeductibility')
+    && str_contains($accountingService, 'splitLine')
+    && str_contains($entryView, 'Applica e successiva')
+    && str_contains($entryView, 'data-open-line-split')
+    && str_contains($entryView, 'Documento XML collegato'),
+    'La classificazione analitica delle fatture deve supportare avanzamento, ripartizioni, articoli XML e detraibilità IVA.');
+$assert(str_contains($documentController, "'document_kind'")
+    && str_contains($documentController, "'Articolo / descrizione'")
+    && str_contains($documentIndex, 'Nota di credito')
+    && str_contains((string) file_get_contents($base . '/views/documents/pdf.php'), 'Tipo:'),
+    'Elenchi ed esportazioni delle fatture devono distinguere fatture e note di credito e riportare le righe analitiche.');
+$assert(str_contains($vatService, 'nextVatProtocol')
+    && str_contains($vatService, "document_reference, document_reference_date")
+    && str_contains((string) file_get_contents($base . '/views/accounting/vat-registers.php'), 'Protocollo IVA'),
+    'Il protocollo IVA deve essere distinto dal numero del documento originale.');
 $partyLedgerService = (string) file_get_contents($base . '/app/Service/PartyLedgerService.php');
 $receivablesService = (string) file_get_contents($base . '/app/Service/ReceivablesService.php');
 $resourceController = (string) file_get_contents($base . '/app/Controller/ResourceController.php');

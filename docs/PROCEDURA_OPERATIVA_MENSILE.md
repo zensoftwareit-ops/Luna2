@@ -45,10 +45,14 @@ Non importare il PDF direttamente come movimenti IVA: il PDF viene archiviato co
 ## 4. Controlli contabili
 
 1. Aprire **Contabilità → Prima nota** e verificare tutte le scritture del mese.
-2. Correggere l’eventuale conto errato con **Cambia conto**; il motivo è facoltativo ma consigliato per rettifiche sostanziali.
-3. Aprire **Situazione contabile e mastrini** e controllare conti collettivi, IVA, costi e ricavi.
-4. Aprire **Partitario clienti/fornitori** e completare eventuali associazioni rimaste.
-5. Verificare che Dare = Avere e che i saldi iniziali comprendano l’apertura dell’esercizio.
+2. Controllare le righe articolo XML mostrate nella registrazione e distinguere fatture da note di credito.
+3. Correggere l’eventuale conto errato con **Cambia conto**; sono selezionabili anche cespiti e conti patrimoniali compatibili.
+4. Usare **Ripartisci** quando una fattura interessa più conti; per risconti e fatture da ricevere far verificare conto e quota al responsabile contabile.
+5. Correggere nel riquadro **Detraibilità IVA** eventuali percentuali particolari, quindi ricalcolare la liquidazione non definitiva.
+6. Usare **Salva e successiva** e il marcatore **Già modificata** per completare il lotto senza perdere la posizione.
+7. Aprire **Situazione contabile e mastrini** e controllare conti collettivi, IVA, costi e ricavi.
+8. Aprire **Partitario clienti/fornitori** e completare eventuali associazioni rimaste.
+9. Verificare che Dare = Avere e che i saldi iniziali comprendano l’apertura dell’esercizio.
 
 Le scritture di un esercizio non chiuso restano provvisorie e modificabili nei limiti dei blocchi contabili/fiscali. La stampa definitiva e il blocco richiedono il workflow di chiusura previsto.
 

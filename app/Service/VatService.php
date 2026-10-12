@@ -62,13 +62,19 @@ final class VatService
             $isCreditNote = $this->isCreditNote($document);
             $register = $this->isPurchaseDocument($document) ? 'PURCHASES' : 'SALES';
             $registerId = $this->defaultRegisterId($register);
+            $protocolStatement = $this->db->prepare('SELECT MIN(NULLIF(protocol_number, \'\')) FROM vat_movements WHERE organization_id = ? AND document_id = ?');
+            $protocolStatement->execute([$this->organizationId, $documentId]);
+            $protocol = (string) ($protocolStatement->fetchColumn() ?: '');
+            if ($protocol === '' || $protocol === (string) $document['number']) {
+                $protocol = $this->nextVatProtocol($register, $registrationDate);
+            }
             $statement = $this->db->prepare(
                 "SELECT COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')) AS vat_code,
-                        COALESCE(vat_nature, '') AS vat_nature, vat_rate,
+                        COALESCE(vat_nature, '') AS vat_nature, vat_rate, COALESCE(deductible_percent, 100) AS deductible_percent,
                         SUM(taxable_amount) AS taxable_amount, SUM(vat_amount) AS vat_amount
                  FROM document_lines WHERE document_id = ? AND organization_id = ?
                  GROUP BY COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')),
-                          COALESCE(vat_nature, ''), vat_rate"
+                          COALESCE(vat_nature, ''), vat_rate, COALESCE(deductible_percent, 100)"
             );
             $statement->execute([$documentId, $this->organizationId]);
             $groups = $statement->fetchAll();
@@ -86,11 +92,11 @@ final class VatService
             $insert = $this->db->prepare(
                 'INSERT INTO vat_movements
                  (organization_id, document_id, source_type, document_fiscal_type, register_type, vat_register_id, operation_type, collectability,
-                  movement_date, tax_point_date, protocol_number, counterparty_name, description, vat_code,
+                   movement_date, tax_point_date, protocol_number, document_reference, document_reference_date, counterparty_name, description, vat_code,
                   vat_rate, vat_nature, vat_description, vat_legal_reference,
                   taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent, pro_rata_amount,
                   period_year, period_month, created_by, created_at, updated_at)
-                 VALUES (?, ?, \'DOCUMENT\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+                  VALUES (?, ?, \'DOCUMENT\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
             );
             $proRata = $this->proRataPercent();
             foreach ($groups as $group) {
@@ -109,7 +115,9 @@ final class VatService
                     $collectability = 'CASH';
                     $operation = 'CASH';
                 }
-                $deductible = $register === 'PURCHASES' ? round($vat * $proRata / 100, 2) : 0.0;
+                $lineDeductibility = min(100, max(0, (float) ($group['deductible_percent'] ?? 100)));
+                $effectiveDeductibility = $register === 'PURCHASES' ? round($lineDeductibility * $proRata / 100, 4) : 0.0;
+                $deductible = $register === 'PURCHASES' ? round($vat * $effectiveDeductibility / 100, 2) : 0.0;
                 $proRataAmount = $register === 'PURCHASES' ? round($vat - $deductible, 2) : 0.0;
                 $vatDue = match (true) {
                     $collectability === 'SPLIT' || in_array($collectability, ['CASH', 'DEFERRED'], true) => 0.0,
@@ -121,12 +129,12 @@ final class VatService
                     strtoupper((string) ($document['fatturapa_type'] ?: ($isCreditNote ? 'TD04' : 'TD01'))),
                     $register, $registerId, $operation, $collectability,
                     $registrationDate, in_array($collectability, ['IMMEDIATE', 'SPLIT'], true) ? $document['document_date'] : null,
-                    $document['number'], $document['counterparty_name'], $isCreditNote
+                    $protocol, $document['number'], $document['document_date'], $document['counterparty_name'], $isCreditNote
                         ? ($register === 'PURCHASES' ? 'Nota di credito fornitore' : 'Nota di credito cliente')
                         : $this->documentDescription((string) $document['document_type']),
                     $metadata['code'], $metadata['rate'], $metadata['nature'], $metadata['description'], $metadata['legal_reference'],
                     $taxable, $vat,
-                    $vatDue, $deductible, $proRata, $proRataAmount,
+                    $vatDue, $deductible, $effectiveDeductibility, $proRataAmount,
                     (int) $date->format('Y'), (int) $date->format('n'), $this->userId,
                 ]);
             }
@@ -569,6 +577,36 @@ final class VatService
         };
     }
 
+    private function nextVatProtocol(string $register, string $date): string
+    {
+        $year = (new DateTimeImmutable($date))->format('Y');
+        $registerCode = match ($register) { 'PURCHASES' => 'ACQ', 'SALES' => 'VEN', default => 'COR' };
+        $key = 'VAT-' . $registerCode . '-' . $year;
+        $statement = $this->db->prepare('SELECT id, next_value FROM document_sequences WHERE organization_id = ? AND sequence_key = ? FOR UPDATE');
+        $statement->execute([$this->organizationId, $key]);
+        $sequence = $statement->fetch();
+        if (!$sequence) {
+            $this->db->prepare('INSERT INTO document_sequences (organization_id, sequence_key, prefix, next_value, padding, created_at, updated_at) VALUES (?, ?, ?, 2, 6, NOW(), NOW())')
+                ->execute([$this->organizationId, $key, 'IVA-' . $registerCode . '-' . $year . '-']);
+            $sequenceId = (int) $this->db->lastInsertId();
+            $value = 1;
+        } else {
+            $sequenceId = (int) $sequence['id'];
+            $value = (int) $sequence['next_value'];
+        }
+        $prefix = 'IVA-' . $registerCode . '-' . $year . '-';
+        $exists = $this->db->prepare('SELECT 1 FROM vat_movements WHERE organization_id = ? AND protocol_number = ? LIMIT 1');
+        do {
+            $protocol = $prefix . str_pad((string) $value, 6, '0', STR_PAD_LEFT);
+            $exists->execute([$this->organizationId, $protocol]);
+            if (!$exists->fetchColumn()) break;
+            $value++;
+        } while (true);
+        $this->db->prepare('UPDATE document_sequences SET next_value = GREATEST(next_value, ?), updated_at = NOW() WHERE id = ?')
+            ->execute([$value + 1, $sequenceId]);
+        return $protocol;
+    }
+
     private function isCreditNote(array $document): bool
     {
         return (string) ($document['document_type'] ?? '') === 'CREDIT_NOTE'
@@ -588,8 +626,9 @@ final class VatService
              WHERE organization_id = ?
                AND document_type IN ('SALES_INVOICE','PURCHASE_INVOICE','CREDIT_NOTE')
                AND status IN ('ISSUED','RECEIVED','PARTIALLY_PAID','PAID','OVERDUE')
-               AND YEAR(document_date) = ? AND MONTH(document_date) BETWEEN ? AND ?
-             ORDER BY document_date, id"
+                AND YEAR(COALESCE(registration_date, document_date)) = ?
+                AND MONTH(COALESCE(registration_date, document_date)) BETWEEN ? AND ?
+              ORDER BY COALESCE(registration_date, document_date), id"
         );
         $statement->execute([$this->organizationId, $year, $monthFrom, $monthTo]);
         foreach ($statement->fetchAll(PDO::FETCH_COLUMN) as $documentId) {

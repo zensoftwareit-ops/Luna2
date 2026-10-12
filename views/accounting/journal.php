@@ -27,13 +27,13 @@
 <section class="card data-card">
     <div class="table-wrap"><table><thead><tr><th>Data</th><th>Protocollo</th><th>Tipo</th><th>Descrizione</th><th>Documento / controparte</th><th>Dare</th><th>Avere</th><th>Stato</th><th class="actions-column">Azioni</th></tr></thead><tbody>
     <?php foreach ($entries as $entry): ?>
-        <tr>
+        <tr class="<?= (int) ($entry['revision_number'] ?? 1) > 1 ? 'classified-row' : '' ?>">
             <td><?= View::date($entry['entry_date']) ?><small class="cell-subtitle">Comp. <?= View::date($entry['competence_date']) ?></small></td>
             <td class="primary-cell"><a href="/accounting/journal/<?= (int) $entry['id'] ?>"><?= View::e($entry['protocol_number']) ?></a><small><?= View::e($entry['source_protocol'] ?: $entry['source_type']) ?></small></td>
             <td><?= View::e($entry['entry_type']) ?></td><td><?= View::e($entry['description']) ?></td>
             <td><?= View::e($entry['document_number'] ?: '—') ?><small class="cell-subtitle"><?= View::e($entry['counterparty'] ?: '') ?></small></td>
             <td><?= View::money($entry['total_debit']) ?></td><td><?= View::money($entry['total_credit']) ?></td>
-            <td><span class="badge status-<?= !empty($entry['is_finalized']) ? 'locked' : strtolower((string) $entry['status']) ?>"><?= match (true) { $entry['status'] === 'DRAFT' => 'Bozza incompleta', $entry['status'] === 'POSTED' && !empty($entry['is_finalized']) => 'Definitiva', $entry['status'] === 'POSTED' => 'Provvisoria', $entry['status'] === 'REVERSED' => 'Stornata', default => View::e($entry['status']) } ?></span></td>
+            <td><span class="badge status-<?= !empty($entry['is_finalized']) ? 'locked' : strtolower((string) $entry['status']) ?>"><?= match (true) { $entry['status'] === 'DRAFT' => 'Bozza incompleta', $entry['status'] === 'POSTED' && !empty($entry['is_finalized']) => 'Definitiva', $entry['status'] === 'POSTED' => 'Provvisoria', $entry['status'] === 'REVERSED' => 'Stornata', default => View::e($entry['status']) } ?></span><?php if ((int) ($entry['revision_number'] ?? 1) > 1): ?><small class="classification-mark">✓ Già modificata</small><?php endif; ?></td>
             <td class="row-actions"><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>">Apri</a><?php if (in_array($entry['status'], ['DRAFT','POSTED'], true) && $entry['source_type'] === 'MANUAL' && empty($entry['is_finalized'])): ?><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>/edit">Modifica</a><?php endif; ?></td>
         </tr>
     <?php endforeach; ?>

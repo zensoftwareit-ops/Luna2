@@ -257,7 +257,8 @@ final class AccountingService
             $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
 
             $lineStatement = $this->db->prepare(
-                'SELECT l.id, l.account_id, a.code, a.name, a.account_type
+                'SELECT l.id, l.account_id, l.debit, l.credit, l.description, l.customer_id, l.supplier_id,
+                        a.code, a.name, a.account_type
                  FROM journal_entry_lines l
                  JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
                  WHERE l.id = ? AND l.journal_entry_id = ? AND l.organization_id = ? FOR UPDATE'
@@ -280,8 +281,8 @@ final class AccountingService
             if ((int) $line['account_id'] === $newAccountId) {
                 throw new InvalidArgumentException('La riga utilizza già il conto selezionato.');
             }
-            if ((string) $line['account_type'] !== (string) $newAccount['account_type']) {
-                throw new InvalidArgumentException('Il nuovo conto deve appartenere alla stessa categoria contabile di quello sostituito.');
+            if (!in_array((string) $newAccount['account_type'], $this->compatibleAccountTypes($entry, $line), true)) {
+                throw new InvalidArgumentException('Il nuovo conto non è compatibile con questa riga contabile.');
             }
 
             $revisionReason = sprintf('Cambio conto %s → %s', (string) $line['code'], (string) $newAccount['code']);
@@ -313,6 +314,160 @@ final class AccountingService
             }
             throw $exception;
         }
+    }
+
+    /** @param array<int,array{account_id:mixed,amount:mixed,description?:mixed}> $allocations */
+    public function splitLine(int $entryId, int $lineId, array $allocations, string $reason): array
+    {
+        if ($entryId <= 0 || $lineId <= 0 || count($allocations) < 2 || count($allocations) > 20) {
+            throw new InvalidArgumentException('Inserisci almeno due ripartizioni valide.');
+        }
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+        try {
+            $entryStatement = $this->db->prepare("SELECT * FROM journal_entries WHERE id = ? AND organization_id = ? AND status IN ('DRAFT','POSTED') AND is_finalized = 0 FOR UPDATE");
+            $entryStatement->execute([$entryId, $this->organizationId]);
+            $entry = $entryStatement->fetch();
+            if (!$entry) throw new InvalidArgumentException('La scrittura è definitiva, stornata o non modificabile.');
+            $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+
+            $lineStatement = $this->db->prepare(
+                'SELECT l.*, a.code, a.name, a.account_type FROM journal_entry_lines l
+                 JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
+                 WHERE l.id = ? AND l.journal_entry_id = ? AND l.organization_id = ? FOR UPDATE'
+            );
+            $lineStatement->execute([$lineId, $entryId, $this->organizationId]);
+            $line = $lineStatement->fetch();
+            if (!$line) throw new InvalidArgumentException('Riga contabile non trovata.');
+            $side = (float) $line['debit'] > 0 ? 'debit' : 'credit';
+            $originalAmount = round((float) $line[$side], 2);
+            $allowedTypes = $this->compatibleAccountTypes($entry, $line);
+            $normalized = [];
+            $total = 0.0;
+            foreach ($allocations as $allocation) {
+                $accountId = (int) ($allocation['account_id'] ?? 0);
+                $amount = round($this->decimal($allocation['amount'] ?? 0), 2);
+                if ($accountId <= 0 || $amount <= 0) throw new InvalidArgumentException('Conto e importo sono obbligatori in ogni ripartizione.');
+                $account = $this->db->prepare('SELECT id, code, name, account_type FROM chart_of_accounts WHERE id = ? AND organization_id = ? AND active = 1 AND is_postable = 1');
+                $account->execute([$accountId, $this->organizationId]);
+                $account = $account->fetch();
+                if (!$account || !in_array((string) $account['account_type'], $allowedTypes, true)) {
+                    throw new InvalidArgumentException('Uno dei conti scelti non è compatibile con la riga.');
+                }
+                $total += $amount;
+                $normalized[] = ['account' => $account, 'amount' => $amount, 'description' => trim((string) ($allocation['description'] ?? ''))];
+            }
+            if (abs(round($total, 2) - $originalAmount) > 0.005) {
+                throw new InvalidArgumentException(sprintf('La ripartizione deve totalizzare %s.', number_format($originalAmount, 2, ',', '.')));
+            }
+
+            $revisionReason = 'Ripartizione riga ' . (int) $line['line_number'] . ' su ' . count($normalized) . ' conti';
+            if (trim($reason) !== '') $revisionReason .= '. ' . mb_substr(trim($reason), 0, 350);
+            $this->saveRevision($entry, $revisionReason);
+            $first = array_shift($normalized);
+            $this->db->prepare("UPDATE journal_entry_lines SET account_id = ?, {$side} = ?, description = ? WHERE id = ? AND journal_entry_id = ? AND organization_id = ?")
+                ->execute([(int) $first['account']['id'], $first['amount'], $first['description'] ?: $line['description'], $lineId, $entryId, $this->organizationId]);
+            $max = $this->db->prepare('SELECT COALESCE(MAX(line_number),0) FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?');
+            $max->execute([$entryId, $this->organizationId]);
+            $lineNumber = (int) $max->fetchColumn();
+            $insert = $this->db->prepare(
+                'INSERT INTO journal_entry_lines (organization_id,journal_entry_id,line_number,account_id,debit,credit,description,cost_center_id,customer_id,supplier_id,created_at)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,NOW())'
+            );
+            foreach ($normalized as $allocation) {
+                $lineNumber++;
+                $insert->execute([$this->organizationId, $entryId, $lineNumber, (int) $allocation['account']['id'],
+                    $side === 'debit' ? $allocation['amount'] : 0, $side === 'credit' ? $allocation['amount'] : 0,
+                    $allocation['description'] ?: $line['description'], $line['cost_center_id'], $line['customer_id'], $line['supplier_id']]);
+            }
+            $this->db->prepare('UPDATE journal_entries SET revision_number = revision_number + 1, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                ->execute([$this->userId, $entryId, $this->organizationId]);
+            $this->invalidateJournalPrints(null, (string) $entry['entry_date']);
+            if ($ownsTransaction) $this->db->commit();
+            return ['line_id' => $lineId, 'allocations' => 1 + count($normalized), 'amount' => $originalAmount];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    public function changeDocumentVatDeductibility(int $entryId, string $vatCode, float $vatRate, string $vatNature, float $percent): array
+    {
+        $percent = round($percent, 2);
+        if ($percent < 0 || $percent > 100) throw new InvalidArgumentException('La percentuale detraibile deve essere compresa tra 0 e 100.');
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+        try {
+            $statement = $this->db->prepare("SELECT e.*, d.document_type, d.fatturapa_type, d.vat_total, d.vat_collectability FROM journal_entries e JOIN documents d ON d.id = e.source_id AND d.organization_id = e.organization_id WHERE e.id = ? AND e.organization_id = ? AND e.source_type = 'DOCUMENT' AND e.status IN ('DRAFT','POSTED') AND e.is_finalized = 0 FOR UPDATE");
+            $statement->execute([$entryId, $this->organizationId]);
+            $entry = $statement->fetch();
+            if (!$entry || (string) $entry['document_type'] !== 'PURCHASE_INVOICE') throw new InvalidArgumentException('La detraibilità può essere modificata solo su una fattura di acquisto non definitiva.');
+            $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+            $this->saveRevision($entry, sprintf('IVA %s al %.2f%% detraibile', $vatCode ?: number_format($vatRate, 2), $percent));
+            $matching = $this->db->prepare('SELECT COUNT(*) FROM document_lines WHERE organization_id = ? AND document_id = ? AND COALESCE(vat_code,\'\') = ? AND vat_rate = ? AND COALESCE(vat_nature,\'\') = ?');
+            $matching->execute([$this->organizationId, (int) $entry['source_id'], $vatCode, $vatRate, $vatNature]);
+            if ((int) $matching->fetchColumn() === 0) throw new InvalidArgumentException('Gruppo IVA del documento non trovato.');
+            $update = $this->db->prepare('UPDATE document_lines SET deductible_percent = ?, updated_at = NOW() WHERE organization_id = ? AND document_id = ? AND COALESCE(vat_code,\'\') = ? AND vat_rate = ? AND COALESCE(vat_nature,\'\') = ?');
+            $update->execute([$percent, $this->organizationId, (int) $entry['source_id'], $vatCode, $vatRate, $vatNature]);
+            (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument((int) $entry['source_id']);
+
+            $deductible = $this->db->prepare('SELECT COALESCE(SUM(ABS(deductible_vat)),0) FROM vat_movements WHERE organization_id = ? AND document_id = ?');
+            $deductible->execute([$this->organizationId, (int) $entry['source_id']]);
+            $deductibleAmount = round((float) $deductible->fetchColumn(), 2);
+            $grossVat = round(abs((float) $entry['vat_total']), 2);
+            $nonDeductible = round(max(0, $grossVat - $deductibleAmount), 2);
+            $vatAccountKey = $this->isDeferredVat($entry) ? 'VAT_CLEARING' : 'VAT_RECEIVABLE';
+            $accounts = $this->systemAccounts([$vatAccountKey, 'PURCHASE_COSTS']);
+            $isCreditNote = in_array(strtoupper((string) ($entry['fatturapa_type'] ?? '')), ['TD04','TD08'], true);
+            $side = $isCreditNote ? 'credit' : 'debit';
+            $otherSide = $side === 'debit' ? 'credit' : 'debit';
+            $vatLine = $this->db->prepare("SELECT id FROM journal_entry_lines WHERE organization_id = ? AND journal_entry_id = ? AND (account_id = ? OR LOWER(description) LIKE '%iva a credito%' OR LOWER(description) LIKE '%iva differita%') ORDER BY id LIMIT 1");
+            $vatLine->execute([$this->organizationId, $entryId, $accounts[$vatAccountKey]]);
+            $vatLineId = (int) $vatLine->fetchColumn();
+            if ($vatLineId) {
+                if ($deductibleAmount > 0) $this->db->prepare("UPDATE journal_entry_lines SET {$side} = ?, {$otherSide} = 0 WHERE id = ? AND organization_id = ?")->execute([$deductibleAmount, $vatLineId, $this->organizationId]);
+                else $this->db->prepare('DELETE FROM journal_entry_lines WHERE id = ? AND organization_id = ?')->execute([$vatLineId, $this->organizationId]);
+            } elseif ($deductibleAmount > 0) {
+                $max = $this->db->prepare('SELECT COALESCE(MAX(line_number),0)+1 FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?');
+                $max->execute([$entryId, $this->organizationId]);
+                $this->db->prepare("INSERT INTO journal_entry_lines (organization_id,journal_entry_id,line_number,account_id,debit,credit,description,created_at) VALUES (?,?,?,?,?,?,?,NOW())")
+                    ->execute([$this->organizationId, $entryId, (int) $max->fetchColumn(), $accounts[$vatAccountKey], $side === 'debit' ? $deductibleAmount : 0, $side === 'credit' ? $deductibleAmount : 0, $vatAccountKey === 'VAT_CLEARING' ? 'IVA differita' : 'IVA a credito']);
+            }
+            $description = 'IVA indetraibile documento ' . $entry['document_number'];
+            $costLine = $this->db->prepare('SELECT id FROM journal_entry_lines WHERE organization_id = ? AND journal_entry_id = ? AND description = ? LIMIT 1');
+            $costLine->execute([$this->organizationId, $entryId, $description]);
+            $costLineId = (int) $costLine->fetchColumn();
+            if ($nonDeductible > 0) {
+                if ($costLineId) {
+                    $this->db->prepare("UPDATE journal_entry_lines SET {$side} = ?, {$otherSide} = 0 WHERE id = ? AND organization_id = ?")->execute([$nonDeductible, $costLineId, $this->organizationId]);
+                } else {
+                    $max = $this->db->prepare('SELECT COALESCE(MAX(line_number),0)+1 FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?');
+                    $max->execute([$entryId, $this->organizationId]);
+                    $this->db->prepare("INSERT INTO journal_entry_lines (organization_id,journal_entry_id,line_number,account_id,debit,credit,description,created_at) VALUES (?,?,?,?,?,?,?,NOW())")
+                        ->execute([$this->organizationId, $entryId, (int) $max->fetchColumn(), $accounts['PURCHASE_COSTS'], $side === 'debit' ? $nonDeductible : 0, $side === 'credit' ? $nonDeductible : 0, $description]);
+                }
+            } elseif ($costLineId) {
+                $this->db->prepare('DELETE FROM journal_entry_lines WHERE id = ? AND organization_id = ?')->execute([$costLineId, $this->organizationId]);
+            }
+            $this->db->prepare('UPDATE journal_entries SET revision_number = revision_number + 1, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')->execute([$this->userId, $entryId, $this->organizationId]);
+            $this->invalidateJournalPrints(null, (string) $entry['entry_date']);
+            if ($ownsTransaction) $this->db->commit();
+            return ['deductibility_percent' => $percent, 'deductible_vat' => $deductibleAmount, 'non_deductible_vat' => $nonDeductible];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    /** @return list<string> */
+    private function compatibleAccountTypes(array $entry, array $line): array
+    {
+        $description = mb_strtolower(trim((string) ($line['description'] ?? '')));
+        $isPurchaseAllocation = (string) ($entry['source_type'] ?? '') === 'DOCUMENT'
+            && (string) ($entry['entry_type'] ?? '') === 'PURCHASE_INVOICE'
+            && empty($line['customer_id']) && empty($line['supplier_id'])
+            && (str_contains($description, 'costo documento') || str_contains($description, 'storno costi') || str_contains($description, 'iva indetraibile'));
+        return $isPurchaseAllocation ? ['EXPENSE', 'ASSET', 'LIABILITY'] : [(string) $line['account_type']];
     }
 
     private function saveRevision(array $entry, string $reason): void

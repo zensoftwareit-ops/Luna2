@@ -459,6 +459,19 @@ Per sostituire soltanto un conto:
 
 Il cambio conserva importo, lato Dare/Avere, origine e collegamento al documento. Le revisioni rimangono visibili nello storico.
 
+Per classificare rapidamente una serie di fatture passive:
+
+1. aprire la prima registrazione dall'elenco;
+2. controllare nel riquadro **Documento XML collegato** le righe articolo originarie;
+3. usare **Cambia conto** sulla riga costo: la ricerca comprende conti economici, cespiti e conti patrimoniali compatibili;
+4. usare **Ripartisci** quando lo stesso documento deve movimentare due o più conti, indicando per ciascuno conto e importo;
+5. per un cespite scegliere il conto di immobilizzazione; per un risconto assegnare la quota futura al risconto attivo; per una fattura da ricevere scegliere il conto patrimoniale verificato dal responsabile contabile;
+6. premere **Salva e successiva** per passare direttamente alla fattura seguente dello stesso tipo.
+
+Nell'elenco di prima nota le righe già lavorate sono evidenziate con **Già modificata**. Il totale delle ripartizioni deve coincidere al centesimo con la riga originaria; Luna non modifica il totale Dare/Avere della scrittura.
+
+Per correggere una detraibilità particolare, aprire la registrazione collegata e nel riquadro **Detraibilità IVA** impostare la percentuale del gruppo interessato, per esempio `50` per IVA al 22% detraibile al 50%. Luna riallinea movimento IVA, IVA a credito, quota indetraibile e liquidazioni non definitive. Verificare comunque conto e calcolo prima della chiusura.
+
 Una scrittura definitiva non va modificata direttamente: registrare lo storno e la scrittura corretta secondo le istruzioni del responsabile contabile.
 
 ## 12. Registri IVA
@@ -472,7 +485,7 @@ Sono disponibili vendite, acquisti, corrispettivi, reverse charge e autofatture.
 1. Impostare il periodo.
 2. Selezionare il tipo di registro.
 3. Filtrare.
-4. Controllare estremi documento, protocollo, controparte, imponibile, IVA, aliquota e detraibilità.
+4. Controllare separatamente **Protocollo IVA** e **Documento originale**, oltre a controparte, imponibile, IVA, aliquota e detraibilità.
 5. Verificare i totali per articolo e aliquota.
 6. Esportare il prospetto necessario.
 
@@ -489,6 +502,7 @@ Controllare entrambi i lati IVA e il tipo documento. La sola presenza nel regist
 - la nota di credito è determinata dalla causale/tipo documento e riduce i totali corretti;
 - gli importi XML possono essere positivi;
 - per IVA detraibile parzialmente, verificare aliquota, percentuale detraibile, imposta detraibile e parte indetraibile;
+- la percentuale si corregge dalla registrazione collegata in prima nota; la modifica invalida le liquidazioni calcolate ma non definitive, che devono essere ricalcolate;
 - prima della liquidazione confrontare i totali con un prospetto di controllo.
 
 ## 13. Liquidazioni IVA
