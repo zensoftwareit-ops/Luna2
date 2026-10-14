@@ -551,6 +551,16 @@ $assert(str_contains($documentController, "'document_kind'")
     && str_contains($documentIndex, 'Nota di credito')
     && str_contains((string) file_get_contents($base . '/views/documents/pdf.php'), 'Tipo:'),
     'Elenchi ed esportazioni delle fatture devono distinguere fatture e note di credito e riportare le righe analitiche.');
+$accountingFormView = (string) file_get_contents($base . '/views/accounting/form.php');
+$documentPdfView = (string) file_get_contents($base . '/views/documents/pdf.php');
+$assert(str_contains($documentPdfView, 'Articolo IVA') && str_contains($documentPdfView, 'Non imponibile / esente / escluso'),
+    'Il PDF fattura deve esporre il riepilogo fiscale per articolo e distinguere le operazioni escluse.');
+$assert(str_contains($entryView, 'source-document-preview') && str_contains($entryView, 'data-current-description'),
+    'La prima nota deve mostrare la fattura e consentire di correggere la descrizione delle righe.');
+$assert(str_contains($accountingFormView, 'data-manual-account-catalog') && str_contains($accountingFormView, 'data-guided-payment'),
+    'La nuova prima nota deve offrire ricerca dinamica dei conti e registrazione guidata dallo scadenzario.');
+$assert(str_contains($accountingService, 'documentVatGroups') && str_contains($accountingService, 'vatBreakdown'),
+    'La prima nota documentale deve mantenere la ripartizione IVA per articolo anche dopo le correzioni.');
 $assert(str_contains($vatService, 'nextVatProtocol')
     && str_contains($vatService, "document_reference, document_reference_date")
     && str_contains((string) file_get_contents($base . '/views/accounting/vat-registers.php'), 'Protocollo IVA'),

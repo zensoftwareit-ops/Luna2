@@ -20,6 +20,7 @@ Le note ufficiali DATEV mostrano che la gestione contabile comprende, oltre alla
 | Bilancio di verifica | Totali Dare/Avere e saldi per conto |
 | Registri IVA | Vendite, acquisti e corrispettivi; movimenti da documenti o manuali; riepilogo per codice IVA |
 | Detraibilità | Importo detraibile distinto per gli acquisti, anche inferiore all’IVA del movimento |
+| Articoli IVA | Catalogo operativo distinto dall’aliquota, con ambito, natura, regime, territorialità, reverse charge, split payment e classificazione FE; selezione esplicita sulle ambiguità XML |
 | Liquidazioni IVA | Periodicità mensile/trimestrale, credito precedente, interessi inseriti e verificati, saldo e dettaglio per registro/codice |
 | Blocco periodo IVA | Liquidazioni definitive/pagate impediscono la modifica dei movimenti; riapertura esplicita e auditata |
 | Storico esistente | Sincronizzazione idempotente dei documenti già emessi/ricevuti nei registri IVA |

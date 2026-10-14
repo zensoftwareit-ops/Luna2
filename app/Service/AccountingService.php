@@ -233,7 +233,7 @@ final class AccountingService
     }
 
     /** @return array{old_account_id:int,new_account_id:int,old_account_code:string,new_account_code:string} */
-    public function changeLineAccount(int $entryId, int $lineId, int $newAccountId, string $reason): array
+    public function changeLineAccount(int $entryId, int $lineId, int $newAccountId, string $reason, string $description = ''): array
     {
         $reason = trim($reason);
         if ($entryId <= 0 || $lineId <= 0 || $newAccountId <= 0) {
@@ -278,8 +278,9 @@ final class AccountingService
             if (!$newAccount) {
                 throw new InvalidArgumentException('Il nuovo conto non è attivo o movimentabile.');
             }
-            if ((int) $line['account_id'] === $newAccountId) {
-                throw new InvalidArgumentException('La riga utilizza già il conto selezionato.');
+            $description = trim($description);
+            if ((int) $line['account_id'] === $newAccountId && ($description === '' || $description === trim((string) $line['description']))) {
+                throw new InvalidArgumentException('Conto e descrizione sono già quelli indicati.');
             }
             if (!in_array((string) $newAccount['account_type'], $this->compatibleAccountTypes($entry, $line), true)) {
                 throw new InvalidArgumentException('Il nuovo conto non è compatibile con questa riga contabile.');
@@ -291,8 +292,8 @@ final class AccountingService
             }
             $this->saveRevision($entry, $revisionReason);
             $this->db->prepare(
-                'UPDATE journal_entry_lines SET account_id = ? WHERE id = ? AND journal_entry_id = ? AND organization_id = ?'
-            )->execute([$newAccountId, $lineId, $entryId, $this->organizationId]);
+                'UPDATE journal_entry_lines SET account_id = ?, description = ? WHERE id = ? AND journal_entry_id = ? AND organization_id = ?'
+            )->execute([$newAccountId, $description !== '' ? mb_substr($description, 0, 500) : $line['description'], $lineId, $entryId, $this->organizationId]);
             $this->db->prepare(
                 'UPDATE journal_entries SET revision_number = revision_number + 1, updated_by = ?, updated_at = NOW()
                  WHERE id = ? AND organization_id = ?'
@@ -391,7 +392,7 @@ final class AccountingService
         }
     }
 
-    public function changeDocumentVatDeductibility(int $entryId, string $vatCode, float $vatRate, string $vatNature, float $percent): array
+    public function changeDocumentVatDeductibility(int $entryId, string $vatCode, float $vatRate, string $vatNature, float $percent, bool $saveRevision = true): array
     {
         $percent = round($percent, 2);
         if ($percent < 0 || $percent > 100) throw new InvalidArgumentException('La percentuale detraibile deve essere compresa tra 0 e 100.');
@@ -403,7 +404,9 @@ final class AccountingService
             $entry = $statement->fetch();
             if (!$entry || (string) $entry['document_type'] !== 'PURCHASE_INVOICE') throw new InvalidArgumentException('La detraibilità può essere modificata solo su una fattura di acquisto non definitiva.');
             $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
-            $this->saveRevision($entry, sprintf('IVA %s al %.2f%% detraibile', $vatCode ?: number_format($vatRate, 2), $percent));
+            if ($saveRevision) {
+                $this->saveRevision($entry, sprintf('IVA %s al %.2f%% detraibile', $vatCode ?: number_format($vatRate, 2), $percent));
+            }
             $matching = $this->db->prepare('SELECT COUNT(*) FROM document_lines WHERE organization_id = ? AND document_id = ? AND COALESCE(vat_code,\'\') = ? AND vat_rate = ? AND COALESCE(vat_nature,\'\') = ?');
             $matching->execute([$this->organizationId, (int) $entry['source_id'], $vatCode, $vatRate, $vatNature]);
             if ((int) $matching->fetchColumn() === 0) throw new InvalidArgumentException('Gruppo IVA del documento non trovato.');
@@ -421,17 +424,29 @@ final class AccountingService
             $isCreditNote = in_array(strtoupper((string) ($entry['fatturapa_type'] ?? '')), ['TD04','TD08'], true);
             $side = $isCreditNote ? 'credit' : 'debit';
             $otherSide = $side === 'debit' ? 'credit' : 'debit';
-            $vatLine = $this->db->prepare("SELECT id FROM journal_entry_lines WHERE organization_id = ? AND journal_entry_id = ? AND (account_id = ? OR LOWER(description) LIKE '%iva a credito%' OR LOWER(description) LIKE '%iva differita%') ORDER BY id LIMIT 1");
-            $vatLine->execute([$this->organizationId, $entryId, $accounts[$vatAccountKey]]);
-            $vatLineId = (int) $vatLine->fetchColumn();
-            if ($vatLineId) {
-                if ($deductibleAmount > 0) $this->db->prepare("UPDATE journal_entry_lines SET {$side} = ?, {$otherSide} = 0 WHERE id = ? AND organization_id = ?")->execute([$deductibleAmount, $vatLineId, $this->organizationId]);
-                else $this->db->prepare('DELETE FROM journal_entry_lines WHERE id = ? AND organization_id = ?')->execute([$vatLineId, $this->organizationId]);
-            } elseif ($deductibleAmount > 0) {
-                $max = $this->db->prepare('SELECT COALESCE(MAX(line_number),0)+1 FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?');
-                $max->execute([$entryId, $this->organizationId]);
-                $this->db->prepare("INSERT INTO journal_entry_lines (organization_id,journal_entry_id,line_number,account_id,debit,credit,description,created_at) VALUES (?,?,?,?,?,?,?,NOW())")
-                    ->execute([$this->organizationId, $entryId, (int) $max->fetchColumn(), $accounts[$vatAccountKey], $side === 'debit' ? $deductibleAmount : 0, $side === 'credit' ? $deductibleAmount : 0, $vatAccountKey === 'VAT_CLEARING' ? 'IVA differita' : 'IVA a credito']);
+            $this->db->prepare(
+                "DELETE FROM journal_entry_lines WHERE organization_id = ? AND journal_entry_id = ?
+                   AND (LOWER(description) LIKE 'iva a credito%' OR LOWER(description) LIKE 'storno iva a credito%'
+                        OR LOWER(description) LIKE 'iva differita%' OR LOWER(description) LIKE 'storno iva differita%')"
+            )->execute([$this->organizationId, $entryId]);
+            $vatBreakdown = $this->db->prepare(
+                "SELECT COALESCE(vat_code,'') AS vat_code, COALESCE(vat_nature,'') AS vat_nature, vat_rate,
+                        COALESCE(SUM(ABS(deductible_vat)),0) AS deductible_vat
+                 FROM vat_movements WHERE organization_id = ? AND document_id = ?
+                 GROUP BY COALESCE(vat_code,''), COALESCE(vat_nature,''), vat_rate
+                 HAVING COALESCE(SUM(ABS(deductible_vat)),0) > 0.005 ORDER BY vat_rate DESC, vat_code"
+            );
+            $vatBreakdown->execute([$this->organizationId, (int) $entry['source_id']]);
+            $max = $this->db->prepare('SELECT COALESCE(MAX(line_number),0) FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?');
+            $max->execute([$entryId, $this->organizationId]);
+            $lineNumber = (int) $max->fetchColumn();
+            $insertVatLine = $this->db->prepare("INSERT INTO journal_entry_lines (organization_id,journal_entry_id,line_number,account_id,debit,credit,description,created_at) VALUES (?,?,?,?,?,?,?,NOW())");
+            foreach ($vatBreakdown->fetchAll() as $vatBreakdownRow) {
+                $amount = round((float) $vatBreakdownRow['deductible_vat'], 2);
+                $article = (string) ($vatBreakdownRow['vat_code'] ?: ($vatBreakdownRow['vat_nature'] ?: number_format((float) $vatBreakdownRow['vat_rate'], 2, ',', '.') . '%'));
+                $descriptionVat = ($isCreditNote ? 'Storno ' : '') . ($vatAccountKey === 'VAT_CLEARING' ? 'IVA differita' : 'IVA a credito') . ' · ' . $article;
+                $insertVatLine->execute([$this->organizationId, $entryId, ++$lineNumber, $accounts[$vatAccountKey],
+                    $side === 'debit' ? $amount : 0, $side === 'credit' ? $amount : 0, $descriptionVat]);
             }
             $description = 'IVA indetraibile documento ' . $entry['document_number'];
             $costLine = $this->db->prepare('SELECT id FROM journal_entry_lines WHERE organization_id = ? AND journal_entry_id = ? AND description = ? LIMIT 1');
@@ -499,6 +514,70 @@ final class AccountingService
         }
     }
 
+    public function changeDocumentLineVatArticle(int $entryId, int $lineId, string $vatCode): array
+    {
+        $vatCode = mb_strtoupper(trim($vatCode));
+        if ($vatCode === '') throw new InvalidArgumentException('Seleziona un articolo IVA.');
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+        try {
+            $statement = $this->db->prepare(
+                "SELECT e.*, d.id AS document_id, d.document_type FROM journal_entries e
+                 JOIN documents d ON d.id = e.source_id AND d.organization_id = e.organization_id
+                 WHERE e.id = ? AND e.organization_id = ? AND e.source_type = 'DOCUMENT'
+                   AND e.status IN ('DRAFT','POSTED') AND e.is_finalized = 0 FOR UPDATE"
+            );
+            $statement->execute([$entryId, $this->organizationId]);
+            $entry = $statement->fetch();
+            if (!$entry) throw new InvalidArgumentException('Registrazione documentale non modificabile.');
+            $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+            $scope = (string) $entry['document_type'] === 'PURCHASE_INVOICE' ? 'PURCHASES' : 'SALES';
+            $articleStatement = $this->db->prepare(
+                "SELECT * FROM vat_codes WHERE organization_id = ? AND code = ? AND active = 1
+                   AND operation_scope IN ('BOTH', ?) LIMIT 1"
+            );
+            $articleStatement->execute([$this->organizationId, $vatCode, $scope]);
+            $article = $articleStatement->fetch();
+            if (!$article) throw new InvalidArgumentException('Articolo IVA inesistente, obsoleto o non utilizzabile per questo tipo di documento.');
+            $lineStatement = $this->db->prepare('SELECT * FROM document_lines WHERE id = ? AND document_id = ? AND organization_id = ? FOR UPDATE');
+            $lineStatement->execute([$lineId, (int) $entry['document_id'], $this->organizationId]);
+            $line = $lineStatement->fetch();
+            if (!$line) throw new InvalidArgumentException('Riga documento non trovata.');
+            $this->saveRevision($entry, 'Articolo IVA riga ' . (int) $line['line_number'] . ': ' . $vatCode);
+            $classification = (string) ($line['purchase_classification'] ?? 'ORDINARY');
+            $regime = mb_strtolower((string) ($article['vat_regime'] ?? ''));
+            if (str_contains($regime, 'ammortizz')) $classification = 'DEPRECIABLE_ASSET';
+            elseif (str_contains($regime, 'rivend')) $classification = 'RESALE';
+            elseif (str_contains($regime, 'leasing')) $classification = 'LEASING';
+            $nature = mb_strtoupper(trim((string) ($article['nature'] ?? '')));
+            $this->db->prepare(
+                'UPDATE document_lines SET vat_code = ?, vat_nature = ?, vat_description = ?, vat_legal_reference = ?,
+                 vat_reverse_charge = ?, vat_split_payment = ?, vat_fatturapa_type = ?, purchase_classification = ?,
+                 vat_article_review_required = 0, updated_at = NOW() WHERE id = ? AND organization_id = ?'
+            )->execute([
+                $vatCode, $nature ?: null, $article['description'], $article['legal_reference'],
+                (int) $article['reverse_charge'], (int) $article['split_payment'], $article['fatturapa_type'] ?: null,
+                $classification, $lineId, $this->organizationId,
+            ]);
+            if ((string) $entry['document_type'] === 'PURCHASE_INVOICE') {
+                $result = $this->changeDocumentVatDeductibility(
+                    $entryId, $vatCode, (float) $line['vat_rate'], $nature, (float) $article['deductible_percent'], false
+                );
+            } else {
+                (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument((int) $entry['document_id']);
+                $this->db->prepare('UPDATE journal_entries SET revision_number = revision_number + 1, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                    ->execute([$this->userId, $entryId, $this->organizationId]);
+                $this->invalidateJournalPrints(null, (string) $entry['entry_date']);
+                $result = ['deductibility_percent' => 0.0, 'deductible_vat' => 0.0, 'non_deductible_vat' => 0.0];
+            }
+            if ($ownsTransaction) $this->db->commit();
+            return $result + ['line_id' => $lineId, 'previous' => $line['vat_code'], 'vat_code' => $vatCode];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
     /** @return list<string> */
     private function compatibleAccountTypes(array $entry, array $line): array
     {
@@ -506,7 +585,7 @@ final class AccountingService
         $isPurchaseAllocation = (string) ($entry['source_type'] ?? '') === 'DOCUMENT'
             && (string) ($entry['entry_type'] ?? '') === 'PURCHASE_INVOICE'
             && empty($line['customer_id']) && empty($line['supplier_id'])
-            && (str_contains($description, 'costo documento') || str_contains($description, 'storno costi') || str_contains($description, 'iva indetraibile'));
+            && !str_contains($description, 'iva a credito') && !str_contains($description, 'iva differita');
         return $isPurchaseAllocation ? ['EXPENSE', 'ASSET', 'LIABILITY'] : [(string) $line['account_type']];
     }
 
@@ -671,6 +750,35 @@ final class AccountingService
             $partyTag = $partyId > 0
                 ? ($isPurchase ? ['supplier_id' => $partyId] : ['customer_id' => $partyId])
                 : [];
+            $vatGroupsStatement = $this->db->prepare(
+                "SELECT COALESCE(vat_code, '') AS vat_code, COALESCE(vat_nature, '') AS vat_nature,
+                        vat_rate, COALESCE(vat_description, '') AS vat_description,
+                        deductible_percent, SUM(vat_amount) AS vat_amount
+                 FROM document_lines WHERE document_id = ? AND organization_id = ?
+                 GROUP BY COALESCE(vat_code, ''), COALESCE(vat_nature, ''), vat_rate,
+                          COALESCE(vat_description, ''), deductible_percent
+                 HAVING ABS(SUM(vat_amount)) > 0.005
+                 ORDER BY vat_rate DESC, vat_code"
+            );
+            $vatGroupsStatement->execute([$documentId, $this->organizationId]);
+            $documentVatGroups = $vatGroupsStatement->fetchAll();
+            if ($documentVatGroups === [] && abs($vat) > .005) {
+                $documentVatGroups = [[
+                    'vat_code' => '', 'vat_nature' => '', 'vat_rate' => 0,
+                    'vat_description' => '', 'deductible_percent' => 100, 'vat_amount' => $vat,
+                ]];
+            }
+            $deductibleVatTotal = 0.0;
+            $nonDeductibleVatTotal = 0.0;
+            foreach ($documentVatGroups as &$vatGroup) {
+                $grossGroupVat = round(abs((float) $vatGroup['vat_amount']), 2);
+                $deductiblePercent = $isPurchase ? max(0, min(100, (float) ($vatGroup['deductible_percent'] ?? 100))) : 100;
+                $vatGroup['deductible_amount'] = round($grossGroupVat * $deductiblePercent / 100, 2);
+                $vatGroup['non_deductible_amount'] = round($grossGroupVat - $vatGroup['deductible_amount'], 2);
+                $deductibleVatTotal += $vatGroup['deductible_amount'];
+                $nonDeductibleVatTotal += $vatGroup['non_deductible_amount'];
+            }
+            unset($vatGroup);
             $requiredAccounts = $isPurchase
                 ? ['TRADE_PAYABLES', 'PURCHASE_COSTS']
                 : ['TRADE_RECEIVABLES', 'SALES_REVENUE'];
@@ -684,32 +792,44 @@ final class AccountingService
                     ['account_id' => $accounts['TRADE_RECEIVABLES'], 'debit' => $total, 'credit' => 0.0, 'description' => 'Credito verso ' . $document['counterparty_name']] + $partyTag,
                     ['account_id' => $accounts['SALES_REVENUE'], 'debit' => 0.0, 'credit' => $net, 'description' => 'Ricavi documento ' . $document['number']],
                 ];
-                if ($vat > 0) {
-                    $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_PAYABLE'], 'debit' => 0.0, 'credit' => $vat, 'description' => $vatAccount ? 'IVA differita' : 'IVA a debito'];
+                foreach ($documentVatGroups as $vatGroup) {
+                    $amount = (float) $vatGroup['deductible_amount'];
+                    if ($amount <= .005) continue;
+                    $article = (string) ($vatGroup['vat_code'] ?: ($vatGroup['vat_nature'] ?: number_format((float) $vatGroup['vat_rate'], 2, ',', '.') . '%'));
+                    $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_PAYABLE'], 'debit' => 0.0, 'credit' => $amount, 'description' => ($vatAccount ? 'IVA differita' : 'IVA a debito') . ' · ' . $article];
                 }
             } elseif ($isCreditNote && !$isPurchase) {
                 $lines = [
                     ['account_id' => $accounts['SALES_REVENUE'], 'debit' => $net, 'credit' => 0.0, 'description' => 'Storno ricavi ' . $document['number']],
                     ['account_id' => $accounts['TRADE_RECEIVABLES'], 'debit' => 0.0, 'credit' => $total, 'description' => 'Storno credito verso ' . $document['counterparty_name']] + $partyTag,
                 ];
-                if ($vat > 0) {
-                    $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_PAYABLE'], 'debit' => $vat, 'credit' => 0.0, 'description' => $vatAccount ? 'Storno IVA differita' : 'Storno IVA a debito'];
+                foreach ($documentVatGroups as $vatGroup) {
+                    $amount = (float) $vatGroup['deductible_amount'];
+                    if ($amount <= .005) continue;
+                    $article = (string) ($vatGroup['vat_code'] ?: ($vatGroup['vat_nature'] ?: number_format((float) $vatGroup['vat_rate'], 2, ',', '.') . '%'));
+                    $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_PAYABLE'], 'debit' => $amount, 'credit' => 0.0, 'description' => ($vatAccount ? 'Storno IVA differita' : 'Storno IVA a debito') . ' · ' . $article];
                 }
             } elseif (!$isCreditNote) {
                 $lines = [
-                    ['account_id' => $accounts['PURCHASE_COSTS'], 'debit' => $net, 'credit' => 0.0, 'description' => 'Costo documento ' . $document['number']],
+                    ['account_id' => $accounts['PURCHASE_COSTS'], 'debit' => round($net + $nonDeductibleVatTotal, 2), 'credit' => 0.0, 'description' => 'Costo documento ' . $document['number']],
                     ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => 0.0, 'credit' => $total, 'description' => 'Debito verso ' . $document['counterparty_name']] + $partyTag,
                 ];
-                if ($vat > 0) {
-                    $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_RECEIVABLE'], 'debit' => $vat, 'credit' => 0.0, 'description' => $vatAccount ? 'IVA differita' : 'IVA a credito'];
+                foreach ($documentVatGroups as $vatGroup) {
+                    $amount = (float) $vatGroup['deductible_amount'];
+                    if ($amount <= .005) continue;
+                    $article = (string) ($vatGroup['vat_code'] ?: ($vatGroup['vat_nature'] ?: number_format((float) $vatGroup['vat_rate'], 2, ',', '.') . '%'));
+                    $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_RECEIVABLE'], 'debit' => $amount, 'credit' => 0.0, 'description' => ($vatAccount ? 'IVA differita' : 'IVA a credito') . ' · ' . $article];
                 }
             } else {
                 $lines = [
                     ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => $total, 'credit' => 0.0, 'description' => 'Storno debito verso ' . $document['counterparty_name']] + $partyTag,
-                    ['account_id' => $accounts['PURCHASE_COSTS'], 'debit' => 0.0, 'credit' => $net, 'description' => 'Storno costi ' . $document['number']],
+                    ['account_id' => $accounts['PURCHASE_COSTS'], 'debit' => 0.0, 'credit' => round($net + $nonDeductibleVatTotal, 2), 'description' => 'Storno costi ' . $document['number']],
                 ];
-                if ($vat > 0) {
-                    $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_RECEIVABLE'], 'debit' => 0.0, 'credit' => $vat, 'description' => $vatAccount ? 'Storno IVA differita' : 'Storno IVA a credito'];
+                foreach ($documentVatGroups as $vatGroup) {
+                    $amount = (float) $vatGroup['deductible_amount'];
+                    if ($amount <= .005) continue;
+                    $article = (string) ($vatGroup['vat_code'] ?: ($vatGroup['vat_nature'] ?: number_format((float) $vatGroup['vat_rate'], 2, ',', '.') . '%'));
+                    $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_RECEIVABLE'], 'debit' => 0.0, 'credit' => $amount, 'description' => ($vatAccount ? 'Storno IVA differita' : 'Storno IVA a credito') . ' · ' . $article];
                 }
             }
             $entryId = $this->postAutomated([

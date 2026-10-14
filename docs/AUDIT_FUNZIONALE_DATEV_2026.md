@@ -26,8 +26,9 @@ Una funzione è considerata **operativa** solo se dispone di inserimento/importa
 | Fatture XML e note di credito | Operativo | Import idempotente, righe, TD04/TD08, contabilità e IVA |
 | Scadenze e netto da pagare | Operativo | Rate XML multiple; ricalcolo se non quadrano; ritenuta sottratta |
 | Pagamenti, incassi e riconciliazione | Operativo | Parziali, storni, CSV/CAMT.053/MT940, matching assistito |
-| Registri e liquidazioni IVA | Operativo da collaudare | Registri multipli, credito precedente, detraibilità, reverse/autofatture |
-| Classificazione IVA beni ammortizzabili | Operativo | Separata da conto e detraibilità, riportata nel riepilogo annuale |
+| Catalogo articoli IVA | Operativo da collaudare | Import DATEV completo: ambito, natura, regime, territorialità, indetraibilità, reverse, split e FE; scelta esplicita sulle ambiguità XML |
+| Registri e liquidazioni IVA | Operativo da collaudare | Registri multipli, credito precedente, detraibilità, reverse/autofatture; riallineamento dopo cambio articolo |
+| Classificazione IVA beni ammortizzabili | Operativo | Derivabile dall'articolo IVA e modificabile per riga; separata da conto e detraibilità |
 | Cespiti | Operativo da collaudare | Categorie, acquisto, nuovo/usato, quote civili/fiscali e registro |
 | Ratei, risconti, chiusura e apertura | Operativo da collaudare | Workflow presente; richiede quadratura su caso reale |
 | Ritenute | Operativo da collaudare | Importo, netto, scadenza e versamento; casistiche da validare |
@@ -53,6 +54,8 @@ Il rischio principale non è la quantità di funzioni, ma dichiarare completa un
 6. verifica di chiusura/apertura su copia del database;
 7. verbale delle differenze residue e approvazione del responsabile contabile;
 8. backup e piano di ripristino verificato prima del go-live.
+
+Il software applica un gate tecnico aggiuntivo: righe XML senza articolo IVA univoco sono marcate **Da verificare** e bloccano validazione delle stampe ufficiali e chiusura dell'esercizio. Il gate evita che la sola corrispondenza di aliquota o natura venga scambiata per una classificazione fiscale certa.
 
 ## Priorità successive
 

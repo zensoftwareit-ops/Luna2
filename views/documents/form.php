@@ -27,13 +27,19 @@
 
 <section class="card">
 <div class="card-header"><h2>Righe</h2><button class="button" type="button" data-add-line>Aggiungi riga</button></div>
-<div class="table-wrap"><table class="line-table"><thead><tr><th>Prodotto</th><th>Descrizione</th><th>Q.tà</th><th>U.M.</th><th>Prezzo</th><th>Sconto %</th><th>IVA %</th><th>Natura</th><th></th></tr></thead><tbody data-lines></tbody></table></div>
+<div class="table-wrap"><table class="line-table"><thead><tr><th>Prodotto</th><th>Descrizione</th><th>Q.tà</th><th>U.M.</th><th>Prezzo</th><th>Sconto %</th><th>Articolo IVA</th><th>Aliquota %</th><th></th></tr></thead><tbody data-lines></tbody></table></div>
+<datalist id="vat-article-options"><?php foreach ($vatCodes as $vatCode): ?><option value="<?= View::e($vatCode['code']) ?>"><?= View::e($vatCode['description']) ?></option><?php endforeach; ?></datalist>
 </section>
 
 <section class="card form-card"><label class="field"><span>Note</span><textarea name="notes" rows="4"></textarea></label><div class="form-actions"><a class="button" href="/documents/<?= View::e($type) ?>">Annulla</a><button class="button primary" type="submit">Salva documento</button></div></section>
 
 <template id="line-template"><tr>
 <td><select data-product-select><option value="">Riga libera</option><?php foreach ($products as $product): ?><option value="<?= (int) $product['id'] ?>" data-code="<?= View::e($product['code']) ?>" data-name="<?= View::e($product['name']) ?>" data-unit="<?= View::e($product['unit']) ?>" data-price="<?= View::e($definition['counterparty'] === 'supplier' ? $product['purchase_cost'] : $product['sale_price']) ?>" data-vat="<?= View::e($product['vat_rate']) ?>"><?= View::e($product['code'] . ' · ' . $product['name']) ?></option><?php endforeach; ?></select><input type="hidden" data-field="product_code"></td>
-<td><input data-field="description" required></td><td><input data-field="quantity" inputmode="decimal" value="1" required></td><td><input data-field="unit" value="NR"></td><td><input data-field="unit_price" inputmode="decimal" value="0"></td><td><input data-field="discount_percent" inputmode="decimal" value="0"></td><td><input data-field="vat_rate" inputmode="decimal" value="22"></td><td><input data-field="vat_nature"></td><td><button type="button" class="link-button danger-text" data-remove-line>Rimuovi</button></td>
+<td><input data-field="description" required></td><td><input data-field="quantity" inputmode="decimal" value="1" required></td><td><input data-field="unit" value="NR"></td><td><input data-field="unit_price" inputmode="decimal" value="0"></td><td><input data-field="discount_percent" inputmode="decimal" value="0"></td><td><input data-field="vat_code" list="vat-article-options" autocomplete="off" placeholder="Cerca codice…" required><small data-vat-article-help></small></td><td><input data-field="vat_rate" inputmode="decimal" value="22"><input type="hidden" data-field="vat_nature"></td><td><button type="button" class="link-button danger-text" data-remove-line>Rimuovi</button></td>
 </tr></template>
+<script type="application/json" data-vat-article-catalog><?= json_encode(array_map(static fn (array $article): array => [
+    'code' => (string) $article['code'], 'description' => (string) $article['description'], 'rate' => (float) $article['rate'],
+    'nature' => (string) ($article['nature'] ?? ''), 'deductible_percent' => (float) ($article['deductible_percent'] ?? 100),
+    'operation_scope' => (string) ($article['operation_scope'] ?? 'BOTH'), 'vat_regime' => (string) ($article['vat_regime'] ?? ''),
+], $vatCodes), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
 </form>

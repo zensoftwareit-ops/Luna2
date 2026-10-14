@@ -34,6 +34,15 @@ final class ClosingService
         if ((int) $drafts->fetchColumn() > 0) {
             $errors[] = 'Sono presenti registrazioni in bozza nell’esercizio.';
         }
+        $unresolvedVat = $this->db->prepare(
+            "SELECT COUNT(*) FROM document_lines l JOIN documents d ON d.id = l.document_id AND d.organization_id = l.organization_id
+             WHERE l.organization_id = ? AND l.vat_article_review_required = 1
+               AND COALESCE(d.registration_date, d.document_date) BETWEEN ? AND ?"
+        );
+        $unresolvedVat->execute([$this->organizationId, $startsOn, $endsOn]);
+        if ((int) $unresolvedVat->fetchColumn() > 0) {
+            $errors[] = 'Sono presenti documenti con articolo IVA ancora da verificare.';
+        }
         $trial = $this->db->prepare(
             "SELECT COALESCE(SUM(total_debit),0), COALESCE(SUM(total_credit),0)
              FROM journal_entries WHERE organization_id = ? AND entry_date BETWEEN ? AND ? AND status = 'POSTED'"

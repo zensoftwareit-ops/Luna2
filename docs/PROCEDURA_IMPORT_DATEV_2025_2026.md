@@ -126,7 +126,7 @@ Caricare i file uno alla volta in questo ordine.
 | 1 | `Stampa piano dei conti_150926095325.csv` | Originali DATEV Koinos — acquisizione guidata | Conti acquisiti senza errori; conservare l'elenco dei conti incompleti. |
 | 2 | `Stampa lista clienti fornitori_150926095616.csv` | Originali DATEV Koinos — acquisizione guidata | Clienti e fornitori acquisiti; verificare duplicati di P. IVA/C.F. e soggetti da riconciliare. |
 | 3 | `Stampa Aliquote IVA_150926100840.csv` | Originali DATEV Koinos — acquisizione guidata | Tabella aliquote conservata e disponibile per la riconciliazione fiscale. |
-| 4 | `Stampa Articoli IVA_150926095834.csv` | Originali DATEV Koinos — acquisizione guidata | Articoli IVA conservati; annotare quelli senza mapping Luna2. |
+| 4 | `Articoli IVA.xlsx` | Articoli IVA — catalogo DATEV XLS/XLSX | Catalogo operativo importato con ambito, regime, natura, indetraibilità, reverse charge e split payment. |
 | 5 | `Stampa elenco conti per tributo_150926100153.csv` | Originali DATEV Koinos — acquisizione guidata | Associazioni tributi/conti conservate senza errori. |
 | 6 | `ELENCO CAUSALI CONTABILI_150926100023.csv` | Originali DATEV Koinos — acquisizione guidata | Causali acquisite come dati da verificare; non abilitarle in massa senza controllo del commercialista. |
 | 7 | `Stampa elenco categorie cespiti_150926100420.csv` | Originali DATEV Koinos — acquisizione guidata | Categorie acquisite; le collisioni di codice vanno riconciliate, non ignorate. |

@@ -65,6 +65,15 @@ final class OfficialPrintService
         $this->db->beginTransaction();
         try {
         [$columns, $rows] = $this->dataset($type, $from, $to);
+        $unresolvedVat = $this->db->prepare(
+            "SELECT COUNT(*) FROM document_lines l JOIN documents d ON d.id = l.document_id AND d.organization_id = l.organization_id
+             WHERE l.organization_id = ? AND l.vat_article_review_required = 1
+               AND COALESCE(d.registration_date, d.document_date) BETWEEN ? AND ?"
+        );
+        $unresolvedVat->execute([$this->organizationId, $from, $to]);
+        if ((int) $unresolvedVat->fetchColumn() > 0) {
+            $this->issues[] = 'Sono presenti righe documento con articolo IVA da verificare nel periodo.';
+        }
         $organization = $this->db->prepare('SELECT * FROM organizations WHERE id = ?');
         $organization->execute([$this->organizationId]);
         $company = $organization->fetch();

@@ -72,6 +72,11 @@ final class VatService
                 "SELECT COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')) AS vat_code,
                         COALESCE(vat_nature, '') AS vat_nature, vat_rate, COALESCE(deductible_percent, 100) AS deductible_percent,
                         COALESCE(purchase_classification, 'ORDINARY') AS purchase_classification,
+                        MAX(COALESCE(vat_description, '')) AS vat_description,
+                        MAX(COALESCE(vat_legal_reference, '')) AS vat_legal_reference,
+                        MAX(COALESCE(vat_reverse_charge, 0)) AS vat_reverse_charge,
+                        MAX(COALESCE(vat_split_payment, 0)) AS vat_split_payment,
+                        MAX(COALESCE(vat_fatturapa_type, '')) AS vat_fatturapa_type,
                         SUM(taxable_amount) AS taxable_amount, SUM(vat_amount) AS vat_amount
                  FROM document_lines WHERE document_id = ? AND organization_id = ?
                  GROUP BY COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')),
@@ -106,12 +111,17 @@ final class VatService
                     (float) $group['vat_rate'],
                     (string) $group['vat_nature'],
                 );
+                if ((string) $group['vat_description'] !== '') $metadata['description'] = (string) $group['vat_description'];
+                if ((string) $group['vat_legal_reference'] !== '') $metadata['legal_reference'] = (string) $group['vat_legal_reference'];
                 // I gestionali e gli XML FatturaPA espongono normalmente TD04/TD08 con importi positivi.
                 // Il verso contabile viene determinato dal tipo documento, non dal segno degli importi.
                 $taxable = round($isCreditNote ? abs((float) $group['taxable_amount']) : (float) $group['taxable_amount'], 2);
                 $vat = round($isCreditNote ? abs((float) $group['vat_amount']) : (float) $group['vat_amount'], 2);
-                $operation = $this->operationType($metadata['nature'], (string) ($document['vat_collectability'] ?? ''));
+                $operation = !empty($group['vat_reverse_charge'])
+                    ? 'REVERSE_CHARGE'
+                    : $this->operationType($metadata['nature'], (string) ($document['vat_collectability'] ?? ''));
                 $collectability = $this->collectability((string) ($document['vat_collectability'] ?? ''), $operation);
+                if (!empty($group['vat_split_payment'])) $collectability = 'SPLIT';
                 if ($this->cashVatEnabled() && $collectability === 'IMMEDIATE') {
                     $collectability = 'CASH';
                     $operation = 'CASH';
@@ -127,7 +137,7 @@ final class VatService
                 };
                 $insert->execute([
                     $this->organizationId, $documentId,
-                    strtoupper((string) ($document['fatturapa_type'] ?: ($isCreditNote ? 'TD04' : 'TD01'))),
+                    strtoupper((string) ($group['vat_fatturapa_type'] ?: $document['fatturapa_type'] ?: ($isCreditNote ? 'TD04' : 'TD01'))),
                     $register, $registerId, $operation, $collectability,
                     $registrationDate, in_array($collectability, ['IMMEDIATE', 'SPLIT'], true) ? $document['document_date'] : null,
                     $protocol, $document['number'], $document['document_date'], $document['counterparty_name'], $isCreditNote

@@ -72,7 +72,19 @@ final class AccountingController extends BaseController
         [$causes, $vatRegisters] = $this->journalOptions();
         $entry = ['entry_date' => date('Y-m-d'), 'competence_date' => date('Y-m-d'), 'entry_type' => 'MANUAL'];
         $lines = [];
-        $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines') + ['title' => 'Nuova registrazione']);
+        $openItemsStatement = $this->db->prepare(
+            "SELECT id, direction, party_name, reference, due_date, currency,
+                    original_amount - settled_amount AS outstanding
+             FROM accounting_open_items
+             WHERE organization_id = ? AND status IN ('OPEN','PARTIAL','OVERDUE','DISPUTED')
+             ORDER BY due_date, party_name, id LIMIT 1000"
+        );
+        $openItemsStatement->execute([Auth::organizationId()]);
+        $openItems = $openItemsStatement->fetchAll();
+        $bankStatement = $this->db->prepare('SELECT id, name FROM bank_accounts WHERE organization_id = ? AND active = 1 ORDER BY name');
+        $bankStatement->execute([Auth::organizationId()]);
+        $bankAccounts = $bankStatement->fetchAll();
+        $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines', 'openItems', 'bankAccounts') + ['title' => 'Nuova registrazione']);
     }
 
     public function edit(string $id): never
@@ -103,8 +115,10 @@ final class AccountingController extends BaseController
         }
         $accounts = $this->accounts();
         $sourceDocument = null;
+        $sourceDocumentPdfUrl = null;
         $sourceDocumentLines = [];
         $vatGroups = [];
+        $vatCodes = [];
         if ($entry['source_type'] === 'DOCUMENT' && !empty($entry['source_id'])) {
             $statement = $this->db->prepare(
                 'SELECT id, document_type, number, document_date, registration_date, fatturapa_type, taxable_total, vat_total, total
@@ -113,9 +127,20 @@ final class AccountingController extends BaseController
             $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
             $sourceDocument = $statement->fetch() ?: null;
             if ($sourceDocument) {
-                $statement = $this->db->prepare('SELECT id, line_number, description, quantity, unit, unit_price, taxable_amount, vat_code, vat_rate, vat_nature, vat_amount, total_amount, deductible_percent, purchase_classification FROM document_lines WHERE document_id = ? AND organization_id = ? ORDER BY line_number');
+                $documentSlug = match ((string) $sourceDocument['document_type']) {
+                    'SALES_INVOICE' => 'invoices',
+                    'PURCHASE_INVOICE' => 'purchase-invoices',
+                    'CREDIT_NOTE' => 'credit-notes',
+                    default => null,
+                };
+                $sourceDocumentPdfUrl = $documentSlug ? '/documents/' . $documentSlug . '/' . (int) $sourceDocument['id'] . '/pdf?inline=1' : null;
+                $statement = $this->db->prepare('SELECT id, line_number, description, quantity, unit, unit_price, taxable_amount, vat_code, vat_rate, vat_nature, vat_description, vat_amount, total_amount, deductible_percent, purchase_classification, vat_article_review_required FROM document_lines WHERE document_id = ? AND organization_id = ? ORDER BY line_number');
                 $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
                 $sourceDocumentLines = $statement->fetchAll();
+                $scope = $sourceDocument['document_type'] === 'PURCHASE_INVOICE' ? 'PURCHASES' : 'SALES';
+                $statement = $this->db->prepare('SELECT code, description, rate, nature, deductible_percent, operation_scope, vat_regime FROM vat_codes WHERE organization_id = ? AND active = 1 AND operation_scope IN (\'BOTH\', ?) ORDER BY code');
+                $statement->execute([Auth::organizationId(), $scope]);
+                $vatCodes = $statement->fetchAll();
                 if ($sourceDocument['document_type'] === 'PURCHASE_INVOICE') {
                     $statement = $this->db->prepare("SELECT COALESCE(vat_code,'') vat_code, vat_rate, COALESCE(vat_nature,'') vat_nature, deductible_percent, SUM(taxable_amount) taxable_amount, SUM(vat_amount) vat_amount FROM document_lines WHERE document_id = ? AND organization_id = ? GROUP BY COALESCE(vat_code,''), vat_rate, COALESCE(vat_nature,''), deductible_percent ORDER BY vat_rate DESC, vat_code");
                     $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
@@ -124,7 +149,7 @@ final class AccountingController extends BaseController
             }
         }
         [$previousEntryId, $nextEntryId] = $this->adjacentDocumentEntries($entry);
-        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions', 'accounts', 'sourceDocument', 'sourceDocumentLines', 'vatGroups', 'previousEntryId', 'nextEntryId') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
+        $this->view->render('accounting/entry', compact('entry', 'lines', 'revisions', 'accounts', 'sourceDocument', 'sourceDocumentPdfUrl', 'sourceDocumentLines', 'vatGroups', 'vatCodes', 'previousEntryId', 'nextEntryId') + ['title' => 'Registrazione ' . $entry['protocol_number']]);
     }
 
     public function save(): never
@@ -180,7 +205,8 @@ final class AccountingController extends BaseController
                 (int) $id,
                 (int) $lineId,
                 (int) ($_POST['account_id'] ?? 0),
-                (string) ($_POST['reason'] ?? '')
+                (string) ($_POST['reason'] ?? ''),
+                (string) ($_POST['description'] ?? '')
             );
             $this->audit('CHANGE_ACCOUNT', 'journal_entry_lines', (int) $lineId, $result);
             $destination = (($_POST['continue'] ?? '') === 'next') ? $this->nextDocumentEntryId((int) $id) : null;
@@ -235,6 +261,20 @@ final class AccountingController extends BaseController
                 ->changeDocumentLinePurchaseClassification((int) $id, (int) $lineId, (string) ($_POST['purchase_classification'] ?? ''));
             $this->audit('PURCHASE_CLASSIFICATION_CHANGE', 'document_lines', (int) $lineId, $result);
             $this->redirect('/accounting/journal/' . (int) $id, 'Classificazione fiscale della riga aggiornata. Registri e prospetto IVA annuale sono stati riallineati.');
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
+        }
+    }
+
+    public function vatArticle(string $id, string $lineId): never
+    {
+        $this->authorize();
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))
+                ->changeDocumentLineVatArticle((int) $id, (int) $lineId, (string) ($_POST['vat_code'] ?? ''));
+            $this->audit('VAT_ARTICLE_CHANGE', 'document_lines', (int) $lineId, $result);
+            $destination = (($_POST['continue'] ?? '') === 'next') ? $this->nextDocumentEntryId((int) $id) : null;
+            $this->redirect('/accounting/journal/' . ($destination ?: (int) $id), 'Articolo IVA aggiornato; prima nota, registro e liquidazione sono stati riallineati.');
         } catch (InvalidArgumentException|RuntimeException $exception) {
             $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
         }

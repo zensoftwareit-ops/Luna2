@@ -17,7 +17,7 @@ final class ImportService
 {
     private const TARGETS = [
         'customers', 'suppliers', 'chart_of_accounts', 'journal_entries', 'payments', 'open_items',
-        'vat_movements', 'fixed_assets', 'bank_transactions', 'fatturapa', 'datev_koinos',
+        'vat_codes', 'vat_movements', 'fixed_assets', 'bank_transactions', 'fatturapa', 'datev_koinos',
     ];
     private const EXTENSIONS = ['csv', 'txt', 'xls', 'xlsx', 'xml', 'p7m', 'zip', 'pdf'];
     private int $unpackedBytes = 0;
@@ -106,6 +106,7 @@ final class ImportService
                 'journal_entries' => $this->commitJournal($batchId, $rows),
                 'payments' => $this->commitPayments($batchId, $rows),
                 'open_items' => $this->commitOpenItems($batchId, $rows),
+                'vat_codes' => $this->commitVatCodes($batchId, $rows),
                 'vat_movements' => $this->commitVatMovements($batchId, $rows),
                 'fixed_assets' => $this->commitFixedAssets($batchId, $rows),
                 'bank_transactions' => $this->commitBankTransactions($batchId, $rows),
@@ -185,7 +186,7 @@ final class ImportService
         }
         $allowedTables = [
             'customers', 'suppliers', 'chart_of_accounts', 'journal_entries', 'payments', 'documents',
-            'accounting_open_items', 'vat_movements', 'fixed_assets', 'bank_transactions',
+            'accounting_open_items', 'vat_codes', 'vat_movements', 'fixed_assets', 'bank_transactions',
         ];
         $statement = $this->db->prepare('SELECT * FROM import_records WHERE batch_id = ? AND organization_id = ? ORDER BY id DESC');
         $statement->execute([$batchId, $this->organizationId]);
@@ -888,6 +889,77 @@ final class ImportService
         return compact('imported', 'errors');
     }
 
+    private function commitVatCodes(int $batchId, array $rows): array
+    {
+        $imported = 0; $errors = 0;
+        $find = $this->db->prepare('SELECT * FROM vat_codes WHERE organization_id = ? AND code = ? LIMIT 1');
+        $insert = $this->db->prepare(
+            'INSERT INTO vat_codes
+             (organization_id, code, description, rate, nature, legal_reference, deductible_percent,
+              operation_scope, nature_description, taxability, vat_regime, margin_scheme, territoriality, reverse_charge,
+              split_payment, fatturapa_type, source_system, source_status, active, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE description = VALUES(description),
+                 rate = IF(VALUES(rate) > 0, VALUES(rate), vat_codes.rate), nature = VALUES(nature),
+                 legal_reference = COALESCE(VALUES(legal_reference), vat_codes.legal_reference),
+                 deductible_percent = VALUES(deductible_percent), operation_scope = VALUES(operation_scope),
+                 nature_description = VALUES(nature_description),
+                 taxability = VALUES(taxability), vat_regime = VALUES(vat_regime), margin_scheme = VALUES(margin_scheme),
+                 territoriality = VALUES(territoriality), reverse_charge = VALUES(reverse_charge),
+                 split_payment = VALUES(split_payment), fatturapa_type = VALUES(fatturapa_type),
+                 source_system = VALUES(source_system), source_status = VALUES(source_status), active = VALUES(active),
+                 updated_at = NOW()'
+        );
+        foreach ($rows as $staged) {
+            try {
+                $row = json_decode((string) $staged['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+                $code = mb_strtoupper(trim((string) ($this->pick($row, ['cod', 'codice', 'code']) ?? '')));
+                $description = trim((string) ($this->pick($row, ['descrizione', 'description']) ?? ''));
+                if ($code === '' || $description === '') {
+                    throw new InvalidArgumentException('Codice o descrizione articolo IVA mancanti.');
+                }
+                if (mb_strlen($code) > 20) throw new InvalidArgumentException('Codice articolo IVA troppo lungo.');
+                $status = mb_strtoupper((string) ($this->pick($row, ['sa', 'stato', 'status']) ?? 'ATTIVO'));
+                $operation = mb_strtoupper((string) ($this->pick($row, ['tipo_operazione', 'operation_scope']) ?? 'ENTRAMBE'));
+                $scope = match (true) {
+                    str_contains($operation, 'PASSIV'), str_contains($operation, 'ACQUIST') => 'PURCHASES',
+                    str_contains($operation, 'ATTIV'), str_contains($operation, 'VENDIT') => 'SALES',
+                    default => 'BOTH',
+                };
+                $inductibility = min(100, max(0, $this->decimal($this->pick($row, ['indetr', 'indetraibile_percent', 'indeducibilita']) ?? 0)));
+                $deductible = round(100 - $inductibility, 2);
+                $nature = mb_strtoupper(trim((string) ($this->pick($row, ['natura', 'nature']) ?? '')));
+                $nature = $nature === '' ? null : preg_replace('/\s+/', '', $nature);
+                $natureDescription = $this->pick($row, ['descrizione_natura', 'nature_description']);
+                $rate = max(0, $this->decimal($this->pick($row, ['aliquota', 'rate', 'vat_rate']) ?? 0));
+                $find->execute([$this->organizationId, $code]);
+                $before = $find->fetch() ?: null;
+                $insert->execute([
+                    $this->organizationId, $code, $description, $rate, $nature,
+                    null, $deductible, $scope, $natureDescription,
+                    $this->pick($row, ['assoggett', 'assoggettamento', 'taxability']),
+                    $this->pick($row, ['tipo_regime', 'regime', 'vat_regime']),
+                    $this->pick($row, ['tipo_margine', 'margin_scheme']),
+                    $this->pick($row, ['territorialita', 'territoriality']),
+                    $this->booleanValue($this->pick($row, ['autoft_art_17', 'autofattura_art_17', 'reverse_charge'])),
+                    $this->booleanValue($this->pick($row, ['split_p', 'split_payment'])),
+                    mb_strtoupper((string) ($this->pick($row, ['fe', 'fatturapa_type', 'tipo_documento_fe']) ?? '')) ?: null,
+                    'DATEV_KOINOS', $status, str_contains($status, 'OBSOLET') ? 0 : 1,
+                ]);
+                $find->execute([$this->organizationId, $code]);
+                $saved = $find->fetch();
+                if (!$saved) throw new RuntimeException('Articolo IVA non salvato.');
+                $this->recordImport($batchId, 'vat_codes', (int) $saved['id'], $before ? 'UPDATE' : 'CREATE', $before);
+                $this->markRow((int) $staged['id'], 'IMPORTED', null, (int) $saved['id']);
+                $imported++;
+            } catch (Throwable $exception) {
+                $this->markRow((int) $staged['id'], 'ERROR', $exception->getMessage());
+                $errors++;
+            }
+        }
+        return compact('imported', 'errors') + ['skipped' => 0];
+    }
+
     private function commitVatMovements(int $batchId, array $rows): array
     {
         if (!$this->schemaColumnExists('vat_movements', 'source_key')) {
@@ -1266,21 +1338,56 @@ final class ImportService
 
     private function replaceFatturaPaLines(int $documentId, array $lines): void
     {
+        $document = $this->db->prepare('SELECT document_type FROM documents WHERE id = ? AND organization_id = ?');
+        $document->execute([$documentId, $this->organizationId]);
+        $documentType = (string) $document->fetchColumn();
         $this->db->prepare('DELETE FROM document_lines WHERE organization_id = ? AND document_id = ?')
             ->execute([$this->organizationId, $documentId]);
         $insert = $this->db->prepare(
             'INSERT INTO document_lines
              (organization_id, document_id, line_number, description, quantity, unit, unit_price, discount_percent,
-              taxable_amount, vat_rate, vat_nature, vat_amount, total_amount, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, NOW(), NOW())'
+              taxable_amount, vat_code, vat_rate, vat_nature, vat_description, vat_legal_reference,
+              vat_reverse_charge, vat_split_payment, vat_fatturapa_type, deductible_percent,
+              purchase_classification, vat_article_review_required, vat_amount, total_amount, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
         );
         foreach ($lines as $index => $line) {
+            $article = $this->resolveImportedVatArticle($documentType, (float) $line['vat_rate'], (string) ($line['vat_nature'] ?? ''));
             $insert->execute([
                 $this->organizationId, $documentId, $index + 1, $line['description'], $line['quantity'], $line['unit'],
-                $line['unit_price'], $line['taxable_amount'], $line['vat_rate'], $line['vat_nature'], $line['vat_amount'],
+                $line['unit_price'], $line['taxable_amount'], $article['code'] ?? null, $line['vat_rate'], $line['vat_nature'],
+                $article['description'] ?? null, $article['legal_reference'] ?? null,
+                (int) ($article['reverse_charge'] ?? 0), (int) ($article['split_payment'] ?? 0), $article['fatturapa_type'] ?? null,
+                (float) ($article['deductible_percent'] ?? 100), $this->purchaseClassificationForVatRegime((string) ($article['vat_regime'] ?? '')),
+                $article ? 0 : 1, $line['vat_amount'],
                 round((float) $line['taxable_amount'] + (float) $line['vat_amount'], 2),
             ]);
         }
+    }
+
+    private function resolveImportedVatArticle(string $documentType, float $rate, string $nature): ?array
+    {
+        $scope = $documentType === 'PURCHASE_INVOICE' ? 'PURCHASES' : 'SALES';
+        $nature = mb_strtoupper(trim($nature));
+        $statement = $this->db->prepare(
+            'SELECT * FROM vat_codes WHERE organization_id = ? AND active = 1 AND operation_scope IN (\'BOTH\', ?)
+             AND rate = ? AND COALESCE(nature, \'\') = ? ORDER BY code LIMIT 2'
+        );
+        $statement->execute([$this->organizationId, $scope, round($rate, 2), $nature]);
+        $matches = $statement->fetchAll();
+        return count($matches) === 1 ? $matches[0] : null;
+    }
+
+    private function purchaseClassificationForVatRegime(string $regime): string
+    {
+        $value = mb_strtoupper($regime);
+        return match (true) {
+            str_contains($value, 'AMMORTIZZ') => 'DEPRECIABLE_ASSET',
+            str_contains($value, 'LEASING') => 'LEASING',
+            str_contains($value, 'RIVENDIT') => 'RESALE',
+            str_contains($value, 'STRUMENTAL') => 'NON_DEPRECIABLE_ASSET',
+            default => 'ORDINARY',
+        };
     }
 
     private function replaceFatturaPaSchedules(
@@ -1394,6 +1501,7 @@ final class ImportService
         return match ($table) {
             'customers', 'suppliers' => ['code', 'business_name', 'vat_number', 'tax_code', 'sdi_code', 'pec', 'email', 'phone', 'address', 'postal_code', 'city', 'province', 'country_code', 'iban', 'bank_name', 'bank_abi', 'bank_cab', 'payment_terms', 'payment_days', 'payment_month_end', 'payment_method_code', 'active'],
             'chart_of_accounts' => ['code', 'name', 'account_type', 'normal_balance', 'parent_id', 'classification_code', 'statement_section', 'tax_mapping_code', 'is_postable', 'active'],
+            'vat_codes' => ['code', 'description', 'rate', 'nature', 'legal_reference', 'deductible_percent', 'operation_scope', 'nature_description', 'taxability', 'vat_regime', 'margin_scheme', 'territoriality', 'reverse_charge', 'split_payment', 'fatturapa_type', 'source_system', 'source_status', 'active'],
             'documents' => ['registration_date', 'due_date', 'counterparty_name', 'currency', 'taxable_total', 'vat_total', 'withholding_total', 'withholding_type', 'withholding_rate', 'withholding_taxable_percent', 'withholding_cause', 'total', 'balance_due', 'status', 'fatturapa_type', 'payment_method_code', 'bank_name', 'bank_abi', 'bank_cab', 'bank_iban', 'external_key', 'source_import_batch_id'],
             default => [],
         };
@@ -1437,6 +1545,11 @@ final class ImportService
             $string = str_replace(',', '.', $string);
         }
         return (float) $string;
+    }
+
+    private function booleanValue(mixed $value): int
+    {
+        return in_array(mb_strtoupper(trim((string) $value)), ['1', 'TRUE', 'VERO', 'SI', 'SÌ', 'YES', 'Y'], true) ? 1 : 0;
     }
 
     private function dateValue(?string $value): ?string

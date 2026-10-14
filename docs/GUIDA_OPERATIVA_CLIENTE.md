@@ -345,6 +345,8 @@ Percorso: **Importazioni**.
 8. Verificare il risultato in **Fatture passive** o **Fatture attive**.
 9. Aprire la prima nota, il registro IVA e la partita generati e verificare che riportino il periodo scelto.
 
+Nel PDF della fattura il riepilogo IVA è separato per **Articolo IVA**, natura e aliquota. Le operazioni escluse, esenti o non imponibili, compreso l'articolo 15, sono esposte separatamente dall'imponibile soggetto a IVA. Prima di consegnare o archiviare il PDF confrontare sempre totale operazioni, imposta, totale documento e netto da pagare con l'XML originale.
+
 Esempio: una fattura datata 30 settembre ricevuta quando settembre è già chiuso deve essere importata con **Data registrazione** in ottobre. Rimane un documento di settembre, ma alimenta la prima nota e il registro IVA di ottobre. Se un lotto contiene fatture da registrare in mesi diversi, dividerlo in più caricamenti, uno per ciascuna data di registrazione.
 
 Luna rifiuta la contabilizzazione se la data di registrazione appartiene a un periodo contabile o IVA già chiuso. Non riaprire un periodo solo per forzare l'importazione: verificare prima la data con il responsabile contabile.
@@ -433,11 +435,20 @@ Percorso: **Contabilità - Prima nota**.
 
 ### 11.2 Inserire una registrazione manuale
 
+Per pagare o incassare una fattura **non inserire manualmente le righe Dare/Avere**:
+
+1. premere **Nuova registrazione**;
+2. nel riquadro **Registra da una fattura nello scadenzario** selezionare la partita;
+3. indicare data, importo, metodo e banca oppure cassa;
+4. premere **Crea e contabilizza il pagamento**.
+
+Luna2 crea la scrittura, chiude totalmente o parzialmente la partita e aggiorna insieme scadenzario, partitario e mastrino. La sezione manuale sottostante serve soltanto per operazioni diverse da incassi e pagamenti.
+
 1. Premere **Nuova registrazione**.
 2. Inserire data registrazione, competenza, causale e descrizione.
 3. Compilare numero/data documento e controparte quando disponibili.
 4. Aggiungere almeno due righe.
-5. Per ogni riga selezionare conto, descrizione e importo in Dare oppure Avere.
+5. Per ogni riga cercare dinamicamente il conto per codice o descrizione, quindi inserire descrizione e importo in Dare oppure Avere.
 6. Verificare che totale Dare e totale Avere coincidano al centesimo.
 7. Salvare.
 8. Contabilizzare quando la registrazione è completa.
@@ -453,10 +464,10 @@ Per una scrittura manuale non finalizzata usare **Modifica**.
 Per sostituire soltanto un conto:
 
 1. aprire la scrittura;
-2. sulla riga premere **Cambia conto**;
+2. sulla riga premere **Modifica riga**;
 3. digitare codice o descrizione nella ricerca dinamica;
 4. selezionare un conto compatibile;
-5. inserire facoltativamente il motivo;
+5. correggere, se necessario, anche la descrizione della riga e inserire facoltativamente il motivo;
 6. confermare.
 
 Il cambio conserva importo, lato Dare/Avere, origine e collegamento al documento. Le revisioni rimangono visibili nello storico.
@@ -465,14 +476,34 @@ Per classificare rapidamente una serie di fatture passive:
 
 1. aprire la prima registrazione dall'elenco;
 2. controllare nel riquadro **Documento XML collegato** le righe articolo originarie;
-3. usare **Cambia conto** sulla riga costo: la ricerca comprende conti economici, cespiti e conti patrimoniali compatibili;
+3. usare **Modifica riga** sulla riga costo: la ricerca comprende conti economici, cespiti e conti patrimoniali compatibili;
 4. usare **Ripartisci** quando lo stesso documento deve movimentare due o più conti, indicando per ciascuno conto e importo;
 5. per un cespite scegliere il conto di immobilizzazione; per un risconto assegnare la quota futura al risconto attivo; per una fattura da ricevere scegliere il conto patrimoniale verificato dal responsabile contabile;
 6. premere **Salva e successiva** per passare direttamente alla fattura seguente dello stesso tipo.
 
 Nell'elenco di prima nota le righe già lavorate sono evidenziate con **Già modificata**. Il totale delle ripartizioni deve coincidere al centesimo con la riga originaria; Luna non modifica il totale Dare/Avere della scrittura.
 
+Dopo una ripartizione ogni riga ottenuta resta lavorabile: usare **Modifica riga** per correggere conto o descrizione, oppure **Ripartisci** per suddividerla nuovamente. Non occorre annullare e reimportare la fattura.
+
+Il riquadro **Anteprima fattura** mostra il PDF collegato direttamente nella registrazione. Usarlo per confrontare articoli, imponibili e descrizioni senza uscire dalla prima nota; **Apri PDF** consente la visualizzazione a pagina intera.
+
+La prima nota documentale espone una riga IVA distinta per ogni articolo/natura/aliquota presente nella fattura. In questo modo una fattura con più trattamenti IVA non viene appiattita su un'unica riga. La quota indetraibile confluisce nel costo, mentre la quota detraibile resta sul conto IVA a credito; dopo una modifica dell'articolo o della detraibilità Luna riallinea le righe IVA non definitive.
+
 Per correggere una detraibilità particolare, aprire la registrazione collegata e nel riquadro **Detraibilità IVA** impostare la percentuale del gruppo interessato, per esempio `50` per IVA al 22% detraibile al 50%. Luna riallinea movimento IVA, IVA a credito, quota indetraibile e liquidazioni non definitive. Verificare comunque conto e calcolo prima della chiusura.
+
+### Articolo IVA della singola riga
+
+L'aliquota e l'articolo IVA sono informazioni diverse. L'articolo determina anche natura, ambito vendite/acquisti, detraibilità, regime, reverse charge, split payment, territorialità e classificazione FatturaPA.
+
+Per correggerlo su una fattura già importata:
+
+1. aprire la registrazione dalla **Prima nota**;
+2. nel riquadro **Documento XML collegato** individuare la riga;
+3. nel campo **Articolo IVA** digitare codice o descrizione e selezionare la voce corretta;
+4. premere **Applica**;
+5. controllare detraibilità, conto, registro IVA e liquidazione.
+
+La dicitura **Da verificare** significa che dall'XML non era possibile scegliere in modo univoco l'articolo interno. Luna conserva aliquota e natura originali, ma impedisce la validazione delle stampe ufficiali e la chiusura dell'esercizio finché tutte queste righe non sono state risolte.
 
 Per gli acquisti di beni strumentali non basta scegliere un conto cespite. Nel riquadro **Documento XML collegato**, sulla singola riga articolo, impostare anche **Classificazione acquisto = Bene ammortizzabile / cespite** e premere **Salva**. Questa classificazione fiscale è distinta sia dal conto contabile sia dalla percentuale di detraibilità: consente a registri e riepilogo IVA annuale di esporre separatamente gli acquisti di beni ammortizzabili. Sono disponibili anche bene non ammortizzabile, leasing e bene destinato alla rivendita. Se il periodo è definitivo, prima occorre riaprirlo secondo la procedura autorizzata.
 
@@ -781,6 +812,7 @@ I dati non vengono applicati fino alla conferma. Dopo la conferma, quando previs
 | Originali DATEV Koinos | Conservazione e acquisizione guidata della fonte originale |
 | Clienti / Fornitori | Importazione anagrafiche |
 | Piano dei conti | Importazione struttura contabile |
+| Articoli IVA - catalogo DATEV | Importazione della tabella XLS/XLSX con ambito, natura, regime, indetraibilità, reverse charge e split payment |
 | Prima nota / movimenti | Scritture Dare/Avere quadrate |
 | Partite aperte / scadenzario | Crediti e debiti residui |
 | Pagamenti e incassi storici | Storico regolamenti |
@@ -797,6 +829,16 @@ I dati non vengono applicati fino alla conferma. Dopo la conferma, quando previs
 - **Da completare/riconciliare**: contenuti acquisiti ma non sufficienti per generare un dato operativo completo.
 
 Non considerare conclusa un'importazione con errori solo perché il lotto mostra **Completato con errori**.
+
+### 19.4 Importare il catalogo Articoli IVA DATEV
+
+1. Eseguire un backup e aprire **Importazioni**.
+2. Scegliere **Articoli IVA - catalogo DATEV XLS/XLSX**.
+3. Caricare il file originale `Articoli IVA.xlsx` senza modificarne le intestazioni.
+4. Controllare nell'anteprima codice, descrizione, stato, tipo operazione, indetraibilità, regime, natura, reverse charge, split payment e tipo FE.
+5. Confermare. Le righe obsolete restano storicizzate ma non sono selezionabili nei nuovi documenti.
+6. Importare quindi gli XML. Luna assegna automaticamente un articolo solo se l'abbinamento è univoco; negli altri casi mostra **Da verificare** in prima nota.
+7. Prima di liquidazione definitiva, stampa ufficiale o chiusura, risolvere tutte le righe segnalate e rifare la quadratura del periodo.
 
 ### 19.4 Buone pratiche
 

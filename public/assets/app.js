@@ -127,6 +127,10 @@
   if (documentForm) {
     const body = documentForm.querySelector('[data-lines]');
     const template = document.querySelector('#line-template');
+    const vatCatalogNode = document.querySelector('[data-vat-article-catalog]');
+    let vatArticles = [];
+    try { vatArticles = JSON.parse(vatCatalogNode?.textContent || '[]'); } catch (_error) { vatArticles = []; }
+    const vatByCode = new Map(vatArticles.map((article) => [String(article.code || '').toUpperCase(), article]));
     let index = 0;
     const addLine = () => {
       const fragment = template.content.cloneNode(true);
@@ -135,6 +139,26 @@
         input.name = `lines[${index}][${input.dataset.field}]`;
       });
       const product = row.querySelector('[data-product-select]');
+      const vatArticle = row.querySelector('[data-field="vat_code"]');
+      const applyVatArticle = () => {
+        if (!vatArticle) return;
+        const article = vatByCode.get(String(vatArticle.value || '').trim().toUpperCase());
+        const help = row.querySelector('[data-vat-article-help]');
+        if (!article) {
+          vatArticle.setCustomValidity(vatArticle.value ? 'Seleziona un articolo IVA presente nel catalogo.' : 'Seleziona l’articolo IVA.');
+          if (help) help.textContent = '';
+          return;
+        }
+        vatArticle.value = article.code;
+        vatArticle.setCustomValidity('');
+        const nature = row.querySelector('[data-field="vat_nature"]');
+        const rate = row.querySelector('[data-field="vat_rate"]');
+        if (nature) nature.value = article.nature || '';
+        if (rate && Number(article.rate || 0) > 0) rate.value = article.rate;
+        if (help) help.textContent = `${article.description}${article.nature ? ` · ${article.nature}` : ''} · detraibile ${Number(article.deductible_percent ?? 100).toLocaleString('it-IT')}%`;
+      };
+      vatArticle?.addEventListener('change', applyVatArticle);
+      vatArticle?.addEventListener('blur', applyVatArticle);
       product.name = `lines[${index}][product_id]`;
       product.addEventListener('change', () => {
         const option = product.selectedOptions[0];
@@ -179,6 +203,28 @@
         status.classList.toggle('unbalanced', !balanced);
       }
     };
+    let accountCatalog = [];
+    try { accountCatalog = JSON.parse(document.querySelector('[data-manual-account-catalog]')?.textContent || '[]'); } catch (_) { accountCatalog = []; }
+    const normalizeAccount = (text) => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
+    const setupAccountLookup = (row, values) => {
+      const search = row.querySelector('[data-line-account-search]');
+      const hidden = row.querySelector('[data-account-field="account_id"]');
+      const results = row.querySelector('[data-line-account-results]');
+      const select = (account) => { hidden.value = String(account.id); search.value = `${account.code} · ${account.name}`; results.hidden = true; search.setCustomValidity(''); };
+      const render = () => {
+        const query = normalizeAccount(search.value);
+        const matches = accountCatalog.filter((account) => !query || normalizeAccount(`${account.code} ${account.name}`).includes(query)).slice(0, 35);
+        results.replaceChildren(...matches.map((account) => { const option = document.createElement('button'); option.type = 'button'; option.className = 'account-lookup-option'; option.innerHTML = `<strong></strong><small></small>`; option.querySelector('strong').textContent = account.code; option.querySelector('small').textContent = account.name; option.addEventListener('click', () => select(account)); return option; }));
+        if (!matches.length) { const empty = document.createElement('div'); empty.className = 'account-lookup-empty'; empty.textContent = 'Nessun conto trovato.'; results.appendChild(empty); }
+        results.hidden = false;
+      };
+      const selected = accountCatalog.find((account) => Number(account.id) === Number(values.account_id || 0));
+      if (selected) select(selected);
+      search.addEventListener('focus', render);
+      search.addEventListener('input', () => { hidden.value = ''; search.setCustomValidity(''); render(); });
+      search.addEventListener('blur', () => window.setTimeout(() => { results.hidden = true; }, 150));
+      search.addEventListener('change', () => { if (!hidden.value) search.setCustomValidity('Seleziona un conto dai risultati.'); });
+    };
     const addLine = (values = {}) => {
       const fragment = template.content.cloneNode(true);
       const row = fragment.querySelector('tr');
@@ -188,6 +234,7 @@
         input.addEventListener('input', refresh);
         input.addEventListener('change', refresh);
       });
+      setupAccountLookup(row, values);
       row.querySelector('[data-remove-line]').addEventListener('click', () => { row.remove(); refresh(); });
       body.appendChild(fragment);
       index += 1;
@@ -196,8 +243,25 @@
     let existing = [];
     try { existing = JSON.parse(accountingForm.dataset.existingLines || '[]'); } catch (_) { existing = []; }
     if (existing.length) existing.forEach((line) => addLine(line)); else { addLine(); addLine(); }
+    accountingForm.addEventListener('submit', (event) => {
+      let accountsValid = true;
+      body.querySelectorAll('[data-line-account-lookup]').forEach((lookup) => {
+        const search = lookup.querySelector('[data-line-account-search]');
+        const hidden = lookup.querySelector('[data-account-field="account_id"]');
+        const valid = Boolean(hidden.value);
+        search.setCustomValidity(valid ? '' : 'Seleziona un conto dai risultati della ricerca.');
+        if (!valid) accountsValid = false;
+      });
+      if (!accountsValid) { event.preventDefault(); accountingForm.reportValidity(); }
+    });
     refresh();
   }
+
+  document.querySelectorAll('[data-guided-payment]').forEach((form) => {
+    const item = form.querySelector('[data-guided-payment-item]');
+    const amount = form.querySelector('[data-guided-payment-amount]');
+    item?.addEventListener('change', () => { amount.value = item.selectedOptions[0]?.dataset.outstanding || ''; });
+  });
 
   const cleanFilename = (value) => String(value || 'esportazione')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
@@ -453,6 +517,7 @@ document.querySelectorAll('[data-withholding-form]').forEach((form) => {
     const value = dialog.querySelector('[data-account-value]');
     const results = dialog.querySelector('[data-account-results]');
     const lineLabel = dialog.querySelector('[data-account-change-line]');
+    const description = dialog.querySelector('[data-account-description]');
     let allowed = [];
     let activeIndex = -1;
 
@@ -510,9 +575,12 @@ document.querySelectorAll('[data-withholding-form]').forEach((form) => {
             lineLabel.textContent = button.dataset.lineLabel || '';
             const current = Number(button.dataset.currentAccount || 0);
             const allowedTypes = String(button.dataset.allowedTypes || '').split(',').filter(Boolean);
-            allowed = accounts.filter((account) => allowedTypes.includes(account.type) && Number(account.id) !== current);
+            allowed = accounts.filter((account) => allowedTypes.includes(account.type));
             form.reset();
-            value.value = '';
+            const currentAccount = accounts.find((account) => Number(account.id) === current);
+            value.value = currentAccount ? String(currentAccount.id) : '';
+            search.value = button.dataset.currentAccountLabel || (currentAccount ? `${currentAccount.code} · ${currentAccount.name}` : '');
+            if (description) description.value = button.dataset.currentDescription || '';
             hideResults();
             dialog.showModal();
             window.setTimeout(() => search.focus(), 0);

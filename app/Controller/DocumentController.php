@@ -126,8 +126,9 @@ final class DocumentController extends BaseController
         $statement = $this->db->prepare('SELECT id, code, name, unit, sale_price, purchase_cost, vat_rate FROM products WHERE organization_id = ? AND active = 1 ORDER BY name');
         $statement->execute([Auth::organizationId()]);
         $products = $statement->fetchAll();
-        $statement = $this->db->prepare('SELECT code, description, rate, nature FROM vat_codes WHERE organization_id = ? AND active = 1 ORDER BY rate DESC, code');
-        $statement->execute([Auth::organizationId()]);
+        $vatScope = $definition['code'] === 'PURCHASE_INVOICE' ? 'PURCHASES' : 'SALES';
+        $statement = $this->db->prepare('SELECT code, description, rate, nature, nature_description, legal_reference, deductible_percent, operation_scope, vat_regime, territoriality, reverse_charge, split_payment, fatturapa_type FROM vat_codes WHERE organization_id = ? AND active = 1 AND operation_scope IN (\'BOTH\', ?) ORDER BY code');
+        $statement->execute([Auth::organizationId(), $vatScope]);
         $vatCodes = $statement->fetchAll();
         $statement = $this->db->prepare('SELECT withholding_enabled, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause FROM organizations WHERE id = ?');
         $statement->execute([Auth::organizationId()]);
@@ -151,7 +152,7 @@ final class DocumentController extends BaseController
             $this->redirect('/documents/' . $type . '/create', 'Seleziona una controparte valida.', 'error');
         }
 
-        $lines = $this->normalizeLines($_POST['lines'] ?? []);
+        $lines = $this->normalizeLines($_POST['lines'] ?? [], $definition['code']);
         if ($lines === []) {
             $this->redirect('/documents/' . $type . '/create', 'Inserisci almeno una riga valida.', 'error');
         }
@@ -196,14 +197,18 @@ final class DocumentController extends BaseController
             $insertLine = $this->db->prepare(
                 'INSERT INTO document_lines
                  (organization_id, document_id, line_number, product_id, product_code, description, quantity, unit,
-                  unit_price, discount_percent, taxable_amount, vat_code, vat_rate, vat_nature, vat_amount, total_amount, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+                  unit_price, discount_percent, taxable_amount, vat_code, vat_rate, vat_nature, vat_description,
+                  vat_legal_reference, vat_reverse_charge, vat_split_payment, vat_fatturapa_type,
+                  deductible_percent, purchase_classification, vat_article_review_required, vat_amount, total_amount, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
             );
             foreach ($lines as $index => $line) {
                 $insertLine->execute([
                     Auth::organizationId(), $documentId, $index + 1, $line['product_id'], $line['product_code'],
                     $line['description'], $line['quantity'], $line['unit'], $line['unit_price'], $line['discount_percent'],
-                    $line['taxable_amount'], $line['vat_code'], $line['vat_rate'], $line['vat_nature'], $line['vat_amount'], $line['total_amount'],
+                    $line['taxable_amount'], $line['vat_code'], $line['vat_rate'], $line['vat_nature'], $line['vat_description'],
+                    $line['vat_legal_reference'], $line['vat_reverse_charge'], $line['vat_split_payment'], $line['vat_fatturapa_type'],
+                    $line['deductible_percent'], $line['purchase_classification'], 0, $line['vat_amount'], $line['total_amount'],
                 ]);
             }
             $this->db->commit();
@@ -300,6 +305,26 @@ final class DocumentController extends BaseController
         $statement->execute([(int) $id, Auth::organizationId()]);
         $paymentSchedules = $statement->fetchAll();
 
+        $vatSummary = [];
+        foreach ($lines as $line) {
+            $code = trim((string) ($line['vat_code'] ?? ''));
+            $nature = trim((string) ($line['vat_nature'] ?? ''));
+            $rate = round((float) ($line['vat_rate'] ?? 0), 2);
+            $description = trim((string) ($line['vat_description'] ?? ''));
+            $legalReference = trim((string) ($line['vat_legal_reference'] ?? ''));
+            $key = implode('|', [$code, $nature, number_format($rate, 2, '.', ''), $description, $legalReference]);
+            if (!isset($vatSummary[$key])) {
+                $vatSummary[$key] = [
+                    'code' => $code, 'nature' => $nature, 'rate' => $rate,
+                    'description' => $description, 'legal_reference' => $legalReference,
+                    'taxable' => 0.0, 'vat' => 0.0,
+                ];
+            }
+            $vatSummary[$key]['taxable'] += (float) ($line['taxable_amount'] ?? 0);
+            $vatSummary[$key]['vat'] += (float) ($line['vat_amount'] ?? 0);
+        }
+        $vatSummary = array_values($vatSummary);
+
         ob_start();
         require dirname(__DIR__, 2) . '/views/documents/pdf.php';
         $html = (string) ob_get_clean();
@@ -307,7 +332,7 @@ final class DocumentController extends BaseController
         $pdf->loadHtml($html, 'UTF-8');
         $pdf->setPaper('A4');
         $pdf->render();
-        $pdf->stream(preg_replace('/[^A-Za-z0-9._-]/', '-', $document['number']) . '.pdf', ['Attachment' => true]);
+        $pdf->stream(preg_replace('/[^A-Za-z0-9._-]/', '-', $document['number']) . '.pdf', ['Attachment' => empty($_GET['inline'])]);
         exit;
     }
 
@@ -467,9 +492,12 @@ final class DocumentController extends BaseController
         return $statement->fetch();
     }
 
-    private function normalizeLines(array $input): array
+    private function normalizeLines(array $input, string $documentType): array
     {
         $lines = [];
+        $articleRequired = in_array($documentType, ['SALES_INVOICE', 'PURCHASE_INVOICE', 'CREDIT_NOTE'], true);
+        $expectedScope = $documentType === 'PURCHASE_INVOICE' ? 'PURCHASES' : 'SALES';
+        $articleStatement = $this->db->prepare('SELECT * FROM vat_codes WHERE organization_id = ? AND code = ? AND active = 1 LIMIT 1');
         foreach ($input as $row) {
             $description = trim((string) ($row['description'] ?? ''));
             $quantity = $this->decimal($row['quantity'] ?? 0);
@@ -478,6 +506,19 @@ final class DocumentController extends BaseController
             $vatRate = max(0.0, $this->decimal($row['vat_rate'] ?? 0));
             if ($description === '' || $quantity <= 0) {
                 continue;
+            }
+            $vatCode = mb_strtoupper(trim((string) ($row['vat_code'] ?? '')));
+            $article = null;
+            if ($vatCode !== '') {
+                $articleStatement->execute([Auth::organizationId(), $vatCode]);
+                $article = $articleStatement->fetch() ?: null;
+                if (!$article) throw new InvalidArgumentException('Articolo IVA ' . $vatCode . ' non trovato o non attivo.');
+                if (!in_array((string) $article['operation_scope'], ['BOTH', $expectedScope], true)) {
+                    throw new InvalidArgumentException('L’articolo IVA ' . $vatCode . ' non è utilizzabile per questo tipo di documento.');
+                }
+                if ((float) $article['rate'] > 0) $vatRate = (float) $article['rate'];
+            } elseif ($articleRequired) {
+                throw new InvalidArgumentException('Seleziona l’articolo IVA su ogni riga del documento.');
             }
             $taxable = round($quantity * $unitPrice * (1 - $discount / 100), 2);
             $vat = round($taxable * $vatRate / 100, 2);
@@ -490,14 +531,33 @@ final class DocumentController extends BaseController
                 'unit_price' => round($unitPrice, 4),
                 'discount_percent' => round($discount, 2),
                 'taxable_amount' => $taxable,
-                'vat_code' => trim((string) ($row['vat_code'] ?? '')) ?: null,
+                'vat_code' => $vatCode ?: null,
                 'vat_rate' => round($vatRate, 2),
-                'vat_nature' => trim((string) ($row['vat_nature'] ?? '')) ?: null,
+                'vat_nature' => $article ? ($article['nature'] ?: null) : (trim((string) ($row['vat_nature'] ?? '')) ?: null),
+                'vat_description' => $article['description'] ?? null,
+                'vat_legal_reference' => $article['legal_reference'] ?? null,
+                'vat_reverse_charge' => (int) ($article['reverse_charge'] ?? 0),
+                'vat_split_payment' => (int) ($article['split_payment'] ?? 0),
+                'vat_fatturapa_type' => $article['fatturapa_type'] ?? null,
+                'deductible_percent' => round((float) ($article['deductible_percent'] ?? 100), 2),
+                'purchase_classification' => $this->purchaseClassificationForVatArticle((string) ($article['vat_regime'] ?? '')),
                 'vat_amount' => $vat,
                 'total_amount' => round($taxable + $vat, 2),
             ];
         }
         return $lines;
+    }
+
+    private function purchaseClassificationForVatArticle(string $regime): string
+    {
+        $value = mb_strtoupper($regime);
+        return match (true) {
+            str_contains($value, 'AMMORTIZZ') => 'DEPRECIABLE_ASSET',
+            str_contains($value, 'LEASING') => 'LEASING',
+            str_contains($value, 'RIVENDIT') => 'RESALE',
+            str_contains($value, 'STRUMENTAL') => 'NON_DEPRECIABLE_ASSET',
+            default => 'ORDINARY',
+        };
     }
 
     private function nextNumber(array $definition, string $date): string
