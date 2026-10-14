@@ -1,4 +1,4 @@
-<?php use Luna\Core\Csrf; use Luna\Core\View; $selectedAccount = $selectedAccount ?? []; $selectedRegister = $selectedRegister ?? []; $selectedCause = $selectedCause ?? []; ?>
+<?php use Luna\Core\Csrf; use Luna\Core\View; $selectedAccount = $selectedAccount ?? []; $selectedRegister = $selectedRegister ?? []; $selectedCause = $selectedCause ?? []; $mappingGroups = $mappingGroups ?? ['essential' => ['title' => 'Conti essenziali', 'description' => '', 'keys' => []], 'advanced' => ['title' => 'Conti avanzati', 'description' => '', 'keys' => []]]; ?>
 <section class="page-intro compact"><div><span class="eyebrow">Contabilità · struttura</span><h1>Configurazione contabile</h1><p>Piano dei conti gerarchico, automatismi, causali e sezionali IVA in un unico punto.</p></div><div class="inline-actions"><a class="button ghost" href="/accounting/journal">Prima nota</a><a class="button ghost" href="/accounting/treasury">Tesoreria</a></div></section>
 <nav class="accounting-tabs"><a href="#settings">Regole</a><a href="#chart">Piano dei conti</a><a href="#mappings">Automatismi</a><a href="#registers">Sezionali</a><a href="#causes">Causali</a></nav>
 

@@ -1,5 +1,6 @@
 <?php
 use Luna\Core\View;
+$includeClosing = (bool) ($includeClosing ?? false);
 $query = http_build_query(array_filter(['from' => $from, 'to' => $to, 'q' => $search, 'account_type' => $accountType,
     'include_closing' => $includeClosing ? '1' : '']));
 $renderSection = static function (array $rows, string $from, string $to, bool $includeClosing): void {

@@ -113,19 +113,27 @@ $settlement = $vat->calculateSettlement(['period_type' => 'MONTHLY', 'period_yea
 $vat->updateSettlementStatus($settlement, 'SUBMITTED');
 $vat->updateSettlementStatus($settlement, 'PAID', '2026-02-16', 'F24-TEST-123');
 $add('vat_movements', ['organization_id' => $org, 'source_type' => 'DATEV_PDF', 'document_fiscal_type' => 'TD01', 'register_type' => 'PURCHASES',
-    'movement_date' => '2026-02-10', 'vat_code' => '22%', 'taxable_amount' => 100, 'vat_amount' => 22,
+    'movement_date' => '2026-02-10', 'vat_code' => '22%', 'vat_rate' => 22, 'taxable_amount' => 100, 'vat_amount' => 22,
+    'counterparty_name' => 'Fornitore DATEV', 'document_reference' => 'FT-2026-01', 'document_reference_date' => '2026-02-10',
     'deductible_vat' => 22, 'period_year' => 2026, 'period_month' => 2]);
 $creditNote = $add('vat_movements', ['organization_id' => $org, 'source_type' => 'DATEV_PDF', 'document_fiscal_type' => 'TD04', 'register_type' => 'PURCHASES',
-    'movement_date' => '2026-02-11', 'vat_code' => '22%', 'taxable_amount' => 50, 'vat_amount' => 11,
+    'movement_date' => '2026-02-11', 'vat_code' => '22%', 'vat_rate' => 22, 'taxable_amount' => 50, 'vat_amount' => 11,
+    'counterparty_name' => 'Fornitore DATEV', 'document_reference' => 'NC-2026-01', 'document_reference_date' => '2026-02-11',
     'deductible_vat' => 11, 'deductibility_percent' => 100, 'period_year' => 2026, 'period_month' => 2]);
 $add('vat_movements', ['organization_id' => $org, 'source_type' => 'DOCUMENT', 'document_fiscal_type' => 'TD01', 'register_type' => 'PURCHASES',
-    'movement_date' => '2026-02-10', 'vat_code' => '22%', 'taxable_amount' => 100, 'vat_amount' => 22,
+    'movement_date' => '2026-02-10', 'vat_code' => '22%', 'vat_rate' => 22, 'taxable_amount' => 100, 'vat_amount' => 22,
+    'counterparty_name' => 'Fornitore XML', 'document_reference' => 'FT-XML-01', 'document_reference_date' => '2026-02-10',
     'deductible_vat' => 22, 'period_year' => 2026, 'period_month' => 2]);
 $reconciledSettlement = $vat->calculateSettlement(['period_type' => 'MONTHLY', 'period_year' => 2026, 'period_number' => 2]);
 $statement = $db->prepare('SELECT vat_credit, source_reconciliation_mode, excluded_document_rows, excluded_document_purchase_vat FROM vat_settlements WHERE id = ?');
 $statement->execute([$reconciledSettlement]);
 $reconciled = $statement->fetch();
 $assert((float) $reconciled['vat_credit'] === 11.0, 'DATEV register takes precedence over duplicate XML VAT');
+$statement = $db->prepare('SELECT previous_credit, previous_credit_mode, previous_credit_source_settlement_id FROM vat_settlements WHERE id = ?');
+$statement->execute([$reconciledSettlement]);
+$carriedCredit = $statement->fetch();
+$assert($carriedCredit['previous_credit_mode'] === 'AUTO' && (int) $carriedCredit['previous_credit_source_settlement_id'] === $settlement,
+    'Previous VAT settlement is traced automatically');
 $assert($reconciled['source_reconciliation_mode'] === 'DATEV_PRIORITY' && (int) $reconciled['excluded_document_rows'] === 1
     && (float) $reconciled['excluded_document_purchase_vat'] === 22.0, 'VAT source reconciliation is auditable');
 $statement = $db->prepare('SELECT document_fiscal_type, taxable_amount, vat_amount, deductible_vat FROM vat_movements WHERE id = ?');
@@ -139,6 +147,15 @@ $assert($storedCreditNote['document_fiscal_type'] === 'TD04'
 $asset = $add('fixed_assets', ['organization_id' => $org, 'asset_code' => 'CES-01', 'description' => 'Macchinario di collaudo',
     'purchase_date' => '2024-01-15', 'purchase_cost' => 10000, 'depreciation_rate' => 20, 'net_book_value' => 8000]);
 $assetService = new AssetService($db, $org, $user);
+$category = $add('fixed_asset_categories', ['organization_id' => $org, 'code' => 'TEST', 'name' => 'Categoria test',
+    'civil_rate' => 20, 'tax_rate' => 20, 'first_year_percent' => 50]);
+$savedAsset = $assetService->saveAsset(['asset_code' => 'CES-02', 'description' => 'Cespite inserito da procedura',
+    'category_id' => $category, 'purchase_date' => '2026-01-15', 'purchase_cost' => '1200',
+    'purchase_document_number' => 'FT-15', 'purchase_document_date' => '2026-01-10', 'acquisition_condition' => 'USED']);
+$savedAssetRow = $db->query('SELECT purchase_document_number, acquisition_condition FROM fixed_assets WHERE id = ' . (int) $savedAsset)->fetch();
+$assert($savedAssetRow['purchase_document_number'] === 'FT-15' && $savedAssetRow['acquisition_condition'] === 'USED',
+    'Asset purchase evidence and used condition are persisted');
+$db->exec('DELETE FROM fixed_assets WHERE id = ' . (int) $savedAsset);
 $assetService->saveRegisterYear(['fixed_asset_id' => $asset, 'year' => 2026, 'original_cost' => '10000', 'revaluations' => '0',
     'writedowns' => '0', 'civil_opening_fund' => '2000', 'tax_opening_fund' => '2000', 'civil_rate' => '20', 'tax_rate' => '20',
     'civil_quota' => '2000', 'tax_quota' => '2000', 'evidence_reference' => 'PROSPETTO-2026-VERIFICATO']);

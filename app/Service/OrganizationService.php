@@ -121,6 +121,22 @@ final class OrganizationService
             ['N3.5', 'Non imponibili - dichiarazioni intento', 0, 'N3.5', null],
             ['N4', 'Operazioni esenti', 0, 'N4', 'Art. 10 DPR 633/72'],
             ['N6.7', 'Reverse charge - edilizia', 0, 'N6.7', null],
+            ['N2.1', 'Non soggetta IVA: carenza territorialità', 0, 'N2.1', 'Artt. 7-7-septies DPR 633/72'],
+            ['N3.1', 'Non imponibile: esportazioni', 0, 'N3.1', 'Art. 8 DPR 633/72'],
+            ['N3.2', 'Non imponibile: cessioni intracomunitarie', 0, 'N3.2', 'Art. 41 DL 331/93'],
+            ['N3.3', 'Non imponibile: cessioni verso San Marino', 0, 'N3.3', null],
+            ['N3.4', 'Non imponibile: operazioni assimilate alle esportazioni', 0, 'N3.4', 'Art. 8-bis DPR 633/72'],
+            ['N3.6', 'Non imponibile: altre operazioni', 0, 'N3.6', null],
+            ['N5', 'Regime del margine / IVA non esposta', 0, 'N5', null],
+            ['N6.1', 'Reverse charge: rottami e materiali di recupero', 0, 'N6.1', null],
+            ['N6.2', 'Reverse charge: oro e argento puro', 0, 'N6.2', null],
+            ['N6.3', 'Reverse charge: subappalto edile', 0, 'N6.3', null],
+            ['N6.4', 'Reverse charge: cessione fabbricati', 0, 'N6.4', null],
+            ['N6.5', 'Reverse charge: telefoni cellulari', 0, 'N6.5', null],
+            ['N6.6', 'Reverse charge: prodotti elettronici', 0, 'N6.6', null],
+            ['N6.8', 'Reverse charge: settore energetico', 0, 'N6.8', null],
+            ['N6.9', 'Reverse charge: altri casi', 0, 'N6.9', null],
+            ['N7', 'IVA assolta in altro Stato UE', 0, 'N7', null],
         ];
         $statement = $this->db->prepare(
             'INSERT INTO vat_codes (organization_id, code, description, rate, nature, legal_reference)

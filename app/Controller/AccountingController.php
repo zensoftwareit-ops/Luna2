@@ -113,7 +113,7 @@ final class AccountingController extends BaseController
             $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
             $sourceDocument = $statement->fetch() ?: null;
             if ($sourceDocument) {
-                $statement = $this->db->prepare('SELECT line_number, description, quantity, unit, unit_price, taxable_amount, vat_code, vat_rate, vat_nature, vat_amount, total_amount, deductible_percent FROM document_lines WHERE document_id = ? AND organization_id = ? ORDER BY line_number');
+                $statement = $this->db->prepare('SELECT id, line_number, description, quantity, unit, unit_price, taxable_amount, vat_code, vat_rate, vat_nature, vat_amount, total_amount, deductible_percent, purchase_classification FROM document_lines WHERE document_id = ? AND organization_id = ? ORDER BY line_number');
                 $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
                 $sourceDocumentLines = $statement->fetchAll();
                 if ($sourceDocument['document_type'] === 'PURCHASE_INVOICE') {
@@ -222,6 +222,19 @@ final class AccountingController extends BaseController
                 'Detraibilità aggiornata al %.2f%%: IVA detraibile %s, indetraibile %s.',
                 $result['deductibility_percent'], number_format($result['deductible_vat'], 2, ',', '.'), number_format($result['non_deductible_vat'], 2, ',', '.')
             ));
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
+        }
+    }
+
+    public function purchaseClassification(string $id, string $lineId): never
+    {
+        $this->authorize();
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))
+                ->changeDocumentLinePurchaseClassification((int) $id, (int) $lineId, (string) ($_POST['purchase_classification'] ?? ''));
+            $this->audit('PURCHASE_CLASSIFICATION_CHANGE', 'document_lines', (int) $lineId, $result);
+            $this->redirect('/accounting/journal/' . (int) $id, 'Classificazione fiscale della riga aggiornata. Registri e prospetto IVA annuale sono stati riallineati.');
         } catch (InvalidArgumentException|RuntimeException $exception) {
             $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
         }

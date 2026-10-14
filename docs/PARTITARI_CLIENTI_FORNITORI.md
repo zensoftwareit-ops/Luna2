@@ -1,4 +1,4 @@
-# Partitario clienti e fornitori
+# Mastrini clienti e fornitori
 
 ## Modello contabile
 
@@ -23,7 +23,7 @@ Le note di credito riducono il saldo della controparte e sono esposte con segno 
 
 ## Consultazione
 
-Aprire **Contabilità → Partitario clienti/fornitori** e scegliere **Clienti** o **Fornitori**. Il prospetto mostra:
+Aprire **Contabilità → Mastrini clienti e fornitori** e scegliere **Clienti** o **Fornitori**. Il prospetto mostra:
 
 - tutte le anagrafiche, anche senza movimenti;
 - saldo iniziale alla data `Dal`;
@@ -31,6 +31,8 @@ Aprire **Contabilità → Partitario clienti/fornitori** e scegliere **Clienti**
 - saldo finale e saldo progressivo;
 - fatture, note di credito e residuo da incassare/pagare;
 - esportazione PDF, XLSX e CSV.
+
+Aprendo una controparte si visualizza l'**Estratto del sottoconto** completo: fatture, note di credito, pagamenti, incassi e storni, inclusi quelli già saldati o chiusi. Non confondere il mastrino con lo scadenzario di **Tesoreria e partite**, che serve a controllare residui e scadenze ancora operative.
 
 Il totale dei sottoconti deve essere riconciliato con il saldo del conto collettivo dello stesso periodo.
 

@@ -48,7 +48,7 @@ final class PartyLedgerController extends BaseController
         $this->view->render('accounting/subledgers', compact(
             'type', 'from', 'to', 'search', 'parties', 'partyId', 'detail', 'totals', 'synchronized',
             'unassigned', 'unassignedCount', 'reconcileLineId', 'reconcileLine', 'partyChoices'
-        ) + ['title' => 'Partitario clienti e fornitori']);
+        ) + ['title' => 'Mastrini clienti e fornitori']);
     }
 
     public function reconcile(): never

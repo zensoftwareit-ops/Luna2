@@ -101,7 +101,7 @@ Gli URL dei servizi si configurano in **Contabilità → Endpoint e-invoice**. L
 - giorni, fine mese e metodo di pagamento salvati in anagrafica calcolano la scadenza del documento; ABI, CAB e banca vengono richiamati automaticamente per la Ri.Ba.;
 - ritenuta, imponibile e aliquota possono essere configurati sull’azienda o sul fornitore e sono riportati su documento, XML e PDF;
 - le fatture passive FatturaPA importano anche dati fiscali del fornitore, scadenza, modalità, banca e ritenuta.
-- fatture, note di credito, incassi e pagamenti alimentano il sottoconto analitico della controparte; lo storico DATEV si completa da **Contabilità → Partitario clienti/fornitori** seguendo [docs/PARTITARI_CLIENTI_FORNITORI.md](docs/PARTITARI_CLIENTI_FORNITORI.md).
+- fatture, note di credito, incassi e pagamenti alimentano il sottoconto analitico della controparte; lo storico DATEV si completa da **Contabilità → Mastrini clienti e fornitori** seguendo [docs/PARTITARI_CLIENTI_FORNITORI.md](docs/PARTITARI_CLIENTI_FORNITORI.md).
 
 ## Test
 

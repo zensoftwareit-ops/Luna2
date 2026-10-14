@@ -135,6 +135,8 @@ final class VatComplianceService
             "SELECT
                 COALESCE(SUM(CASE WHEN register_type IN ('SALES','CORRISPETTIVI') THEN taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS sales_taxable,
                 COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' THEN taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS purchases_taxable,
+                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND purchase_classification = 'DEPRECIABLE_ASSET' THEN taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS capital_goods_taxable,
+                COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND purchase_classification = 'DEPRECIABLE_ASSET' THEN vat_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS capital_goods_vat,
                 COALESCE(SUM(vat_due_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END), 0) AS vat_debit,
                 COALESCE(SUM(CASE WHEN register_type = 'PURCHASES' AND collectability NOT IN ('CASH','DEFERRED') THEN deductible_vat * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END ELSE 0 END), 0) AS vat_credit
              FROM vat_movements m WHERE organization_id = ? AND period_year = ? AND lipe_excluded = 0
@@ -193,18 +195,21 @@ final class VatComplianceService
         $detail = [
             'artifact' => 'VAT_ANNUAL_RECONCILIATION_DRAFT', 'transmittable' => false,
             'schema_version' => $settings['vat_return_schema_version'], 'settlements' => $settlementRows,
-            'cash_vat' => $cashTotals, 'generated_at' => date(DATE_ATOM),
+            'cash_vat' => $cashTotals,
+            'capital_goods' => ['taxable' => (float) $totals['capital_goods_taxable'], 'vat' => (float) $totals['capital_goods_vat']],
+            'generated_at' => date(DATE_ATOM),
             'warning' => 'Prospetto di raccordo, non file telematico IVA.',
         ];
         $validation = ['valid' => $errors === [], 'errors' => $errors, 'checked_at' => date(DATE_ATOM)];
         $statement = $this->db->prepare(
             "INSERT INTO vat_annual_summaries
-             (organization_id, fiscal_year, schema_version, sales_taxable, purchases_taxable, vat_debit, vat_credit,
+             (organization_id, fiscal_year, schema_version, sales_taxable, purchases_taxable, capital_goods_taxable, capital_goods_vat, vat_debit, vat_credit,
               adjustments_debit, adjustments_credit, prior_credit, payments_amount, final_balance, detail_json,
               validation_json, status, created_by, updated_by, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, NOW(), NOW())
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?, NOW(), NOW())
              ON DUPLICATE KEY UPDATE schema_version = VALUES(schema_version), sales_taxable = VALUES(sales_taxable),
-              purchases_taxable = VALUES(purchases_taxable), vat_debit = VALUES(vat_debit), vat_credit = VALUES(vat_credit),
+              purchases_taxable = VALUES(purchases_taxable), capital_goods_taxable = VALUES(capital_goods_taxable),
+              capital_goods_vat = VALUES(capital_goods_vat), vat_debit = VALUES(vat_debit), vat_credit = VALUES(vat_credit),
               adjustments_debit = VALUES(adjustments_debit), adjustments_credit = VALUES(adjustments_credit),
               prior_credit = VALUES(prior_credit), payments_amount = VALUES(payments_amount), final_balance = VALUES(final_balance),
               detail_json = VALUES(detail_json), validation_json = VALUES(validation_json), status = 'DRAFT',
@@ -212,7 +217,7 @@ final class VatComplianceService
         );
         $statement->execute([
             $this->organizationId, $year, $settings['vat_return_schema_version'], $totals['sales_taxable'],
-            $totals['purchases_taxable'], $vatDebit, $vatCredit, $adjustDebit, $adjustCredit, $priorCredit,
+            $totals['purchases_taxable'], $totals['capital_goods_taxable'], $totals['capital_goods_vat'], $vatDebit, $vatCredit, $adjustDebit, $adjustCredit, $priorCredit,
             $payments, $final, $this->json($detail), $this->json($validation), $this->userId, $this->userId,
         ]);
         return $current ? (int) $current['id'] : (int) $this->db->lastInsertId();

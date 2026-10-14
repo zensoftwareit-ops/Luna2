@@ -386,7 +386,7 @@ final class OfficialPrintService
                         d.vat_nature, d.vat_legal_reference, d.taxable_amount,
                         CASE WHEN d.register_type = 'PURCHASES' THEN d.vat_due_amount ELSE d.vat_amount END,
                         CASE WHEN d.register_type = 'PURCHASES' THEN d.vat_amount ELSE 0 END,
-                        CASE WHEN d.register_type = 'PURCHASES' THEN d.deductible_vat ELSE d.vat_due_amount END,
+                        CASE WHEN d.register_type = 'PURCHASES' THEN d.deductible_vat ELSE 0 END,
                         d.non_deductible_vat, d.suspended_vat
                  FROM vat_settlement_details d
                  WHERE d.organization_id = ? AND d.settlement_id = ? ORDER BY d.register_type, d.vat_code, d.vat_rate, d.vat_nature"

@@ -5,7 +5,7 @@ $baseQuery = ['party_type' => $type, 'from' => $from, 'to' => $to, 'q' => $searc
 $exportQuery = http_build_query(array_filter($baseQuery + ['party_id' => $partyId ?: null]));
 $isSupplier = $type === 'SUPPLIER';
 ?>
-<section class="page-intro compact"><div><span class="eyebrow">Contabilità analitica</span><h1>Partitario clienti e fornitori</h1><p>Ogni anagrafica è un sottoconto del relativo conto collettivo. Consulta fatture, note di credito, pagamenti e saldo progressivo.</p></div><a class="button ghost" href="/accounting/treasury">Tesoreria e partite</a></section>
+<section class="page-intro compact"><div><span class="eyebrow">Contabilità analitica</span><h1>Mastrini clienti e fornitori</h1><p>Qui trovi l’intera movimentazione contabile di ogni sottoconto, comprese fatture già pagate e partite chiuse. Lo scadenzario è mostrato separatamente nel dettaglio.</p></div><a class="button ghost" href="/accounting/treasury">Vai allo scadenzario</a></section>
 
 <nav class="accounting-tabs party-ledger-tabs">
     <a class="<?= $isSupplier ? 'active' : '' ?>" href="/accounting/subledgers?<?= View::e(http_build_query(['party_type' => 'SUPPLIER', 'from' => $from, 'to' => $to])) ?>">Fornitori</a>

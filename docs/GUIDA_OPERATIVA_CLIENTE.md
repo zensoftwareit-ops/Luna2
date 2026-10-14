@@ -472,6 +472,8 @@ Nell'elenco di prima nota le righe già lavorate sono evidenziate con **Già mod
 
 Per correggere una detraibilità particolare, aprire la registrazione collegata e nel riquadro **Detraibilità IVA** impostare la percentuale del gruppo interessato, per esempio `50` per IVA al 22% detraibile al 50%. Luna riallinea movimento IVA, IVA a credito, quota indetraibile e liquidazioni non definitive. Verificare comunque conto e calcolo prima della chiusura.
 
+Per gli acquisti di beni strumentali non basta scegliere un conto cespite. Nel riquadro **Documento XML collegato**, sulla singola riga articolo, impostare anche **Classificazione acquisto = Bene ammortizzabile / cespite** e premere **Salva**. Questa classificazione fiscale è distinta sia dal conto contabile sia dalla percentuale di detraibilità: consente a registri e riepilogo IVA annuale di esporre separatamente gli acquisti di beni ammortizzabili. Sono disponibili anche bene non ammortizzabile, leasing e bene destinato alla rivendita. Se il periodo è definitivo, prima occorre riaprirlo secondo la procedura autorizzata.
+
 Una scrittura definitiva non va modificata direttamente: registrare lo storno e la scrittura corretta secondo le istruzioni del responsabile contabile.
 
 ## 12. Registri IVA
@@ -486,8 +488,10 @@ Sono disponibili vendite, acquisti, corrispettivi, reverse charge e autofatture.
 2. Selezionare il tipo di registro.
 3. Filtrare.
 4. Controllare separatamente **Protocollo IVA** e **Documento originale**, oltre a controparte, imponibile, IVA, aliquota e detraibilità.
-5. Verificare i totali per articolo e aliquota.
-6. Esportare il prospetto necessario.
+5. Leggere la descrizione fiscale in chiaro; codice IVA e natura `N...` restano visibili come riferimenti tecnici secondari.
+6. Per gli acquisti controllare anche la classificazione: ordinario, bene ammortizzabile, bene non ammortizzabile, leasing o rivendita.
+7. Verificare i totali per articolo e aliquota.
+8. Esportare il prospetto necessario.
 
 ### 12.2 Sincronizzare i documenti
 
@@ -523,7 +527,7 @@ Prima del calcolo:
 
 1. scegliere periodicità mensile o trimestrale;
 2. indicare anno e numero periodo;
-3. inserire il credito precedente verificato;
+3. lasciare vuoto **Credito precedente** per riprendere automaticamente il credito della liquidazione immediatamente precedente, anche se appartiene all'anno precedente; compilarlo soltanto per una rettifica manuale documentata;
 4. inserire eventuali interessi verificati;
 5. indicare la scadenza;
 6. aggiungere note;
@@ -538,6 +542,7 @@ Aprire la liquidazione e verificare:
 - IVA indetraibile;
 - note di credito;
 - credito precedente;
+- origine del credito precedente e indicazione **Automatico** oppure **Manuale**;
 - interessi e rettifiche;
 - IVA da versare oppure credito da riportare;
 - dettaglio per registro, articolo e aliquota.
@@ -582,11 +587,13 @@ Configurare nome, IBAN, BIC, valuta e conto contabile. I movimenti manuali usano
 
 Selezionare la partita fornitore, data, lordo, imponibile, aliquota e conto di pagamento. Verificare ritenuta e netto prima di contabilizzare. Quando viene eseguito il versamento, usare **Versa** con data e conto corretti.
 
-## 15. Partitario clienti e fornitori
+## 15. Mastrini clienti e fornitori
 
-Percorso: **Contabilità - Partitario clienti/fornitori**.
+Percorso: **Contabilità - Mastrini clienti e fornitori**.
 
 Ogni cliente o fornitore è un sottoconto analitico del conto collettivo.
+
+La tabella iniziale riepiloga saldo iniziale, Dare, Avere e saldo finale. Aprendo il sottoconto si visualizza l'**Estratto del sottoconto**, cioè l'intera movimentazione contabile di fatture, note di credito, pagamenti, incassi e storni. Il mastrino continua a mostrare le operazioni già saldate e chiuse; lo scadenzario, separato in **Tesoreria e partite**, mostra invece i residui e le scadenze ancora operative.
 
 ### 15.1 Consultare
 
@@ -683,6 +690,17 @@ Percorsi:
 - **Centro professionale** per il registro ufficiale.
 
 Controllare costo storico, data entrata in funzione, categoria, aliquota, fondo iniziale, quote, dismissioni e valore netto. Il calcolo deve essere verificato prima della contabilizzazione.
+
+Per creare un cespite:
+
+1. scegliere obbligatoriamente la categoria di ammortamento;
+2. collegare, quando presente, la fattura di acquisto: Luna compila automaticamente fornitore, numero e data documento;
+3. in assenza di collegamento, indicare manualmente fornitore, numero e data del documento;
+4. specificare se il bene è **Nuovo** oppure **Usato**;
+5. completare costo, data di acquisto, data di entrata in funzione e aliquote;
+6. salvare e verificare l'anagrafica prima di calcolare l'ammortamento.
+
+Il collegamento alla fattura costituisce evidenza dell'acquisto ma non sostituisce la classificazione fiscale della riga XML descritta nella sezione 11.4.
 
 ### 17.5 Scadenze fiscali
 

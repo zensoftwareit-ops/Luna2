@@ -66,6 +66,9 @@ final class AssetService
         if ($code === '' || $description === '' || $cost <= 0 || $residual > $cost) {
             throw new InvalidArgumentException('Dati del cespite non validi.');
         }
+        if ($categoryId === null) {
+            throw new InvalidArgumentException('Selezionare una categoria cespite: determina le aliquote civilistica e fiscale.');
+        }
         $category = null;
         if ($categoryId !== null) {
             $statement = $this->db->prepare('SELECT * FROM fixed_asset_categories WHERE id = ? AND organization_id = ? AND active = 1');
@@ -78,14 +81,32 @@ final class AssetService
         if ($civilRate <= 0 || $taxRate <= 0) {
             throw new InvalidArgumentException('Le aliquote civilistica e fiscale devono essere maggiori di zero.');
         }
+        $supplierId = !empty($data['supplier_id']) ? (int) $data['supplier_id'] : null;
+        $documentId = !empty($data['document_id']) ? (int) $data['document_id'] : null;
+        $documentNumber = trim((string) ($data['purchase_document_number'] ?? '')) ?: null;
+        $documentDate = !empty($data['purchase_document_date']) ? $this->date((string) $data['purchase_document_date']) : null;
+        if ($supplierId !== null) {
+            $check = $this->db->prepare('SELECT id FROM suppliers WHERE id = ? AND organization_id = ?');
+            $check->execute([$supplierId, $this->organizationId]);
+            if (!$check->fetchColumn()) throw new InvalidArgumentException('Fornitore del cespite non valido.');
+        }
+        if ($documentId !== null) {
+            $document = $this->db->prepare("SELECT id, number, document_date, counterparty_id FROM documents WHERE id = ? AND organization_id = ? AND document_type IN ('PURCHASE_INVOICE','CREDIT_NOTE')");
+            $document->execute([$documentId, $this->organizationId]);
+            $source = $document->fetch() ?: throw new InvalidArgumentException('Fattura di acquisto collegata non valida.');
+            $documentNumber = (string) $source['number'];
+            $documentDate = (string) $source['document_date'];
+            $supplierId ??= !empty($source['counterparty_id']) ? (int) $source['counterparty_id'] : null;
+        }
+        $condition = strtoupper(trim((string) ($data['acquisition_condition'] ?? 'NEW')));
+        if (!in_array($condition, ['NEW','USED'], true)) throw new InvalidArgumentException('Condizione di acquisto del cespite non valida.');
         $status = strtoupper((string) ($data['status'] ?? 'ACTIVE'));
         if (!in_array($status, ['ACTIVE','DISPOSED','SOLD'], true)) {
             throw new InvalidArgumentException('Stato cespite non valido.');
         }
         $values = [
             $code, $description, trim((string) ($category['name'] ?? $data['category'] ?? '')) ?: null, $categoryId,
-            !empty($data['supplier_id']) ? (int) $data['supplier_id'] : null,
-            !empty($data['document_id']) ? (int) $data['document_id'] : null,
+            $supplierId, $documentId, $documentNumber, $documentDate, $condition,
             $purchaseDate, !empty($data['in_service_date']) ? $this->date((string) $data['in_service_date']) : $purchaseDate,
             $cost, $residual, $civilRate, $civilRate, $taxRate, $first, $status, $this->userId,
         ];
@@ -93,6 +114,7 @@ final class AssetService
             $this->asset($assetId, false);
             $statement = $this->db->prepare(
                 'UPDATE fixed_assets SET asset_code = ?, description = ?, category = ?, category_id = ?, supplier_id = ?, document_id = ?,
+                 purchase_document_number = ?, purchase_document_date = ?, acquisition_condition = ?,
                  purchase_date = ?, in_service_date = ?, purchase_cost = ?, residual_value = ?, depreciation_rate = ?,
                  civil_depreciation_rate = ?, tax_depreciation_rate = ?, first_year_percent = ?, status = ?, updated_by = ?, updated_at = NOW()
                  WHERE id = ? AND organization_id = ?'
@@ -102,14 +124,14 @@ final class AssetService
         }
         $statement = $this->db->prepare(
             'INSERT INTO fixed_assets
-             (organization_id, asset_code, description, category, category_id, supplier_id, document_id, purchase_date,
+             (organization_id, asset_code, description, category, category_id, supplier_id, document_id, purchase_document_number, purchase_document_date, acquisition_condition, purchase_date,
               in_service_date, purchase_cost, residual_value, depreciation_rate, civil_depreciation_rate,
               tax_depreciation_rate, first_year_percent, accumulated_depreciation, net_book_value,
               tax_accumulated_depreciation, tax_net_value, status, created_by, updated_by, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?, NOW(), NOW())'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?, ?, NOW(), NOW())'
         );
         $statement->execute(array_merge(
-            [$this->organizationId], array_slice($values, 0, 14), [$cost, $cost, $status, $this->userId, $this->userId]
+            [$this->organizationId], array_slice($values, 0, 17), [$cost, $cost, $status, $this->userId, $this->userId]
         ));
         return (int) $this->db->lastInsertId();
     }

@@ -459,6 +459,46 @@ final class AccountingService
         }
     }
 
+    public function changeDocumentLinePurchaseClassification(int $entryId, int $lineId, string $classification): array
+    {
+        $classification = strtoupper(trim($classification));
+        $allowed = ['ORDINARY','DEPRECIABLE_ASSET','NON_DEPRECIABLE_ASSET','LEASING','RESALE'];
+        if (!in_array($classification, $allowed, true)) {
+            throw new InvalidArgumentException('Classificazione fiscale acquisto non valida.');
+        }
+        $statement = $this->db->prepare(
+            "SELECT e.*, d.id AS document_id, d.document_type FROM journal_entries e
+             JOIN documents d ON d.id = e.source_id AND d.organization_id = e.organization_id
+             WHERE e.id = ? AND e.organization_id = ? AND e.source_type = 'DOCUMENT'
+               AND e.status IN ('DRAFT','POSTED') AND e.is_finalized = 0"
+        );
+        $statement->execute([$entryId, $this->organizationId]);
+        $entry = $statement->fetch();
+        if (!$entry || (string) $entry['document_type'] !== 'PURCHASE_INVOICE') {
+            throw new InvalidArgumentException('La classificazione è disponibile solo per fatture di acquisto non definitive.');
+        }
+        $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+        $line = $this->db->prepare('SELECT id, description, purchase_classification FROM document_lines WHERE id = ? AND document_id = ? AND organization_id = ?');
+        $line->execute([$lineId, (int) $entry['document_id'], $this->organizationId]);
+        $documentLine = $line->fetch();
+        if (!$documentLine) throw new InvalidArgumentException('Riga documento non trovata.');
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+        try {
+            $this->saveRevision($entry, 'Classificazione fiscale riga: ' . $classification);
+            $this->db->prepare('UPDATE document_lines SET purchase_classification = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                ->execute([$classification, $lineId, $this->organizationId]);
+            (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument((int) $entry['document_id']);
+            $this->db->prepare('UPDATE journal_entries SET revision_number = revision_number + 1, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                ->execute([$this->userId, $entryId, $this->organizationId]);
+            if ($ownsTransaction) $this->db->commit();
+            return ['line_id' => $lineId, 'previous' => $documentLine['purchase_classification'], 'classification' => $classification];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
     /** @return list<string> */
     private function compatibleAccountTypes(array $entry, array $line): array
     {

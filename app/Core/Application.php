@@ -197,6 +197,7 @@ final class Application
         $router->add('POST', '/accounting/journal/{id}/lines/{lineId}/account', [AccountingController::class, 'changeLineAccount']);
         $router->add('POST', '/accounting/journal/{id}/lines/{lineId}/split', [AccountingController::class, 'splitLine']);
         $router->add('POST', '/accounting/journal/{id}/vat-deductibility', [AccountingController::class, 'vatDeductibility']);
+        $router->add('POST', '/accounting/journal/{id}/document-lines/{lineId}/purchase-classification', [AccountingController::class, 'purchaseClassification']);
         $router->add('GET', '/accounting/journal/{id}', [AccountingController::class, 'show']);
         $router->add('GET', '/accounting/trial-balance', [AccountingController::class, 'trialBalance']);
         $router->add('GET', '/accounting/trial-balance/export/{format}', [AccountingController::class, 'exportTrialBalance']);

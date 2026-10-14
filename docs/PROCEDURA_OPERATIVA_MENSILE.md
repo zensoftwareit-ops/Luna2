@@ -48,11 +48,13 @@ Non importare il PDF direttamente come movimenti IVA: il PDF viene archiviato co
 2. Controllare le righe articolo XML mostrate nella registrazione e distinguere fatture da note di credito.
 3. Correggere l’eventuale conto errato con **Cambia conto**; sono selezionabili anche cespiti e conti patrimoniali compatibili.
 4. Usare **Ripartisci** quando una fattura interessa più conti; per risconti e fatture da ricevere far verificare conto e quota al responsabile contabile.
-5. Correggere nel riquadro **Detraibilità IVA** eventuali percentuali particolari, quindi ricalcolare la liquidazione non definitiva.
-6. Usare **Salva e successiva** e il marcatore **Già modificata** per completare il lotto senza perdere la posizione.
-7. Aprire **Situazione contabile e mastrini** e controllare conti collettivi, IVA, costi e ricavi.
-8. Aprire **Partitario clienti/fornitori** e completare eventuali associazioni rimaste.
-9. Verificare che Dare = Avere e che i saldi iniziali comprendano l’apertura dell’esercizio.
+5. Correggere nel riquadro **Detraibilità IVA** eventuali percentuali particolari.
+6. Per ogni riga XML relativa a un cespite impostare anche **Classificazione acquisto → Bene ammortizzabile / cespite**: il conto contabile, la detraibilità e la classificazione fiscale sono tre controlli distinti.
+7. Ricalcolare la liquidazione non definitiva.
+8. Usare **Salva e successiva** e il marcatore **Già modificata** per completare il lotto senza perdere la posizione.
+9. Aprire **Situazione contabile e mastrini** e controllare conti collettivi, IVA, costi e ricavi.
+10. Aprire **Mastrini clienti e fornitori** e completare eventuali associazioni rimaste; l'estratto mostra anche fatture e pagamenti già chiusi.
+11. Verificare che Dare = Avere e che i saldi iniziali comprendano l’apertura dell’esercizio.
 
 Le scritture di un esercizio non chiuso restano provvisorie e modificabili nei limiti dei blocchi contabili/fiscali. La stampa definitiva e il blocco richiedono il workflow di chiusura previsto.
 
@@ -66,6 +68,8 @@ Prima di rendere definitiva la liquidazione confrontare:
 - credito precedente, interessi e rettifiche;
 - totale da versare o credito da riportare;
 - dettaglio per registro, articolo e aliquota.
+
+Nel calcolo lasciare vuoto **Credito precedente** per usare il riporto automatico dalla liquidazione immediatamente precedente. Inserire un importo manuale soltanto per una rettifica documentata e controllare nell'esito se l'origine risulta **Automatica** o **Manuale**.
 
 Solo dopo la quadratura con il prospetto del commercialista procedere con validazione, pagamento e blocco del periodo.
 

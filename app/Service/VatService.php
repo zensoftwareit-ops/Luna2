@@ -71,10 +71,11 @@ final class VatService
             $statement = $this->db->prepare(
                 "SELECT COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')) AS vat_code,
                         COALESCE(vat_nature, '') AS vat_nature, vat_rate, COALESCE(deductible_percent, 100) AS deductible_percent,
+                        COALESCE(purchase_classification, 'ORDINARY') AS purchase_classification,
                         SUM(taxable_amount) AS taxable_amount, SUM(vat_amount) AS vat_amount
                  FROM document_lines WHERE document_id = ? AND organization_id = ?
                  GROUP BY COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')),
-                          COALESCE(vat_nature, ''), vat_rate, COALESCE(deductible_percent, 100)"
+                          COALESCE(vat_nature, ''), vat_rate, COALESCE(deductible_percent, 100), COALESCE(purchase_classification, 'ORDINARY')"
             );
             $statement->execute([$documentId, $this->organizationId]);
             $groups = $statement->fetchAll();
@@ -94,9 +95,9 @@ final class VatService
                  (organization_id, document_id, source_type, document_fiscal_type, register_type, vat_register_id, operation_type, collectability,
                    movement_date, tax_point_date, protocol_number, document_reference, document_reference_date, counterparty_name, description, vat_code,
                   vat_rate, vat_nature, vat_description, vat_legal_reference,
-                  taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent, pro_rata_amount,
+                  taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent, purchase_classification, pro_rata_amount,
                   period_year, period_month, created_by, created_at, updated_at)
-                  VALUES (?, ?, \'DOCUMENT\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+                  VALUES (?, ?, \'DOCUMENT\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
             );
             $proRata = $this->proRataPercent();
             foreach ($groups as $group) {
@@ -134,7 +135,7 @@ final class VatService
                         : $this->documentDescription((string) $document['document_type']),
                     $metadata['code'], $metadata['rate'], $metadata['nature'], $metadata['description'], $metadata['legal_reference'],
                     $taxable, $vat,
-                    $vatDue, $deductible, $effectiveDeductibility, $proRataAmount,
+                    $vatDue, $deductible, $effectiveDeductibility, $group['purchase_classification'], $proRataAmount,
                     (int) $date->format('Y'), (int) $date->format('n'), $this->userId,
                 ]);
             }
@@ -166,6 +167,7 @@ final class VatService
         $register = strtoupper((string) ($data['register_type'] ?? ''));
         $operation = strtoupper((string) ($data['operation_type'] ?? 'DOMESTIC'));
         $collectability = strtoupper((string) ($data['collectability'] ?? 'IMMEDIATE'));
+        $purchaseClassification = strtoupper((string) ($data['purchase_classification'] ?? 'ORDINARY'));
         $date = $this->isoDate($data['movement_date'] ?? date('Y-m-d'));
         $documentReference = trim((string) ($data['document_reference'] ?? ''));
         $documentFiscalType = strtoupper(trim((string) ($data['document_fiscal_type'] ?? ''))) ?: 'TD01';
@@ -189,6 +191,7 @@ final class VatService
         $operations = ['DOMESTIC','REVERSE_CHARGE','SELF_INVOICE','SPLIT_PAYMENT','CASH','INTRA_EU','EXTRA_EU','MARGIN','EXEMPT','NON_TAXABLE','ADJUSTMENT'];
         if (!in_array($register, self::REGISTERS, true) || !in_array($operation, $operations, true)
             || !in_array($collectability, ['IMMEDIATE','DEFERRED','SPLIT','CASH'], true)
+            || !in_array($purchaseClassification, ['ORDINARY','DEPRECIABLE_ASSET','NON_DEPRECIABLE_ASSET','LEASING','RESALE'], true)
             || trim((string) ($data['vat_code'] ?? '')) === '') {
             throw new InvalidArgumentException('Registro e codice IVA sono obbligatori.');
         }
@@ -228,9 +231,9 @@ final class VatService
                  (organization_id, document_id, source_type, document_fiscal_type, register_type, vat_register_id, operation_type, collectability,
                   movement_date, tax_point_date, protocol_number, counterparty_name, description, vat_code,
                   vat_rate, vat_nature, vat_description, vat_legal_reference,
-                  taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent, pro_rata_amount,
+                  taxable_amount, vat_amount, vat_due_amount, deductible_vat, deductibility_percent, purchase_classification, pro_rata_amount,
                   period_year, period_month, created_by, created_at, updated_at)
-                 VALUES (?, NULL, \'MANUAL\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+                 VALUES (?, NULL, \'MANUAL\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
             );
             $statement->execute([
                 $this->organizationId, $documentFiscalType, $register, $registerId, $operation, $collectability, $date->format('Y-m-d'),
@@ -239,7 +242,7 @@ final class VatService
                 $this->nullValue($data['counterparty_name'] ?? null), $this->nullValue($data['description'] ?? null),
                 $metadata['code'], $metadata['rate'], $metadata['nature'], $metadata['description'], $metadata['legal_reference'],
                 round($taxable, 2), round($vat, 2), round($vatDue, 2), round($deductible, 2),
-                $deductibility, round($register === 'PURCHASES' ? $vat - $deductible : 0, 2),
+                $deductibility, $register === 'PURCHASES' ? $purchaseClassification : 'ORDINARY', round($register === 'PURCHASES' ? $vat - $deductible : 0, 2),
                 (int) $date->format('Y'), (int) $date->format('n'), $this->userId,
             ]);
             $movementId = (int) $this->db->lastInsertId();
@@ -367,7 +370,15 @@ final class VatService
         $totals = $summary->fetch();
         $vatDebit = round((float) $totals['vat_debit'], 2);
         $vatCredit = round((float) $totals['vat_credit'], 2);
-        $previousCredit = round(max(0, $this->decimal($data['previous_credit'] ?? 0)), 2);
+        $creditInput = trim((string) ($data['previous_credit'] ?? ''));
+        $creditSource = null;
+        $creditMode = $creditInput === '' ? 'AUTO' : 'MANUAL';
+        if ($creditMode === 'AUTO') {
+            $creditSource = $this->previousSettlementCredit($periodType, $year, $period);
+            $previousCredit = $creditSource['credit'] ?? 0.0;
+        } else {
+            $previousCredit = round(max(0, $this->decimal($creditInput)), 2);
+        }
         $interest = round(max(0, $this->decimal($data['interest_amount'] ?? 0)), 2);
         $balance = round($vatDebit - $vatCredit - $previousCredit + $interest, 2);
 
@@ -379,13 +390,14 @@ final class VatService
             $upsert = $this->db->prepare(
                 "INSERT INTO vat_settlements
                  (organization_id, period_type, period_year, period_number, vat_debit, vat_credit,
-                  previous_credit, interest_amount, balance, status, payment_due_date, notes,
+                  previous_credit, previous_credit_mode, previous_credit_source_settlement_id, interest_amount, balance, status, payment_due_date, notes,
                   source_reconciliation_mode, excluded_document_rows, excluded_document_vat_debit,
                   excluded_document_vat_credit, excluded_document_purchase_vat,
                   created_by, updated_by, calculated_at, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'CALCULATED', ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'CALCULATED', ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW(), NOW())
                  ON DUPLICATE KEY UPDATE vat_debit = VALUES(vat_debit), vat_credit = VALUES(vat_credit),
-                  previous_credit = VALUES(previous_credit), interest_amount = VALUES(interest_amount),
+                  previous_credit = VALUES(previous_credit), previous_credit_mode = VALUES(previous_credit_mode),
+                  previous_credit_source_settlement_id = VALUES(previous_credit_source_settlement_id), interest_amount = VALUES(interest_amount),
                   balance = VALUES(balance), status = 'CALCULATED', payment_due_date = VALUES(payment_due_date),
                   notes = VALUES(notes), source_reconciliation_mode = VALUES(source_reconciliation_mode),
                   excluded_document_rows = VALUES(excluded_document_rows),
@@ -396,7 +408,7 @@ final class VatService
             );
             $upsert->execute([
                 $this->organizationId, $periodType, $year, $period, $vatDebit, $vatCredit, $previousCredit,
-                $interest, $balance, $this->nullValue($data['payment_due_date'] ?? null),
+                $creditMode, $creditSource['id'] ?? null, $interest, $balance, $this->nullValue($data['payment_due_date'] ?? null),
                 $this->nullValue($data['notes'] ?? null), $reconciliation['mode'], $reconciliation['rows'],
                 $reconciliation['vat_debit'], $reconciliation['vat_credit'], $reconciliation['purchase_vat'],
                 $this->userId, $this->userId,
@@ -409,14 +421,14 @@ final class VatService
             $this->db->prepare('DELETE FROM vat_settlement_details WHERE settlement_id = ? AND organization_id = ?')
                 ->execute([$settlementId, $this->organizationId]);
             $details = $this->db->prepare(
-                "SELECT register_type, vat_code, vat_rate, vat_nature, vat_description, vat_legal_reference,
+                "SELECT register_type, vat_code, vat_rate, vat_nature, vat_description, vat_legal_reference, purchase_classification,
                         SUM(taxable_amount) AS taxable_amount,
                         SUM(vat_amount) AS vat_amount, SUM(vat_due_amount) AS vat_due_amount,
                         SUM(deductible_vat) AS deductible_vat, SUM(non_deductible_vat) AS non_deductible_vat,
                         SUM(suspended_vat) AS suspended_vat
                  FROM (
                     SELECT register_type, COALESCE(vat_code, 'N/D') AS vat_code, vat_rate, vat_nature,
-                           vat_description, vat_legal_reference,
+                           vat_description, vat_legal_reference, purchase_classification,
                            taxable_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END AS taxable_amount,
                            vat_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END AS vat_amount,
                            vat_due_amount * CASE WHEN document_fiscal_type IN ('TD04','TD08') THEN -1 ELSE 1 END AS vat_due_amount,
@@ -438,7 +450,7 @@ final class VatService
                       ))
                     UNION ALL
                     SELECT m.register_type, COALESCE(m.vat_code, 'N/D'), m.vat_rate, m.vat_nature,
-                           m.vat_description, m.vat_legal_reference, e.recognized_taxable,
+                           m.vat_description, m.vat_legal_reference, m.purchase_classification, e.recognized_taxable,
                            e.recognized_vat_due + e.recognized_vat_credit, e.recognized_vat_due,
                            e.recognized_vat_credit, 0, 0
                     FROM vat_cash_events e JOIN vat_movements m ON m.id = e.vat_movement_id
@@ -452,7 +464,7 @@ final class VatService
                             AND authoritative.source_type = 'DATEV_PDF'
                       ))
                  ) detail_rows
-                 GROUP BY register_type, vat_code, vat_rate, vat_nature, vat_description, vat_legal_reference"
+                 GROUP BY register_type, vat_code, vat_rate, vat_nature, vat_description, vat_legal_reference, purchase_classification"
             );
             $details->execute([
                 $this->organizationId, $year, $monthFrom, $monthTo,
@@ -461,14 +473,14 @@ final class VatService
             $insert = $this->db->prepare(
                 'INSERT INTO vat_settlement_details
                  (organization_id, settlement_id, register_type, vat_code, vat_rate, vat_nature,
-                  vat_description, vat_legal_reference, taxable_amount, vat_amount, vat_due_amount,
+                  vat_description, vat_legal_reference, purchase_classification, taxable_amount, vat_amount, vat_due_amount,
                   deductible_vat, non_deductible_vat, suspended_vat, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())'
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())'
             );
             foreach ($details->fetchAll() as $detail) {
                 $insert->execute([
                     $this->organizationId, $settlementId, $detail['register_type'], $detail['vat_code'],
-                    $detail['vat_rate'], $detail['vat_nature'], $detail['vat_description'], $detail['vat_legal_reference'],
+                    $detail['vat_rate'], $detail['vat_nature'], $detail['vat_description'], $detail['vat_legal_reference'], $detail['purchase_classification'],
                     $detail['taxable_amount'], $detail['vat_amount'], $detail['vat_due_amount'],
                     $detail['deductible_vat'], $detail['non_deductible_vat'], $detail['suspended_vat'],
                 ]);
@@ -506,6 +518,28 @@ final class VatService
         if ($statement->rowCount() === 0) {
             throw new InvalidArgumentException('Liquidazione non trovata o non calcolata.');
         }
+    }
+
+    /** @return array{id:int,credit:float}|null */
+    private function previousSettlementCredit(string $periodType, int $year, int $period): ?array
+    {
+        $previousYear = $year;
+        $previousPeriod = $period - 1;
+        if ($previousPeriod < 1) {
+            $previousYear--;
+            $previousPeriod = $periodType === 'MONTHLY' ? 12 : 4;
+        }
+        $statement = $this->db->prepare(
+            "SELECT id, balance FROM vat_settlements
+             WHERE organization_id = ? AND period_type = ? AND period_year = ? AND period_number = ?
+               AND status IN ('CALCULATED','SUBMITTED','PAID') LIMIT 1"
+        );
+        $statement->execute([$this->organizationId, $periodType, $previousYear, $previousPeriod]);
+        $row = $statement->fetch();
+        if (!$row) {
+            return null;
+        }
+        return ['id' => (int) $row['id'], 'credit' => round(max(0, -(float) $row['balance']), 2)];
     }
 
     public function invalidateForDate(string $date): void
@@ -557,7 +591,8 @@ final class VatService
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         $update = $this->db->prepare(
             "UPDATE vat_settlements SET status = 'DRAFT', vat_debit = 0, vat_credit = 0,
-             previous_credit = 0, interest_amount = 0, balance = 0, calculated_at = NULL, updated_at = NOW()
+             previous_credit = 0, previous_credit_mode = 'AUTO', previous_credit_source_settlement_id = NULL,
+             interest_amount = 0, balance = 0, calculated_at = NULL, updated_at = NOW()
              WHERE organization_id = ? AND id IN ({$placeholders})"
         );
         $update->execute(array_merge([$this->organizationId], $ids));

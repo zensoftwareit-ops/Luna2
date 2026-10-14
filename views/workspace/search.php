@@ -7,7 +7,8 @@
     <input type="search" name="q" value="<?= View::e($query) ?>" placeholder="Cerca numero documento, ragione sociale, codice, descrizione…" autofocus minlength="2" autocomplete="off">
     <button class="button primary" type="submit">Cerca</button>
 </form>
-<?php if ($query !== '' && mb_strlen($query) < 2): ?><div class="alert alert-warning"><?= View::icon('alert') ?><span>Inserisci almeno due caratteri.</span></div><?php endif; ?>
+<?php $queryLength = function_exists('mb_strlen') ? mb_strlen($query) : strlen($query); ?>
+<?php if ($query !== '' && $queryLength < 2): ?><div class="alert alert-warning"><?= View::icon('alert') ?><span>Inserisci almeno due caratteri.</span></div><?php endif; ?>
 <?php if ($results): ?>
     <div class="search-result-grid">
         <?php foreach ($results as $area): ?>
@@ -21,6 +22,6 @@
             </section>
         <?php endforeach; ?>
     </div>
-<?php elseif (mb_strlen($query) >= 2): ?>
+<?php elseif ($queryLength >= 2): ?>
     <section class="card empty-state-large"><?= View::icon('search') ?><h2>Nessun risultato</h2><p>Controlla la ricerca o prova con un codice, un numero documento o una ragione sociale.</p></section>
 <?php endif; ?>

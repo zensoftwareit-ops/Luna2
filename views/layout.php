@@ -100,7 +100,7 @@ $initials = mb_strtoupper(mb_substr($initials, 0, 2));
                         <a class="<?= $active('/accounting/vat-registers') ?>" href="/accounting/vat-registers">Registri IVA</a>
                         <a class="<?= $active('/accounting/vat-settlements') ?>" href="/accounting/vat-settlements">Liquidazioni IVA</a>
                         <a class="<?= $active('/accounting/treasury') ?>" href="/accounting/treasury">Tesoreria e partite</a>
-                        <a class="<?= $active('/accounting/subledgers') ?>" href="/accounting/subledgers">Partitario clienti/fornitori</a>
+                        <a class="<?= $active('/accounting/subledgers') ?>" href="/accounting/subledgers">Mastrini clienti e fornitori</a>
                         <a class="<?= $active('/accounting/trial-balance') ?>" href="/accounting/trial-balance">Situazione contabile e mastrini</a>
                         <a class="<?= $active('/accounting/compliance') ?>" href="/accounting/compliance">Adempimenti e chiusure</a>
                         <a class="<?= $active('/accounting/setup') ?>" href="/accounting/setup">Piano dei conti e causali</a>

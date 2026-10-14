@@ -39,9 +39,12 @@ final class ComplianceController extends BaseController
             JOIN fixed_assets a ON a.id = y.fixed_asset_id AND a.organization_id = y.organization_id
             WHERE y.organization_id = ? AND y.fiscal_year = ? ORDER BY a.asset_code', [$organizationId, $year]);
         $assets = $this->query(
-            'SELECT a.*, c.code AS category_code FROM fixed_assets a LEFT JOIN fixed_asset_categories c ON c.id = a.category_id
+            'SELECT a.*, c.code AS category_code, s.business_name AS supplier_name FROM fixed_assets a LEFT JOIN fixed_asset_categories c ON c.id = a.category_id
+             LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.organization_id = a.organization_id
              WHERE a.organization_id = ? ORDER BY a.asset_code', [$organizationId]
         );
+        $suppliers = $this->query('SELECT id, code, business_name, vat_number FROM suppliers WHERE organization_id = ? AND active = 1 ORDER BY business_name', [$organizationId]);
+        $purchaseDocuments = $this->query("SELECT id, number, document_date, counterparty_name, counterparty_id, total FROM documents WHERE organization_id = ? AND document_type IN ('PURCHASE_INVOICE','CREDIT_NOTE') ORDER BY document_date DESC, id DESC LIMIT 1000", [$organizationId]);
         $depreciations = $this->query(
             'SELECT d.*, a.asset_code, a.description FROM depreciation_entries d JOIN fixed_assets a ON a.id = d.fixed_asset_id
              WHERE d.organization_id = ? AND d.fiscal_year = ? ORDER BY a.asset_code', [$organizationId, $year]
@@ -69,7 +72,8 @@ final class ComplianceController extends BaseController
         unset($row);
         $this->view->render('accounting/compliance', compact(
             'year', 'adjustments', 'lipe', 'annual', 'closingRuns', 'schedules', 'categories', 'assets',
-            'depreciations', 'accounts', 'statements', 'statementTotals', 'periodStart', 'periodEnd', 'registerYears'
+            'depreciations', 'accounts', 'statements', 'statementTotals', 'periodStart', 'periodEnd', 'registerYears',
+            'suppliers', 'purchaseDocuments'
         ) + ['title' => 'Adempimenti e chiusure']);
     }
 

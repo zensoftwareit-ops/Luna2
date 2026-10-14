@@ -87,7 +87,7 @@ $assert(
     str_contains($documentationIndex, 'GUIDA_OPERATIVA_CLIENTE.md')
     && str_contains($customerGuide, 'Primo accesso e sicurezza')
     && str_contains($customerGuide, 'Fatture XML FatturaPA')
-    && str_contains($customerGuide, 'Partitario clienti e fornitori')
+    && str_contains($customerGuide, 'Mastrini clienti e fornitori')
     && str_contains($customerGuide, 'Checklist operative'),
     'Guida operativa cliente mancante o incompleta.'
 );
@@ -126,7 +126,7 @@ $assert(str_contains($pleskClient, 'issueCertificateWithAliases') && str_contain
 $assert(str_contains($pleskClient, "'-seo-redirect', 'false'") && str_contains($pleskClient, "'-status', 'enabled'"), 'L’alias personalizzato non deve reindirizzare al dominio tecnico.');
 $assert(substr_count($customDomainController, "requireRoles(['OWNER', 'ADMIN'])") === 4 && !str_contains($customDomainController, 'requireSuperuser()'), 'I domini personalizzati devono essere gestiti dagli amministratori aziendali.');
 $assert(str_contains($layoutView, "Auth::isAdmin()") && str_contains($layoutView, 'Dominio personalizzato'), 'Voce dominio personalizzato mancante dal menu amministratore.');
-$aliasProvision = strpos($customDomainService, 'createAlias(');
+$aliasProvision = strpos($customDomainService, 'ensureAlias(');
 $dnsVerification = strpos($customDomainService, 'dnsPointsTo(', $aliasProvision === false ? 0 : $aliasProvision);
 $assert($aliasProvision !== false && $dnsVerification !== false && $aliasProvision < $dnsVerification, 'L’alias Plesk deve essere predisposto prima della verifica CNAME.');
 $assert(!str_contains($schema, 'PLESK_API_KEY'), 'La chiave API Plesk non deve essere memorizzata nel database.');
@@ -488,7 +488,7 @@ $assert(str_contains($vatRegistersView, 'Totali per articolo e aliquota IVA') &&
 $assert(str_contains($vatSettlementView, 'Dettaglio per registro, articolo e aliquota IVA'), 'Dettaglio aliquote della liquidazione IVA mancante.');
 $assert(str_contains($vatSettlementView, 'IVA DA VERSARE') && str_contains($vatSettlementView, 'CREDITO IVA DA RIPORTARE'), 'Esito della liquidazione IVA non sufficientemente evidente.');
 $assert(str_contains($vatSettlementView, 'Imposta a credito') && str_contains($vatSettlementView, 'Indetraibile') && str_contains($vatSettlementView, 'Sospesa'), 'Prospetto di liquidazione privo della quadratura fiscale completa.');
-$assert(str_contains($vatService, "['TD04', 'TD08']") && str_contains($vatService, '-abs('), 'Le note di credito FatturaPA devono ridurre imponibile e IVA anche sul ciclo passivo.');
+$assert(str_contains($vatService, "['TD04', 'TD08']") && str_contains($vatService, "document_fiscal_type IN ('TD04','TD08') THEN -1"), 'Le note di credito FatturaPA devono ridurre imponibile e IVA anche sul ciclo passivo.');
 $assert(str_contains($importService, "'vat_summaries' => \$summaries")
     && str_contains($importService, 'Rettifica riepilogo FatturaPA')
     && str_contains($importService, 'ROLLBACK TO SAVEPOINT'),
