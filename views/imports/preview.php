@@ -45,6 +45,8 @@
     'account_code' => 'Codice conto', 'debit' => 'Dare', 'credit' => 'Avere',
     'document_number' => 'Numero documento', 'document_date' => 'Data documento',
     'due_date' => 'Scadenza', 'taxable_amount' => 'Imponibile', 'vat_amount' => 'IVA',
+    'payment_schedule_total' => 'Totale scadenze XML', 'payment_schedule_expected' => 'Netto da pagare/incassare',
+    'payment_schedule_recalculated' => 'Ricalcolo scadenze necessario', 'payment_schedules' => 'Rate XML',
 ]; ?>
 <section class="card table-wrap"><table>
     <thead><tr><th>Riga</th><th>Dati da importare</th><th>Stato</th><th>Segnalazioni</th></tr></thead>
@@ -53,6 +55,9 @@
         <tr>
             <td><?= (int) $row['source_row_number'] ?></td>
             <td class="import-preview-cell">
+                <?php if (!empty($row['data']['payment_schedule_recalculated'])): ?>
+                    <div class="alert alert-warning"><strong>Scadenze da riallineare.</strong> Le rate XML sono assenti o non quadrano con il netto del documento: alla conferma Luna2 creerà una scadenza coerente con totale e ritenuta.</div>
+                <?php endif; ?>
                 <dl class="import-field-list">
                 <?php foreach ((array) $row['data'] as $key => $value): ?>
                     <div><dt><?= View::e($fieldLabels[$key] ?? ucfirst(str_replace('_', ' ', (string) $key))) ?></dt>

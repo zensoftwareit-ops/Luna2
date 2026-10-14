@@ -435,7 +435,19 @@ final class ImportService
             $type = $this->xpathText($general, './*[local-name()="TipoDocumento"]');
             $total = $this->decimal($this->xpathText($general, './*[local-name()="ImportoTotaleDocumento"]'));
             $withholdingNode = $this->xpathOne($general, './*[local-name()="DatiRitenuta"]');
-            $paymentNode = $this->xpathOne($body, './/*[local-name()="DatiPagamento"]/*[local-name()="DettaglioPagamento"]');
+            $paymentNodes = $body->xpath('.//*[local-name()="DatiPagamento"]/*[local-name()="DettaglioPagamento"]') ?: [];
+            $paymentNode = $paymentNodes[0] ?? null;
+            $paymentSchedules = [];
+            foreach ($paymentNodes as $installment => $node) {
+                $paymentSchedules[] = [
+                    'installment_number' => $installment + 1,
+                    'due_date' => $this->xpathText($node, './*[local-name()="DataScadenzaPagamento"]') ?: $date,
+                    'amount' => $this->decimal($this->xpathText($node, './*[local-name()="ImportoPagamento"]')),
+                    'payment_method_code' => $this->xpathText($node, './*[local-name()="ModalitaPagamento"]') ?: null,
+                    'bank_name' => $this->xpathText($node, './*[local-name()="IstitutoFinanziario"]') ?: null,
+                    'iban' => $this->xpathText($node, './*[local-name()="IBAN"]') ?: null,
+                ];
+            }
             $lines = [];
             foreach (($body->xpath('.//*[local-name()="DettaglioLinee"]') ?: []) as $line) {
                 $quantity = $this->decimal($this->xpathText($line, './*[local-name()="Quantita"]') ?: '1');
@@ -495,6 +507,16 @@ final class ImportService
                     ];
                 }
             }
+            $withholdingAmount = $withholdingNode ? $this->decimal($this->xpathText($withholdingNode, './*[local-name()="ImportoRitenuta"]')) : 0;
+            $paymentBase = abs($total);
+            if ($paymentBase <= .005) {
+                $paymentBase = abs(array_sum(array_map(
+                    static fn (array $summary): float => (float) $summary['taxable'] + (float) $summary['vat'],
+                    $summaries
+                )));
+            }
+            $expectedPayment = round(max(0, $paymentBase - abs($withholdingAmount)), 2);
+            $scheduledPayment = round(array_sum(array_map(static fn (array $schedule): float => abs((float) $schedule['amount']), $paymentSchedules)), 2);
             $normalized = [
                 'document_type' => in_array($type, ['TD04', 'TD08'], true) && $direction === 'SALES_INVOICE' ? 'CREDIT_NOTE' : $direction,
                 'fatturapa_type' => $type, 'number' => $number, 'document_date' => $date,
@@ -515,10 +537,13 @@ final class ImportService
                 'bank_abi' => $paymentNode ? ($this->xpathText($paymentNode, './*[local-name()="ABI"]') ?: null) : null,
                 'bank_cab' => $paymentNode ? ($this->xpathText($paymentNode, './*[local-name()="CAB"]') ?: null) : null,
                 'withholding_type' => $withholdingNode ? ($this->xpathText($withholdingNode, './*[local-name()="TipoRitenuta"]') ?: null) : null,
-                'withholding_amount' => $withholdingNode ? $this->decimal($this->xpathText($withholdingNode, './*[local-name()="ImportoRitenuta"]')) : 0,
+                'withholding_amount' => $withholdingAmount,
                 'withholding_rate' => $withholdingNode ? $this->decimal($this->xpathText($withholdingNode, './*[local-name()="AliquotaRitenuta"]')) : 0,
                 'withholding_cause' => $withholdingNode ? ($this->xpathText($withholdingNode, './*[local-name()="CausalePagamento"]') ?: null) : null,
-                'lines' => $lines, 'vat_summaries' => $summaries,
+                'payment_schedule_total' => $scheduledPayment,
+                'payment_schedule_expected' => $expectedPayment,
+                'payment_schedule_recalculated' => $paymentSchedules === [] || abs($scheduledPayment - $expectedPayment) > .02,
+                'lines' => $lines, 'vat_summaries' => $summaries, 'payment_schedules' => $paymentSchedules,
             ];
             if ($history) {
                 $key = hash('sha256', implode('|', [$issuerVat,$recipientVat,$date,$number,$type]));
@@ -1192,6 +1217,14 @@ final class ImportService
                 ]);
                 $documentId = (int) $existing['id'];
                 $this->replaceFatturaPaLines($documentId, $data['lines']);
+                $this->replaceFatturaPaSchedules(
+                    $documentId,
+                    is_array($data['payment_schedules'] ?? null) ? $data['payment_schedules'] : [],
+                    round(max(0, $total - (float) ($data['withholding_amount'] ?? 0)), 2),
+                    (string) $data['document_date'],
+                    $data['payment_method_code'] ?? null,
+                    $data['bank_iban'] ?? null,
+                );
                 (new AccountingService($this->db, $this->organizationId, $this->userId))->postDocument($documentId);
                 (new ReceivablesService($this->db, $this->organizationId, $this->userId))->syncDocumentById($documentId);
                 $this->markRow($staged['id'], 'IMPORTED', 'Documento esistente completato con prima nota, IVA e scadenza.', $documentId);
@@ -1208,6 +1241,14 @@ final class ImportService
                 $externalKey, $batchId, $this->userId, $this->userId]);
             $documentId = (int) $this->db->lastInsertId();
             $this->replaceFatturaPaLines($documentId, $data['lines']);
+            $this->replaceFatturaPaSchedules(
+                $documentId,
+                is_array($data['payment_schedules'] ?? null) ? $data['payment_schedules'] : [],
+                round(max(0, $total - (float) ($data['withholding_amount'] ?? 0)), 2),
+                (string) $data['document_date'],
+                $data['payment_method_code'] ?? null,
+                $data['bank_iban'] ?? null,
+            );
             (new AccountingService($this->db, $this->organizationId, $this->userId))->postDocument($documentId);
             (new ReceivablesService($this->db, $this->organizationId, $this->userId))->syncDocumentById($documentId);
             $this->recordImport($batchId, 'documents', $documentId, 'CREATE', null);
@@ -1240,6 +1281,57 @@ final class ImportService
                 round((float) $line['taxable_amount'] + (float) $line['vat_amount'], 2),
             ]);
         }
+    }
+
+    private function replaceFatturaPaSchedules(
+        int $documentId,
+        array $schedules,
+        float $netPayable,
+        string $documentDate,
+        ?string $defaultMethod,
+        ?string $defaultIban,
+    ): void {
+        $normalized = [];
+        foreach ($schedules as $schedule) {
+            $amount = round(abs((float) ($schedule['amount'] ?? 0)), 2);
+            $dueDate = $this->dateValue((string) ($schedule['due_date'] ?? '')) ?: $documentDate;
+            if ($amount <= .005) {
+                continue;
+            }
+            $normalized[] = [
+                'due_date' => $dueDate,
+                'amount' => $amount,
+                'payment_method_code' => trim((string) ($schedule['payment_method_code'] ?? '')) ?: $defaultMethod,
+                'iban' => trim((string) ($schedule['iban'] ?? '')) ?: $defaultIban,
+            ];
+        }
+        $scheduled = round(array_sum(array_column($normalized, 'amount')), 2);
+        if ($normalized === [] || abs($scheduled - $netPayable) > .02) {
+            $normalized = $netPayable > .005 ? [[
+                'due_date' => $normalized[0]['due_date'] ?? $documentDate,
+                'amount' => $netPayable,
+                'payment_method_code' => $normalized[0]['payment_method_code'] ?? $defaultMethod,
+                'iban' => $normalized[0]['iban'] ?? $defaultIban,
+            ]] : [];
+        }
+
+        $this->db->prepare('DELETE FROM payment_schedules WHERE organization_id = ? AND document_id = ?')
+            ->execute([$this->organizationId, $documentId]);
+        $insert = $this->db->prepare(
+            'INSERT INTO payment_schedules
+             (organization_id, document_id, installment_number, due_date, amount, paid_amount, status, payment_method_code, iban, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, NOW(), NOW())'
+        );
+        foreach ($normalized as $index => $schedule) {
+            $insert->execute([
+                $this->organizationId, $documentId, $index + 1, $schedule['due_date'], $schedule['amount'],
+                $schedule['due_date'] < date('Y-m-d') ? 'OVERDUE' : 'OPEN',
+                $schedule['payment_method_code'], $schedule['iban'],
+            ]);
+        }
+        $firstDueDate = $normalized === [] ? null : min(array_column($normalized, 'due_date'));
+        $this->db->prepare('UPDATE documents SET due_date = ?, balance_due = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+            ->execute([$firstDueDate, $netPayable, $documentId, $this->organizationId]);
     }
 
     private function insertStagedRow(int $batchId, int $fileId, int $rowNumber, array $raw, array $normalized): void

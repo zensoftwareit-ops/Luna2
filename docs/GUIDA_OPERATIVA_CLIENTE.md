@@ -364,6 +364,8 @@ Per assegnare la stessa data a tutte le fatture di un caricamento già concluso,
 
 L'import operativo crea o riutilizza l'anagrafica tramite Partita IVA, genera documento, righe, contabilità, IVA, scadenza e sottoconto della controparte.
 
+Se l'XML contiene più rate, Luna crea una scadenza distinta per ogni **DettaglioPagamento**. Il totale delle rate viene confrontato con il netto effettivamente dovuto, cioè totale documento meno ritenuta. Se le rate dell'XML sono assenti oppure non quadrano, Luna non lascia residui incoerenti: crea una sola scadenza per il netto corretto e lo segnala nell'anteprima come scadenza ricalcolata. Dopo l'importazione verificare sempre date, importi, modalità e IBAN in **Tesoreria e partite**.
+
 Se compare **Piano dei conti incompleto**, non scegliere conti casuali. Aprire **Contabilità - Piano dei conti e causali**, completare gli automatismi richiesti e ripetere l'operazione solo dopo il controllo del responsabile contabile.
 
 ### 9.3 Originali DATEV e XML operativi
@@ -716,6 +718,8 @@ Percorso: **Centro professionale**.
 
 Prima di generare una stampa verificare i controlli di coerenza e risolvere le anomalie. Una stampa formalmente generata non garantisce che i dati siano corretti.
 
+Il riquadro **Qualità dati** segnala in particolare scritture non quadrate, fatture senza prima nota, fatture senza movimento IVA, scadenze che non coincidono con il netto da pagare, importazioni con errori e movimenti bancari non riconciliati. Un controllo verde indica che la specifica anomalia non è stata rilevata; non sostituisce la revisione del responsabile contabile.
+
 ### 18.2 Generare una stampa
 
 Sono disponibili, in base ai dati:
@@ -1067,3 +1071,16 @@ Per ogni operazione importante seguire sempre questa sequenza:
 6. rendere definitivo solo dopo l'approvazione prevista.
 
 Quando un dato non quadra, correggere la fonte dell'errore. Non forzare il totale finale e non duplicare l'operazione per tentativi.
+
+## 33. Ambito funzionale e responsabilità
+
+Luna2 è una piattaforma gestionale e contabile per l'impresa. Copre ciclo attivo e passivo, prima nota, mastrini, partitari, tesoreria, registri e liquidazioni IVA, cespiti, chiusure, riconciliazione bancaria e stampe di controllo.
+
+Non va presentata come sostituto automatico di ogni applicazione di una suite per commercialisti. In particolare:
+
+- i fascicoli LIPE, IVA annuale, CU, 770, Redditi, IRAP, Intrastat e XBRL sono dossier di raccordo e controllo finché non è configurato e collaudato uno specifico canale telematico autorizzato;
+- invio/ricezione SdI e conservazione digitale a norma richiedono un provider e un accordo di servizio dedicati;
+- regimi speciali non configurati per l'azienda devono essere validati prima dell'uso;
+- calcoli fiscali, dichiarazioni e stampe definitive richiedono la verifica del professionista incaricato.
+
+Prima dell'avvio di un nuovo cliente occorre completare un collaudo su almeno un periodo reale: fatture, note di credito, scadenze, prima nota, mastrini, registri IVA, liquidazione, banca e cespiti devono essere confrontati con il gestionale precedente e approvati dal responsabile contabile.

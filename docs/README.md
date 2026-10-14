@@ -1,6 +1,6 @@
 # Documentazione Luna2
 
-Stato verificato sul branch `luna2-php` il **9 ottobre 2026**. Questo indice distingue le procedure operative correnti dai documenti storici o progettuali.
+Stato verificato sul branch `luna2-php` il **14 ottobre 2026**. Questo indice distingue le procedure operative correnti dai documenti storici o progettuali.
 
 ## Procedure operative correnti
 
@@ -14,6 +14,8 @@ Stato verificato sul branch `luna2-php` il **9 ottobre 2026**. Questo indice dis
 | [DOMINI_PERSONALIZZATI_PLESK.md](DOMINI_PERSONALIZZATI_PLESK.md) | CNAME cliente, alias Plesk, certificato e diagnostica HTTPS |
 | [STAMPE_FISCALI_SETUP.md](STAMPE_FISCALI_SETUP.md) | Stampe ufficiali, numerazione, validazione e fascicolo di evidenza |
 | [RIPRISTINO_COMPLETO.md](RIPRISTINO_COMPLETO.md) | Azzeramento controllato dei dati applicativi |
+| [AUDIT_FUNZIONALE_DATEV_2026.md](AUDIT_FUNZIONALE_DATEV_2026.md) | Perimetro professionale, copertura rispetto a DATEV e gate obbligatorio di rilascio |
+| [EMAIL_RISPOSTA_CONTABILE_2026-10-14.md](EMAIL_RISPOSTA_CONTABILE_2026-10-14.md) | Modello sintetico di risposta sulle correzioni operative |
 
 ## Riferimenti tecnici e di collaudo
 

@@ -80,7 +80,8 @@ $subledgerProcedure = (string) file_get_contents($base . '/docs/PARTITARI_CLIENT
 $assert(
     str_contains($documentationIndex, 'PROCEDURA_IMPORT_DATEV_2025_2026.md')
     && str_contains($documentationIndex, 'PROCEDURA_OPERATIVA_MENSILE.md')
-    && str_contains($documentationIndex, 'PARTITARI_CLIENTI_FORNITORI.md'),
+    && str_contains($documentationIndex, 'PARTITARI_CLIENTI_FORNITORI.md')
+    && str_contains($documentationIndex, 'AUDIT_FUNZIONALE_DATEV_2026.md'),
     'Indice della documentazione operativa incompleto.'
 );
 $assert(
@@ -88,7 +89,8 @@ $assert(
     && str_contains($customerGuide, 'Primo accesso e sicurezza')
     && str_contains($customerGuide, 'Fatture XML FatturaPA')
     && str_contains($customerGuide, 'Mastrini clienti e fornitori')
-    && str_contains($customerGuide, 'Checklist operative'),
+    && str_contains($customerGuide, 'Checklist operative')
+    && str_contains($customerGuide, 'Ambito funzionale e responsabilità'),
     'Guida operativa cliente mancante o incompleta.'
 );
 $assert(
@@ -493,6 +495,13 @@ $assert(str_contains($importService, "'vat_summaries' => \$summaries")
     && str_contains($importService, 'Rettifica riepilogo FatturaPA')
     && str_contains($importService, 'ROLLBACK TO SAVEPOINT'),
     'L’import FatturaPA deve usare i riepiloghi fiscali e isolare gli errori della singola fattura.');
+$assert(str_contains($importService, "'payment_schedules' => \$paymentSchedules")
+    && str_contains($importService, 'replaceFatturaPaSchedules')
+    && str_contains($importService, 'abs($scheduled - $netPayable) > .02'),
+    'L’import FatturaPA deve conservare le rate coerenti e ricalcolare quelle non quadrate.');
+$assert(str_contains($importPreviewView, 'Scadenze da riallineare')
+    && str_contains($importPreviewView, 'Netto da pagare/incassare'),
+    'L’anteprima FatturaPA deve spiegare il riallineamento delle scadenze prima della conferma.');
 $assert(str_contains($importService, 'Documento esistente completato con prima nota, IVA e scadenza.')
     && str_contains($importService, 'replaceFatturaPaLines')
     && str_contains($importService, "source_type = 'DOCUMENT' AND source_id = ?")
@@ -548,6 +557,7 @@ $assert(str_contains($partyLedgerService, 'matchHistoricalLines') && str_contain
 $assert(str_contains($application, "'/accounting/subledgers/reconcile'") && str_contains((string) file_get_contents($base . '/views/accounting/subledgers.php'), 'Riconciliazione storico DATEV'), 'Interfaccia di riconciliazione dei sottoconti mancante.');
 $assert(str_contains($accountingService, "['supplier_id' => \$partyId]") && str_contains($accountingService, "['customer_id' => \$partyId]"), 'Le fatture devono alimentare automaticamente il sottoconto cliente/fornitore.');
 $assert(str_contains($receivablesService, "['supplier_id' => (int) \$item['party_id']]") && str_contains($receivablesService, "['customer_id' => (int) \$item['party_id']]"), 'Incassi e pagamenti devono alimentare automaticamente il sottoconto cliente/fornitore.');
+$assert(str_contains($receivablesService, "array_key_exists('balance_due', \$document)"), 'Le scadenze devono usare il netto dovuto e non il totale lordo in presenza di ritenute.');
 $assert(str_contains($resourceController, "'CLI-'") && str_contains($resourceController, "'FOR-'") && substr_count($importService, "LPAD(id, 8, '0')") >= 2, 'I codici sottoconto devono essere generati automaticamente per anagrafiche e importazioni.');
 $assert(str_contains($accountingService, 'accounting_account_mappings m')
     && str_contains($accountingService, 'Automatismi contabili incompleti'),
@@ -557,6 +567,10 @@ $assert(str_contains($entryView, '/accounting/ledger/')
     && is_file($base . '/database/migrations/025_reactivate_used_leaf_accounts.sql'),
     'Ogni conto movimentato deve restare consultabile direttamente dalla scrittura e nei mastrini.');
 $assert(!str_contains($workspaceService, "status = 'COMMITTED'") && !str_contains($workspaceService, "'INVALID','FAILED','PARTIAL'"), 'Stati import non compatibili con lo schema.');
+$assert(str_contains($workspaceService, 'Fatture senza prima nota')
+    && str_contains($workspaceService, 'Fatture senza movimento IVA')
+    && str_contains($workspaceService, 'Scadenze non coerenti col netto'),
+    'Il Centro professionale deve intercettare le principali incoerenze documentali.');
 $assert(!str_contains($complianceWorkspaceService, 'api_endpoint_configs WHERE id = ? AND organization_id = ? AND active = 1'), 'Gli endpoint professionali devono usare il campo enabled.');
 $assert(str_contains($complianceWorkspaceService, 'e.display_name AS endpoint_name'), 'Il Centro professionale deve usare la colonna display_name degli endpoint.');
 $assert(!str_contains($complianceWorkspaceService, 'lipe_communications WHERE organization_id = ? AND period_year'), 'Il fascicolo LIPE usa colonne non presenti.');

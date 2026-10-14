@@ -18,6 +18,7 @@ Per gli XML del nuovo mese aprire **Importazioni** e selezionare **Fatture XML F
 3. Confermare il lotto una sola volta.
 4. Controllare `Importate`, `Già presenti` ed `Errori`.
 5. Aprire **Fatture attive** e **Fatture passive** e verificare un campione.
+6. Aprire **Tesoreria e partite** e controllare che le rate dell'XML coincidano con il netto dovuto; se l'anteprima segnala un ricalcolo, verificare la scadenza unica proposta.
 
 L’import operativo:
 
@@ -25,6 +26,7 @@ L’import operativo:
 - crea documento e righe;
 - genera prima nota, movimento IVA e partita aperta;
 - alimenta automaticamente il sottoconto della controparte.
+- conserva le rate XML quando quadrano con il netto dovuto; in caso contrario genera una scadenza unica corretta, evitando residui fittizi.
 
 Se compare `Piano dei conti incompleto`, completare prima in **Contabilità → Piano dei conti e causali** i mapping indicati. Non scegliere conti casuali e non ricaricare ripetutamente il file.
 

@@ -7,6 +7,7 @@ use Luna\Service\OfficialPrintService;
 use Luna\Service\LedgerReportService;
 use Luna\Service\TrialBalanceService;
 use Luna\Service\AssetService;
+use Luna\Service\ImportService;
 use Luna\Service\VatService;
 
 $db = new PDO('mysql:host=127.0.0.1;port=33317;charset=utf8mb4', 'root', '', [
@@ -144,6 +145,26 @@ $assert($storedCreditNote['document_fiscal_type'] === 'TD04'
     && (float) $storedCreditNote['vat_amount'] === 11.0
     && (float) $storedCreditNote['deductible_vat'] === 11.0,
     'Credit note amounts stay positive and TD04 determines their accounting sign');
+$scheduleSupplier = $add('suppliers', ['organization_id' => $org, 'business_name' => 'Fornitore scadenze test', 'active' => 1]);
+$scheduleDocument = $add('documents', ['organization_id' => $org, 'document_type' => 'PURCHASE_INVOICE', 'number' => 'RATE-TEST-1',
+    'fiscal_year' => 2026, 'document_date' => '2026-10-01', 'counterparty_type' => 'SUPPLIER', 'counterparty_id' => $scheduleSupplier,
+    'counterparty_name' => 'Fornitore scadenze test', 'total' => 100, 'balance_due' => 100, 'status' => 'RECEIVED']);
+$importService = new ImportService($db, $org, $user, $base . '/storage/private/fiscal-tests/' . $name);
+$scheduleMethod = new ReflectionMethod($importService, 'replaceFatturaPaSchedules');
+$scheduleMethod->setAccessible(true);
+$scheduleMethod->invoke($importService, $scheduleDocument, [
+    ['due_date' => '2026-10-31', 'amount' => 60, 'payment_method_code' => 'MP05', 'iban' => 'IT00TEST'],
+    ['due_date' => '2026-11-30', 'amount' => 40, 'payment_method_code' => 'MP05', 'iban' => 'IT00TEST'],
+], 100.0, '2026-10-01', 'MP05', 'IT00TEST');
+$scheduleRows = $db->query('SELECT due_date, amount FROM payment_schedules WHERE document_id = ' . (int) $scheduleDocument . ' ORDER BY installment_number')->fetchAll();
+$assert(count($scheduleRows) === 2 && (float) $scheduleRows[0]['amount'] === 60.0 && (float) $scheduleRows[1]['amount'] === 40.0,
+    'Matching FatturaPA installments are preserved');
+$scheduleMethod->invoke($importService, $scheduleDocument, [
+    ['due_date' => '2026-10-31', 'amount' => 100, 'payment_method_code' => 'MP05', 'iban' => 'IT00TEST'],
+], 80.0, '2026-10-01', 'MP05', 'IT00TEST');
+$recalculatedSchedule = $db->query('SELECT due_date, amount FROM payment_schedules WHERE document_id = ' . (int) $scheduleDocument)->fetchAll();
+$assert(count($recalculatedSchedule) === 1 && (float) $recalculatedSchedule[0]['amount'] === 80.0,
+    'Mismatching FatturaPA installments are recalculated to net payable');
 $asset = $add('fixed_assets', ['organization_id' => $org, 'asset_code' => 'CES-01', 'description' => 'Macchinario di collaudo',
     'purchase_date' => '2024-01-15', 'purchase_cost' => 10000, 'depreciation_rate' => 20, 'net_book_value' => 8000]);
 $assetService = new AssetService($db, $org, $user);

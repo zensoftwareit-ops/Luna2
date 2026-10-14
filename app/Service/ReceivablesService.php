@@ -233,7 +233,9 @@ final class ReceivablesService
         $statement->execute([$this->organizationId, $document['id']]);
         $schedules = $statement->fetchAll();
         if ($schedules === []) {
-            $amount = abs((float) ($document['total'] ?? 0));
+            $amount = array_key_exists('balance_due', $document)
+                ? abs((float) $document['balance_due'])
+                : abs((float) ($document['total'] ?? 0));
             if ($amount <= .005) {
                 return 0;
             }

@@ -10,7 +10,7 @@ Le note ufficiali DATEV mostrano che la gestione contabile comprende, oltre alla
 - [Portale DATEV Koinos](https://www.datev.it/)
 - [DK Konto e riconciliazione bancaria](https://dkkonto.datev.it/)
 
-## Operativo nel branch `luna2-php` al 9 ottobre 2026
+## Operativo nel branch `luna2-php` al 14 ottobre 2026
 
 | Funzione | Copertura |
 |---|---|
@@ -24,7 +24,7 @@ Le note ufficiali DATEV mostrano che la gestione contabile comprende, oltre alla
 | Blocco periodo IVA | Liquidazioni definitive/pagate impediscono la modifica dei movimenti; riapertura esplicita e auditata |
 | Storico esistente | Sincronizzazione idempotente dei documenti già emessi/ricevuti nei registri IVA |
 | Piano dei conti avanzato | Gerarchia, saldo naturale, conti movimentabili, classificazione civilistica/fiscale e mappature degli automatismi |
-| Tesoreria | Partite, scadenze, incassi/pagamenti, estratti CSV/CAMT.053/MT940, riconciliazione assistita parziale/totale e storni controllati |
+| Tesoreria | Partite, rate XML multiple, ricalcolo sul netto dovuto, incassi/pagamenti, estratti CSV/CAMT.053/MT940, riconciliazione assistita parziale/totale e storni controllati |
 | Partitari clienti/fornitori | Sottoconti analitici collegati alle anagrafiche, saldi progressivi, fatture/note di credito/pagamenti, export e riconciliazione automatica/manuale dello storico DATEV |
 | Adempimenti | Rettifiche, prospetti LIPE/IVA annuale, dossier di controllo versionati e non telematici, revisione e blocco solo senza anomalie |
 | Bilancio e chiusure | Conto economico/stato patrimoniale riclassificati, ratei/risconti, chiusura e apertura anche per esercizi non solari |
