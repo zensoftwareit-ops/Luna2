@@ -79,6 +79,9 @@ final class PartyLedgerController extends BaseController
         $service = $this->service();
         if ($partyId > 0) {
             $detail = $service->detail($type, $partyId, $from, $to);
+            if (strtolower($format) === 'pdf') {
+                $this->exporter()->streamPartyLedgerPdf($detail, $from, $to, $type);
+            }
             $rows = $detail['rows'];
             array_unshift($rows, ['entry_description' => 'SALDO INIZIALE', 'running_balance' => $detail['totals']['opening']]);
             $rows[] = ['entry_description' => 'TOTALI / SALDO FINALE', 'debit' => $detail['totals']['debit'],
@@ -86,6 +89,8 @@ final class PartyLedgerController extends BaseController
             $this->exporter()->stream($format, 'Partitario · ' . $detail['party']['business_name'], [
                 ['key' => 'entry_date', 'label' => 'Data', 'type' => 'date'],
                 ['key' => 'protocol_number', 'label' => 'Protocollo'],
+                ['key' => 'source_protocol', 'label' => 'Protocollo origine'],
+                ['key' => 'document_date', 'label' => 'Data documento', 'type' => 'date'],
                 ['key' => 'document_number', 'label' => 'Documento'],
                 ['key' => 'entry_description', 'label' => 'Registrazione'],
                 ['key' => 'description', 'label' => 'Descrizione'],

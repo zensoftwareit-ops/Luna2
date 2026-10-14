@@ -595,7 +595,17 @@ Percorso: **Contabilità - Mastrini clienti e fornitori**.
 
 Ogni cliente o fornitore è un sottoconto analitico del conto collettivo.
 
-La tabella iniziale riepiloga saldo iniziale, Dare, Avere e saldo finale. Aprendo il sottoconto si visualizza l'**Estratto del sottoconto**, cioè l'intera movimentazione contabile di fatture, note di credito, pagamenti, incassi e storni. Il mastrino continua a mostrare le operazioni già saldate e chiuse; lo scadenzario, separato in **Tesoreria e partite**, mostra invece i residui e le scadenze ancora operative.
+La tabella iniziale riepiloga saldo iniziale, Dare, Avere e saldo finale. Aprendo il sottoconto si visualizza la **Scheda contabile**, cioè l'intera movimentazione di fatture, note di credito, pagamenti, incassi e storni, comprese le operazioni già saldate e chiuse. La scheda riporta progressivi iniziali e finali, data registrazione, protocollo Luna2 e protocollo origine, data e numero documento, causale, descrizione della riga, Dare, Avere e saldo contabile progressivo. Lo scadenzario, separato in **Tesoreria e partite**, mostra invece soltanto residui e scadenze operative.
+
+Per ottenere una stampa analoga alla scheda contabile DATEV:
+
+1. selezionare **Fornitori** oppure **Clienti**;
+2. impostare l'intervallo **Dal/Al**;
+3. cercare e aprire il sottoconto interessato;
+4. verificare i progressivi e i movimenti visualizzati;
+5. scegliere **Stampa scheda contabile PDF**.
+
+Il PDF è in formato A4 e identifica conto collettivo, codice del sottoconto, anagrafica e dati fiscali. Il saldo della scheda segue il segno contabile Dare meno Avere; per un fornitore un debito può quindi apparire con segno negativo, come nelle schede DATEV. Il valore operativo ancora da pagare resta esposto separatamente nello scadenzario.
 
 ### 15.1 Consultare
 

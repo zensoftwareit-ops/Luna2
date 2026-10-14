@@ -8,6 +8,8 @@ use Luna\Service\LedgerReportService;
 use Luna\Service\TrialBalanceService;
 use Luna\Service\AssetService;
 use Luna\Service\ImportService;
+use Luna\Service\PartyLedgerService;
+use Luna\Service\TabularExportService;
 use Luna\Service\VatService;
 
 $db = new PDO('mysql:host=127.0.0.1;port=33317;charset=utf8mb4', 'root', '', [
@@ -165,6 +167,54 @@ $scheduleMethod->invoke($importService, $scheduleDocument, [
 $recalculatedSchedule = $db->query('SELECT due_date, amount FROM payment_schedules WHERE document_id = ' . (int) $scheduleDocument)->fetchAll();
 $assert(count($recalculatedSchedule) === 1 && (float) $recalculatedSchedule[0]['amount'] === 80.0,
     'Mismatching FatturaPA installments are recalculated to net payable');
+$partySupplier = $add('suppliers', ['organization_id' => $org, 'code' => 'FOR-TEST-001',
+    'business_name' => 'Magica Luce Societa a responsabilita limitata', 'vat_number' => '09418840964',
+    'tax_code' => '09418840964', 'address' => 'Via Isonzo 24', 'postal_code' => '20100', 'city' => 'Milano',
+    'province' => 'MI', 'active' => 1]);
+$payableAccount = $add('chart_of_accounts', ['organization_id' => $org, 'code' => '3901010',
+    'name' => 'Fornitori beni e servizi entro esercizio successivo', 'account_type' => 'LIABILITY']);
+$add('accounting_account_mappings', ['organization_id' => $org, 'mapping_key' => 'TRADE_PAYABLES',
+    'account_id' => $payableAccount, 'description' => 'Debiti verso fornitori']);
+$openingEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'OPEN-SUP-001',
+    'entry_date' => '2025-12-31', 'competence_date' => '2025-12-31', 'entry_type' => 'OPENING', 'status' => 'POSTED',
+    'description' => 'Progressivi fornitore', 'counterparty' => 'Magica Luce Societa a responsabilita limitata',
+    'total_debit' => 50, 'total_credit' => 50]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $openingEntry, 'line_number' => 1,
+    'account_id' => $offset, 'debit' => 50, 'credit' => 0, 'description' => 'Apertura']);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $openingEntry, 'line_number' => 2,
+    'account_id' => $payableAccount, 'debit' => 0, 'credit' => 50, 'description' => 'Apertura fornitore',
+    'supplier_id' => $partySupplier]);
+$partyDocument = $add('documents', ['organization_id' => $org, 'document_type' => 'PURCHASE_INVOICE',
+    'number' => '100/E', 'fiscal_year' => 2026, 'document_date' => '2026-03-10', 'counterparty_type' => 'SUPPLIER',
+    'counterparty_id' => $partySupplier, 'counterparty_name' => 'Magica Luce Societa a responsabilita limitata',
+    'taxable_total' => 100, 'vat_total' => 22, 'total' => 122, 'balance_due' => 122, 'status' => 'RECEIVED']);
+$partyEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'GEN-2026-PARTY-001',
+    'entry_date' => '2026-03-31', 'competence_date' => '2026-03-10', 'entry_type' => 'PURCHASE_INVOICE',
+    'status' => 'POSTED', 'description' => 'Fattura acquisti 100/E', 'document_number' => '100/E',
+    'source_protocol' => '137', 'source_type' => 'DOCUMENT', 'source_id' => $partyDocument,
+    'counterparty' => 'Magica Luce Societa a responsabilita limitata', 'total_debit' => 122, 'total_credit' => 122]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $partyEntry, 'line_number' => 1,
+    'account_id' => $offset, 'debit' => 122, 'credit' => 0, 'description' => 'Costo acquisto']);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $partyEntry, 'line_number' => 2,
+    'account_id' => $payableAccount, 'debit' => 0, 'credit' => 122, 'description' => 'Debito fattura 100/E',
+    'supplier_id' => $partySupplier]);
+$partyLedger = new PartyLedgerService($db, $org);
+$partyDetail = $partyLedger->detail('SUPPLIER', $partySupplier, '2026-01-01', '2026-07-31');
+$assert((float) $partyDetail['totals']['opening_credit'] === 50.0
+    && (float) $partyDetail['totals']['progressive_credit'] === 172.0
+    && (float) $partyDetail['totals']['accounting_closing'] === -172.0,
+    'Supplier accounting sheet calculates DATEV-style progressives and accounting balance');
+$assert(count($partyDetail['rows']) === 1
+    && $partyDetail['rows'][0]['document_date'] === '2026-03-10'
+    && $partyDetail['rows'][0]['source_protocol'] === '137',
+    'Supplier accounting sheet includes document date and source protocol');
+$partyPdf = (new TabularExportService(['business_name' => 'Societa test stampe fiscali S.r.l.',
+    'vat_number' => '01234567890', 'tax_code' => '01234567890']))
+    ->partyLedgerPdfContent($partyDetail, '2026-01-01', '2026-07-31', 'SUPPLIER');
+$partyLedgerPath = $base . '/storage/private/fiscal-tests/' . $name . '/scheda-contabile-fornitore.pdf';
+if (!is_dir(dirname($partyLedgerPath))) { mkdir(dirname($partyLedgerPath), 0750, true); }
+file_put_contents($partyLedgerPath, $partyPdf);
+$assert(str_starts_with($partyPdf, '%PDF-') && strlen($partyPdf) > 2000, 'Supplier accounting sheet PDF generated');
 $asset = $add('fixed_assets', ['organization_id' => $org, 'asset_code' => 'CES-01', 'description' => 'Macchinario di collaudo',
     'purchase_date' => '2024-01-15', 'purchase_cost' => 10000, 'depreciation_rate' => 20, 'net_book_value' => 8000]);
 $assetService = new AssetService($db, $org, $user);
@@ -181,7 +231,7 @@ $assetService->saveRegisterYear(['fixed_asset_id' => $asset, 'year' => 2026, 'or
     'writedowns' => '0', 'civil_opening_fund' => '2000', 'tax_opening_fund' => '2000', 'civil_rate' => '20', 'tax_rate' => '20',
     'civil_quota' => '2000', 'tax_quota' => '2000', 'evidence_reference' => 'PROSPETTO-2026-VERIFICATO']);
 $out = $base . '/storage/private/fiscal-tests/' . $name;
-mkdir($out, 0750, true);
+if (!is_dir($out)) { mkdir($out, 0750, true); }
 $prints = new OfficialPrintService($db, $org, $user, $out);
 $ids = [];
 foreach (array_keys(OfficialPrintService::types()) as $type) {
@@ -211,4 +261,6 @@ catch (InvalidArgumentException $e) { $assert(true, 'Incomplete validation block
 $db->prepare('UPDATE official_print_runs SET snapshot_json = ? WHERE id = ?')->execute(['{}', $next]);
 try { $prints->validate($next, 'SHOULD-FAIL'); $assert(false, 'Tampered snapshot'); }
 catch (RuntimeException $e) { $assert(true, 'Tampered snapshot rejected'); }
-echo json_encode(['checks' => $checks, 'database' => $name, 'artifacts' => array_map(static fn ($row) => $row[2], $ids)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+$artifacts = array_map(static fn ($row) => $row[2], $ids);
+$artifacts['PARTY_LEDGER'] = $partyLedgerPath;
+echo json_encode(['checks' => $checks, 'database' => $name, 'artifacts' => $artifacts], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

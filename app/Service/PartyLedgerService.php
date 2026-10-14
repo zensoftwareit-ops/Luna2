@@ -258,27 +258,49 @@ final class PartyLedgerService
         if (!$party) {
             throw new InvalidArgumentException('Sottoconto cliente/fornitore non trovato.');
         }
+        $mappingKey = $type === 'SUPPLIER' ? 'TRADE_PAYABLES' : 'TRADE_RECEIVABLES';
+        $accountStatement = $this->db->prepare(
+            'SELECT a.id, a.code, a.name, a.account_type
+             FROM accounting_account_mappings m
+             JOIN chart_of_accounts a ON a.id = m.account_id AND a.organization_id = m.organization_id
+             WHERE m.organization_id = ? AND m.mapping_key = ? LIMIT 1'
+        );
+        $accountStatement->execute([$this->organizationId, $mappingKey]);
+        $collectiveAccount = $accountStatement->fetch() ?: [
+            'id' => null, 'code' => '',
+            'name' => $type === 'SUPPLIER' ? 'Debiti verso fornitori' : 'Crediti verso clienti',
+            'account_type' => $type === 'SUPPLIER' ? 'LIABILITY' : 'ASSET',
+        ];
         $statement = $this->db->prepare(
-            "SELECT e.id AS entry_id, e.entry_date, e.protocol_number, e.source_protocol, e.entry_type,
-                    e.document_number, e.description AS entry_description, l.description, l.debit, l.credit
+            "SELECT e.id AS entry_id, e.entry_date, e.competence_date, e.protocol_number, e.source_protocol, e.entry_type,
+                    e.document_number, COALESCE(d.document_date, e.competence_date) AS document_date,
+                    e.description AS entry_description, l.description, l.debit, l.credit
              FROM journal_entry_lines l JOIN journal_entries e
                ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+             LEFT JOIN documents d ON e.source_type = 'DOCUMENT' AND d.id = e.source_id
+               AND d.organization_id = e.organization_id
              WHERE l.organization_id = ? AND l.{$idColumn} = ? AND e.status = 'POSTED' AND e.entry_date <= ?
              ORDER BY e.entry_date, e.id, l.line_number, l.id"
         );
         $statement->execute([$this->organizationId, $partyId, $to]);
-        $opening = $balance = $debit = $credit = 0;
+        $opening = $openingDebit = $openingCredit = $balance = $debit = $credit = 0;
         $rows = [];
         foreach ($statement->fetchAll() as $row) {
             $movement = $sign * ((float) $row['debit'] - (float) $row['credit']);
             if ((string) $row['entry_date'] < $from) {
                 $opening += $movement;
+                $openingDebit += (float) $row['debit'];
+                $openingCredit += (float) $row['credit'];
                 continue;
             }
             $balance += $movement;
             $debit += (float) $row['debit'];
             $credit += (float) $row['credit'];
             $row['running_balance'] = round($opening + $balance, 2);
+            $row['accounting_running_balance'] = round(
+                ($openingDebit + $debit) - ($openingCredit + $credit),
+                2
+            );
             $rows[] = $row;
         }
         $items = $this->db->prepare(
@@ -299,9 +321,14 @@ final class PartyLedgerService
         }
         unset($item);
         return [
-            'party' => $party, 'rows' => $rows, 'open_items' => $openItems,
+            'party' => $party, 'collective_account' => $collectiveAccount, 'rows' => $rows, 'open_items' => $openItems,
             'totals' => ['opening' => round($opening, 2), 'debit' => round($debit, 2), 'credit' => round($credit, 2),
-                'closing' => round($opening + $balance, 2), 'outstanding' => round($outstanding, 2)],
+                'closing' => round($opening + $balance, 2), 'outstanding' => round($outstanding, 2),
+                'opening_debit' => round($openingDebit, 2), 'opening_credit' => round($openingCredit, 2),
+                'progressive_debit' => round($openingDebit + $debit, 2),
+                'progressive_credit' => round($openingCredit + $credit, 2),
+                'accounting_opening' => round($openingDebit - $openingCredit, 2),
+                'accounting_closing' => round(($openingDebit + $debit) - ($openingCredit + $credit), 2)],
         ];
     }
 

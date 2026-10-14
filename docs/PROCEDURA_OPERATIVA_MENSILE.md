@@ -55,7 +55,7 @@ Non importare il PDF direttamente come movimenti IVA: il PDF viene archiviato co
 7. Ricalcolare la liquidazione non definitiva.
 8. Usare **Salva e successiva** e il marcatore **Già modificata** per completare il lotto senza perdere la posizione.
 9. Aprire **Situazione contabile e mastrini** e controllare conti collettivi, IVA, costi e ricavi.
-10. Aprire **Mastrini clienti e fornitori** e completare eventuali associazioni rimaste; l'estratto mostra anche fatture e pagamenti già chiusi.
+10. Aprire **Mastrini clienti e fornitori** e completare eventuali associazioni rimaste; la scheda contabile mostra anche fatture e pagamenti già chiusi. Aprire almeno un cliente e un fornitore e verificare la stampa PDF con progressivi, date documento, protocolli, Dare/Avere e saldo.
 11. Verificare che Dare = Avere e che i saldi iniziali comprendano l’apertura dell’esercizio.
 
 Le scritture di un esercizio non chiuso restano provvisorie e modificabili nei limiti dei blocchi contabili/fiscali. La stampa definitiva e il blocco richiedono il workflow di chiusura previsto.

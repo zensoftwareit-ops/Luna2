@@ -17,6 +17,106 @@ final class TabularExportService
 {
     public function __construct(private readonly array $company = []) {}
 
+    /** @param array<string,mixed> $detail */
+    public function streamPartyLedgerPdf(array $detail, string $from, string $to, string $type): never
+    {
+        $content = $this->partyLedgerPdfContent($detail, $from, $to, $type);
+        $partyCode = (string) ($detail['party']['code'] ?? 'sottoconto');
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $this->filename('scheda-contabile-' . $partyCode) . '.pdf"');
+        header('Content-Length: ' . strlen($content));
+        header('Cache-Control: private, no-store, max-age=0');
+        echo $content;
+        exit;
+    }
+
+    /**
+     * Produce la scheda contabile del singolo cliente/fornitore nel formato
+     * professionale DATEV: progressivi, documento, protocollo, Dare/Avere e saldo.
+     *
+     * @param array<string,mixed> $detail
+     */
+    public function partyLedgerPdfContent(array $detail, string $from, string $to, string $type): string
+    {
+        $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $money = static fn (mixed $value): string => number_format((float) $value, 2, ',', '.');
+        $dateValue = static fn (mixed $value): string => ($time = strtotime((string) $value)) ? date('d/m/Y', $time) : '';
+        $party = (array) ($detail['party'] ?? []);
+        $account = (array) ($detail['collective_account'] ?? []);
+        $totals = (array) ($detail['totals'] ?? []);
+        $rows = (array) ($detail['rows'] ?? []);
+        $isSupplier = strtoupper($type) === 'SUPPLIER';
+        $partyLabel = $isSupplier ? 'Fornitore' : 'Cliente';
+        $accountType = match ((string) ($account['account_type'] ?? '')) {
+            'ASSET' => 'Attivita', 'LIABILITY' => 'Passivita', 'EQUITY' => 'Patrimonio netto',
+            'REVENUE' => 'Ricavo', 'EXPENSE' => 'Costo', default => (string) ($account['account_type'] ?? ''),
+        };
+        $entryLabels = [
+            'PURCHASE_INVOICE' => 'Fattura acquisti', 'SALES_INVOICE' => 'Fattura vendite',
+            'CREDIT_NOTE' => 'Nota di credito', 'PAYMENT' => 'Pagamento/incasso',
+            'PAYMENT_REVERSAL' => 'Storno pagamento', 'OPENING' => 'Apertura contabile',
+            'CLOSING' => 'Chiusura contabile', 'MANUAL' => 'Registrazione manuale',
+        ];
+        $body = '';
+        foreach ($rows as $row) {
+            $cause = $entryLabels[(string) ($row['entry_type'] ?? '')] ?? str_replace('_', ' ', (string) ($row['entry_type'] ?? 'Movimento'));
+            $entryDescription = trim((string) ($row['entry_description'] ?? ''));
+            $lineDescription = trim((string) ($row['description'] ?? ''));
+            $description = $cause . ($entryDescription !== '' ? ' - ' . $entryDescription : '');
+            $body .= '<tr>'
+                . '<td>' . $escape($dateValue($row['entry_date'] ?? null)) . '</td>'
+                . '<td><b>' . $escape($row['protocol_number'] ?? '') . '</b></td>'
+                . '<td>' . $escape($dateValue($row['document_date'] ?? null)) . '<small>' . $escape($row['source_protocol'] ?? '') . '</small></td>'
+                . '<td>' . $escape($row['document_number'] ?? '') . '</td>'
+                . '<td><b>' . $escape($description) . '</b>' . ($lineDescription !== '' && $lineDescription !== $entryDescription ? '<small>' . $escape($lineDescription) . '</small>' : '') . '</td>'
+                . '<td class="num">' . $money($row['debit'] ?? 0) . '</td>'
+                . '<td class="num">' . $money($row['credit'] ?? 0) . '</td>'
+                . '<td class="num"><b>' . $money($row['accounting_running_balance'] ?? 0) . '</b></td>'
+                . '</tr>';
+        }
+        if ($body === '') {
+            $body = '<tr><td colspan="8" class="empty">Nessun movimento contabile nel periodo selezionato.</td></tr>';
+        }
+        $company = implode(' - ', array_filter([
+            $this->company['business_name'] ?? 'Luna2',
+            !empty($this->company['vat_number']) ? 'P.IVA ' . $this->company['vat_number'] : '',
+            !empty($this->company['tax_code']) ? 'C.F. ' . $this->company['tax_code'] : '',
+        ]));
+        $partyAddress = trim(implode(' ', array_filter([
+            $party['address'] ?? '', $party['postal_code'] ?? '', $party['city'] ?? '', $party['province'] ?? '',
+        ])));
+        $html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><style>
+            @page{margin:15mm 10mm 14mm}body{font-family:DejaVu Sans,sans-serif;color:#111827;font-size:7.4px}
+            header{margin-bottom:12px}.company{font-size:7px;color:#475569}.generated{float:right}.title{text-align:center;font-size:15px;font-weight:bold;margin:24px 0 18px}
+            .identity{width:100%;border-collapse:collapse;margin-bottom:9px}.identity th{width:11%;text-align:left;padding:2px 4px 2px 0}.identity td{padding:2px 8px 2px 0}
+            table.movements{width:100%;border-collapse:collapse;table-layout:fixed}.movements th{padding:4px 3px;border-top:1.4px solid #111;border-bottom:1px solid #111;text-align:left;font-size:6.7px}
+            .movements td{padding:4px 3px;border-bottom:.45px solid #64748b;vertical-align:top}.movements thead{display:table-header-group}.movements tr{page-break-inside:avoid}
+            .movements th:nth-child(1){width:8%}.movements th:nth-child(2){width:13%}.movements th:nth-child(3){width:9%}.movements th:nth-child(4){width:10%}.movements th:nth-child(5){width:31%}.movements th:nth-child(6),.movements th:nth-child(7),.movements th:nth-child(8){width:9.66%}
+            .num{text-align:right;white-space:nowrap}small{display:block;color:#475569;font-size:6.3px;margin-top:2px}.progressive td{font-weight:bold;border-top:1px solid #111;border-bottom:1.4px solid #111;background:#f8fafc}.empty{text-align:center;padding:18px!important;color:#64748b}
+            footer{position:fixed;bottom:-8mm;left:0;right:0;border-top:1px solid #334155;padding-top:4px;color:#475569;font-size:6.5px}
+            </style></head><body><header><span class="generated">Generata il ' . date('d/m/Y H:i') . '</span><div class="company">' . $escape($company) . '</div></header>'
+            . '<div class="title">SCHEDA CONTABILE - dal ' . $escape($dateValue($from)) . ' al ' . $escape($dateValue($to)) . '</div>'
+            . '<table class="identity"><tr><th>Conto:</th><td><b>' . $escape($account['code'] ?? '') . '</b> - ' . $escape($account['name'] ?? '') . '</td><th>Tipo:</th><td>' . $escape($accountType) . '</td></tr>'
+            . '<tr><th>' . $partyLabel . ':</th><td><b>' . $escape($party['code'] ?? '') . '</b> - ' . $escape($party['business_name'] ?? '') . '</td><th>P.IVA:</th><td>' . $escape($party['vat_number'] ?? '') . '</td></tr>'
+            . '<tr><th>Indirizzo:</th><td>' . $escape($partyAddress) . '</td><th>C.F.:</th><td>' . $escape($party['tax_code'] ?? '') . '</td></tr></table>'
+            . '<table class="movements"><thead><tr><th>Data reg.</th><th>N. mov.<br>Provv.</th><th>Data doc.<br>N. prot.</th><th>N. documento</th><th>Causale e descrizione movimento<br>Descrizione riga</th><th class="num">Dare</th><th class="num">Avere</th><th class="num">Saldo</th></tr></thead><tbody>'
+            . '<tr class="progressive"><td colspan="5">Progressivi antecedenti al ' . $escape($dateValue($from)) . '</td><td class="num">' . $money($totals['opening_debit'] ?? 0) . '</td><td class="num">' . $money($totals['opening_credit'] ?? 0) . '</td><td class="num">' . $money($totals['accounting_opening'] ?? 0) . '</td></tr>'
+            . $body
+            . '<tr class="progressive"><td colspan="5">Progressivi al ' . $escape($dateValue($to)) . '</td><td class="num">' . $money($totals['progressive_debit'] ?? 0) . '</td><td class="num">' . $money($totals['progressive_credit'] ?? 0) . '</td><td class="num">' . $money($totals['accounting_closing'] ?? 0) . '</td></tr>'
+            . '</tbody></table><footer>Luna2 - Scheda contabile ' . strtolower($partyLabel) . '</footer></body></html>';
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+        $pdf = new Dompdf($options);
+        $pdf->loadHtml($html, 'UTF-8');
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->render();
+        $canvas = $pdf->getCanvas();
+        $canvas->page_text($canvas->get_width() - 72, $canvas->get_height() - 24, '{PAGE_NUM} / {PAGE_COUNT}',
+            $pdf->getFontMetrics()->getFont('DejaVu Sans'), 6.5, [0.28, 0.33, 0.41]);
+        return $pdf->output();
+    }
+
     /** @param array<int,array<string,mixed>> $rows */
     public function streamVatSettlementPdf(array $settlement, array $rows, string $filename): never
     {

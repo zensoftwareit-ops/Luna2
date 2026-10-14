@@ -177,12 +177,18 @@ $subledgerView = (string) file_get_contents($base . '/views/accounting/subledger
 $assert(
     str_contains($subledgerView, "['party_id' => \$party['id']]")
     && str_contains($subledgerView, "'#scheda'")
-    && str_contains($subledgerView, '>Apri</a>'),
+    && str_contains($subledgerView, '>Apri scheda</a>')
+    && str_contains($subledgerView, 'Stampa scheda contabile PDF'),
     'L’apertura del dettaglio del sottoconto deve conservare il soggetto selezionato e portare alla scheda analitica.'
 );
 $assert(is_file($base . '/app/Service/TabularExportService.php'), 'Servizio esportazioni tabellari mancante.');
 $tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportService.php');
 $assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
+$assert(str_contains($tabularExport, 'partyLedgerPdfContent')
+    && str_contains($tabularExport, 'SCHEDA CONTABILE')
+    && str_contains($tabularExport, "setPaper('A4', 'portrait')")
+    && str_contains($tabularExport, 'Progressivi antecedenti'),
+    'Manca la scheda contabile professionale PDF per cliente/fornitore.');
 $appJs = (string) file_get_contents($base . '/public/assets/app.js');
 $assert(str_contains($appJs, 'data-table-search') && str_contains($appJs, 'application/vnd.ms-excel'), 'Ricerca ed esportazione delle tabelle operative mancanti.');
 $documentController = (string) file_get_contents($base . '/app/Controller/DocumentController.php');
@@ -553,6 +559,11 @@ $partyLedgerService = (string) file_get_contents($base . '/app/Service/PartyLedg
 $receivablesService = (string) file_get_contents($base . '/app/Service/ReceivablesService.php');
 $resourceController = (string) file_get_contents($base . '/app/Controller/ResourceController.php');
 $assert(str_contains($partyLedgerService, 'journal_entry_lines') && str_contains($partyLedgerService, 'accounting_open_items') && str_contains($partyLedgerService, 'signed_outstanding'), 'Il partitario deve integrare movimenti, partite e note di credito.');
+$assert(str_contains($partyLedgerService, 'document_date')
+    && str_contains($partyLedgerService, 'accounting_running_balance')
+    && str_contains($partyLedgerService, 'progressive_debit')
+    && str_contains($partyLedgerService, 'collective_account'),
+    'La scheda contabile cliente/fornitore deve includere progressivi, documento, conto collettivo e saldo contabile.');
 $assert(str_contains($partyLedgerService, 'matchHistoricalLines') && str_contains($partyLedgerService, 'documentPartyMap') && str_contains($partyLedgerService, 'assignLine'), 'La riconciliazione automatica e manuale dei sottoconti storici è incompleta.');
 $assert(str_contains($application, "'/accounting/subledgers/reconcile'") && str_contains((string) file_get_contents($base . '/views/accounting/subledgers.php'), 'Riconciliazione storico DATEV'), 'Interfaccia di riconciliazione dei sottoconti mancante.');
 $assert(str_contains($accountingService, "['supplier_id' => \$partyId]") && str_contains($accountingService, "['customer_id' => \$partyId]"), 'Le fatture devono alimentare automaticamente il sottoconto cliente/fornitore.');
