@@ -474,6 +474,167 @@ final class AccountingService
         }
     }
 
+    public function replaceDocumentVatSummary(int $entryId, array $rows, string $reason = ''): array
+    {
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+        try {
+            $statement = $this->db->prepare(
+                "SELECT e.*, d.id AS document_id, d.document_type, d.counterparty_type, d.fatturapa_type,
+                        d.vat_collectability, d.taxable_total AS document_taxable_total,
+                        d.vat_total AS document_vat_total, d.number AS source_document_number
+                 FROM journal_entries e
+                 JOIN documents d ON d.id = e.source_id AND d.organization_id = e.organization_id
+                 WHERE e.id = ? AND e.organization_id = ? AND e.source_type = 'DOCUMENT'
+                   AND e.status IN ('DRAFT','POSTED') AND e.is_finalized = 0 FOR UPDATE"
+            );
+            $statement->execute([$entryId, $this->organizationId]);
+            $entry = $statement->fetch();
+            $isPurchase = $entry && ((string) $entry['document_type'] === 'PURCHASE_INVOICE'
+                || (string) $entry['counterparty_type'] === 'SUPPLIER');
+            if (!$entry || !$isPurchase) {
+                throw new InvalidArgumentException('Il riepilogo IVA è modificabile soltanto sulle fatture e note di credito di acquisto non definitive.');
+            }
+            $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+            if ($rows === []) throw new InvalidArgumentException('Inserisci almeno una riga nel riepilogo IVA.');
+
+            $articleStatement = $this->db->prepare(
+                "SELECT code, description, rate, nature, legal_reference, deductible_percent,
+                        vat_regime, reverse_charge, split_payment, fatturapa_type
+                 FROM vat_codes WHERE organization_id = ? AND UPPER(code) = ? AND active = 1
+                   AND operation_scope IN ('BOTH','PURCHASES') LIMIT 1"
+            );
+            $classifications = ['ORDINARY','DEPRECIABLE_ASSET','NON_DEPRECIABLE_ASSET','LEASING','RESALE'];
+            $normalized = [];
+            $taxableTotal = 0.0;
+            $vatTotal = 0.0;
+            foreach ($rows as $index => $row) {
+                if (!is_array($row)) throw new InvalidArgumentException('Riga IVA non valida.');
+                $code = mb_strtoupper(trim((string) ($row['vat_code'] ?? '')));
+                $taxable = round($this->decimal($row['taxable_amount'] ?? 0), 2);
+                $vat = round($this->decimal($row['vat_amount'] ?? 0), 2);
+                $deductible = round($this->decimal($row['deductible_percent'] ?? 100), 2);
+                $classification = strtoupper(trim((string) ($row['purchase_classification'] ?? 'ORDINARY')));
+                if ($code === '' || $taxable < 0 || $vat < 0 || ($taxable <= .005 && $vat <= .005)) {
+                    throw new InvalidArgumentException('Completa articolo, imponibile e IVA della riga ' . ($index + 1) . '.');
+                }
+                if ($deductible < 0 || $deductible > 100 || !in_array($classification, $classifications, true)) {
+                    throw new InvalidArgumentException('Detraibilità o classificazione non valida alla riga ' . ($index + 1) . '.');
+                }
+                $articleStatement->execute([$this->organizationId, $code]);
+                $article = $articleStatement->fetch();
+                if (!$article) throw new InvalidArgumentException('Articolo IVA ' . $code . ' inesistente, disattivato o non utilizzabile negli acquisti.');
+                $normalized[] = [
+                    'vat_code' => (string) $article['code'],
+                    'vat_rate' => (float) $article['rate'],
+                    'vat_nature' => trim((string) ($article['nature'] ?? '')) ?: null,
+                    'vat_description' => (string) $article['description'],
+                    'vat_legal_reference' => trim((string) ($article['legal_reference'] ?? '')) ?: null,
+                    'vat_reverse_charge' => (int) $article['reverse_charge'],
+                    'vat_split_payment' => (int) $article['split_payment'],
+                    'vat_fatturapa_type' => trim((string) ($article['fatturapa_type'] ?? '')) ?: null,
+                    'deductible_percent' => $deductible,
+                    'purchase_classification' => $classification,
+                    'taxable_amount' => $taxable,
+                    'vat_amount' => $vat,
+                ];
+                $taxableTotal += $taxable;
+                $vatTotal += $vat;
+            }
+            $expectedTaxable = round(abs((float) $entry['document_taxable_total']), 2);
+            $expectedVat = round(abs((float) $entry['document_vat_total']), 2);
+            $taxableTotal = round($taxableTotal, 2);
+            $vatTotal = round($vatTotal, 2);
+            if (abs($taxableTotal - $expectedTaxable) > .02 || abs($vatTotal - $expectedVat) > .02) {
+                throw new InvalidArgumentException(sprintf(
+                    'Riepilogo non quadrato: imponibile %.2f su %.2f, IVA %.2f su %.2f.',
+                    $taxableTotal, $expectedTaxable, $vatTotal, $expectedVat
+                ));
+            }
+
+            $this->saveRevision($entry, trim($reason) ?: 'Aggiornamento riepilogo IVA documento');
+            $this->db->prepare('DELETE FROM document_vat_summaries WHERE organization_id = ? AND document_id = ?')
+                ->execute([$this->organizationId, (int) $entry['document_id']]);
+            $insert = $this->db->prepare(
+                'INSERT INTO document_vat_summaries
+                 (organization_id, document_id, line_number, vat_code, vat_rate, vat_nature, vat_description,
+                  vat_legal_reference, vat_reverse_charge, vat_split_payment, vat_fatturapa_type,
+                  deductible_percent, purchase_classification, taxable_amount, vat_amount, source_type,
+                  created_by, updated_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'MANUAL\', ?, ?, NOW(), NOW())'
+            );
+            foreach ($normalized as $index => $row) {
+                $insert->execute([
+                    $this->organizationId, (int) $entry['document_id'], $index + 1,
+                    $row['vat_code'], $row['vat_rate'], $row['vat_nature'], $row['vat_description'],
+                    $row['vat_legal_reference'], $row['vat_reverse_charge'], $row['vat_split_payment'],
+                    $row['vat_fatturapa_type'], $row['deductible_percent'], $row['purchase_classification'],
+                    $row['taxable_amount'], $row['vat_amount'], $this->userId, $this->userId,
+                ]);
+            }
+            (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument((int) $entry['document_id']);
+            $this->rebuildDocumentVatJournalLines($entry);
+            $this->db->prepare('UPDATE journal_entries SET revision_number = revision_number + 1, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                ->execute([$this->userId, $entryId, $this->organizationId]);
+            $this->invalidateJournalPrints(null, (string) $entry['entry_date']);
+            if ($ownsTransaction) $this->db->commit();
+            return ['rows' => count($normalized), 'taxable_total' => $taxableTotal, 'vat_total' => $vatTotal];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    private function rebuildDocumentVatJournalLines(array $entry): void
+    {
+        $entryId = (int) $entry['id'];
+        $isCreditNote = in_array(strtoupper((string) ($entry['fatturapa_type'] ?? '')), ['TD04','TD08'], true)
+            || (string) ($entry['document_type'] ?? '') === 'CREDIT_NOTE';
+        $vatAccountKey = $this->isDeferredVat($entry) ? 'VAT_CLEARING' : 'VAT_RECEIVABLE';
+        $accounts = $this->systemAccounts([$vatAccountKey, 'PURCHASE_COSTS']);
+        $this->db->prepare(
+            "DELETE FROM journal_entry_lines WHERE organization_id = ? AND journal_entry_id = ?
+               AND (LOWER(description) LIKE 'iva a credito%' OR LOWER(description) LIKE 'storno iva a credito%'
+                    OR LOWER(description) LIKE 'iva differita%' OR LOWER(description) LIKE 'storno iva differita%'
+                    OR LOWER(description) LIKE 'rettifica iva indetraibile da riepilogo%')"
+        )->execute([$this->organizationId, $entryId]);
+
+        $breakdown = $this->db->prepare(
+            "SELECT vat_code, vat_nature, vat_rate, COALESCE(SUM(ABS(deductible_vat)),0) AS deductible_vat
+             FROM vat_movements WHERE organization_id = ? AND document_id = ?
+             GROUP BY vat_code, vat_nature, vat_rate
+             HAVING COALESCE(SUM(ABS(deductible_vat)),0) > 0.005 ORDER BY vat_rate DESC, vat_code"
+        );
+        $breakdown->execute([$this->organizationId, (int) $entry['document_id']]);
+        $max = $this->db->prepare('SELECT COALESCE(MAX(line_number),0) FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?');
+        $max->execute([$entryId, $this->organizationId]);
+        $lineNumber = (int) $max->fetchColumn();
+        $insert = $this->db->prepare('INSERT INTO journal_entry_lines (organization_id,journal_entry_id,line_number,account_id,debit,credit,description,created_at) VALUES (?,?,?,?,?,?,?,NOW())');
+        foreach ($breakdown->fetchAll() as $row) {
+            $amount = round((float) $row['deductible_vat'], 2);
+            $article = (string) ($row['vat_code'] ?: ($row['vat_nature'] ?: number_format((float) $row['vat_rate'], 2, ',', '.') . '%'));
+            $description = ($isCreditNote ? 'Storno ' : '') . ($vatAccountKey === 'VAT_CLEARING' ? 'IVA differita' : 'IVA a credito') . ' · ' . $article;
+            $insert->execute([$this->organizationId, $entryId, ++$lineNumber, $accounts[$vatAccountKey],
+                $isCreditNote ? 0 : $amount, $isCreditNote ? $amount : 0, $description]);
+        }
+
+        $totals = $this->db->prepare('SELECT COALESCE(SUM(debit),0) debit, COALESCE(SUM(credit),0) credit FROM journal_entry_lines WHERE organization_id = ? AND journal_entry_id = ?');
+        $totals->execute([$this->organizationId, $entryId]);
+        $current = $totals->fetch();
+        $difference = round((float) $current['debit'] - (float) $current['credit'], 2);
+        if (abs($difference) > .005) {
+            $insert->execute([
+                $this->organizationId, $entryId, ++$lineNumber, $accounts['PURCHASE_COSTS'],
+                $difference < 0 ? abs($difference) : 0, $difference > 0 ? $difference : 0,
+                'Rettifica IVA indetraibile da riepilogo documento ' . ($entry['source_document_number'] ?? $entry['document_number']),
+            ]);
+        }
+        $totals->execute([$this->organizationId, $entryId]);
+        $updated = $totals->fetch();
+        $this->db->prepare('UPDATE journal_entries SET total_debit = ?, total_credit = ? WHERE id = ? AND organization_id = ?')
+            ->execute([round((float) $updated['debit'], 2), round((float) $updated['credit'], 2), $entryId, $this->organizationId]);
+    }
+
     public function changeDocumentLinePurchaseClassification(int $entryId, int $lineId, string $classification): array
     {
         $classification = strtoupper(trim($classification));
@@ -750,11 +911,12 @@ final class AccountingService
             $partyTag = $partyId > 0
                 ? ($isPurchase ? ['supplier_id' => $partyId] : ['customer_id' => $partyId])
                 : [];
+            (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument($documentId);
             $vatGroupsStatement = $this->db->prepare(
                 "SELECT COALESCE(vat_code, '') AS vat_code, COALESCE(vat_nature, '') AS vat_nature,
                         vat_rate, COALESCE(vat_description, '') AS vat_description,
                         deductible_percent, SUM(vat_amount) AS vat_amount
-                 FROM document_lines WHERE document_id = ? AND organization_id = ?
+                 FROM document_vat_summaries WHERE document_id = ? AND organization_id = ?
                  GROUP BY COALESCE(vat_code, ''), COALESCE(vat_nature, ''), vat_rate,
                           COALESCE(vat_description, ''), deductible_percent
                  HAVING ABS(SUM(vat_amount)) > 0.005
@@ -841,7 +1003,6 @@ final class AccountingService
                 'document_number' => $document['number'],
                 'counterparty' => $document['counterparty_name'],
             ], $lines, 'DOCUMENT', $documentId);
-            (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument($documentId);
             if ($ownsTransaction) {
                 $this->db->commit();
             }

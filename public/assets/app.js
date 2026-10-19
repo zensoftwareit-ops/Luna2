@@ -349,6 +349,122 @@
     });
   });
 
+  document.querySelectorAll('[data-vat-summary]').forEach((root) => {
+    const form = root.querySelector('[data-vat-summary-form]');
+    const body = root.querySelector('[data-vat-summary-rows]');
+    const template = root.querySelector('[data-vat-summary-row-template]');
+    const taxableNode = root.querySelector('[data-vat-summary-taxable]');
+    const vatNode = root.querySelector('[data-vat-summary-vat]');
+    const statusNode = root.querySelector('[data-vat-summary-status]');
+    const expectedTaxable = Number.parseFloat(root.dataset.expectedTaxable || '0') || 0;
+    const expectedVat = Number.parseFloat(root.dataset.expectedVat || '0') || 0;
+    let initial = [];
+    let articles = [];
+    let index = 0;
+    try { initial = JSON.parse(root.querySelector('[data-vat-summary-initial]')?.textContent || '[]'); } catch (_) { initial = []; }
+    try { articles = JSON.parse(root.querySelector('[data-vat-summary-articles]')?.textContent || '[]'); } catch (_) { articles = []; }
+    const normalizeCode = (value) => String(value || '').trim().toLocaleUpperCase('it');
+    const decimal = (value) => {
+      const raw = String(value ?? '').trim();
+      return Number.parseFloat(raw.includes(',') ? raw.replaceAll('.', '').replace(',', '.') : raw) || 0;
+    };
+    const money = (value) => value.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+    const article = (code) => articles.find((candidate) => normalizeCode(candidate.code) === normalizeCode(code));
+    const refresh = () => {
+      let taxable = 0;
+      let vat = 0;
+      body.querySelectorAll('tr').forEach((row) => {
+        taxable += decimal(row.querySelector('[data-vat-summary-field="taxable_amount"]')?.value);
+        vat += decimal(row.querySelector('[data-vat-summary-field="vat_amount"]')?.value);
+      });
+      taxable = Math.round(taxable * 100) / 100;
+      vat = Math.round(vat * 100) / 100;
+      taxableNode.textContent = money(taxable);
+      vatNode.textContent = money(vat);
+      const taxableDifference = Math.round((taxable - expectedTaxable) * 100) / 100;
+      const vatDifference = Math.round((vat - expectedVat) * 100) / 100;
+      const balanced = Math.abs(taxableDifference) <= 0.02 && Math.abs(vatDifference) <= 0.02;
+      statusNode.textContent = balanced
+        ? 'Quadrato con il documento'
+        : `Da quadrare · imponibile ${money(taxableDifference)} · IVA ${money(vatDifference)}`;
+      statusNode.classList.toggle('balanced', balanced);
+      statusNode.classList.toggle('unbalanced', !balanced);
+      return balanced;
+    };
+    const updateArticle = (row, applyDefault = false) => {
+      const code = row.querySelector('[data-vat-summary-field="vat_code"]');
+      const description = row.querySelector('[data-vat-summary-description]');
+      const metadata = row.querySelector('[data-vat-summary-metadata]');
+      const deductible = row.querySelector('[data-vat-summary-field="deductible_percent"]');
+      const selected = article(code.value);
+      code.setCustomValidity(selected ? '' : 'Seleziona un articolo IVA valido dal catalogo.');
+      description.textContent = selected?.description || 'Articolo non riconosciuto';
+      metadata.textContent = selected
+        ? `${Number(selected.rate || 0).toLocaleString('it-IT', { maximumFractionDigits: 2 })}%${selected.nature ? ` · ${selected.nature}` : ''}`
+        : '—';
+      if (selected && applyDefault) deductible.value = String(selected.deductible_percent ?? 100);
+    };
+    const valuesFrom = (row) => Object.fromEntries([...row.querySelectorAll('[data-vat-summary-field]')]
+      .map((input) => [input.dataset.vatSummaryField, input.value]));
+    const addRow = (values = {}) => {
+      const fragment = template.content.cloneNode(true);
+      const row = fragment.querySelector('tr');
+      row.querySelectorAll('[data-vat-summary-field]').forEach((input) => {
+        const field = input.dataset.vatSummaryField;
+        input.name = `rows[${index}][${field}]`;
+        input.value = Object.hasOwn(values, field) ? values[field] : (field === 'deductible_percent' ? '100' : field === 'purchase_classification' ? 'ORDINARY' : '');
+        input.addEventListener('input', refresh);
+        input.addEventListener('change', refresh);
+      });
+      const code = row.querySelector('[data-vat-summary-field="vat_code"]');
+      code.addEventListener('input', () => updateArticle(row, false));
+      code.addEventListener('change', () => updateArticle(row, true));
+      row.querySelector('[data-remove-vat-summary-row]').addEventListener('click', () => {
+        if (body.children.length <= 1) return;
+        row.remove();
+        refresh();
+      });
+      row.querySelector('[data-split-vat-summary-row]').addEventListener('click', () => {
+        const valuesToSplit = valuesFrom(row);
+        const taxableInput = row.querySelector('[data-vat-summary-field="taxable_amount"]');
+        const vatInput = row.querySelector('[data-vat-summary-field="vat_amount"]');
+        const originalTaxable = decimal(taxableInput.value);
+        const originalVat = decimal(vatInput.value);
+        const firstTaxable = Math.round(originalTaxable * 50) / 100;
+        const firstVat = Math.round(originalVat * 50) / 100;
+        taxableInput.value = firstTaxable.toFixed(2);
+        vatInput.value = firstVat.toFixed(2);
+        valuesToSplit.taxable_amount = (originalTaxable - firstTaxable).toFixed(2);
+        valuesToSplit.vat_amount = (originalVat - firstVat).toFixed(2);
+        const added = addRow(valuesToSplit);
+        added.querySelector('[data-vat-summary-field="vat_code"]').focus();
+        refresh();
+      });
+      body.appendChild(fragment);
+      index += 1;
+      updateArticle(row, false);
+      refresh();
+      return row;
+    };
+    initial.forEach((row) => addRow(row));
+    if (!initial.length) addRow();
+    root.querySelector('[data-add-vat-summary-row]')?.addEventListener('click', () => addRow());
+    form.addEventListener('submit', (event) => {
+      let articlesValid = true;
+      body.querySelectorAll('tr').forEach((row) => {
+        updateArticle(row, false);
+        if (!article(row.querySelector('[data-vat-summary-field="vat_code"]').value)) articlesValid = false;
+      });
+      const balanced = refresh();
+      const firstTaxable = body.querySelector('[data-vat-summary-field="taxable_amount"]');
+      firstTaxable.setCustomValidity(balanced ? '' : 'Il riepilogo IVA deve quadrare con imponibile e IVA del documento.');
+      if (!articlesValid || !balanced) {
+        event.preventDefault();
+        form.reportValidity();
+      }
+    });
+  });
+
   const cleanFilename = (value) => String(value || 'esportazione')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'esportazione';

@@ -539,13 +539,15 @@ $assert(str_contains($application, "'/documents/{type}/{id}/registration-date'")
     && str_contains((string) file_get_contents($base . '/views/documents/view.php'), 'Correggi data di registrazione'),
     'La data di registrazione dei documenti già importati deve poter essere corretta riallineando prima nota e IVA.');
 $assert(str_contains($accountingService, 'changeLineAccount') && str_contains($entryView, 'Cambia conto') && str_contains($entryView, 'data-account-search') && str_contains($appJs, 'data-account-change-dialog'), 'Cambio rapido ricercabile del conto sulle righe contabili mancante.');
-$assert(is_file($base . '/database/migrations/027_invoice_accounting_classification.sql')
-    && str_contains($accountingService, 'changeDocumentVatDeductibility')
+$assert(is_file($base . '/database/migrations/032_document_vat_summaries.sql')
+    && str_contains($accountingService, 'replaceDocumentVatSummary')
     && str_contains($accountingService, 'splitLine')
-    && str_contains($entryView, 'Applica e successiva')
+    && str_contains($entryView, 'Salva e successiva')
     && str_contains($entryView, 'data-open-line-split')
-    && str_contains($entryView, 'Documento XML collegato'),
-    'La classificazione analitica delle fatture deve supportare avanzamento, ripartizioni, articoli XML e detraibilità IVA.');
+    && str_contains($entryView, 'data-vat-summary-form')
+    && str_contains($entryView, 'data-split-vat-summary-row')
+    && !str_contains($entryView, 'vat-article-inline'),
+    'La classificazione analitica deve lasciare le righe XML in sola lettura e gestire articoli, split e detraibilità nel riepilogo IVA.');
 $assert(str_contains($documentController, "'document_kind'")
     && str_contains($documentController, "'Articolo / descrizione'")
     && str_contains($documentIndex, 'Nota di credito')
@@ -571,8 +573,13 @@ $assert(str_contains($accountingFormView, 'settlement_source')
     && str_contains((string) file_get_contents($base . '/app/Service/ReceivablesService.php'), 'settlement_account_id')
     && is_file($base . '/database/migrations/030_payment_settlement_account.sql'),
     'Incassi e pagamenti devono conservare la banca o cassa effettivamente selezionata.');
-$assert(str_contains($accountingService, 'documentVatGroups') && str_contains($accountingService, 'vatBreakdown'),
-    'La prima nota documentale deve mantenere la ripartizione IVA per articolo anche dopo le correzioni.');
+$assert(str_contains($accountingService, 'document_vat_summaries')
+    && str_contains($vatService, 'document_vat_summaries')
+    && str_contains($appJavascript, 'data-add-vat-summary-row')
+    && str_contains($application, "'/accounting/journal/{id}/vat-summary'")
+    && !str_contains($application, "'/accounting/journal/{id}/vat-deductibility'")
+    && !str_contains($application, "'/accounting/journal/{id}/document-lines/{lineId}/vat-article'"),
+    'Il riepilogo IVA modificabile deve alimentare insieme prima nota, registri e liquidazioni.');
 $assert(str_contains($vatService, 'nextVatProtocol')
     && str_contains($vatService, "document_reference, document_reference_date")
     && str_contains((string) file_get_contents($base . '/views/accounting/vat-registers.php'), 'Protocollo IVA'),

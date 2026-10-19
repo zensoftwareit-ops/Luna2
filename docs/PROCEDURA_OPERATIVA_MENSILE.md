@@ -47,11 +47,11 @@ Non importare il PDF direttamente come movimenti IVA: il PDF viene archiviato co
 ## 4. Controlli contabili
 
 1. Aprire **Contabilità → Prima nota** e verificare tutte le scritture del mese.
-2. Controllare le righe articolo XML mostrate nella registrazione e distinguere fatture da note di credito.
+2. Controllare le righe articolo XML, mostrate in sola lettura, e distinguere fatture da note di credito.
 3. Correggere l’eventuale conto errato con **Cambia conto**; sono selezionabili anche cespiti e conti patrimoniali compatibili.
 4. Usare **Ripartisci** quando una fattura interessa più conti; per risconti e fatture da ricevere far verificare conto e quota al responsabile contabile.
-5. Correggere nel riquadro **Detraibilità IVA** eventuali percentuali particolari.
-6. Per ogni riga XML relativa a un cespite impostare anche **Classificazione acquisto → Bene ammortizzabile / cespite**: il conto contabile, la detraibilità e la classificazione fiscale sono tre controlli distinti.
+5. Correggere nel **Riepilogo IVA** articoli e detraibilità; usare **Dividi** o **Aggiungi riga IVA** quando servono trattamenti diversi e salvare solo a quadratura raggiunta.
+6. Per gli acquisti di cespiti impostare nel riepilogo **Classificazione acquisto → Bene ammortizzabile / cespite**: conto contabile, detraibilità e classificazione fiscale restano tre controlli distinti.
 7. Ricalcolare la liquidazione non definitiva.
 8. Usare **Salva e successiva** e il marcatore **Già modificata** per completare il lotto senza perdere la posizione.
 9. Aprire **Situazione contabile e mastrini** e controllare conti collettivi, IVA, costi e ricavi.

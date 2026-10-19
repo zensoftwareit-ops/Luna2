@@ -138,7 +138,8 @@ final class AccountingController extends BaseController
         $vatCodes = [];
         if ($entry['source_type'] === 'DOCUMENT' && !empty($entry['source_id'])) {
             $statement = $this->db->prepare(
-                'SELECT id, document_type, number, document_date, registration_date, fatturapa_type, taxable_total, vat_total, total
+                'SELECT id, document_type, number, document_date, registration_date, counterparty_type,
+                        fatturapa_type, taxable_total, vat_total, total
                  FROM documents WHERE id = ? AND organization_id = ?'
             );
             $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
@@ -158,8 +159,15 @@ final class AccountingController extends BaseController
                 $statement = $this->db->prepare('SELECT code, description, rate, nature, deductible_percent, operation_scope, vat_regime FROM vat_codes WHERE organization_id = ? AND active = 1 AND operation_scope IN (\'BOTH\', ?) ORDER BY code');
                 $statement->execute([Auth::organizationId(), $scope]);
                 $vatCodes = $statement->fetchAll();
-                if ($sourceDocument['document_type'] === 'PURCHASE_INVOICE') {
-                    $statement = $this->db->prepare("SELECT COALESCE(vat_code,'') vat_code, vat_rate, COALESCE(vat_nature,'') vat_nature, deductible_percent, SUM(taxable_amount) taxable_amount, SUM(vat_amount) vat_amount FROM document_lines WHERE document_id = ? AND organization_id = ? GROUP BY COALESCE(vat_code,''), vat_rate, COALESCE(vat_nature,''), deductible_percent ORDER BY vat_rate DESC, vat_code");
+                $isPurchaseDocument = $sourceDocument['document_type'] === 'PURCHASE_INVOICE'
+                    || $sourceDocument['counterparty_type'] === 'SUPPLIER';
+                if ($isPurchaseDocument) {
+                    $statement = $this->db->prepare(
+                        "SELECT id, line_number, vat_code, vat_rate, COALESCE(vat_nature,'') vat_nature,
+                                vat_description, deductible_percent, purchase_classification,
+                                taxable_amount, vat_amount, source_type
+                         FROM document_vat_summaries WHERE document_id = ? AND organization_id = ? ORDER BY line_number, id"
+                    );
                     $statement->execute([(int) $entry['source_id'], Auth::organizationId()]);
                     $vatGroups = $statement->fetchAll();
                 }
@@ -264,6 +272,23 @@ final class AccountingController extends BaseController
             $this->redirect('/accounting/journal/' . ($destination ?: (int) $id), sprintf(
                 'Detraibilità aggiornata al %.2f%%: IVA detraibile %s, indetraibile %s.',
                 $result['deductibility_percent'], number_format($result['deductible_vat'], 2, ',', '.'), number_format($result['non_deductible_vat'], 2, ',', '.')
+            ));
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
+        }
+    }
+
+    public function saveVatSummary(string $id): never
+    {
+        $this->authorize();
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))
+                ->replaceDocumentVatSummary((int) $id, (array) ($_POST['rows'] ?? []), (string) ($_POST['reason'] ?? ''));
+            $this->audit('VAT_SUMMARY_REPLACE', 'journal_entries', (int) $id, $result);
+            $destination = (($_POST['continue'] ?? '') === 'next') ? $this->nextDocumentEntryId((int) $id) : null;
+            $this->redirect('/accounting/journal/' . ($destination ?: (int) $id), sprintf(
+                'Riepilogo IVA aggiornato: %d righe, imponibile %s, IVA %s. Prima nota, registri e liquidazione sono stati riallineati.',
+                $result['rows'], number_format($result['taxable_total'], 2, ',', '.'), number_format($result['vat_total'], 2, ',', '.')
             ));
         } catch (InvalidArgumentException|RuntimeException $exception) {
             $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');

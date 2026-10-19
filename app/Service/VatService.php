@@ -68,8 +68,9 @@ final class VatService
             if ($protocol === '' || $protocol === (string) $document['number']) {
                 $protocol = $this->nextVatProtocol($register, $registrationDate);
             }
+            $this->ensureDocumentVatSummary($documentId);
             $statement = $this->db->prepare(
-                "SELECT COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')) AS vat_code,
+                "SELECT vat_code,
                         COALESCE(vat_nature, '') AS vat_nature, vat_rate, COALESCE(deductible_percent, 100) AS deductible_percent,
                         COALESCE(purchase_classification, 'ORDINARY') AS purchase_classification,
                         MAX(COALESCE(vat_description, '')) AS vat_description,
@@ -78,8 +79,8 @@ final class VatService
                         MAX(COALESCE(vat_split_payment, 0)) AS vat_split_payment,
                         MAX(COALESCE(vat_fatturapa_type, '')) AS vat_fatturapa_type,
                         SUM(taxable_amount) AS taxable_amount, SUM(vat_amount) AS vat_amount
-                 FROM document_lines WHERE document_id = ? AND organization_id = ?
-                 GROUP BY COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')),
+                 FROM document_vat_summaries WHERE document_id = ? AND organization_id = ?
+                 GROUP BY vat_code,
                           COALESCE(vat_nature, ''), vat_rate, COALESCE(deductible_percent, 100), COALESCE(purchase_classification, 'ORDINARY')"
             );
             $statement->execute([$documentId, $this->organizationId]);
@@ -159,6 +160,50 @@ final class VatService
                 $this->db->rollBack();
             }
             throw $exception;
+        }
+    }
+
+    private function ensureDocumentVatSummary(int $documentId): void
+    {
+        $existing = $this->db->prepare('SELECT COUNT(*) FROM document_vat_summaries WHERE organization_id = ? AND document_id = ?');
+        $existing->execute([$this->organizationId, $documentId]);
+        if ((int) $existing->fetchColumn() > 0) return;
+
+        $groups = $this->db->prepare(
+            "SELECT COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')) AS vat_code,
+                    vat_rate, COALESCE(vat_nature, '') AS vat_nature,
+                    MAX(COALESCE(vat_description, '')) AS vat_description,
+                    MAX(COALESCE(vat_legal_reference, '')) AS vat_legal_reference,
+                    MAX(COALESCE(vat_reverse_charge, 0)) AS vat_reverse_charge,
+                    MAX(COALESCE(vat_split_payment, 0)) AS vat_split_payment,
+                    MAX(COALESCE(vat_fatturapa_type, '')) AS vat_fatturapa_type,
+                    COALESCE(deductible_percent, 100) AS deductible_percent,
+                    COALESCE(purchase_classification, 'ORDINARY') AS purchase_classification,
+                    ABS(SUM(taxable_amount)) AS taxable_amount, ABS(SUM(vat_amount)) AS vat_amount
+             FROM document_lines WHERE document_id = ? AND organization_id = ?
+             GROUP BY COALESCE(NULLIF(vat_code, ''), NULLIF(vat_nature, ''), CONCAT(REPLACE(FORMAT(vat_rate, 2), '.00', ''), '%')),
+                      vat_rate, COALESCE(vat_nature, ''), COALESCE(deductible_percent, 100),
+                      COALESCE(purchase_classification, 'ORDINARY')
+             HAVING ABS(SUM(taxable_amount)) > 0.005 OR ABS(SUM(vat_amount)) > 0.005
+             ORDER BY vat_rate DESC, vat_code"
+        );
+        $groups->execute([$documentId, $this->organizationId]);
+        $insert = $this->db->prepare(
+            'INSERT INTO document_vat_summaries
+             (organization_id, document_id, line_number, vat_code, vat_rate, vat_nature, vat_description,
+              vat_legal_reference, vat_reverse_charge, vat_split_payment, vat_fatturapa_type,
+              deductible_percent, purchase_classification, taxable_amount, vat_amount, source_type,
+              created_by, updated_by, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'GENERATED\', ?, ?, NOW(), NOW())'
+        );
+        foreach ($groups->fetchAll() as $index => $group) {
+            $insert->execute([
+                $this->organizationId, $documentId, $index + 1, $group['vat_code'], $group['vat_rate'],
+                $group['vat_nature'] ?: null, $group['vat_description'] ?: null, $group['vat_legal_reference'] ?: null,
+                (int) $group['vat_reverse_charge'], (int) $group['vat_split_payment'], $group['vat_fatturapa_type'] ?: null,
+                $group['deductible_percent'], $group['purchase_classification'], $group['taxable_amount'], $group['vat_amount'],
+                $this->userId ?: null, $this->userId ?: null,
+            ]);
         }
     }
 

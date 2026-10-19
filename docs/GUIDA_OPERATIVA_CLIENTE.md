@@ -493,25 +493,21 @@ Dopo una ripartizione ogni riga ottenuta resta lavorabile: usare **Modifica riga
 
 Il riquadro **Anteprima fattura** mostra il PDF collegato direttamente nella registrazione. Usarlo per confrontare articoli, imponibili e descrizioni senza uscire dalla prima nota; **Apri PDF** consente la visualizzazione a pagina intera.
 
-La prima nota documentale espone una riga IVA distinta per ogni articolo/natura/aliquota presente nella fattura. In questo modo una fattura con più trattamenti IVA non viene appiattita su un'unica riga. La quota indetraibile confluisce nel costo, mentre la quota detraibile resta sul conto IVA a credito; dopo una modifica dell'articolo o della detraibilità Luna riallinea le righe IVA non definitive.
+La prima nota documentale conserva le righe della fattura XML in **sola lettura**. La classificazione fiscale non si effettua più articolo per articolo: viene gestita nel riquadro operativo **Riepilogo IVA**, che alimenta direttamente prima nota, registro IVA, liquidazione e dichiarazione annuale.
 
-Per correggere una detraibilità particolare, aprire la registrazione collegata e nel riquadro **Detraibilità IVA** impostare la percentuale del gruppo interessato, per esempio `50` per IVA al 22% detraibile al 50%. Luna riallinea movimento IVA, IVA a credito, quota indetraibile e liquidazioni non definitive. Verificare comunque conto e calcolo prima della chiusura.
+Nel riepilogo ogni riga contiene articolo IVA, aliquota o natura, imponibile, imposta, percentuale detraibile e classificazione dell'acquisto. L'aliquota e l'articolo IVA sono informazioni diverse: l'articolo determina anche natura, regime, reverse charge, split payment, territorialità e classificazione FatturaPA.
 
-### Articolo IVA della singola riga
-
-L'aliquota e l'articolo IVA sono informazioni diverse. L'articolo determina anche natura, ambito vendite/acquisti, detraibilità, regime, reverse charge, split payment, territorialità e classificazione FatturaPA.
-
-Per correggerlo su una fattura già importata:
+Per correggere o ripartire il trattamento IVA:
 
 1. aprire la registrazione dalla **Prima nota**;
-2. nel riquadro **Documento XML collegato** individuare la riga;
-3. nel campo **Articolo IVA** digitare codice o descrizione e selezionare la voce corretta;
-4. premere **Applica**;
-5. controllare detraibilità, conto, registro IVA e liquidazione.
+2. consultare il PDF e le righe XML originali, che non vengono modificate;
+3. nel **Riepilogo IVA** correggere l'articolo o la percentuale detraibile;
+4. usare **Dividi** per spezzare una riga in due parti oppure **Aggiungi riga IVA** per inserire un trattamento ulteriore;
+5. ridistribuire imponibile e IVA tra le righe;
+6. per i beni strumentali scegliere **Bene ammortizzabile / cespite** nella classificazione della riga riepilogativa;
+7. salvare soltanto quando lo stato indica **Quadrato con il documento**.
 
-La dicitura **Da verificare** significa che dall'XML non era possibile scegliere in modo univoco l'articolo interno. Luna conserva aliquota e natura originali, ma impedisce la validazione delle stampe ufficiali e la chiusura dell'esercizio finché tutte queste righe non sono state risolte.
-
-Per gli acquisti di beni strumentali non basta scegliere un conto cespite. Nel riquadro **Documento XML collegato**, sulla singola riga articolo, impostare anche **Classificazione acquisto = Bene ammortizzabile / cespite** e premere **Salva**. Questa classificazione fiscale è distinta sia dal conto contabile sia dalla percentuale di detraibilità: consente a registri e riepilogo IVA annuale di esporre separatamente gli acquisti di beni ammortizzabili. Sono disponibili anche bene non ammortizzabile, leasing e bene destinato alla rivendita. Se il periodo è definitivo, prima occorre riaprirlo secondo la procedura autorizzata.
+Luna impedisce il salvataggio se la somma di imponibile e IVA non coincide con la fattura. Dopo il salvataggio riallinea automaticamente righe IVA contabili, quota detraibile e indetraibile, registri e liquidazioni non definitive. Le classificazioni disponibili comprendono acquisto ordinario, bene ammortizzabile, bene strumentale non ammortizzabile, leasing e bene destinato alla rivendita. Se il periodo è definitivo, prima occorre riaprirlo secondo la procedura autorizzata.
 
 Una scrittura definitiva non va modificata direttamente: registrare lo storno e la scrittura corretta secondo le istruzioni del responsabile contabile.
 
