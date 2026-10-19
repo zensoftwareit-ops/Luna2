@@ -481,6 +481,9 @@ $assert(str_contains($trialBalanceView, 'PDF sintetico')
     && str_contains($trialBalanceService, 'Saldo non attribuito a un sottoconto')
     && str_contains($tabularExport, 'streamTrialBalancePdf'),
     'La situazione contabile deve offrire stampe a sezioni contrapposte con e senza saldi clienti/fornitori.');
+$standardCausesMigration = (string) file_get_contents($base . '/database/migrations/031_restore_standard_accounting_causes.sql');
+$assert((bool) preg_match('/WHERE 1 = 1\s+ON DUPLICATE KEY UPDATE/', $standardCausesMigration),
+    'Il ripristino delle causali standard deve evitare l’ambiguità INSERT SELECT / ON DUPLICATE KEY di MariaDB.');
 $assert(str_contains($trialBalanceView, 'Apertura non contabilizzata') && str_contains($trialBalanceView, 'Differenza Dare / Avere') && str_contains($accountingController, 'TOTALI SALDI'), 'Controlli di apertura, totali e differenza della situazione contabile mancanti.');
 $assert(str_contains($trialBalanceView, 'Includi scritture di chiusura')
     && str_contains($trialBalanceService, "e.entry_type <> 'CLOSING'")

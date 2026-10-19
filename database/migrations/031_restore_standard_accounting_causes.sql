@@ -15,4 +15,5 @@ CROSS JOIN (
     UNION ALL SELECT 'CHI', 'Chiusura esercizio', 'CLOSING', 'Chiusura esercizio', 0, 1
     UNION ALL SELECT 'APE', 'Apertura esercizio', 'OPENING', 'Apertura esercizio', 0, 1
 ) seed
+WHERE 1 = 1
 ON DUPLICATE KEY UPDATE active = 1;
