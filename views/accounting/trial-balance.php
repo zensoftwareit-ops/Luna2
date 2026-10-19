@@ -1,17 +1,22 @@
 <?php
 use Luna\Core\View;
 $includeClosing = (bool) ($includeClosing ?? false);
-$query = http_build_query(array_filter(['from' => $from, 'to' => $to, 'q' => $search, 'account_type' => $accountType,
-    'include_closing' => $includeClosing ? '1' : '']));
+$includeParties = (bool) ($includeParties ?? false);
+$baseExportFilters = array_filter(['from' => $from, 'to' => $to, 'q' => $search, 'account_type' => $accountType,
+    'include_closing' => $includeClosing ? '1' : '']);
+$query = http_build_query($baseExportFilters + ['include_parties' => $includeParties ? '1' : null]);
+$syntheticQuery = http_build_query($baseExportFilters);
+$partyQuery = http_build_query($baseExportFilters + ['include_parties' => '1']);
 $renderSection = static function (array $rows, string $from, string $to, bool $includeClosing): void {
     foreach ($rows as $row) {
-        $isGroup = empty($row['is_postable']);
-        ?><tr class="<?= $isGroup ? 'statement-group' : 'statement-account' ?>">
+        $isParty = !empty($row['is_party']);
+        $isGroup = !$isParty && empty($row['is_postable']);
+        ?><tr class="<?= $isParty ? 'statement-party' . (!empty($row['is_unassigned']) ? ' statement-party-unassigned' : '') : ($isGroup ? 'statement-group' : 'statement-account') ?>">
             <td style="--statement-level:<?= (int) $row['level'] ?>">
-                <?php if (!$isGroup && (int) $row['id'] > 0): ?>
+                <?php if (!$isGroup && !$isParty && (int) $row['id'] > 0): ?>
                     <a class="statement-account-link" href="/accounting/ledger/<?= (int) $row['id'] ?>?<?= View::e(http_build_query(array_filter(['from' => $from, 'to' => $to, 'include_closing' => $includeClosing ? '1' : '']))) ?>" title="Apri mastrino <?= View::e($row['code']) ?>"><?= View::e($row['code']) ?></a>
                 <?php else: ?><span><?= View::e($row['code']) ?></span><?php endif; ?>
-                <span class="statement-name"><?= View::e($row['name']) ?></span>
+                <span class="statement-name"><?= View::e($row['name']) ?></span><?php if ($isParty && !empty($row['party_type'])): ?><small><?= $row['party_type'] === 'SUPPLIER' ? 'Fornitore' : 'Cliente' ?></small><?php endif; ?>
             </td>
             <td class="numeric"><?= View::money($row['amount']) ?></td>
         </tr><?php
@@ -42,13 +47,14 @@ $renderSection = static function (array $rows, string $from, string $to, bool $i
         <label>Al <input type="date" name="to" value="<?= View::e($to) ?>"></label>
         <label>Tipo <select name="account_type"><option value="">Tutti i tipi</option><?php foreach (['ASSET'=>'Attività','LIABILITY'=>'Passività','EQUITY'=>'Patrimonio netto','REVENUE'=>'Ricavi','EXPENSE'=>'Costi'] as $value => $label): ?><option value="<?= $value ?>" <?= $accountType === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></label>
         <label><input type="checkbox" name="include_closing" value="1" <?= $includeClosing ? 'checked' : '' ?>> Includi scritture di chiusura</label>
+        <label><input type="checkbox" name="include_parties" value="1" <?= $includeParties ? 'checked' : '' ?>> Mostra saldi clienti e fornitori</label>
         <button class="button">Filtra</button><a class="button ghost" href="/accounting/trial-balance">Azzera</a>
     </form>
-    <div class="export-actions"><a class="button ghost" href="/accounting/trial-balance/export/pdf?<?= View::e($query) ?>">PDF</a><a class="button ghost" href="/accounting/trial-balance/export/xlsx?<?= View::e($query) ?>">XLSX</a><a class="button ghost" href="/accounting/trial-balance/export/csv?<?= View::e($query) ?>">CSV</a></div>
+    <div class="export-actions"><a class="button primary" href="/accounting/trial-balance/export/pdf?<?= View::e($syntheticQuery) ?>">PDF sintetico</a><a class="button ghost" href="/accounting/trial-balance/export/pdf?<?= View::e($partyQuery) ?>">PDF con clienti/fornitori</a><a class="button ghost" href="/accounting/trial-balance/export/xlsx?<?= View::e($query) ?>">XLSX</a><a class="button ghost" href="/accounting/trial-balance/export/csv?<?= View::e($query) ?>">CSV</a></div>
 </section>
 
 <section class="statement-report">
-    <header><span>Situazione contabile a sezioni per competenza</span><strong><?= View::date($from) ?> – <?= View::date($to) ?></strong></header>
+    <header><span>Situazione contabile a sezioni per competenza<?= $includeParties ? ' · con saldi clienti e fornitori' : ' · sintetica' ?></span><strong><?= View::date($from) ?> – <?= View::date($to) ?></strong></header>
     <h2>Stato patrimoniale</h2>
     <div class="statement-columns">
         <section class="card statement-section"><h3>Attività</h3><div class="table-wrap"><table><thead><tr><th>Conto</th><th class="numeric">Saldo</th></tr></thead><tbody><?php $renderSection($sections['ASSET'], $from, $to, $includeClosing); ?></tbody><tfoot><tr><th>Totale attività</th><th class="numeric"><?= View::money($totals['assets']) ?></th></tr><?php if ($totals['profit_loss'] < 0): ?><tr><th>Perdita d’esercizio</th><th class="numeric"><?= View::money(abs($totals['profit_loss'])) ?></th></tr><?php endif; ?><tr class="statement-grand-total"><th>Totale a pareggio</th><th class="numeric"><?= View::money($totals['balance_assets']) ?></th></tr></tfoot></table></div></section>

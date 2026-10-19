@@ -14,7 +14,7 @@ final class TrialBalanceService
 
     public function __construct(private readonly PDO $db, private readonly int $organizationId) {}
 
-    public function dataset(string $from, string $to, string $search = '', string $accountType = '', bool $includeClosing = false): array
+    public function dataset(string $from, string $to, string $search = '', string $accountType = '', bool $includeClosing = false, bool $includeParties = false): array
     {
         foreach ([$from, $to] as $value) {
             $date = DateTimeImmutable::createFromFormat('!Y-m-d', $value);
@@ -109,12 +109,19 @@ final class TrialBalanceService
             [$accounts[$id]['total_net_cents'], $accounts[$id]['opening_total_cents']] = $sum((int) $id);
         }
 
+        $partyBalances = $includeParties
+            ? $this->partyBalances($from, $to, $includeClosing, $hasPostedOpening, $accounts)
+            : [];
+
         $branchBalances = [];
-        $hasBranchBalance = function (int $id) use (&$hasBranchBalance, &$branchBalances, $accounts): bool {
+        $hasBranchBalance = function (int $id) use (&$hasBranchBalance, &$branchBalances, $accounts, $partyBalances): bool {
             if (array_key_exists($id, $branchBalances)) {
                 return $branchBalances[$id];
             }
             if (abs((int) $accounts[$id]['direct_net_cents']) >= 1) {
+                return $branchBalances[$id] = true;
+            }
+            if (!empty($partyBalances[$id])) {
                 return $branchBalances[$id] = true;
             }
             foreach ($accounts[$id]['children'] as $child) {
@@ -149,7 +156,7 @@ final class TrialBalanceService
             }
             return false;
         };
-        $flatten = function (int $id, int $level = 0) use (&$flatten, $accounts, $matches, $search, $hasBranchBalance): array {
+        $flatten = function (int $id, int $level = 0) use (&$flatten, $accounts, $matches, $search, $hasBranchBalance, $partyBalances): array {
             $row = $accounts[$id];
             if (!$matches($id) || ($search === '' && !$hasBranchBalance($id))) {
                 return [];
@@ -164,6 +171,33 @@ final class TrialBalanceService
                 'period_debit' => $row['period_debit_cents'] / 100,
                 'period_credit' => $row['period_credit_cents'] / 100,
             ]];
+            if (!empty($partyBalances[$id])) {
+                $partyNet = 0;
+                foreach ($partyBalances[$id] as $party) {
+                    $partyNet += (int) $party['net_cents'];
+                    $result[] = [
+                        'id' => 0, 'code' => $party['code'], 'name' => $party['name'],
+                        'account_type' => $row['account_type'], 'level' => $level + 1,
+                        'is_postable' => false, 'is_party' => true, 'party_type' => $party['party_type'],
+                        'net' => $party['net_cents'] / 100,
+                        'amount' => self::displayAmount((string) $row['account_type'], (int) $party['net_cents']),
+                        'opening' => $party['opening_cents'] / 100,
+                        'period_debit' => $party['period_debit_cents'] / 100,
+                        'period_credit' => $party['period_credit_cents'] / 100,
+                    ];
+                }
+                $unassigned = (int) $row['direct_net_cents'] - $partyNet;
+                if (abs($unassigned) >= 1) {
+                    $result[] = [
+                        'id' => 0, 'code' => '—', 'name' => 'Saldo non attribuito a un sottoconto',
+                        'account_type' => $row['account_type'], 'level' => $level + 1,
+                        'is_postable' => false, 'is_party' => true, 'is_unassigned' => true,
+                        'net' => $unassigned / 100,
+                        'amount' => self::displayAmount((string) $row['account_type'], $unassigned),
+                        'opening' => 0.0, 'period_debit' => 0.0, 'period_credit' => 0.0,
+                    ];
+                }
+            }
             foreach ($row['children'] as $child) {
                 $result = array_merge($result, $flatten((int) $child, $level + 1));
             }
@@ -234,7 +268,63 @@ final class TrialBalanceService
                 'adjustment' => $openingAdjustment / 100,
             ],
             'include_closing' => $includeClosing,
+            'include_parties' => $includeParties,
         ];
+    }
+
+    /** @return array<int,array<int,array<string,mixed>>> */
+    private function partyBalances(string $from, string $to, bool $includeClosing, bool $hasPostedOpening, array $accounts): array
+    {
+        $grouped = [];
+        foreach ([
+            ['CUSTOMER', 'customers', 'customer_id'],
+            ['SUPPLIER', 'suppliers', 'supplier_id'],
+        ] as [$partyType, $table, $idColumn]) {
+            $statement = $this->db->prepare(
+                "SELECT l.account_id, p.id AS party_id, p.code, p.business_name,
+                        COALESCE(SUM(CASE WHEN e.entry_date < :prior_debit THEN l.debit ELSE 0 END),0) AS prior_debit,
+                        COALESCE(SUM(CASE WHEN e.entry_date < :prior_credit THEN l.credit ELSE 0 END),0) AS prior_credit,
+                        COALESCE(SUM(CASE WHEN e.entry_date BETWEEN :period_from_debit AND :period_to_debit THEN l.debit ELSE 0 END),0) AS period_debit,
+                        COALESCE(SUM(CASE WHEN e.entry_date BETWEEN :period_from_credit AND :period_to_credit THEN l.credit ELSE 0 END),0) AS period_credit
+                 FROM journal_entry_lines l
+                 JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+                 JOIN {$table} p ON p.id = l.{$idColumn} AND p.organization_id = l.organization_id
+                 WHERE l.organization_id = :organization_id AND l.{$idColumn} IS NOT NULL
+                   AND e.status = 'POSTED' AND e.entry_date <= :maximum_date
+                   AND (:include_closing = 1 OR e.entry_type <> 'CLOSING')
+                 GROUP BY l.account_id, p.id, p.code, p.business_name
+                 ORDER BY p.business_name, p.code"
+            );
+            $statement->execute([
+                'prior_debit' => $from, 'prior_credit' => $from,
+                'period_from_debit' => $from, 'period_to_debit' => $to,
+                'period_from_credit' => $from, 'period_to_credit' => $to,
+                'organization_id' => $this->organizationId, 'maximum_date' => $to,
+                'include_closing' => $includeClosing ? 1 : 0,
+            ]);
+            foreach ($statement->fetchAll() as $party) {
+                $accountId = (int) $party['account_id'];
+                if (!isset($accounts[$accountId]) || !in_array((string) $accounts[$accountId]['account_type'], self::BALANCE_SHEET_TYPES, true)) {
+                    continue;
+                }
+                $opening = $hasPostedOpening ? 0 : self::cents($party['prior_debit']) - self::cents($party['prior_credit']);
+                $periodDebit = self::cents($party['period_debit']);
+                $periodCredit = self::cents($party['period_credit']);
+                $net = $opening + $periodDebit - $periodCredit;
+                if (abs($net) < 1) continue;
+                $grouped[$accountId][] = [
+                    'party_type' => $partyType,
+                    'party_id' => (int) $party['party_id'],
+                    'code' => (string) ($party['code'] ?: ($partyType === 'SUPPLIER' ? 'FOR-' : 'CLI-') . $party['party_id']),
+                    'name' => (string) $party['business_name'],
+                    'opening_cents' => $opening,
+                    'period_debit_cents' => $periodDebit,
+                    'period_credit_cents' => $periodCredit,
+                    'net_cents' => $net,
+                ];
+            }
+        }
+        return $grouped;
     }
 
     private static function cents(mixed $value): int

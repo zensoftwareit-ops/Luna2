@@ -17,6 +17,91 @@ final class TabularExportService
 {
     public function __construct(private readonly array $company = []) {}
 
+    /** @param array<string,mixed> $statement @param array<string,mixed> $options */
+    public function streamTrialBalancePdf(array $statement, string $from, string $to, array $options = []): never
+    {
+        $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $money = static fn (mixed $value): string => number_format((float) $value, 2, ',', '.') . ' €';
+        $dateValue = static fn (string $value): string => ($time = strtotime($value)) ? date('d/m/Y', $time) : $value;
+        $includeParties = !empty($options['include_parties']);
+        $includeClosing = !empty($options['include_closing']);
+        $sections = (array) ($statement['sections'] ?? []);
+        $totals = (array) ($statement['totals'] ?? []);
+
+        $renderRows = static function (array $rows) use ($escape, $money): string {
+            if ($rows === []) return '<tr><td colspan="2" class="empty">Nessun saldo nella sezione</td></tr>';
+            $html = '';
+            foreach ($rows as $row) {
+                $level = max(0, (int) ($row['level'] ?? 0));
+                $classes = !empty($row['is_party']) ? 'party' : (empty($row['is_postable']) ? 'group' : 'account');
+                if (!empty($row['is_unassigned'])) $classes .= ' unassigned';
+                $type = (string) ($row['party_type'] ?? '');
+                $partyLabel = $type === 'SUPPLIER' ? 'Fornitore' : ($type === 'CUSTOMER' ? 'Cliente' : '');
+                $html .= '<tr class="' . $classes . '"><td style="padding-left:' . (4 + $level * 10) . 'px">'
+                    . '<b>' . $escape($row['code'] ?? '') . '</b> <span>' . $escape($row['name'] ?? '') . '</span>'
+                    . ($partyLabel !== '' ? '<small>' . $partyLabel . '</small>' : '')
+                    . '</td><td class="num">' . $money($row['amount'] ?? 0) . '</td></tr>';
+            }
+            return $html;
+        };
+        $table = static function (string $title, array $rows, string $footerLabel, float $footerValue, array $extra = []) use ($renderRows, $escape, $money): string {
+            $foot = '<tr><th>' . $escape($footerLabel) . '</th><th class="num">' . $money($footerValue) . '</th></tr>';
+            foreach ($extra as [$label, $value, $strong]) {
+                $foot .= '<tr class="' . ($strong ? 'grand' : '') . '"><th>' . $escape($label) . '</th><th class="num">' . $money($value) . '</th></tr>';
+            }
+            return '<section><h2>' . $escape($title) . '</h2><table class="section"><thead><tr><th>Conto / sottoconto</th><th class="num">Saldo</th></tr></thead><tbody>'
+                . $renderRows($rows) . '</tbody><tfoot>' . $foot . '</tfoot></table></section>';
+        };
+
+        $profit = (float) ($totals['profit_loss'] ?? 0);
+        $assetsExtra = [];
+        if ($profit < 0) $assetsExtra[] = ['Perdita d’esercizio', abs($profit), false];
+        $assetsExtra[] = ['Totale a pareggio', (float) ($totals['balance_assets'] ?? 0), true];
+        $liabilityExtra = [];
+        if ($profit >= 0) $liabilityExtra[] = ['Utile d’esercizio', $profit, false];
+        $liabilityExtra[] = ['Totale a pareggio', (float) ($totals['balance_liabilities'] ?? 0), true];
+        $economicBalance = max((float) ($totals['expenses'] ?? 0), (float) ($totals['revenues'] ?? 0));
+        $expenseExtra = [];
+        if ($profit >= 0) $expenseExtra[] = ['Utile d’esercizio', $profit, false];
+        $expenseExtra[] = ['Totale a pareggio', $economicBalance, true];
+        $revenueExtra = [];
+        if ($profit < 0) $revenueExtra[] = ['Perdita d’esercizio', abs($profit), false];
+        $revenueExtra[] = ['Totale a pareggio', $economicBalance, true];
+
+        $company = implode(' · ', array_filter([
+            $this->company['business_name'] ?? 'Luna2',
+            !empty($this->company['vat_number']) ? 'P.IVA ' . $this->company['vat_number'] : '',
+            !empty($this->company['tax_code']) ? 'C.F. ' . $this->company['tax_code'] : '',
+        ]));
+        $version = $includeParties ? 'Analitica con saldi clienti e fornitori' : 'Sintetica senza saldi clienti e fornitori';
+        $html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><style>
+            @page{margin:11mm 9mm 12mm}body{font-family:DejaVu Sans,sans-serif;color:#172033;font-size:7px}header{border-bottom:2px solid #1e3a5f;padding-bottom:7px;margin-bottom:9px}h1{font-size:15px;margin:0 0 3px}.meta{color:#526174}.version{margin-top:3px;font-weight:bold;color:#1e3a5f}.opposed{width:100%;border-collapse:separate;border-spacing:7px 0;table-layout:fixed}.opposed>tbody>tr>td{width:50%;vertical-align:top;padding:0}.opposed section{page-break-inside:auto}h2{font-size:9px;margin:0;padding:5px 6px;background:#1e3a5f;color:#fff}.section{width:100%;border-collapse:collapse;table-layout:fixed}.section th,.section td{padding:3px 4px;border-bottom:.45px solid #cbd5e1;vertical-align:top}.section th{text-align:left}.section th:last-child,.section td:last-child{width:25%}.section thead th{background:#e8eef5;border-bottom:1px solid #64748b}.section tfoot th{background:#f1f5f9;border-top:1px solid #64748b}.section tfoot .grand th{border-top:1.5px solid #172033;font-size:7.4px}.num{text-align:right!important;white-space:nowrap}.group td{font-weight:bold;background:#f8fafc}.party td{font-size:6.6px;color:#334155}.party td:first-child{border-left:2px solid #93c5fd}.party small{display:block;color:#64748b;font-size:5.8px}.unassigned td{color:#9a3412}.empty{text-align:center;color:#64748b;padding:10px!important}.economic{page-break-before:always;margin-top:2px}.summary{margin-top:9px;border-top:1px solid #64748b;padding-top:5px;color:#475569}.summary strong{float:right;color:#172033}footer{position:fixed;bottom:-7mm;left:0;right:0;color:#64748b;font-size:6px}
+            </style></head><body><header><h1>Situazione contabile a sezioni contrapposte</h1><div class="meta">' . $escape($company) . ' · dal ' . $escape($dateValue($from)) . ' al ' . $escape($dateValue($to)) . '</div><div class="version">' . $escape($version) . ' · scritture di chiusura ' . ($includeClosing ? 'incluse' : 'escluse') . '</div></header>'
+            . '<table class="opposed"><tr><td>'
+            . $table('ATTIVITÀ', (array) ($sections['ASSET'] ?? []), 'Totale attività', (float) ($totals['assets'] ?? 0), $assetsExtra)
+            . '</td><td>'
+            . $table('PASSIVITÀ E PATRIMONIO NETTO', array_merge((array) ($sections['EQUITY'] ?? []), (array) ($sections['LIABILITY'] ?? [])), 'Totale passività e patrimonio netto', (float) ($totals['liabilities'] ?? 0), $liabilityExtra)
+            . '</td></tr></table><div class="economic"><table class="opposed"><tr><td>'
+            . $table('COSTI', (array) ($sections['EXPENSE'] ?? []), 'Totale costi', (float) ($totals['expenses'] ?? 0), $expenseExtra)
+            . '</td><td>'
+            . $table('RICAVI', (array) ($sections['REVENUE'] ?? []), 'Totale ricavi', (float) ($totals['revenues'] ?? 0), $revenueExtra)
+            . '</td></tr></table></div><div class="summary">Totali saldi Dare ' . $money($totals['debit'] ?? 0) . ' · Avere ' . $money($totals['credit'] ?? 0)
+            . '<strong>Differenza: ' . $money(abs((float) ($totals['debit'] ?? 0) - (float) ($totals['credit'] ?? 0))) . '</strong></div><footer>Luna2 · situazione contabile · generata il ' . date('d/m/Y H:i') . '</footer></body></html>';
+
+        $pdfOptions = new Options();
+        $pdfOptions->set('isRemoteEnabled', false);
+        $pdfOptions->set('isHtml5ParserEnabled', true);
+        $pdf = new Dompdf($pdfOptions);
+        $pdf->loadHtml($html, 'UTF-8');
+        $pdf->setPaper('A4', 'landscape');
+        $pdf->render();
+        $canvas = $pdf->getCanvas();
+        $canvas->page_text($canvas->get_width() - 74, $canvas->get_height() - 20, 'Pagina {PAGE_NUM} / {PAGE_COUNT}',
+            $pdf->getFontMetrics()->getFont('DejaVu Sans'), 6, [0.28, 0.33, 0.41]);
+        $pdf->stream($this->filename('situazione-contabile-' . ($includeParties ? 'con-clienti-fornitori' : 'sintetica')) . '.pdf', ['Attachment' => true]);
+        exit;
+    }
+
     /** @param array<string,mixed> $detail */
     public function streamPartyLedgerPdf(array $detail, string $from, string $to, string $type): never
     {

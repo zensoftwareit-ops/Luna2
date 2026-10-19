@@ -474,6 +474,13 @@ $vatRegistersView = (string) file_get_contents($base . '/views/accounting/vat-re
 $vatSettlementView = (string) file_get_contents($base . '/views/accounting/vat-settlement.php');
 $importPreviewView = (string) file_get_contents($base . '/views/imports/preview.php');
 $assert(str_contains($trialBalanceView, 'Stato patrimoniale') && str_contains($trialBalanceView, 'Conto economico') && str_contains($trialBalanceView, 'statement-account-link'), 'La situazione contabile deve essere gerarchica e collegata ai mastrini.');
+$assert(str_contains($trialBalanceView, 'PDF sintetico')
+    && str_contains($trialBalanceView, 'PDF con clienti/fornitori')
+    && str_contains($trialBalanceView, 'include_parties')
+    && str_contains($trialBalanceService, 'partyBalances')
+    && str_contains($trialBalanceService, 'Saldo non attribuito a un sottoconto')
+    && str_contains($tabularExport, 'streamTrialBalancePdf'),
+    'La situazione contabile deve offrire stampe a sezioni contrapposte con e senza saldi clienti/fornitori.');
 $assert(str_contains($trialBalanceView, 'Apertura non contabilizzata') && str_contains($trialBalanceView, 'Differenza Dare / Avere') && str_contains($accountingController, 'TOTALI SALDI'), 'Controlli di apertura, totali e differenza della situazione contabile mancanti.');
 $assert(str_contains($trialBalanceView, 'Includi scritture di chiusura')
     && str_contains($trialBalanceService, "e.entry_type <> 'CLOSING'")

@@ -379,17 +379,23 @@ final class AccountingController extends BaseController
     public function trialBalance(): never
     {
         $this->authorize();
-        [$statement, $from, $to, $search, $accountType, $includeClosing] = $this->trialBalanceDataset();
+        [$statement, $from, $to, $search, $accountType, $includeClosing, $includeParties] = $this->trialBalanceDataset();
         $sections = $statement['sections'];
         $totals = $statement['totals'];
         $opening = $statement['opening'];
-        $this->view->render('accounting/trial-balance', compact('sections', 'totals', 'opening', 'from', 'to', 'search', 'accountType', 'includeClosing') + ['title' => 'Situazione contabile e mastrini']);
+        $this->view->render('accounting/trial-balance', compact('sections', 'totals', 'opening', 'from', 'to', 'search', 'accountType', 'includeClosing', 'includeParties') + ['title' => 'Situazione contabile e mastrini']);
     }
 
     public function exportTrialBalance(string $format): never
     {
         $this->authorize();
-        [$statement, $from, $to, $search, $accountType, $includeClosing] = $this->trialBalanceDataset();
+        [$statement, $from, $to, $search, $accountType, $includeClosing, $includeParties] = $this->trialBalanceDataset();
+        if (strtolower($format) === 'pdf') {
+            $this->exporter()->streamTrialBalancePdf($statement, $from, $to, [
+                'search' => $search, 'account_type' => $accountType,
+                'include_closing' => $includeClosing, 'include_parties' => $includeParties,
+            ]);
+        }
         $labels = ['ASSET' => 'STATO PATRIMONIALE - ATTIVITÀ', 'EQUITY' => 'STATO PATRIMONIALE - PATRIMONIO NETTO',
             'LIABILITY' => 'STATO PATRIMONIALE - PASSIVITÀ', 'EXPENSE' => 'CONTO ECONOMICO - COSTI',
             'REVENUE' => 'CONTO ECONOMICO - RICAVI'];
@@ -419,8 +425,9 @@ final class AccountingController extends BaseController
             ['key' => 'amount', 'label' => 'Saldo', 'type' => 'money'],
         ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca conto' => $search, 'Tipo conto' => $accountType,
             'Scritture di chiusura' => $includeClosing ? 'Incluse' : 'Escluse',
+            'Saldi clienti e fornitori' => $includeParties ? 'Inclusi' : 'Esclusi',
             'Apertura' => $statement['opening']['posted'] ? 'Contabilizzata' : ($statement['opening']['carried'] ? 'Ripresa automatica per controllo' : 'Non necessaria')]),
-            Auth::organizationName(), 'situazione-contabile');
+            Auth::organizationName(), 'situazione-contabile-' . ($includeParties ? 'con-clienti-fornitori' : 'sintetica'));
     }
 
     private function trialBalanceDataset(): array
@@ -430,9 +437,10 @@ final class AccountingController extends BaseController
         $search = trim((string) ($_GET['q'] ?? ''));
         $accountType = strtoupper(trim((string) ($_GET['account_type'] ?? '')));
         $includeClosing = (string) ($_GET['include_closing'] ?? '') === '1';
+        $includeParties = (string) ($_GET['include_parties'] ?? '') === '1';
         $statement = (new TrialBalanceService($this->db, Auth::organizationId()))
-            ->dataset($from, $to, $search, $accountType, $includeClosing);
-        return [$statement, $from, $to, $search, $accountType, $includeClosing];
+            ->dataset($from, $to, $search, $accountType, $includeClosing, $includeParties);
+        return [$statement, $from, $to, $search, $accountType, $includeClosing, $includeParties];
     }
 
     public function ledger(string $id): never

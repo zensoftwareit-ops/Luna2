@@ -687,6 +687,13 @@ Percorso: **Contabilità - Situazione contabile e mastrini**.
 
 ### 16.1 Situazione contabile
 
+La situazione contabile a sezioni contrapposte è disponibile in due stampe PDF:
+
+- **PDF sintetico**, con i soli conti del piano dei conti;
+- **PDF con clienti/fornitori**, che sotto i conti collettivi espone il saldo dei singoli sottoconti cliente e fornitore.
+
+Le due stampe usano lo stesso intervallo, gli stessi filtri e gli stessi totali. La versione analitica evidenzia anche l’eventuale **Saldo non attribuito a un sottoconto**, da riconciliare nei mastrini clienti e fornitori. Per visualizzare gli stessi dettagli anche a video o negli export XLSX/CSV, attivare **Mostra saldi clienti e fornitori** e premere **Filtra**.
+
 1. impostare Dal e Al;
 2. scegliere il tipo di scrittura;
 3. decidere se includere le scritture di chiusura;
