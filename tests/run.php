@@ -539,6 +539,15 @@ $assert(str_contains($application, "'/documents/{type}/{id}/registration-date'")
     && str_contains((string) file_get_contents($base . '/views/documents/view.php'), 'Correggi data di registrazione'),
     'La data di registrazione dei documenti già importati deve poter essere corretta riallineando prima nota e IVA.');
 $assert(str_contains($accountingService, 'changeLineAccount') && str_contains($entryView, 'Cambia conto') && str_contains($entryView, 'data-account-search') && str_contains($appJs, 'data-account-change-dialog'), 'Cambio rapido ricercabile del conto sulle righe contabili mancante.');
+$journalLinesView = (string) file_get_contents($base . '/views/accounting/lines-form.php');
+$assert(str_contains($accountingService, 'replaceProvisionalLines')
+    && str_contains($application, "'/accounting/journal/{id}/lines/edit'")
+    && str_contains($application, "'/accounting/journal/{id}/lines'")
+    && str_contains($entryView, 'Modifica righe')
+    && str_contains($journalLinesView, 'data-require-balanced="1"')
+    && str_contains($journalLinesView, 'data-add-accounting-line')
+    && str_contains($journalLinesView, 'data-remove-line'),
+    'Le righe di una scrittura provvisoria devono poter essere aggiunte, modificate e rimosse con controllo di quadratura.');
 $assert(is_file($base . '/database/migrations/032_document_vat_summaries.sql')
     && str_contains($accountingService, 'replaceDocumentVatSummary')
     && str_contains($accountingService, 'splitLine')

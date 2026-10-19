@@ -187,21 +187,33 @@
       const normalized = raw.includes(',') ? raw.replaceAll('.', '').replace(',', '.') : raw;
       return Number.parseFloat(normalized) || 0;
     };
+    const requireBalanced = accountingForm.dataset.requireBalanced === '1';
     const refresh = () => {
-      let debit = 0; let credit = 0;
-      body.querySelectorAll('tr').forEach((row) => {
-        debit += decimal(row.querySelector('[data-account-field="debit"]')?.value);
-        credit += decimal(row.querySelector('[data-account-field="credit"]')?.value);
+      let debit = 0; let credit = 0; let invalidSide = false;
+      const rows = [...body.querySelectorAll('tr')];
+      rows.forEach((row) => {
+        const rowDebit = decimal(row.querySelector('[data-account-field="debit"]')?.value);
+        const rowCredit = decimal(row.querySelector('[data-account-field="credit"]')?.value);
+        debit += rowDebit;
+        credit += rowCredit;
+        if (rowDebit > 0 && rowCredit > 0) invalidSide = true;
       });
       accountingForm.querySelector('[data-debit-total]').textContent = debit.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
       accountingForm.querySelector('[data-credit-total]').textContent = credit.toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
       const status = accountingForm.querySelector('[data-balance-status]');
+      const balanced = rows.length >= 2 && debit > 0 && !invalidSide && Math.abs(debit - credit) < 0.005;
       if (status) {
-        const balanced = debit > 0 && Math.abs(debit - credit) < 0.005;
-        status.textContent = balanced ? 'Quadrata' : `Differenza ${(debit - credit).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}`;
+        status.textContent = balanced
+          ? 'Quadrata'
+          : invalidSide
+            ? 'Una riga contiene sia Dare sia Avere'
+            : rows.length < 2
+              ? 'Servono almeno due righe'
+              : `Differenza ${(debit - credit).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}`;
         status.classList.toggle('balanced', balanced);
         status.classList.toggle('unbalanced', !balanced);
       }
+      return balanced;
     };
     let accountCatalog = [];
     try { accountCatalog = JSON.parse(document.querySelector('[data-manual-account-catalog]')?.textContent || '[]'); } catch (_) { accountCatalog = []; }
@@ -269,7 +281,10 @@
         search.setCustomValidity(valid ? '' : 'Seleziona un conto dai risultati della ricerca.');
         if (!valid) accountsValid = false;
       });
-      if (!accountsValid) { event.preventDefault(); accountingForm.reportValidity(); }
+      const balanceValid = !requireBalanced || refresh();
+      const amountInput = body.querySelector('[data-account-field="debit"]');
+      if (amountInput) amountInput.setCustomValidity(balanceValid ? '' : 'La scrittura deve avere almeno due righe e totale Dare uguale al totale Avere.');
+      if (!accountsValid || !balanceValid) { event.preventDefault(); accountingForm.reportValidity(); }
     });
     refresh();
   }

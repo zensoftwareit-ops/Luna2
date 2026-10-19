@@ -222,6 +222,87 @@ final class AccountingService
         $this->invalidateJournalPrints(null, (string) $entryDate);
     }
 
+    /**
+     * Sostituisce l'intera partita doppia di una scrittura ancora provvisoria.
+     * Gli identificativi delle righe esistenti servono esclusivamente a conservare
+     * gli eventuali collegamenti analitici (cliente, fornitore e centro di costo).
+     */
+    public function replaceProvisionalLines(int $entryId, array $lines, string $reason = ''): array
+    {
+        $normalized = $this->normalizeLines($lines, 2);
+        $this->assertAccountsBelongToOrganization($normalized);
+        $this->assertBalanced($normalized);
+
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+        try {
+            $entryStatement = $this->db->prepare(
+                "SELECT * FROM journal_entries
+                 WHERE id = ? AND organization_id = ? AND status IN ('DRAFT','POSTED')
+                   AND is_finalized = 0 FOR UPDATE"
+            );
+            $entryStatement->execute([$entryId, $this->organizationId]);
+            $entry = $entryStatement->fetch();
+            if (!$entry) {
+                throw new InvalidArgumentException('La scrittura è definitiva, stornata o non modificabile.');
+            }
+            $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+
+            $existingStatement = $this->db->prepare(
+                'SELECT id, cost_center_id, customer_id, supplier_id
+                 FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ? FOR UPDATE'
+            );
+            $existingStatement->execute([$entryId, $this->organizationId]);
+            $existing = [];
+            foreach ($existingStatement->fetchAll() as $existingLine) {
+                $existing[(int) $existingLine['id']] = $existingLine;
+            }
+
+            $seen = [];
+            foreach ($normalized as &$line) {
+                $lineId = (int) ($line['line_id'] ?? 0);
+                if ($lineId <= 0) continue;
+                if (!isset($existing[$lineId]) || isset($seen[$lineId])) {
+                    throw new InvalidArgumentException('Una delle righe indicate non appartiene alla registrazione o è duplicata.');
+                }
+                $seen[$lineId] = true;
+                $line['cost_center_id'] = $existing[$lineId]['cost_center_id'] ?: null;
+                $line['customer_id'] = $existing[$lineId]['customer_id'] ?: null;
+                $line['supplier_id'] = $existing[$lineId]['supplier_id'] ?: null;
+            }
+            unset($line);
+
+            $revisionReason = trim($reason);
+            if ($revisionReason === '') $revisionReason = 'Modifica completa delle righe contabili provvisorie';
+            $this->saveRevision($entry, mb_substr($revisionReason, 0, 500));
+
+            $this->db->prepare('DELETE FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?')
+                ->execute([$entryId, $this->organizationId]);
+            $this->insertLines($entryId, $normalized);
+
+            $totalDebit = round(array_sum(array_column($normalized, 'debit')), 2);
+            $totalCredit = round(array_sum(array_column($normalized, 'credit')), 2);
+            $this->db->prepare(
+                'UPDATE journal_entries SET total_debit = ?, total_credit = ?, revision_number = revision_number + 1,
+                        updated_by = ?, updated_at = NOW()
+                 WHERE id = ? AND organization_id = ?'
+            )->execute([$totalDebit, $totalCredit, $this->userId, $entryId, $this->organizationId]);
+            $this->invalidateJournalPrints(null, (string) $entry['entry_date']);
+
+            if ($ownsTransaction) $this->db->commit();
+            return [
+                'entry_id' => $entryId,
+                'rows_before' => count($existing),
+                'rows_after' => count($normalized),
+                'total_debit' => $totalDebit,
+                'total_credit' => $totalCredit,
+            ];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
     public function deleteDraft(int $entryId): bool
     {
         $statement = $this->db->prepare(
@@ -1029,6 +1110,7 @@ final class AccountingService
                 throw new InvalidArgumentException('Una riga contabile non può avere contemporaneamente Dare e Avere.');
             }
             $normalized[] = [
+                'line_id' => !empty($line['line_id']) ? (int) $line['line_id'] : null,
                 'account_id' => $accountId,
                 'debit' => round($debit, 2),
                 'credit' => round($credit, 2),

@@ -116,6 +116,33 @@ final class AccountingController extends BaseController
         $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines') + ['title' => 'Modifica prima nota']);
     }
 
+    public function editLines(string $id): never
+    {
+        $this->authorize();
+        [$entry, $lines] = $this->entry((int) $id);
+        if (!in_array($entry['status'], ['DRAFT', 'POSTED'], true) || !empty($entry['is_finalized'])) {
+            $this->redirect('/accounting/journal/' . (int) $id, 'La scrittura è definitiva, stornata o non modificabile.', 'error');
+        }
+        $accounts = $this->accounts();
+        $this->view->render('accounting/lines-form', compact('entry', 'lines', 'accounts') + ['title' => 'Modifica righe prima nota']);
+    }
+
+    public function saveLines(string $id): never
+    {
+        $this->authorize();
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))
+                ->replaceProvisionalLines((int) $id, (array) ($_POST['lines'] ?? []), (string) ($_POST['reason'] ?? ''));
+            $this->audit('REPLACE_JOURNAL_LINES', 'journal_entries', (int) $id, $result);
+            $this->redirect('/accounting/journal/' . (int) $id, sprintf(
+                'Righe aggiornate: %d movimenti, Dare e Avere %s.',
+                $result['rows_after'], number_format($result['total_debit'], 2, ',', '.')
+            ));
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id . '/lines/edit', $exception->getMessage(), 'error');
+        }
+    }
+
     public function show(string $id): never
     {
         $this->authorize();

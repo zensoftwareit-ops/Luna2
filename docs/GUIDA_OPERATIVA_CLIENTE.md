@@ -511,6 +511,18 @@ Luna impedisce il salvataggio se la somma di imponibile e IVA non coincide con l
 
 Una scrittura definitiva non va modificata direttamente: registrare lo storno e la scrittura corretta secondo le istruzioni del responsabile contabile.
 
+### Aggiungere, modificare o eliminare righe di una scrittura provvisoria
+
+Finché la registrazione e il periodo non sono definitivi:
+
+1. aprire **Contabilità → Prima nota** e selezionare la registrazione;
+2. premere **Modifica righe**;
+3. correggere conto, descrizione, Dare o Avere; usare **Aggiungi riga** per un nuovo movimento oppure **Rimuovi** per eliminarne uno;
+4. verificare che in fondo compaia **Quadrata**;
+5. indicare facoltativamente il motivo e premere **Salva righe provvisorie**.
+
+Luna richiede almeno due righe valide e impedisce il salvataggio quando Dare e Avere non coincidono. La versione precedente resta nello storico revisioni. Nelle registrazioni generate da una fattura, l’editor modifica soltanto la partita doppia: per articoli IVA, detraibilità e classificazione fiscale usare il **Riepilogo IVA** della registrazione.
+
 ## 12. Registri IVA
 
 Percorso: **Contabilità - Registri IVA**.
