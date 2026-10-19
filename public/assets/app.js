@@ -223,7 +223,32 @@
       const search = row.querySelector('[data-line-account-search]');
       const hidden = row.querySelector('[data-account-field="account_id"]');
       const results = row.querySelector('[data-line-account-results]');
-      const select = (account) => { hidden.value = String(account.id); search.value = `${account.code} · ${account.name}`; results.hidden = true; search.setCustomValidity(''); };
+      const closeResults = () => {
+        results.hidden = true;
+        results.classList.remove('account-lookup-results-floating');
+        results.removeAttribute('style');
+        if (results.parentElement !== lookup) lookup.appendChild(results);
+        search.setAttribute('aria-expanded', 'false');
+      };
+      const floatResults = () => {
+        const rect = search.getBoundingClientRect();
+        const viewportGap = 8;
+        const width = Math.min(Math.max(rect.width, 430), window.innerWidth - viewportGap * 2);
+        const left = Math.max(viewportGap, Math.min(rect.left, window.innerWidth - width - viewportGap));
+        const spaceBelow = window.innerHeight - rect.bottom - 10;
+        const openAbove = spaceBelow < 190 && rect.top > spaceBelow;
+        const available = Math.max(140, openAbove ? rect.top - 10 : spaceBelow);
+        results.classList.add('account-lookup-results-floating');
+        document.body.appendChild(results);
+        Object.assign(results.style, {
+          position: 'fixed', left: `${left}px`, width: `${width}px`, right: 'auto', bottom: 'auto',
+          top: openAbove ? 'auto' : `${rect.bottom + 5}px`,
+          maxHeight: `${Math.min(310, available)}px`,
+        });
+        if (openAbove) results.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+        search.setAttribute('aria-expanded', 'true');
+      };
+      const select = (account) => { hidden.value = String(account.id); search.value = `${account.code} · ${account.name}`; closeResults(); search.setCustomValidity(''); };
       const resolveTypedAccount = () => {
         const query = normalizeAccount(search.value.trim());
         if (!query) return false;
@@ -240,12 +265,13 @@
         results.replaceChildren(...matches.map((account) => { const option = document.createElement('button'); option.type = 'button'; option.className = 'account-lookup-option'; option.innerHTML = `<strong></strong><small></small>`; option.querySelector('strong').textContent = account.code; option.querySelector('small').textContent = account.name; option.addEventListener('click', () => select(account)); return option; }));
         if (!matches.length) { const empty = document.createElement('div'); empty.className = 'account-lookup-empty'; empty.textContent = 'Nessun conto trovato.'; results.appendChild(empty); }
         results.hidden = false;
+        floatResults();
       };
       const selected = accountCatalog.find((account) => Number(account.id) === Number(values.account_id || 0));
       if (selected) select(selected);
       search.addEventListener('focus', render);
       search.addEventListener('input', () => { hidden.value = ''; search.setCustomValidity(''); render(); });
-      search.addEventListener('blur', () => window.setTimeout(() => { if (!hidden.value) resolveTypedAccount(); results.hidden = true; }, 150));
+      search.addEventListener('blur', () => window.setTimeout(() => { if (!hidden.value) resolveTypedAccount(); closeResults(); }, 150));
       search.addEventListener('change', () => { if (!hidden.value && !resolveTypedAccount()) search.setCustomValidity('Seleziona un conto dai risultati.'); });
       search.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') return;

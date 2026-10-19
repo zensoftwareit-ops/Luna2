@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Luna\Controller;
 
+use DateTimeImmutable;
 use InvalidArgumentException;
 use Luna\Core\Auth;
 use Luna\Service\AccountingService;
@@ -70,7 +71,10 @@ final class AccountingController extends BaseController
         $this->authorize();
         $accounts = $this->accounts();
         [$causes, $vatRegisters] = $this->journalOptions();
-        $entry = ['entry_date' => date('Y-m-d'), 'competence_date' => date('Y-m-d'), 'entry_type' => 'MANUAL'];
+        $requestedDate = trim((string) ($_GET['entry_date'] ?? ''));
+        $parsedDate = $requestedDate !== '' ? DateTimeImmutable::createFromFormat('!Y-m-d', $requestedDate) : false;
+        $entryDate = $parsedDate && $parsedDate->format('Y-m-d') === $requestedDate ? $requestedDate : date('Y-m-d');
+        $entry = ['entry_date' => $entryDate, 'competence_date' => $entryDate, 'entry_type' => 'MANUAL'];
         $lines = [];
         $openItemsStatement = $this->db->prepare(
             "SELECT id, direction, party_name, reference, due_date, currency,
@@ -209,6 +213,7 @@ final class AccountingController extends BaseController
         $this->authorize();
         $intent = (string) ($_POST['intent'] ?? 'draft');
         $post = $intent === 'post';
+        $isNewEntry = empty($_POST['id']);
         $header = $this->headerFromRequest();
         $service = new AccountingService($this->db, Auth::organizationId(), Auth::id());
         try {
@@ -218,6 +223,12 @@ final class AccountingController extends BaseController
             $this->redirect($path, $exception->getMessage(), 'error');
         }
         $this->audit($post ? 'POST' : 'SAVE_DRAFT', 'journal_entries', $id, $header);
+        if ($post && $isNewEntry) {
+            $this->redirect(
+                '/accounting/journal/create?entry_date=' . rawurlencode((string) $header['entry_date']),
+                'Registrazione contabilizzata e quadrata. Nuova scrittura pronta con la stessa data.'
+            );
+        }
         $this->redirect('/accounting/journal/' . $id, $post ? 'Registrazione contabilizzata e quadrata.' : 'Bozza di prima nota salvata.');
     }
 

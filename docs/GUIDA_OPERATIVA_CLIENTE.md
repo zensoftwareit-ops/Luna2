@@ -452,12 +452,12 @@ Nel campo **Contropartita finanziaria** si può scegliere un conto bancario conf
 4. Aggiungere almeno due righe.
 5. Per ogni riga cercare dinamicamente il conto per codice o descrizione, quindi inserire descrizione e importo in Dare oppure Avere. È possibile fare clic sul risultato oppure digitare un codice univoco e premere Tab/Invio: il conto riconosciuto viene selezionato automaticamente.
 6. Verificare che totale Dare e totale Avere coincidano al centesimo.
-7. Salvare.
-8. Contabilizzare quando la registrazione è completa.
+7. Premere **Salva bozza** se la registrazione deve essere completata successivamente.
+8. Premere **Contabilizza** quando la registrazione è completa: Luna2 salva la scrittura e apre immediatamente una nuova registrazione vuota mantenendo la stessa data di registrazione. Questo automatismo si applica soltanto alle nuove scritture manuali, non alla modifica di scritture esistenti.
 
 La tendina **Causale contabile** propone le causali standard attive (registrazione generica, fatture, incassi, pagamenti, assestamenti, ammortamenti, ritenute, chiusure e aperture). Le causali DATEV importate ma non ancora verificate restano disattivate finché non vengono abilitate da **Contabilità → Piano dei conti e causali**. Se la tendina mostra soltanto “Nessuna”, verificare che tutte le migrazioni siano applicate.
 
-Il pulsante **Aggiungi riga** inserisce una nuova riga Dare/Avere. Cercare il conto per codice o descrizione e selezionare il risultato; per una scrittura manuale servono almeno due righe e il totale Dare deve coincidere con il totale Avere.
+Il pulsante **Aggiungi riga** inserisce una nuova riga Dare/Avere. Cercare il conto per codice o descrizione e selezionare il risultato; la tendina dei risultati resta visibile anche dentro una tabella scorrevole. Per una scrittura manuale servono almeno due righe e il totale Dare deve coincidere con il totale Avere.
 
 ### 11.3 Cercare una scrittura
 
