@@ -438,7 +438,7 @@ Percorso: **Contabilità - Prima nota**.
 Per pagare o incassare una fattura **non inserire manualmente le righe Dare/Avere**:
 
 1. premere **Nuova registrazione**;
-2. nel riquadro **Registra da una fattura nello scadenzario** selezionare la partita;
+2. nel riquadro **Registra da una fattura nello scadenzario** cercare la partita per numero documento, cliente/fornitore, scadenza o importo e selezionarla dai risultati;
 3. indicare data, importo, metodo e banca oppure cassa;
 4. premere **Crea e contabilizza il pagamento**.
 

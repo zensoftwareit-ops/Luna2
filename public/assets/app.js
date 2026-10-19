@@ -275,9 +275,78 @@
   }
 
   document.querySelectorAll('[data-guided-payment]').forEach((form) => {
+    const lookup = form.querySelector('[data-guided-payment-lookup]');
+    const search = form.querySelector('[data-guided-payment-search]');
     const item = form.querySelector('[data-guided-payment-item]');
+    const results = form.querySelector('[data-guided-payment-results]');
     const amount = form.querySelector('[data-guided-payment-amount]');
-    item?.addEventListener('change', () => { amount.value = item.selectedOptions[0]?.dataset.outstanding || ''; });
+    let catalog = [];
+    let activeIndex = -1;
+    try { catalog = JSON.parse(form.querySelector('[data-guided-payment-catalog]')?.textContent || '[]'); } catch (_) { catalog = []; }
+    const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
+    const close = () => { results.hidden = true; search.setAttribute('aria-expanded', 'false'); activeIndex = -1; };
+    const select = (entry) => {
+      item.value = String(entry.id);
+      search.value = entry.label;
+      search.setCustomValidity('');
+      amount.value = String(entry.outstanding).replace('.', ',');
+      close();
+    };
+    const matches = () => {
+      const query = normalize(search.value.trim());
+      return catalog.filter((entry) => !query || normalize(entry.label).includes(query)).slice(0, 40);
+    };
+    const render = () => {
+      const filtered = matches();
+      results.replaceChildren(...filtered.map((entry) => {
+        const option = document.createElement('button');
+        option.type = 'button';
+        option.className = 'account-lookup-option';
+        option.setAttribute('role', 'option');
+        option.innerHTML = '<strong></strong><small></small>';
+        option.querySelector('strong').textContent = entry.primary;
+        option.querySelector('small').textContent = entry.secondary;
+        option.addEventListener('mousedown', (event) => event.preventDefault());
+        option.addEventListener('click', () => select(entry));
+        return option;
+      }));
+      if (!filtered.length) {
+        const empty = document.createElement('div');
+        empty.className = 'account-lookup-empty';
+        empty.textContent = 'Nessuna fattura o partita aperta trovata.';
+        results.appendChild(empty);
+      }
+      results.hidden = false;
+      search.setAttribute('aria-expanded', 'true');
+      activeIndex = -1;
+    };
+    search?.addEventListener('focus', render);
+    search?.addEventListener('input', () => { item.value = ''; amount.value = ''; search.setCustomValidity(''); render(); });
+    search?.addEventListener('blur', () => window.setTimeout(close, 150));
+    search?.addEventListener('keydown', (event) => {
+      const options = [...results.querySelectorAll('.account-lookup-option')];
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        if (results.hidden) render();
+        const visible = [...results.querySelectorAll('.account-lookup-option')];
+        if (!visible.length) return;
+        activeIndex = event.key === 'ArrowDown'
+          ? (activeIndex + 1) % visible.length
+          : (activeIndex <= 0 ? visible.length - 1 : activeIndex - 1);
+        visible.forEach((option, index) => option.classList.toggle('active', index === activeIndex));
+        visible[activeIndex].scrollIntoView({ block: 'nearest' });
+      } else if (event.key === 'Enter' && !results.hidden) {
+        const target = options[activeIndex] || (options.length === 1 ? options[0] : null);
+        if (target) { event.preventDefault(); target.click(); }
+      } else if (event.key === 'Escape') {
+        close();
+      }
+    });
+    form.addEventListener('submit', (event) => {
+      const valid = Boolean(item.value);
+      search.setCustomValidity(valid ? '' : 'Cerca e seleziona una fattura dai risultati.');
+      if (!valid) { event.preventDefault(); search.reportValidity(); }
+    });
   });
 
   const cleanFilename = (value) => String(value || 'esportazione')

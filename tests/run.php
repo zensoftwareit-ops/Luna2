@@ -557,11 +557,14 @@ $assert(str_contains($documentPdfView, 'Articolo IVA') && str_contains($document
     'Il PDF fattura deve esporre il riepilogo fiscale per articolo e distinguere le operazioni escluse.');
 $assert(str_contains($entryView, 'source-document-preview') && str_contains($entryView, 'data-current-description'),
     'La prima nota deve mostrare la fattura e consentire di correggere la descrizione delle righe.');
-$assert(str_contains($accountingFormView, 'data-manual-account-catalog') && str_contains($accountingFormView, 'data-guided-payment'),
-    'La nuova prima nota deve offrire ricerca dinamica dei conti e registrazione guidata dallo scadenzario.');
+$assert(str_contains($accountingFormView, 'data-manual-account-catalog')
+    && str_contains($accountingFormView, 'data-guided-payment-search')
+    && str_contains($accountingFormView, 'data-guided-payment-catalog'),
+    'La nuova prima nota deve offrire ricerca dinamica dei conti e delle fatture nello scadenzario.');
 $appJavascript = (string) file_get_contents($base . '/public/assets/app.js');
 $assert(str_contains($appJavascript, "const lookup = row.querySelector('[data-line-account-lookup]')")
     && str_contains($appJavascript, 'lookup.resolveTypedAccount = resolveTypedAccount')
+    && str_contains($appJavascript, "search.setCustomValidity(valid ? '' : 'Cerca e seleziona una fattura dai risultati.')")
     && is_file($base . '/database/migrations/031_restore_standard_accounting_causes.sql'),
     'La prima nota manuale deve aggiungere righe senza errori e disporre delle causali contabili standard.');
 $assert(str_contains($accountingFormView, 'settlement_source')
