@@ -39,14 +39,30 @@ final class TreasuryController extends BaseController
              ORDER BY i.due_date, i.id LIMIT 1000", $params
         );
         $payments = $this->query(
-            'SELECT p.*, COALESCE(c.business_name,s.business_name) AS party_name, b.name AS bank_name,
+            "SELECT p.*, COALESCE(c.business_name,s.business_name) AS party_name,
+                    COALESCE(b.name, CONCAT(sa.code, ' · ', sa.name), 'Cassa') AS settlement_account_name,
                     a.open_item_id FROM payments p
              LEFT JOIN customers c ON c.id = p.customer_id LEFT JOIN suppliers s ON s.id = p.supplier_id
              LEFT JOIN bank_accounts b ON b.id = p.bank_account_id
+             LEFT JOIN chart_of_accounts sa ON sa.id = p.settlement_account_id AND sa.organization_id = p.organization_id
              LEFT JOIN payment_allocations a ON a.payment_id = p.id
-             WHERE p.organization_id = ? ORDER BY p.payment_date DESC, p.id DESC LIMIT 300', [$organizationId]
+             WHERE p.organization_id = ? ORDER BY p.payment_date DESC, p.id DESC LIMIT 300", [$organizationId]
         );
-        $bankAccounts = $this->query('SELECT * FROM bank_accounts WHERE organization_id = ? ORDER BY active DESC, name', [$organizationId]);
+        $bankAccounts = $this->query(
+            "SELECT b.*, a.active AS chart_account_active, a.is_postable AS chart_account_postable,
+                    a.account_type AS chart_account_type
+             FROM bank_accounts b
+             LEFT JOIN chart_of_accounts a ON a.id = b.chart_account_id AND a.organization_id = b.organization_id
+             WHERE b.organization_id = ? ORDER BY b.active DESC, b.name", [$organizationId]
+        );
+        $settlementAccounts = $this->query(
+            "SELECT DISTINCT a.id, a.code, a.name FROM chart_of_accounts a
+             LEFT JOIN accounting_account_mappings m ON m.organization_id = a.organization_id AND m.account_id = a.id
+             WHERE a.organization_id = ? AND a.active = 1 AND a.is_postable = 1 AND a.account_type = 'ASSET'
+               AND (a.system_key IN ('BANK','CASH') OR m.mapping_key IN ('BANK','CASH')
+                    OR LOWER(a.name) REGEXP 'banca|bank|cassa|posta|paypal|carta|liquid')
+             ORDER BY a.code", [$organizationId]
+        );
         $bankTransactions = $this->query(
             'SELECT t.*, b.name AS account_name FROM bank_transactions t JOIN bank_accounts b ON b.id = t.bank_account_id
              WHERE t.organization_id = ? ORDER BY t.booking_date DESC, t.id DESC LIMIT 500', [$organizationId]
@@ -65,7 +81,7 @@ final class TreasuryController extends BaseController
              AND account_type = 'ASSET' ORDER BY code", [$organizationId]
         );
         $this->view->render('accounting/treasury', compact(
-            'direction', 'openItems', 'payments', 'bankAccounts', 'bankTransactions', 'links', 'withholdings', 'accounts'
+            'direction', 'openItems', 'payments', 'bankAccounts', 'settlementAccounts', 'bankTransactions', 'links', 'withholdings', 'accounts'
         ) + ['title' => 'Tesoreria e partite']);
     }
 

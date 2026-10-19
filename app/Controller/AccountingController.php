@@ -81,10 +81,27 @@ final class AccountingController extends BaseController
         );
         $openItemsStatement->execute([Auth::organizationId()]);
         $openItems = $openItemsStatement->fetchAll();
-        $bankStatement = $this->db->prepare('SELECT id, name FROM bank_accounts WHERE organization_id = ? AND active = 1 ORDER BY name');
+        $bankStatement = $this->db->prepare(
+            "SELECT b.id, b.name FROM bank_accounts b
+             JOIN chart_of_accounts a ON a.id = b.chart_account_id AND a.organization_id = b.organization_id
+             WHERE b.organization_id = ? AND b.active = 1 AND a.active = 1
+               AND a.is_postable = 1 AND a.account_type = 'ASSET' ORDER BY b.name"
+        );
         $bankStatement->execute([Auth::organizationId()]);
         $bankAccounts = $bankStatement->fetchAll();
-        $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines', 'openItems', 'bankAccounts') + ['title' => 'Nuova registrazione']);
+        $settlementStatement = $this->db->prepare(
+            "SELECT DISTINCT a.id, a.code, a.name
+             FROM chart_of_accounts a
+             LEFT JOIN accounting_account_mappings m
+               ON m.organization_id = a.organization_id AND m.account_id = a.id
+             WHERE a.organization_id = ? AND a.active = 1 AND a.is_postable = 1 AND a.account_type = 'ASSET'
+               AND (a.system_key IN ('BANK','CASH') OR m.mapping_key IN ('BANK','CASH')
+                    OR LOWER(a.name) REGEXP 'banca|bank|cassa|posta|paypal|carta|liquid')
+             ORDER BY a.code"
+        );
+        $settlementStatement->execute([Auth::organizationId()]);
+        $settlementAccounts = $settlementStatement->fetchAll();
+        $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines', 'openItems', 'bankAccounts', 'settlementAccounts') + ['title' => 'Nuova registrazione']);
     }
 
     public function edit(string $id): never

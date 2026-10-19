@@ -444,11 +444,13 @@ Per pagare o incassare una fattura **non inserire manualmente le righe Dare/Aver
 
 Luna2 crea la scrittura, chiude totalmente o parzialmente la partita e aggiorna insieme scadenzario, partitario e mastrino. La sezione manuale sottostante serve soltanto per operazioni diverse da incassi e pagamenti.
 
+Nel campo **Contropartita finanziaria** si può scegliere un conto bancario configurato in Tesoreria oppure direttamente il conto banca/cassa movimentabile del piano dei conti. Non lasciare Cassa quando il movimento è transitato dalla banca: selezionare il conto effettivo prima di contabilizzare. Il conto scelto viene conservato anche per un eventuale storno.
+
 1. Premere **Nuova registrazione**.
 2. Inserire data registrazione, competenza, causale e descrizione.
 3. Compilare numero/data documento e controparte quando disponibili.
 4. Aggiungere almeno due righe.
-5. Per ogni riga cercare dinamicamente il conto per codice o descrizione, quindi inserire descrizione e importo in Dare oppure Avere.
+5. Per ogni riga cercare dinamicamente il conto per codice o descrizione, quindi inserire descrizione e importo in Dare oppure Avere. È possibile fare clic sul risultato oppure digitare un codice univoco e premere Tab/Invio: il conto riconosciuto viene selezionato automaticamente.
 6. Verificare che totale Dare e totale Avere coincidano al centesimo.
 7. Salvare.
 8. Contabilizzare quando la registrazione è completa.

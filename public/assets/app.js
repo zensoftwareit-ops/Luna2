@@ -211,6 +211,16 @@
       const hidden = row.querySelector('[data-account-field="account_id"]');
       const results = row.querySelector('[data-line-account-results]');
       const select = (account) => { hidden.value = String(account.id); search.value = `${account.code} · ${account.name}`; results.hidden = true; search.setCustomValidity(''); };
+      const resolveTypedAccount = () => {
+        const query = normalizeAccount(search.value.trim());
+        if (!query) return false;
+        const exact = accountCatalog.find((account) => normalizeAccount(account.code) === query || normalizeAccount(`${account.code} · ${account.name}`) === query);
+        const candidates = accountCatalog.filter((account) => normalizeAccount(`${account.code} ${account.name}`).includes(query));
+        const match = exact || (candidates.length === 1 ? candidates[0] : null);
+        if (!match) return false;
+        select(match);
+        return true;
+      };
       const render = () => {
         const query = normalizeAccount(search.value);
         const matches = accountCatalog.filter((account) => !query || normalizeAccount(`${account.code} ${account.name}`).includes(query)).slice(0, 35);
@@ -222,8 +232,13 @@
       if (selected) select(selected);
       search.addEventListener('focus', render);
       search.addEventListener('input', () => { hidden.value = ''; search.setCustomValidity(''); render(); });
-      search.addEventListener('blur', () => window.setTimeout(() => { results.hidden = true; }, 150));
-      search.addEventListener('change', () => { if (!hidden.value) search.setCustomValidity('Seleziona un conto dai risultati.'); });
+      search.addEventListener('blur', () => window.setTimeout(() => { if (!hidden.value) resolveTypedAccount(); results.hidden = true; }, 150));
+      search.addEventListener('change', () => { if (!hidden.value && !resolveTypedAccount()) search.setCustomValidity('Seleziona un conto dai risultati.'); });
+      search.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        if (!hidden.value && resolveTypedAccount()) event.preventDefault();
+      });
+      lookup.resolveTypedAccount = resolveTypedAccount;
     };
     const addLine = (values = {}) => {
       const fragment = template.content.cloneNode(true);
@@ -248,6 +263,7 @@
       body.querySelectorAll('[data-line-account-lookup]').forEach((lookup) => {
         const search = lookup.querySelector('[data-line-account-search]');
         const hidden = lookup.querySelector('[data-account-field="account_id"]');
+        if (!hidden.value && typeof lookup.resolveTypedAccount === 'function') lookup.resolveTypedAccount();
         const valid = Boolean(hidden.value);
         search.setCustomValidity(valid ? '' : 'Seleziona un conto dai risultati della ricerca.');
         if (!valid) accountsValid = false;

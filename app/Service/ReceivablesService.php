@@ -70,22 +70,22 @@ final class ReceivablesService
                 throw new InvalidArgumentException(sprintf('L’importo supera il residuo di %.2f euro.', $outstanding));
             }
             $paymentType = $item['direction'] === 'RECEIVABLE' ? 'RECEIPT' : 'PAYMENT';
-            $bankAccountId = !empty($data['bank_account_id']) ? (int) $data['bank_account_id'] : null;
-            $cashAccountId = $this->cashOrBankAccount($bankAccountId);
+            [$bankAccountId, $settlementAccountId] = $this->settlementAccount($data);
+            $cashAccountId = $settlementAccountId ?: $this->cashOrBankAccount($bankAccountId);
             $causeId = $this->causeId($paymentType === 'RECEIPT' ? 'RECEIPT' : 'PAYMENT');
 
             $insert = $this->db->prepare(
                 "INSERT INTO payments
                  (organization_id, document_id, payment_schedule_id, payment_type, customer_id, supplier_id,
-                  bank_account_id, cause_id, payment_date, amount, currency, bank_amount, method, status, reference_number,
+                  bank_account_id, settlement_account_id, cause_id, payment_date, amount, currency, bank_amount, method, status, reference_number,
                   bank_name, description, reconciled, created_by, updated_by, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'POSTED', ?, ?, ?, 0, ?, ?, NOW(), NOW())"
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'POSTED', ?, ?, ?, 0, ?, ?, NOW(), NOW())"
             );
             $insert->execute([
                 $this->organizationId, $item['document_id'], $item['payment_schedule_id'], $paymentType,
                 $item['party_type'] === 'CUSTOMER' ? $item['party_id'] : null,
                 $item['party_type'] === 'SUPPLIER' ? $item['party_id'] : null,
-                $bankAccountId, $causeId, $date, $amount, $item['currency'], $amount,
+                $bankAccountId, $cashAccountId, $causeId, $date, $amount, $item['currency'], $amount,
                 trim((string) ($data['method'] ?? 'BANK_TRANSFER')) ?: 'BANK_TRANSFER',
                 $this->nullable($data['reference_number'] ?? null), $this->nullable($data['bank_name'] ?? null),
                 $this->nullable($data['description'] ?? null), $this->userId, $this->userId,
@@ -174,7 +174,9 @@ final class ReceivablesService
                 throw new RuntimeException('Partita collegata non trovata.');
             }
             $amount = (float) $payment['allocated_amount'];
-            $cashAccountId = $this->cashOrBankAccount($payment['bank_account_id'] ? (int) $payment['bank_account_id'] : null);
+            $cashAccountId = !empty($payment['settlement_account_id'])
+                ? (int) $payment['settlement_account_id']
+                : $this->cashOrBankAccount($payment['bank_account_id'] ? (int) $payment['bank_account_id'] : null);
             $partyAccountId = (int) $openItem['account_id'];
             $partyTag = !empty($openItem['party_id'])
                 ? ($openItem['party_type'] === 'SUPPLIER'
@@ -410,6 +412,54 @@ final class ReceivablesService
             }
         }
         return $this->mapping($bankAccountId === null ? 'CASH' : 'BANK');
+    }
+
+    /** @return array{0:?int,1:?int} */
+    private function settlementAccount(array $data): array
+    {
+        $source = trim((string) ($data['settlement_source'] ?? ''));
+        $bankAccountId = !empty($data['bank_account_id']) ? (int) $data['bank_account_id'] : null;
+        $accountId = null;
+        if (str_starts_with($source, 'bank:')) {
+            $bankAccountId = (int) substr($source, 5);
+        } elseif (str_starts_with($source, 'account:')) {
+            $accountId = (int) substr($source, 8);
+            $bankAccountId = null;
+        } elseif ($source !== '') {
+            throw new InvalidArgumentException('Seleziona una contropartita finanziaria valida.');
+        }
+        if ($accountId !== null) {
+            $statement = $this->db->prepare(
+                "SELECT a.id FROM chart_of_accounts a
+                 WHERE a.id = ? AND a.organization_id = ? AND a.active = 1 AND a.is_postable = 1
+                   AND a.account_type = 'ASSET'
+                   AND (a.system_key IN ('BANK','CASH')
+                        OR LOWER(a.name) REGEXP 'banca|bank|cassa|posta|paypal|carta|liquid'
+                        OR EXISTS (SELECT 1 FROM accounting_account_mappings m
+                                   WHERE m.organization_id = a.organization_id AND m.account_id = a.id
+                                     AND m.mapping_key IN ('BANK','CASH')))"
+            );
+            $statement->execute([$accountId, $this->organizationId]);
+            if (!(int) $statement->fetchColumn()) {
+                throw new InvalidArgumentException('Il conto finanziario selezionato non è attivo o movimentabile.');
+            }
+            return [null, $accountId];
+        }
+        if ($bankAccountId !== null) {
+            $statement = $this->db->prepare(
+                'SELECT b.chart_account_id FROM bank_accounts b
+                 JOIN chart_of_accounts a ON a.id = b.chart_account_id AND a.organization_id = b.organization_id
+                 WHERE b.id = ? AND b.organization_id = ? AND b.active = 1 AND a.active = 1
+                   AND a.is_postable = 1 AND a.account_type = \'ASSET\''
+            );
+            $statement->execute([$bankAccountId, $this->organizationId]);
+            $mappedAccount = $statement->fetchColumn();
+            if ($mappedAccount === false) {
+                throw new InvalidArgumentException('Il conto bancario selezionato non è disponibile.');
+            }
+            return [$bankAccountId, (int) $mappedAccount];
+        }
+        return [null, $this->mapping('CASH')];
     }
 
     private function causeId(string $category): ?int

@@ -29,11 +29,13 @@ final class BankingService
         }
         if ($chartAccountId !== null) {
             $statement = $this->db->prepare(
-                "SELECT COUNT(*) FROM chart_of_accounts WHERE id = ? AND organization_id = ? AND active = 1 AND is_postable = 1"
+                "SELECT COUNT(*) FROM chart_of_accounts
+                 WHERE id = ? AND organization_id = ? AND active = 1 AND is_postable = 1
+                   AND account_type = 'ASSET'"
             );
             $statement->execute([$chartAccountId, $this->organizationId]);
             if (!(int) $statement->fetchColumn()) {
-                throw new InvalidArgumentException('Conto contabile bancario non valido.');
+                throw new InvalidArgumentException('Il conto collegato alla banca deve essere un conto patrimoniale attivo, attivo e movimentabile.');
             }
         }
         $values = [

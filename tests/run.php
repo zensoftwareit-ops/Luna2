@@ -559,6 +559,10 @@ $assert(str_contains($entryView, 'source-document-preview') && str_contains($ent
     'La prima nota deve mostrare la fattura e consentire di correggere la descrizione delle righe.');
 $assert(str_contains($accountingFormView, 'data-manual-account-catalog') && str_contains($accountingFormView, 'data-guided-payment'),
     'La nuova prima nota deve offrire ricerca dinamica dei conti e registrazione guidata dallo scadenzario.');
+$assert(str_contains($accountingFormView, 'settlement_source')
+    && str_contains((string) file_get_contents($base . '/app/Service/ReceivablesService.php'), 'settlement_account_id')
+    && is_file($base . '/database/migrations/030_payment_settlement_account.sql'),
+    'Incassi e pagamenti devono conservare la banca o cassa effettivamente selezionata.');
 $assert(str_contains($accountingService, 'documentVatGroups') && str_contains($accountingService, 'vatBreakdown'),
     'La prima nota documentale deve mantenere la ripartizione IVA per articolo anche dopo le correzioni.');
 $assert(str_contains($vatService, 'nextVatProtocol')
