@@ -455,6 +455,10 @@ Nel campo **Contropartita finanziaria** si può scegliere un conto bancario conf
 7. Salvare.
 8. Contabilizzare quando la registrazione è completa.
 
+La tendina **Causale contabile** propone le causali standard attive (registrazione generica, fatture, incassi, pagamenti, assestamenti, ammortamenti, ritenute, chiusure e aperture). Le causali DATEV importate ma non ancora verificate restano disattivate finché non vengono abilitate da **Contabilità → Piano dei conti e causali**. Se la tendina mostra soltanto “Nessuna”, verificare che tutte le migrazioni siano applicate.
+
+Il pulsante **Aggiungi riga** inserisce una nuova riga Dare/Avere. Cercare il conto per codice o descrizione e selezionare il risultato; per una scrittura manuale servono almeno due righe e il totale Dare deve coincidere con il totale Avere.
+
 ### 11.3 Cercare una scrittura
 
 Usare ricerca, intervallo date, stato e conto. La ricerca riconosce protocollo Luna2, protocollo DATEV e descrizione.

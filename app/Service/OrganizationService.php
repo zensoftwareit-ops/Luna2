@@ -164,6 +164,11 @@ final class OrganizationService
             ['FAC', 'Fattura di acquisto', 'PURCHASE', 'Fattura di acquisto', 1, 1],
             ['INC', 'Incasso cliente', 'RECEIPT', 'Incasso cliente', 0, 1],
             ['PAG', 'Pagamento fornitore', 'PAYMENT', 'Pagamento fornitore', 0, 1],
+            ['ASS', 'Scrittura di assestamento', 'ADJUSTMENT', 'Scrittura di assestamento', 0, 1],
+            ['AMM', 'Ammortamento cespiti', 'DEPRECIATION', 'Ammortamento cespiti', 0, 1],
+            ['RIT', 'Ritenute e contributi', 'WITHHOLDING', 'Ritenute e contributi', 0, 1],
+            ['CHI', 'Chiusura esercizio', 'CLOSING', 'Chiusura esercizio', 0, 1],
+            ['APE', 'Apertura esercizio', 'OPENING', 'Apertura esercizio', 0, 1],
         ] as $row) {
             $cause->execute(array_merge([$organizationId], $row));
         }

@@ -207,6 +207,7 @@
     try { accountCatalog = JSON.parse(document.querySelector('[data-manual-account-catalog]')?.textContent || '[]'); } catch (_) { accountCatalog = []; }
     const normalizeAccount = (text) => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
     const setupAccountLookup = (row, values) => {
+      const lookup = row.querySelector('[data-line-account-lookup]');
       const search = row.querySelector('[data-line-account-search]');
       const hidden = row.querySelector('[data-account-field="account_id"]');
       const results = row.querySelector('[data-line-account-results]');

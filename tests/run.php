@@ -559,6 +559,11 @@ $assert(str_contains($entryView, 'source-document-preview') && str_contains($ent
     'La prima nota deve mostrare la fattura e consentire di correggere la descrizione delle righe.');
 $assert(str_contains($accountingFormView, 'data-manual-account-catalog') && str_contains($accountingFormView, 'data-guided-payment'),
     'La nuova prima nota deve offrire ricerca dinamica dei conti e registrazione guidata dallo scadenzario.');
+$appJavascript = (string) file_get_contents($base . '/public/assets/app.js');
+$assert(str_contains($appJavascript, "const lookup = row.querySelector('[data-line-account-lookup]')")
+    && str_contains($appJavascript, 'lookup.resolveTypedAccount = resolveTypedAccount')
+    && is_file($base . '/database/migrations/031_restore_standard_accounting_causes.sql'),
+    'La prima nota manuale deve aggiungere righe senza errori e disporre delle causali contabili standard.');
 $assert(str_contains($accountingFormView, 'settlement_source')
     && str_contains((string) file_get_contents($base . '/app/Service/ReceivablesService.php'), 'settlement_account_id')
     && is_file($base . '/database/migrations/030_payment_settlement_account.sql'),
