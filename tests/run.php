@@ -479,7 +479,11 @@ $assert(str_contains($trialBalanceView, 'PDF sintetico')
     && str_contains($trialBalanceView, 'include_parties')
     && str_contains($trialBalanceService, 'partyBalances')
     && str_contains($trialBalanceService, 'Saldo non attribuito a un sottoconto')
-    && str_contains($tabularExport, 'streamTrialBalancePdf'),
+    && str_contains($tabularExport, 'streamTrialBalancePdf')
+    && str_contains($tabularExport, "setPaper('A4', 'portrait')")
+    && str_contains($tabularExport, 'SITUAZIONE CONTABILE A SEZIONI PER COMPETENZA')
+    && str_contains($tabularExport, 'STATO PATRIMONIALE')
+    && str_contains($tabularExport, 'CONTO ECONOMICO'),
     'La situazione contabile deve offrire stampe a sezioni contrapposte con e senza saldi clienti/fornitori.');
 $standardCausesMigration = (string) file_get_contents($base . '/database/migrations/031_restore_standard_accounting_causes.sql');
 $assert((bool) preg_match('/WHERE 1 = 1\s+ON DUPLICATE KEY UPDATE/', $standardCausesMigration),
