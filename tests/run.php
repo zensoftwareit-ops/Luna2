@@ -640,6 +640,10 @@ $assert(str_contains($application, "'/accounting/subledgers/reconcile'") && str_
 $assert(str_contains($accountingService, "['supplier_id' => \$partyId]") && str_contains($accountingService, "['customer_id' => \$partyId]"), 'Le fatture devono alimentare automaticamente il sottoconto cliente/fornitore.');
 $assert(str_contains($receivablesService, "['supplier_id' => (int) \$item['party_id']]") && str_contains($receivablesService, "['customer_id' => (int) \$item['party_id']]"), 'Incassi e pagamenti devono alimentare automaticamente il sottoconto cliente/fornitore.');
 $assert(str_contains($receivablesService, "array_key_exists('balance_due', \$document)"), 'Le scadenze devono usare il netto dovuto e non il totale lordo in presenza di ritenute.');
+$assert(str_contains($receivablesService, 'alignWithholdingSchedules')
+    && str_contains($receivablesService, "abs((float) (\$document['total'] ?? 0)) - \$withholding")
+    && is_file($base . '/database/migrations/033_realign_withholding_schedules.sql'),
+    'Le scadenze esistenti dei percipienti devono essere riallineate automaticamente al netto da pagare.');
 $assert(str_contains($resourceController, "'CLI-'") && str_contains($resourceController, "'FOR-'") && substr_count($importService, "LPAD(id, 8, '0')") >= 2, 'I codici sottoconto devono essere generati automaticamente per anagrafiche e importazioni.');
 $assert(str_contains($accountingService, 'accounting_account_mappings m')
     && str_contains($accountingService, 'Automatismi contabili incompleti'),

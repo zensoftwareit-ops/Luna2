@@ -23,7 +23,8 @@ final class ReceivablesService
     {
         $statement = $this->db->prepare(
             "SELECT id, document_type, number, document_date, due_date, counterparty_type, counterparty_id,
-                    counterparty_name, total, balance_due, currency, status
+                    counterparty_name, total, withholding_total, balance_due, currency, status,
+                    fatturapa_type, payment_method_code, bank_iban
              FROM documents
              WHERE organization_id = ? AND document_type IN ('SALES_INVOICE','PURCHASE_INVOICE','CREDIT_NOTE')
                AND status NOT IN ('DRAFT','CANCELLED') ORDER BY document_date, id"
@@ -335,6 +336,7 @@ final class ReceivablesService
         $statement = $this->db->prepare('SELECT * FROM payment_schedules WHERE organization_id = ? AND document_id = ? ORDER BY installment_number');
         $statement->execute([$this->organizationId, $document['id']]);
         $schedules = $statement->fetchAll();
+        $schedules = $this->alignWithholdingSchedules($document, $schedules);
         if ($schedules === []) {
             $amount = array_key_exists('balance_due', $document)
                 ? abs((float) $document['balance_due'])
@@ -368,9 +370,23 @@ final class ReceivablesService
         );
         $created = 0;
         foreach ($schedules as $schedule) {
-            $exists = $this->db->prepare('SELECT id FROM accounting_open_items WHERE organization_id = ? AND payment_schedule_id = ?');
+            $exists = $this->db->prepare('SELECT id, settled_amount FROM accounting_open_items WHERE organization_id = ? AND payment_schedule_id = ?');
             $exists->execute([$this->organizationId, $schedule['id']]);
-            if ($exists->fetchColumn()) {
+            $existingItem = $exists->fetch();
+            if ($existingItem) {
+                if ((float) $existingItem['settled_amount'] <= .005) {
+                    $status = (float) $schedule['amount'] <= .005
+                        ? 'SETTLED'
+                        : ((string) $schedule['due_date'] < date('Y-m-d') ? 'OVERDUE' : 'OPEN');
+                    $this->db->prepare(
+                        'UPDATE accounting_open_items
+                         SET original_amount = ?, due_date = ?, status = ?, updated_by = ?, updated_at = NOW()
+                         WHERE id = ? AND organization_id = ?'
+                    )->execute([
+                        abs((float) $schedule['amount']), $schedule['due_date'], $status, $this->userId,
+                        $existingItem['id'], $this->organizationId,
+                    ]);
+                }
                 continue;
             }
             $settled = min((float) $schedule['amount'], (float) $schedule['paid_amount']);
@@ -385,6 +401,50 @@ final class ReceivablesService
             $created++;
         }
         return $created;
+    }
+
+    /**
+     * Le rate FatturaPA possono contenere il lordo documento anche quando è
+     * presente una ritenuta. Finché la partita non è stata movimentata, il
+     * debito verso il professionista deve essere riallineato al netto dovuto.
+     */
+    private function alignWithholdingSchedules(array $document, array $schedules): array
+    {
+        $withholding = abs((float) ($document['withholding_total'] ?? 0));
+        if ($withholding <= .005 || $schedules === []) {
+            return $schedules;
+        }
+        $netPayable = round(max(0, abs((float) ($document['total'] ?? 0)) - $withholding), 2);
+        $scheduled = round(array_sum(array_map(static fn (array $row): float => abs((float) $row['amount']), $schedules)), 2);
+        if (abs($scheduled - $netPayable) <= .02) {
+            return $schedules;
+        }
+        foreach ($schedules as $schedule) {
+            if ((float) $schedule['paid_amount'] > .005) {
+                return $schedules;
+            }
+        }
+
+        $remaining = $netPayable;
+        $last = array_key_last($schedules);
+        foreach ($schedules as $index => &$schedule) {
+            $amount = $index === $last
+                ? $remaining
+                : round($scheduled > .005 ? $netPayable * abs((float) $schedule['amount']) / $scheduled : 0, 2);
+            $amount = max(0, min($remaining, $amount));
+            $remaining = round($remaining - $amount, 2);
+            $status = $amount <= .005 ? 'PAID' : ((string) $schedule['due_date'] < date('Y-m-d') ? 'OVERDUE' : 'OPEN');
+            $this->db->prepare(
+                'UPDATE payment_schedules SET amount = ?, status = ?, updated_at = NOW()
+                 WHERE id = ? AND organization_id = ?'
+            )->execute([$amount, $status, $schedule['id'], $this->organizationId]);
+            $schedule['amount'] = $amount;
+            $schedule['status'] = $status;
+        }
+        unset($schedule);
+        $this->db->prepare('UPDATE documents SET balance_due = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+            ->execute([$netPayable, $document['id'], $this->organizationId]);
+        return $schedules;
     }
 
     private function updateScheduleAndDocument(array $item, float $amount, string $date): void
