@@ -70,6 +70,7 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         $accounts = $this->accounts();
+        $accountCatalog = $this->accountCatalog($accounts);
         [$causes, $vatRegisters] = $this->journalOptions();
         $requestedDate = trim((string) ($_GET['entry_date'] ?? ''));
         $parsedDate = $requestedDate !== '' ? DateTimeImmutable::createFromFormat('!Y-m-d', $requestedDate) : false;
@@ -105,19 +106,20 @@ final class AccountingController extends BaseController
         );
         $settlementStatement->execute([Auth::organizationId()]);
         $settlementAccounts = $settlementStatement->fetchAll();
-        $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines', 'openItems', 'bankAccounts', 'settlementAccounts') + ['title' => 'Nuova registrazione']);
+        $this->view->render('accounting/form', compact('accounts', 'accountCatalog', 'causes', 'vatRegisters', 'entry', 'lines', 'openItems', 'bankAccounts', 'settlementAccounts') + ['title' => 'Nuova registrazione']);
     }
 
     public function edit(string $id): never
     {
         $this->authorize();
         [$entry, $lines] = $this->entry((int) $id);
-        if (!in_array($entry['status'], ['DRAFT', 'POSTED'], true) || $entry['source_type'] !== 'MANUAL' || !empty($entry['is_finalized'])) {
-            $this->redirect('/accounting/journal/' . (int) $id, 'La scrittura è definitiva, stornata o collegata a un automatismo.', 'error');
+        if (!in_array($entry['status'], ['DRAFT', 'POSTED'], true) || !in_array($entry['source_type'], ['MANUAL', 'DOCUMENT'], true) || !empty($entry['is_finalized'])) {
+            $this->redirect('/accounting/journal/' . (int) $id, 'La scrittura è definitiva, stornata o non modificabile.', 'error');
         }
         $accounts = $this->accounts();
+        $accountCatalog = $this->accountCatalog($accounts);
         [$causes, $vatRegisters] = $this->journalOptions();
-        $this->view->render('accounting/form', compact('accounts', 'causes', 'vatRegisters', 'entry', 'lines') + ['title' => 'Modifica prima nota']);
+        $this->view->render('accounting/form', compact('accounts', 'accountCatalog', 'causes', 'vatRegisters', 'entry', 'lines') + ['title' => 'Modifica prima nota']);
     }
 
     public function editLines(string $id): never
@@ -128,7 +130,8 @@ final class AccountingController extends BaseController
             $this->redirect('/accounting/journal/' . (int) $id, 'La scrittura è definitiva, stornata o non modificabile.', 'error');
         }
         $accounts = $this->accounts();
-        $this->view->render('accounting/lines-form', compact('entry', 'lines', 'accounts') + ['title' => 'Modifica righe prima nota']);
+        $accountCatalog = $this->accountCatalog($accounts);
+        $this->view->render('accounting/lines-form', compact('entry', 'lines', 'accounts', 'accountCatalog') + ['title' => 'Modifica righe prima nota']);
     }
 
     public function saveLines(string $id): never
@@ -880,6 +883,46 @@ final class AccountingController extends BaseController
         );
         $statement->execute([Auth::organizationId()]);
         return $statement->fetchAll();
+    }
+
+    /**
+     * Catalogo unico per la ricerca in prima nota. I sottoconti non duplicano il
+     * piano dei conti: conservano il conto collettivo e valorizzano customer_id
+     * oppure supplier_id sulla singola riga.
+     */
+    private function accountCatalog(array $accounts): array
+    {
+        $catalog = array_map(static fn (array $account): array => [
+            'id' => (int) $account['id'], 'code' => (string) $account['code'],
+            'name' => (string) $account['name'], 'customer_id' => null, 'supplier_id' => null,
+            'kind' => 'ACCOUNT',
+        ], $accounts);
+        $mapping = $this->db->prepare(
+            "SELECT mapping_key, account_id FROM accounting_account_mappings
+             WHERE organization_id = ? AND mapping_key IN ('TRADE_RECEIVABLES','TRADE_PAYABLES')"
+        );
+        $mapping->execute([Auth::organizationId()]);
+        $mapped = [];
+        foreach ($mapping->fetchAll() as $row) $mapped[(string) $row['mapping_key']] = (int) $row['account_id'];
+        foreach ([
+            ['customers', 'CUSTOMER', 'TRADE_RECEIVABLES', 'customer_id'],
+            ['suppliers', 'SUPPLIER', 'TRADE_PAYABLES', 'supplier_id'],
+        ] as [$table, $kind, $mappingKey, $idKey]) {
+            if (empty($mapped[$mappingKey])) continue;
+            $statement = $this->db->prepare("SELECT id, code, business_name FROM {$table} WHERE organization_id = ? AND active = 1 ORDER BY business_name, code");
+            $statement->execute([Auth::organizationId()]);
+            foreach ($statement->fetchAll() as $party) {
+                $catalog[] = [
+                    'id' => $mapped[$mappingKey],
+                    'code' => (string) $party['code'],
+                    'name' => (string) $party['business_name'],
+                    'customer_id' => $idKey === 'customer_id' ? (int) $party['id'] : null,
+                    'supplier_id' => $idKey === 'supplier_id' ? (int) $party['id'] : null,
+                    'kind' => $kind,
+                ];
+            }
+        }
+        return $catalog;
     }
 
     /** @return array{0:?int,1:?int} */

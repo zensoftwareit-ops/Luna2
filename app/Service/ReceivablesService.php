@@ -144,6 +144,107 @@ final class ReceivablesService
         }
     }
 
+    /**
+     * Registra con un'unica scrittura bancaria più partite omogenee. Ogni
+     * fattura mantiene il proprio pagamento e la propria allocazione, mentre
+     * la prima nota espone una sola contropartita banca/cassa per il totale.
+     */
+    public function recordPayments(array $data): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array) ($data['open_item_ids'] ?? [])), static fn (int $id): bool => $id > 0)));
+        if ($ids === []) return $this->recordPayment($data);
+        $date = $this->date((string) ($data['payment_date'] ?? ''));
+        [$bankAccountId, $settlementAccountId] = $this->settlementAccount($data);
+        $cashAccountId = $settlementAccountId ?: $this->cashOrBankAccount($bankAccountId);
+        $amounts = (array) ($data['amounts'] ?? []);
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+        try {
+            $items = [];
+            $direction = null;
+            foreach ($ids as $id) {
+                $statement = $this->db->prepare(
+                    "SELECT * FROM accounting_open_items WHERE id = ? AND organization_id = ?
+                     AND status IN ('OPEN','PARTIAL','OVERDUE','DISPUTED') FOR UPDATE"
+                );
+                $statement->execute([$id, $this->organizationId]);
+                $item = $statement->fetch();
+                if (!$item) throw new InvalidArgumentException('Una delle partite non è più disponibile. Aggiorna la pagina e riprova.');
+                if ($direction !== null && $direction !== $item['direction']) {
+                    throw new InvalidArgumentException('Incassi clienti e pagamenti fornitori richiedono scritture separate.');
+                }
+                $direction = (string) $item['direction'];
+                $outstanding = round((float) $item['original_amount'] - (float) $item['settled_amount'], 2);
+                $amount = round($this->decimal($amounts[$id] ?? $outstanding), 2);
+                if ($amount <= 0 || $amount > $outstanding + .005) {
+                    throw new InvalidArgumentException(sprintf('Importo non valido per la partita %s; residuo %.2f euro.', $item['reference'] ?: ('#' . $id), $outstanding));
+                }
+                $item['payment_amount'] = $amount;
+                $items[] = $item;
+            }
+            $paymentType = $direction === 'RECEIVABLE' ? 'RECEIPT' : 'PAYMENT';
+            $causeId = $this->causeId($paymentType);
+            $insert = $this->db->prepare(
+                "INSERT INTO payments
+                 (organization_id, document_id, payment_schedule_id, payment_type, customer_id, supplier_id,
+                  bank_account_id, settlement_account_id, cause_id, payment_date, amount, currency, bank_amount, method, status,
+                  reference_number, bank_name, description, reconciled, created_by, updated_by, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'POSTED', ?, ?, ?, 0, ?, ?, NOW(), NOW())"
+            );
+            $allocation = $this->db->prepare('INSERT INTO payment_allocations (organization_id,payment_id,open_item_id,amount,created_by,created_at) VALUES (?,?,?,?,?,NOW())');
+            $paymentIds = [];
+            $lines = [];
+            $total = 0.0;
+            foreach ($items as $item) {
+                $amount = (float) $item['payment_amount'];
+                $insert->execute([
+                    $this->organizationId, $item['document_id'], $item['payment_schedule_id'], $paymentType,
+                    $item['party_type'] === 'CUSTOMER' ? $item['party_id'] : null,
+                    $item['party_type'] === 'SUPPLIER' ? $item['party_id'] : null,
+                    $bankAccountId, $cashAccountId, $causeId, $date, $amount, $item['currency'], $amount,
+                    trim((string) ($data['method'] ?? 'BANK_TRANSFER')) ?: 'BANK_TRANSFER',
+                    $this->nullable($data['reference_number'] ?? null), $this->nullable($data['bank_name'] ?? null),
+                    ($paymentType === 'RECEIPT' ? 'Incasso ' : 'Pagamento ') . $item['party_name'], $this->userId, $this->userId,
+                ]);
+                $paymentId = (int) $this->db->lastInsertId();
+                $paymentIds[] = $paymentId;
+                $allocation->execute([$this->organizationId, $paymentId, $item['id'], $amount, $this->userId]);
+                $settled = round((float) $item['settled_amount'] + $amount, 2);
+                $status = $settled >= (float) $item['original_amount'] - .005 ? 'SETTLED' : 'PARTIAL';
+                $this->db->prepare('UPDATE accounting_open_items SET settled_amount=?,status=?,updated_by=?,updated_at=NOW() WHERE id=? AND organization_id=?')
+                    ->execute([$settled, $status, $this->userId, $item['id'], $this->organizationId]);
+                $partyTag = !empty($item['party_id']) ? ($item['party_type'] === 'SUPPLIER'
+                    ? ['supplier_id' => (int) $item['party_id']] : ['customer_id' => (int) $item['party_id']]) : [];
+                $lines[] = $paymentType === 'RECEIPT'
+                    ? ['account_id' => (int) $item['account_id'], 'debit' => 0, 'credit' => $amount, 'description' => 'Chiusura credito ' . ($item['reference'] ?: '')] + $partyTag
+                    : ['account_id' => (int) $item['account_id'], 'debit' => $amount, 'credit' => 0, 'description' => 'Chiusura debito ' . ($item['reference'] ?: '')] + $partyTag;
+                $lines = array_merge($lines, $this->cashVatLines($item, $amount));
+                $total += $amount;
+            }
+            $lines[] = $paymentType === 'RECEIPT'
+                ? ['account_id' => $cashAccountId, 'debit' => $total, 'credit' => 0, 'description' => 'Incasso multiplo da ' . count($items) . ' partite']
+                : ['account_id' => $cashAccountId, 'debit' => 0, 'credit' => $total, 'description' => 'Pagamento multiplo di ' . count($items) . ' partite'];
+            $journalId = (new AccountingService($this->db, $this->organizationId, $this->userId))->postAutomated([
+                'entry_date' => $date, 'competence_date' => $date, 'entry_type' => $paymentType, 'cause_id' => $causeId,
+                'description' => ($paymentType === 'RECEIPT' ? 'Incasso' : 'Pagamento') . ' multiplo · ' . count($items) . ' fatture',
+                'document_number' => $this->nullable($data['reference_number'] ?? null),
+            ], $lines, 'PAYMENT_BATCH', $paymentIds[0]);
+            foreach ($items as $index => $item) {
+                $paymentId = $paymentIds[$index];
+                $this->db->prepare('UPDATE payments SET journal_entry_id=?,updated_at=NOW() WHERE id=? AND organization_id=?')->execute([$journalId, $paymentId, $this->organizationId]);
+                $this->updateScheduleAndDocument($item, (float) $item['payment_amount'], $date);
+                if ($this->recognizeCashVat($item, $paymentId, (float) $item['payment_amount'], $date) > 0) {
+                    (new VatService($this->db, $this->organizationId, $this->userId))->invalidateForDate($date);
+                }
+            }
+            if ($ownsTransaction) $this->db->commit();
+            return $journalId;
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
     public function reversePayment(int $paymentId, string $reversalDate): int
     {
         $date = $this->date($reversalDate);

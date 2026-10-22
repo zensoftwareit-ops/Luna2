@@ -8,7 +8,10 @@ $existingLines = array_map(static fn (array $line): array => [
     'description' => (string) ($line['description'] ?? ''),
     'debit' => $line['debit'] ?? 0,
     'credit' => $line['credit'] ?? 0,
+    'customer_id' => !empty($line['customer_id']) ? (int) $line['customer_id'] : null,
+    'supplier_id' => !empty($line['supplier_id']) ? (int) $line['supplier_id'] : null,
 ], $lines);
+$accountCatalog = $accountCatalog ?? array_map(static fn (array $account): array => ['id'=>(int)$account['id'],'code'=>(string)$account['code'],'name'=>(string)$account['name'],'customer_id'=>null,'supplier_id'=>null,'kind'=>'ACCOUNT'], $accounts);
 ?>
 <section class="page-intro compact">
     <div>
@@ -48,6 +51,6 @@ $existingLines = array_map(static fn (array $line): array => [
         <a class="button ghost" href="/accounting/journal/<?= (int) $entry['id'] ?>">Annulla</a>
         <button class="button primary" type="submit"><?= View::icon('check') ?> Salva righe provvisorie</button>
     </div>
-    <template id="accounting-line-template"><tr><td><div class="account-lookup accounting-line-lookup" data-line-account-lookup><input type="search" data-line-account-search placeholder="Cerca codice o descrizione…" autocomplete="off" required><input type="hidden" data-account-field="account_id"><input type="hidden" data-account-field="line_id"><div class="account-lookup-results" data-line-account-results hidden></div></div></td><td><input data-account-field="description" maxlength="500"></td><td><input data-account-field="debit" inputmode="decimal" value="0"></td><td><input data-account-field="credit" inputmode="decimal" value="0"></td><td><button type="button" class="table-action danger-text" data-remove-line>Rimuovi</button></td></tr></template>
-    <script type="application/json" data-manual-account-catalog><?= json_encode(array_map(static fn (array $account): array => ['id'=>(int)$account['id'],'code'=>(string)$account['code'],'name'=>(string)$account['name']], $accounts), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
+    <template id="accounting-line-template"><tr><td><div class="account-lookup accounting-line-lookup" data-line-account-lookup><input type="search" data-line-account-search placeholder="Cerca conto, cliente o fornitore…" autocomplete="off" required><input type="hidden" data-account-field="account_id"><input type="hidden" data-account-field="customer_id"><input type="hidden" data-account-field="supplier_id"><input type="hidden" data-account-field="line_id"><div class="account-lookup-results" data-line-account-results hidden></div></div></td><td><input data-account-field="description" maxlength="500"></td><td><input data-account-field="debit" inputmode="decimal" value="0"></td><td><input data-account-field="credit" inputmode="decimal" value="0"></td><td><button type="button" class="table-action danger-text" data-remove-line>Rimuovi</button></td></tr></template>
+    <script type="application/json" data-manual-account-catalog><?= json_encode($accountCatalog, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
 </form>

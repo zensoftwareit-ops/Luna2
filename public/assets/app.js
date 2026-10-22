@@ -222,6 +222,8 @@
       const lookup = row.querySelector('[data-line-account-lookup]');
       const search = row.querySelector('[data-line-account-search]');
       const hidden = row.querySelector('[data-account-field="account_id"]');
+      const customer = row.querySelector('[data-account-field="customer_id"]');
+      const supplier = row.querySelector('[data-account-field="supplier_id"]');
       const results = row.querySelector('[data-line-account-results]');
       const closeResults = () => {
         results.hidden = true;
@@ -248,12 +250,20 @@
         if (openAbove) results.style.bottom = `${window.innerHeight - rect.top + 5}px`;
         search.setAttribute('aria-expanded', 'true');
       };
-      const select = (account) => { hidden.value = String(account.id); search.value = `${account.code} · ${account.name}`; closeResults(); search.setCustomValidity(''); };
+      const select = (account) => {
+        hidden.value = String(account.id);
+        if (customer) customer.value = account.customer_id ? String(account.customer_id) : '';
+        if (supplier) supplier.value = account.supplier_id ? String(account.supplier_id) : '';
+        const suffix = account.kind === 'CUSTOMER' ? ' · Cliente' : account.kind === 'SUPPLIER' ? ' · Fornitore' : '';
+        search.value = `${account.code} · ${account.name}${suffix}`;
+        closeResults();
+        search.setCustomValidity('');
+      };
       const resolveTypedAccount = () => {
         const query = normalizeAccount(search.value.trim());
         if (!query) return false;
-        const exact = accountCatalog.find((account) => normalizeAccount(account.code) === query || normalizeAccount(`${account.code} · ${account.name}`) === query);
-        const candidates = accountCatalog.filter((account) => normalizeAccount(`${account.code} ${account.name}`).includes(query));
+        const exact = accountCatalog.find((account) => normalizeAccount(account.code) === query || normalizeAccount(`${account.code} · ${account.name}`) === query || normalizeAccount(`${account.code} · ${account.name} · ${account.kind === 'CUSTOMER' ? 'Cliente' : account.kind === 'SUPPLIER' ? 'Fornitore' : ''}`) === query);
+        const candidates = accountCatalog.filter((account) => normalizeAccount(`${account.code} ${account.name} ${account.kind || ''}`).includes(query));
         const match = exact || (candidates.length === 1 ? candidates[0] : null);
         if (!match) return false;
         select(match);
@@ -261,16 +271,18 @@
       };
       const render = () => {
         const query = normalizeAccount(search.value);
-        const matches = accountCatalog.filter((account) => !query || normalizeAccount(`${account.code} ${account.name}`).includes(query)).slice(0, 35);
-        results.replaceChildren(...matches.map((account) => { const option = document.createElement('button'); option.type = 'button'; option.className = 'account-lookup-option'; option.innerHTML = `<strong></strong><small></small>`; option.querySelector('strong').textContent = account.code; option.querySelector('small').textContent = account.name; option.addEventListener('click', () => select(account)); return option; }));
+        const matches = accountCatalog.filter((account) => !query || normalizeAccount(`${account.code} ${account.name} ${account.kind || ''}`).includes(query)).slice(0, 35);
+        results.replaceChildren(...matches.map((account) => { const option = document.createElement('button'); option.type = 'button'; option.className = 'account-lookup-option'; option.innerHTML = `<strong></strong><small></small>`; option.querySelector('strong').textContent = account.code; option.querySelector('small').textContent = `${account.name}${account.kind === 'CUSTOMER' ? ' · sottoconto cliente' : account.kind === 'SUPPLIER' ? ' · sottoconto fornitore' : ''}`; option.addEventListener('mousedown', (event) => event.preventDefault()); option.addEventListener('click', () => select(account)); return option; }));
         if (!matches.length) { const empty = document.createElement('div'); empty.className = 'account-lookup-empty'; empty.textContent = 'Nessun conto trovato.'; results.appendChild(empty); }
         results.hidden = false;
         floatResults();
       };
-      const selected = accountCatalog.find((account) => Number(account.id) === Number(values.account_id || 0));
+      const selected = accountCatalog.find((account) => Number(account.id) === Number(values.account_id || 0)
+        && Number(account.customer_id || 0) === Number(values.customer_id || 0)
+        && Number(account.supplier_id || 0) === Number(values.supplier_id || 0));
       if (selected) select(selected);
       search.addEventListener('focus', render);
-      search.addEventListener('input', () => { hidden.value = ''; search.setCustomValidity(''); render(); });
+      search.addEventListener('input', () => { hidden.value = ''; if (customer) customer.value = ''; if (supplier) supplier.value = ''; search.setCustomValidity(''); render(); });
       search.addEventListener('blur', () => window.setTimeout(() => { if (!hidden.value) resolveTypedAccount(); closeResults(); }, 150));
       search.addEventListener('change', () => { if (!hidden.value && !resolveTypedAccount()) search.setCustomValidity('Seleziona un conto dai risultati.'); });
       search.addEventListener('keydown', (event) => {
@@ -318,24 +330,57 @@
   document.querySelectorAll('[data-guided-payment]').forEach((form) => {
     const lookup = form.querySelector('[data-guided-payment-lookup]');
     const search = form.querySelector('[data-guided-payment-search]');
-    const item = form.querySelector('[data-guided-payment-item]');
     const results = form.querySelector('[data-guided-payment-results]');
-    const amount = form.querySelector('[data-guided-payment-amount]');
+    const selectedRoot = form.querySelector('[data-guided-payment-items]');
+    const totalNode = form.querySelector('[data-guided-payment-total]');
     let catalog = [];
+    const selected = new Map();
     let activeIndex = -1;
     try { catalog = JSON.parse(form.querySelector('[data-guided-payment-catalog]')?.textContent || '[]'); } catch (_) { catalog = []; }
     const normalize = (value) => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('it');
     const close = () => { results.hidden = true; search.setAttribute('aria-expanded', 'false'); activeIndex = -1; };
+    const money = (value) => Number(value || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
+    const refreshSelected = () => {
+      selectedRoot.replaceChildren();
+      let total = 0;
+      selected.forEach((entry) => {
+        const row = document.createElement('div');
+        row.className = 'guided-payment-selected-row';
+        row.innerHTML = '<div><strong></strong><small></small></div><label><span>Importo</span><input inputmode="decimal" required></label><button type="button" class="table-action danger-text">Rimuovi</button>';
+        row.querySelector('strong').textContent = entry.primary;
+        row.querySelector('small').textContent = entry.secondary;
+        const input = row.querySelector('input');
+        input.name = `amounts[${entry.id}]`;
+        input.value = String(entry.amount ?? entry.outstanding).replace('.', ',');
+        const hidden = document.createElement('input');
+        hidden.type = 'hidden'; hidden.name = 'open_item_ids[]'; hidden.value = String(entry.id);
+        row.appendChild(hidden);
+        input.addEventListener('input', () => { entry.amount = input.value; updateTotal(); });
+        row.querySelector('button').addEventListener('click', () => { selected.delete(entry.id); refreshSelected(); });
+        selectedRoot.appendChild(row);
+        total += decimal(input.value);
+      });
+      if (!selected.size) { const empty = document.createElement('small'); empty.textContent = 'Nessuna partita selezionata.'; selectedRoot.appendChild(empty); }
+      totalNode.textContent = `Totale ${money(total)}`;
+    };
+    const decimal = (value) => { const raw = String(value || '').trim(); return Number.parseFloat(raw.includes(',') ? raw.replaceAll('.', '').replace(',', '.') : raw) || 0; };
+    const updateTotal = () => { let total = 0; selectedRoot.querySelectorAll('input[inputmode="decimal"]').forEach((input) => { total += decimal(input.value); }); totalNode.textContent = `Totale ${money(total)}`; };
     const select = (entry) => {
-      item.value = String(entry.id);
-      search.value = entry.label;
+      const direction = selected.values().next().value?.direction;
+      if (direction && direction !== entry.direction) {
+        search.setCustomValidity('Non puoi unire incassi clienti e pagamenti fornitori nella stessa scrittura.');
+        search.reportValidity();
+        return;
+      }
+      if (!selected.has(entry.id)) selected.set(entry.id, { ...entry, amount: entry.outstanding });
+      search.value = '';
       search.setCustomValidity('');
-      amount.value = String(entry.outstanding).replace('.', ',');
       close();
+      refreshSelected();
     };
     const matches = () => {
       const query = normalize(search.value.trim());
-      return catalog.filter((entry) => !query || normalize(entry.label).includes(query)).slice(0, 40);
+      return catalog.filter((entry) => !selected.has(entry.id) && (!query || normalize(entry.label).includes(query))).slice(0, 40);
     };
     const render = () => {
       const filtered = matches();
@@ -362,7 +407,7 @@
       activeIndex = -1;
     };
     search?.addEventListener('focus', render);
-    search?.addEventListener('input', () => { item.value = ''; amount.value = ''; search.setCustomValidity(''); render(); });
+    search?.addEventListener('input', () => { search.setCustomValidity(''); render(); });
     search?.addEventListener('blur', () => window.setTimeout(close, 150));
     search?.addEventListener('keydown', (event) => {
       const options = [...results.querySelectorAll('.account-lookup-option')];
@@ -384,10 +429,11 @@
       }
     });
     form.addEventListener('submit', (event) => {
-      const valid = Boolean(item.value);
-      search.setCustomValidity(valid ? '' : 'Cerca e seleziona una fattura dai risultati.');
+      const valid = selected.size > 0;
+      search.setCustomValidity(valid ? '' : 'Cerca e aggiungi almeno una fattura dai risultati.');
       if (!valid) { event.preventDefault(); search.reportValidity(); }
     });
+    refreshSelected();
   });
 
   document.querySelectorAll('[data-vat-summary]').forEach((root) => {

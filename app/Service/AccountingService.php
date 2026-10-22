@@ -34,6 +34,7 @@ final class AccountingService
         }
         $normalized = $this->normalizeLines($lines, 2);
         $this->assertAccountsBelongToOrganization($normalized);
+        $this->assertAnalyticParties($normalized);
         $this->assertHeaderReferences($header);
         $this->assertBalanced($normalized);
         $this->assertAccountingPeriodOpen($entryDate);
@@ -101,6 +102,7 @@ final class AccountingService
         $this->assertAccountingPeriodOpen($entryDate);
         $normalized = $this->normalizeLines($lines, $post ? 2 : 1);
         $this->assertAccountsBelongToOrganization($normalized);
+        $this->assertAnalyticParties($normalized);
         $this->assertHeaderReferences($header);
         if ($post) {
             $this->assertBalanced($normalized);
@@ -119,32 +121,40 @@ final class AccountingService
                 $lock = $this->db->prepare(
                     "SELECT * FROM journal_entries
                      WHERE id = ? AND organization_id = ? AND status IN ('DRAFT','POSTED')
-                       AND source_type = 'MANUAL' AND is_finalized = 0 FOR UPDATE"
+                       AND source_type IN ('MANUAL','DOCUMENT') AND is_finalized = 0 FOR UPDATE"
                 );
                 $lock->execute([$entryId, $this->organizationId]);
                 $current = $lock->fetch();
                 if (!$current) {
-                    throw new InvalidArgumentException('La scrittura è definitiva, stornata oppure collegata a un automatismo e non può essere modificata.');
+                    throw new InvalidArgumentException('La scrittura è definitiva, stornata o non può essere modificata.');
                 }
                 $previousEntryDate = (string) $current['entry_date'];
                 $this->assertAccountingPeriodOpen((string) $current['entry_date']);
+                if ((string) $current['source_type'] === 'DOCUMENT' && !empty($current['source_id'])) {
+                    $documentDateStatement = $this->db->prepare('SELECT document_date FROM documents WHERE id = ? AND organization_id = ?');
+                    $documentDateStatement->execute([(int) $current['source_id'], $this->organizationId]);
+                    $documentDate = (string) $documentDateStatement->fetchColumn();
+                    if ($documentDate === '' || $entryDate < $documentDate) {
+                        throw new InvalidArgumentException('La data di registrazione non può precedere la data del documento.');
+                    }
+                }
                 if ($current['status'] === 'POSTED') {
                     $reason = trim((string) ($header['change_reason'] ?? ''));
-                    if ($reason === '') {
-                        throw new InvalidArgumentException('Indicare il motivo della modifica della scrittura provvisoria.');
-                    }
+                    if ($reason === '') $reason = 'Modifica della scrittura contabile provvisoria';
                     $this->saveRevision($current, $reason);
                     $status = 'POSTED';
                 }
+                $protocol = substr((string) $current['entry_date'], 0, 4) === substr($entryDate, 0, 4)
+                    ? (string) $current['protocol_number'] : $this->nextProtocol($entryDate);
                 $statement = $this->db->prepare(
-                    "UPDATE journal_entries SET entry_date = ?, competence_date = ?, entry_type = ?, cause_id = ?, vat_register_id = ?, status = ?,
+                    "UPDATE journal_entries SET protocol_number = ?, entry_date = ?, competence_date = ?, entry_type = ?, cause_id = ?, vat_register_id = ?, status = ?,
                      description = ?, document_number = ?, source_protocol = ?, counterparty = ?, total_debit = ?, total_credit = ?,
                      notes = ?, updated_by = ?, revision_number = revision_number + 1,
                      posted_at = IF(? = 'POSTED', COALESCE(posted_at, NOW()), NULL), updated_at = NOW()
                      WHERE id = ? AND organization_id = ?"
                 );
                 $statement->execute([
-                    $entryDate, $competenceDate, $header['entry_type'] ?? 'MANUAL',
+                    $protocol, $entryDate, $competenceDate, $header['entry_type'] ?? 'MANUAL',
                     !empty($header['cause_id']) ? (int) $header['cause_id'] : null,
                     !empty($header['vat_register_id']) ? (int) $header['vat_register_id'] : null, $status,
                     $description,
@@ -155,6 +165,10 @@ final class AccountingService
                 ]);
                 $this->db->prepare('DELETE FROM journal_entry_lines WHERE journal_entry_id = ? AND organization_id = ?')
                     ->execute([$entryId, $this->organizationId]);
+                if ((string) $current['source_type'] === 'DOCUMENT' && !empty($current['source_id']) && $entryDate !== $previousEntryDate) {
+                    $this->db->prepare('UPDATE documents SET registration_date = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
+                        ->execute([$entryDate, (int) $current['source_id'], $this->organizationId]);
+                }
             } else {
                 $protocol = $this->nextProtocol($entryDate);
                 $statement = $this->db->prepare(
@@ -175,6 +189,9 @@ final class AccountingService
                 $entryId = (int) $this->db->lastInsertId();
             }
             $this->insertLines($entryId, $normalized);
+            if (isset($current) && (string) $current['source_type'] === 'DOCUMENT' && !empty($current['source_id']) && $entryDate !== $previousEntryDate) {
+                (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument((int) $current['source_id']);
+            }
             if ($status === 'POSTED') {
                 $this->invalidateJournalPrints($previousEntryDate, $entryDate);
             }
@@ -231,6 +248,7 @@ final class AccountingService
     {
         $normalized = $this->normalizeLines($lines, 2);
         $this->assertAccountsBelongToOrganization($normalized);
+        $this->assertAnalyticParties($normalized);
         $this->assertBalanced($normalized);
 
         $ownsTransaction = !$this->db->inTransaction();
@@ -267,8 +285,10 @@ final class AccountingService
                 }
                 $seen[$lineId] = true;
                 $line['cost_center_id'] = $existing[$lineId]['cost_center_id'] ?: null;
-                $line['customer_id'] = $existing[$lineId]['customer_id'] ?: null;
-                $line['supplier_id'] = $existing[$lineId]['supplier_id'] ?: null;
+                if (empty($line['customer_id']) && empty($line['supplier_id'])) {
+                    $line['customer_id'] = $existing[$lineId]['customer_id'] ?: null;
+                    $line['supplier_id'] = $existing[$lineId]['supplier_id'] ?: null;
+                }
             }
             unset($line);
 
@@ -968,21 +988,19 @@ final class AccountingService
                 return null;
             }
 
-            $existing = $this->db->prepare("SELECT id FROM journal_entries WHERE organization_id = ? AND source_type = 'DOCUMENT' AND source_id = ? LIMIT 1");
+            $existing = $this->db->prepare("SELECT id, is_finalized FROM journal_entries WHERE organization_id = ? AND source_type = 'DOCUMENT' AND source_id = ? LIMIT 1");
             $existing->execute([$this->organizationId, $documentId]);
-            if ($id = $existing->fetchColumn()) {
-                (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument($documentId);
-                if ($ownsTransaction) {
-                    $this->db->commit();
-                }
-                return (int) $id;
-            }
+            $existingEntry = $existing->fetch() ?: null;
 
             $date = (string) ($document['registration_date'] ?: $document['document_date']);
             $lines = [];
             $total = (float) $document['total'];
             $net = (float) $document['taxable_total'];
             $vat = (float) $document['vat_total'];
+            $withholding = max(0, round(abs((float) ($document['withholding_total'] ?? 0)), 2));
+            $partyAmount = $withholding > .005
+                ? round(max(0, abs((float) ($document['balance_due'] ?? 0))) ?: max(0, abs($total) - $withholding), 2)
+                : abs($total);
             $vatAccount = $this->isDeferredVat($document) ? 'VAT_CLEARING' : null;
             $isCreditNote = $document['document_type'] === 'CREDIT_NOTE'
                 || in_array(strtoupper((string) ($document['fatturapa_type'] ?? '')), ['TD04', 'TD08'], true);
@@ -1025,6 +1043,7 @@ final class AccountingService
             $requiredAccounts = $isPurchase
                 ? ['TRADE_PAYABLES', 'PURCHASE_COSTS']
                 : ['TRADE_RECEIVABLES', 'SALES_REVENUE'];
+            if ($isPurchase && $withholding > .005) $requiredAccounts[] = 'WITHHOLDING_PAYABLE';
             if ($vat > 0) {
                 $requiredAccounts[] = $vatAccount ?: ($isPurchase ? 'VAT_RECEIVABLE' : 'VAT_PAYABLE');
             }
@@ -1055,8 +1074,11 @@ final class AccountingService
             } elseif (!$isCreditNote) {
                 $lines = [
                     ['account_id' => $accounts['PURCHASE_COSTS'], 'debit' => round($net + $nonDeductibleVatTotal, 2), 'credit' => 0.0, 'description' => 'Costo documento ' . $document['number']],
-                    ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => 0.0, 'credit' => $total, 'description' => 'Debito verso ' . $document['counterparty_name']] + $partyTag,
+                    ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => 0.0, 'credit' => $partyAmount, 'description' => 'Netto dovuto a ' . $document['counterparty_name']] + $partyTag,
                 ];
+                if ($withholding > .005) {
+                    $lines[] = ['account_id' => $accounts['WITHHOLDING_PAYABLE'], 'debit' => 0.0, 'credit' => $withholding, 'description' => 'Ritenuta da versare all’erario'];
+                }
                 foreach ($documentVatGroups as $vatGroup) {
                     $amount = (float) $vatGroup['deductible_amount'];
                     if ($amount <= .005) continue;
@@ -1065,9 +1087,12 @@ final class AccountingService
                 }
             } else {
                 $lines = [
-                    ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => $total, 'credit' => 0.0, 'description' => 'Storno debito verso ' . $document['counterparty_name']] + $partyTag,
+                    ['account_id' => $accounts['TRADE_PAYABLES'], 'debit' => $partyAmount, 'credit' => 0.0, 'description' => 'Storno netto dovuto a ' . $document['counterparty_name']] + $partyTag,
                     ['account_id' => $accounts['PURCHASE_COSTS'], 'debit' => 0.0, 'credit' => round($net + $nonDeductibleVatTotal, 2), 'description' => 'Storno costi ' . $document['number']],
                 ];
+                if ($withholding > .005) {
+                    $lines[] = ['account_id' => $accounts['WITHHOLDING_PAYABLE'], 'debit' => $withholding, 'credit' => 0.0, 'description' => 'Storno ritenuta erario'];
+                }
                 foreach ($documentVatGroups as $vatGroup) {
                     $amount = (float) $vatGroup['deductible_amount'];
                     if ($amount <= .005) continue;
@@ -1075,11 +1100,28 @@ final class AccountingService
                     $lines[] = ['account_id' => $accounts[$vatAccount ?: 'VAT_RECEIVABLE'], 'debit' => 0.0, 'credit' => $amount, 'description' => ($vatAccount ? 'Storno IVA differita' : 'Storno IVA a credito') . ' · ' . $article];
                 }
             }
+            if ($existingEntry) {
+                if ($withholding > .005 && empty($existingEntry['is_finalized'])) {
+                    $withholdingLine = $this->db->prepare(
+                        "SELECT COALESCE(SUM(l.credit-l.debit),0) FROM journal_entry_lines l
+                         JOIN accounting_account_mappings m ON m.organization_id=l.organization_id AND m.account_id=l.account_id
+                         WHERE l.organization_id=? AND l.journal_entry_id=? AND m.mapping_key='WITHHOLDING_PAYABLE'"
+                    );
+                    $withholdingLine->execute([$this->organizationId, (int) $existingEntry['id']]);
+                    if (abs((float) $withholdingLine->fetchColumn() - $withholding) > .005) {
+                        $this->replaceProvisionalLines((int) $existingEntry['id'], $lines, 'Riallineamento automatico fattura con ritenuta');
+                    }
+                }
+                if ($ownsTransaction) $this->db->commit();
+                return (int) $existingEntry['id'];
+            }
             $entryId = $this->postAutomated([
                 'entry_date' => $date,
                 'competence_date' => $date,
                 'entry_type' => $document['document_type'],
-                'cause_id' => $this->causeForDocument((string) $document['document_type']),
+                'cause_id' => $withholding > .005
+                    ? $this->causeForWithholdingDocument((string) $document['document_type'])
+                    : $this->causeForDocument((string) $document['document_type']),
                 'description' => $document['counterparty_name'] . ' - ' . $document['number'],
                 'document_number' => $document['number'],
                 'counterparty' => $document['counterparty_name'],
@@ -1139,6 +1181,25 @@ final class AccountingService
         $statement->execute(array_merge([$this->organizationId], $ids));
         if ((int) $statement->fetchColumn() !== count($ids)) {
             throw new InvalidArgumentException('Uno o più conti non appartengono all’azienda o non sono movimentabili.');
+        }
+    }
+
+    private function assertAnalyticParties(array $lines): void
+    {
+        foreach ([['customer_id', 'customers'], ['supplier_id', 'suppliers']] as [$field, $table]) {
+            $ids = array_values(array_unique(array_filter(array_map(static fn (array $line): int => (int) ($line[$field] ?? 0), $lines))));
+            if ($ids === []) continue;
+            $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $statement = $this->db->prepare("SELECT COUNT(*) FROM {$table} WHERE organization_id = ? AND active = 1 AND id IN ({$placeholders})");
+            $statement->execute(array_merge([$this->organizationId], $ids));
+            if ((int) $statement->fetchColumn() !== count($ids)) {
+                throw new InvalidArgumentException('Uno dei sottoconti cliente/fornitore selezionati non è valido per questa azienda.');
+            }
+        }
+        foreach ($lines as $line) {
+            if (!empty($line['customer_id']) && !empty($line['supplier_id'])) {
+                throw new InvalidArgumentException('Una riga non può appartenere contemporaneamente a un cliente e a un fornitore.');
+            }
         }
     }
 
@@ -1234,6 +1295,16 @@ final class AccountingService
         );
         $statement->execute([$this->organizationId, $category]);
         return ($id = $statement->fetchColumn()) ? (int) $id : null;
+    }
+
+    private function causeForWithholdingDocument(string $documentType): ?int
+    {
+        $statement = $this->db->prepare(
+            "SELECT id FROM accounting_causes WHERE organization_id = ? AND active = 1
+             AND UPPER(code) IN ('A19','B19') ORDER BY FIELD(UPPER(code),'A19','B19'), id LIMIT 1"
+        );
+        $statement->execute([$this->organizationId]);
+        return ($id = $statement->fetchColumn()) ? (int) $id : $this->causeForDocument($documentType);
     }
 
     private function isDeferredVat(array $document): bool

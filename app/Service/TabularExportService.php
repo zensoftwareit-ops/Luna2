@@ -44,7 +44,7 @@ final class TabularExportService
                 $type = (string) ($row['party_type'] ?? '');
                 $partyLabel = $type === 'SUPPLIER' ? 'fornitore' : ($type === 'CUSTOMER' ? 'cliente' : '');
                 $html .= '<tr class="' . $classes . '"><td class="code">' . $escape($row['code'] ?? '') . '</td>'
-                    . '<td class="description" style="padding-left:' . (2 + $level * 7) . 'px">' . $escape($row['name'] ?? '')
+                    . '<td class="description">' . $escape($row['name'] ?? '')
                     . ($partyLabel !== '' ? '<small>' . $partyLabel . '</small>' : '')
                     . '</td><td class="num">' . $money($row['amount'] ?? 0) . '</td></tr>';
             }

@@ -594,9 +594,23 @@ $assert(str_contains($accountingFormView, 'data-manual-account-catalog')
 $appJavascript = (string) file_get_contents($base . '/public/assets/app.js');
 $assert(str_contains($appJavascript, "const lookup = row.querySelector('[data-line-account-lookup]')")
     && str_contains($appJavascript, 'lookup.resolveTypedAccount = resolveTypedAccount')
-    && str_contains($appJavascript, "search.setCustomValidity(valid ? '' : 'Cerca e seleziona una fattura dai risultati.')")
+    && str_contains($appJavascript, "search.setCustomValidity(valid ? '' : 'Cerca e aggiungi almeno una fattura dai risultati.')")
     && is_file($base . '/database/migrations/031_restore_standard_accounting_causes.sql'),
     'La prima nota manuale deve aggiungere righe senza errori e disporre delle causali contabili standard.');
+$assert(str_contains($accountingFormView, 'data-guided-payment-items')
+    && str_contains($appJavascript, "hidden.name = 'open_item_ids[]'")
+    && str_contains((string) file_get_contents($base . '/app/Service/ReceivablesService.php'), 'recordPayments')
+    && str_contains((string) file_get_contents($base . '/app/Controller/TreasuryController.php'), 'Pagamento multiplo contabilizzato'),
+    'La prima nota deve poter chiudere più fatture dello scadenzario con una sola scrittura e restare nel flusso contabile.');
+$assert(str_contains($accountingFormView, 'data-account-field="customer_id"')
+    && str_contains($accountingFormView, 'data-account-field="supplier_id"')
+    && str_contains($accountingController, 'private function accountCatalog')
+    && str_contains($appJavascript, 'sottoconto fornitore'),
+    'Le righe Dare/Avere devono ricercare anche i sottoconti cliente e fornitore.');
+$assert(str_contains($accountingService, "'WITHHOLDING_PAYABLE'")
+    && str_contains($accountingService, 'Ritenuta da versare all’erario')
+    && str_contains($accountingService, 'causeForWithholdingDocument'),
+    'Le fatture dei percipienti devono separare netto fornitore e ritenuta verso Erario.');
 $assert(str_contains($accountingFormView, 'settlement_source')
     && str_contains((string) file_get_contents($base . '/app/Service/ReceivablesService.php'), 'settlement_account_id')
     && is_file($base . '/database/migrations/030_payment_settlement_account.sql'),

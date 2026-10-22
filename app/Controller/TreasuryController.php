@@ -86,7 +86,20 @@ final class TreasuryController extends BaseController
     }
 
     public function sync(): never { $this->perform(fn (): int => $this->receivables()->syncDocuments(), 'Partite sincronizzate.', 'SYNC', 'accounting_open_items'); }
-    public function payment(): never { $this->perform(fn (): int => $this->receivables()->recordPayment($_POST), 'Pagamento registrato e contabilizzato.', 'CREATE', 'payments'); }
+    public function payment(): never
+    {
+        $this->authorize();
+        try {
+            $multiple = !empty($_POST['open_item_ids']);
+            $id = $multiple ? $this->receivables()->recordPayments($_POST) : $this->receivables()->recordPayment($_POST);
+            $this->audit($multiple ? 'CREATE_BATCH' : 'CREATE', $multiple ? 'journal_entries' : 'payments', $id);
+            $this->redirect($multiple ? '/accounting/journal/' . $id : '/accounting/journal', $multiple
+                ? 'Pagamento multiplo contabilizzato in un’unica scrittura.'
+                : 'Pagamento registrato e contabilizzato.');
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/create', $exception->getMessage(), 'error');
+        }
+    }
     public function reversePayment(string $id): never { $this->perform(fn (): int => $this->receivables()->reversePayment((int) $id, (string) ($_POST['reversal_date'] ?? '')), 'Pagamento stornato.', 'REVERSE', 'payments'); }
     public function bankAccount(): never { $this->perform(fn (): int => $this->banking()->saveAccount($_POST, !empty($_POST['id']) ? (int) $_POST['id'] : null), 'Conto bancario salvato.', 'SAVE', 'bank_accounts'); }
     public function bankTransaction(): never { $this->perform(fn (): int => $this->banking()->saveTransaction($_POST), 'Movimento bancario acquisito.', 'CREATE', 'bank_transactions'); }
