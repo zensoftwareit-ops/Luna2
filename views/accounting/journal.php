@@ -1,4 +1,4 @@
-<?php use Luna\Core\View; ?>
+<?php use Luna\Core\View; $causeId = $causeId ?? 0; $causes = $causes ?? []; ?>
 <section class="page-intro compact">
     <div><span class="eyebrow">Contabilità generale</span><h1>Prima nota</h1><p>Le scritture provvisorie partecipano a mastrini e bilanci e restano modificabili fino alla stampa definitiva o alla chiusura.</p></div>
     <a class="button primary" href="/accounting/journal/create"><?= View::icon('plus') ?> Nuova registrazione</a>
@@ -11,7 +11,7 @@
     <article class="<?= $totals['drafts'] ? 'attention' : '' ?>"><span>Bozze da completare</span><strong><?= (int) $totals['drafts'] ?></strong></article>
 </section>
 
-<?php $exportQuery = http_build_query(array_filter(['q'=>$search,'from'=>$from,'to'=>$to,'status'=>$status,'type'=>$type,'account_id'=>$accountId])); ?>
+<?php $exportQuery = http_build_query(array_filter(['q'=>$search,'from'=>$from,'to'=>$to,'status'=>$status,'type'=>$type,'account_id'=>$accountId,'cause_id'=>$causeId])); ?>
 <section class="list-toolbar accounting-toolbar exportable-toolbar">
     <form method="get" class="search-form filter-form">
         <span class="search-control"><?= View::icon('search') ?><input type="search" name="q" value="<?= View::e($search) ?>" placeholder="Protocollo Luna2 o DATEV, descrizione…"></span>
@@ -19,18 +19,19 @@
         <label>Al <input type="date" name="to" value="<?= View::e($to) ?>"></label>
         <select name="status"><option value="">Tutti gli stati</option><option value="DRAFT" <?= $status === 'DRAFT' ? 'selected' : '' ?>>Bozze incomplete</option><option value="POSTED" <?= $status === 'POSTED' ? 'selected' : '' ?>>Contabilizzate (provvisorie e definitive)</option><option value="REVERSED" <?= $status === 'REVERSED' ? 'selected' : '' ?>>Stornate</option></select>
         <select name="account_id"><option value="">Tutti i conti</option><?php foreach ($accounts as $account): ?><option value="<?= (int) $account['id'] ?>" <?= $accountId === (int) $account['id'] ? 'selected' : '' ?>><?= View::e($account['code'] . ' · ' . $account['name']) ?></option><?php endforeach; ?></select>
+        <select name="cause_id"><option value="">Tutte le causali</option><?php foreach ($causes as $cause): ?><option value="<?= (int) $cause['id'] ?>" <?= $causeId === (int) $cause['id'] ? 'selected' : '' ?>><?= View::e($cause['code'] . ' · ' . $cause['name'] . (empty($cause['active']) ? ' (non attiva)' : '')) ?></option><?php endforeach; ?></select>
         <button class="button" type="submit">Filtra</button>
     </form>
     <div class="export-actions"><a class="button ghost" href="/accounting/journal/export/pdf?<?= View::e($exportQuery) ?>">PDF</a><a class="button ghost" href="/accounting/journal/export/xlsx?<?= View::e($exportQuery) ?>">XLSX</a><a class="button ghost" href="/accounting/journal/export/csv?<?= View::e($exportQuery) ?>">CSV</a></div>
 </section>
 
 <section class="card data-card">
-    <div class="table-wrap"><table><thead><tr><th>Data</th><th>Protocollo</th><th>Tipo</th><th>Descrizione</th><th>Documento / controparte</th><th>Dare</th><th>Avere</th><th>Stato</th><th class="actions-column">Azioni</th></tr></thead><tbody>
+    <div class="table-wrap"><table><thead><tr><th>Data</th><th>Protocollo</th><th>Causale / tipo</th><th>Descrizione</th><th>Documento / controparte</th><th>Dare</th><th>Avere</th><th>Stato</th><th class="actions-column">Azioni</th></tr></thead><tbody>
     <?php foreach ($entries as $entry): ?>
         <tr class="<?= (int) ($entry['revision_number'] ?? 1) > 1 ? 'classified-row' : '' ?>">
             <td><?= View::date($entry['entry_date']) ?><small class="cell-subtitle">Comp. <?= View::date($entry['competence_date']) ?></small></td>
             <td class="primary-cell"><a href="/accounting/journal/<?= (int) $entry['id'] ?>"><?= View::e($entry['protocol_number']) ?></a><small><?= View::e($entry['source_protocol'] ?: $entry['source_type']) ?></small></td>
-            <td><?= View::e($entry['entry_type']) ?></td><td><?= View::e($entry['description']) ?></td>
+            <td><?php if (!empty($entry['cause_id'])): ?><a href="/accounting/journal?<?= View::e(http_build_query(['from'=>$from,'to'=>$to,'cause_id'=>$entry['cause_id']])) ?>"><strong><?= View::e($entry['cause_code']) ?></strong></a><small class="cell-subtitle"><?= View::e($entry['cause_name']) ?></small><?php else: ?><?= View::e($entry['entry_type']) ?><?php endif; ?></td><td><?= View::e($entry['description']) ?></td>
             <td><?= View::e($entry['document_number'] ?: '—') ?><small class="cell-subtitle"><?= View::e($entry['counterparty'] ?: '') ?></small></td>
             <td><?= View::money($entry['total_debit']) ?></td><td><?= View::money($entry['total_credit']) ?></td>
             <td><span class="badge status-<?= !empty($entry['is_finalized']) ? 'locked' : strtolower((string) $entry['status']) ?>"><?= match (true) { $entry['status'] === 'DRAFT' => 'Bozza incompleta', $entry['status'] === 'POSTED' && !empty($entry['is_finalized']) => 'Definitiva', $entry['status'] === 'POSTED' => 'Provvisoria', $entry['status'] === 'REVERSED' => 'Stornata', default => View::e($entry['status']) } ?></span><?php if ((int) ($entry['revision_number'] ?? 1) > 1): ?><small class="classification-mark">✓ Già modificata</small><?php endif; ?></td>

@@ -511,28 +511,30 @@ final class OfficialPrintService
         }
         $statement = $this->db->prepare('SELECT a.*, y.id AS schedule_id, y.original_cost, y.revaluations, y.writedowns,
             y.civil_opening_fund, y.tax_opening_fund, y.civil_rate, y.tax_rate, y.civil_quota, y.tax_quota,
-            y.disposal_date AS year_disposal_date, y.disposal_proceeds AS year_disposal_proceeds, y.evidence_reference
+            y.disposal_date AS year_disposal_date, y.disposal_proceeds AS year_disposal_proceeds, y.evidence_reference,
+            s.business_name AS supplier_name
             FROM fixed_assets a LEFT JOIN fixed_asset_register_years y
               ON y.fixed_asset_id = a.id AND y.organization_id = a.organization_id AND y.fiscal_year = ?
+            LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.organization_id = a.organization_id
             WHERE a.organization_id = ? AND a.purchase_date <= ? ORDER BY a.asset_code');
         $statement->execute([$year, $this->organizationId, $to]);
         $rows = [];
         foreach ($statement->fetchAll() as $asset) {
             if (!$asset['schedule_id']) {
                 $this->issues[] = 'Cespite ' . $asset['asset_code'] . ': completare la scheda annuale ' . $year . '.';
-                $rows[] = [$asset['asset_code'], $asset['description'], $asset['purchase_date'], 'DA COMPLETARE', '', '', '', '', '', '', '', '', '', '', '', ''];
+                $rows[] = [$asset['asset_code'], $asset['description'], $asset['purchase_date'], $asset['supplier_name'], $asset['purchase_document_number'], 'DA COMPLETARE', '', '', '', '', '', '', '', '', '', '', '', ''];
                 continue;
             }
             $base = (float) $asset['original_cost'] + (float) $asset['revaluations'] - (float) $asset['writedowns'];
             foreach (['civil' => 'Civilistico', 'tax' => 'Fiscale'] as $prefix => $label) {
                 $fund = round((float) $asset[$prefix . '_opening_fund'] + (float) $asset[$prefix . '_quota'], 2);
-                $rows[] = [$asset['asset_code'], $asset['description'], $asset['purchase_date'], $label,
+                $rows[] = [$asset['asset_code'], $asset['description'], $asset['purchase_date'], $asset['supplier_name'], $asset['purchase_document_number'], $label,
                     $asset['original_cost'], $asset['revaluations'], $asset['writedowns'], $asset[$prefix . '_opening_fund'],
                     $asset[$prefix . '_rate'], $asset[$prefix . '_quota'], $fund, round($base - $fund, 2),
                     $asset['year_disposal_date'], $asset['year_disposal_proceeds'], $asset['category'], $asset['evidence_reference']];
             }
         }
-        return [['Codice', 'Descrizione', 'Data acquisto', 'Valori', 'Costo storico', 'Rivalutazioni', 'Svalutazioni', 'Fondo iniziale',
+        return [['Codice', 'Descrizione', 'Data acquisto', 'Fornitore', 'Documento acquisto', 'Valori', 'Costo storico', 'Rivalutazioni', 'Svalutazioni', 'Fondo iniziale',
             'Coefficiente %', 'Quota annuale', 'Fondo finale', 'Valore netto', 'Eliminazione', 'Corrispettivo', 'Categoria', 'Riferimento verifica'], $rows];
     }
 

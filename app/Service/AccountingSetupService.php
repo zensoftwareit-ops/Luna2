@@ -271,6 +271,12 @@ final class AccountingSetupService
 
     public function saveCause(array $data, ?int $causeId = null): int
     {
+        $existing = [];
+        if ($causeId !== null) {
+            $statement = $this->db->prepare('SELECT document_type, creates_open_item, automatic FROM accounting_causes WHERE id = ? AND organization_id = ?');
+            $statement->execute([$causeId, $this->organizationId]);
+            $existing = $statement->fetch() ?: [];
+        }
         $code = strtoupper(trim((string) ($data['code'] ?? '')));
         $name = trim((string) ($data['name'] ?? ''));
         $category = strtoupper((string) ($data['category'] ?? 'GENERAL'));
@@ -280,8 +286,9 @@ final class AccountingSetupService
         }
         $values = [
             $code, $name, $category, !empty($data['vat_register_id']) ? (int) $data['vat_register_id'] : null,
-            $this->nullable($data['default_description'] ?? null), $this->nullable($data['document_type'] ?? null),
-            isset($data['creates_open_item']) ? 1 : 0, isset($data['automatic']) ? 1 : 0,
+            $this->nullable($data['default_description'] ?? null), $this->nullable($data['document_type'] ?? ($existing['document_type'] ?? null)),
+            array_key_exists('creates_open_item', $data) ? 1 : (int) ($existing['creates_open_item'] ?? 0),
+            array_key_exists('automatic', $data) ? 1 : (int) ($existing['automatic'] ?? 0),
             isset($data['active']) ? 1 : 0,
         ];
         if ($causeId !== null) {

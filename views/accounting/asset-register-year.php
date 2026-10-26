@@ -28,8 +28,8 @@ $scheduleFields = [
             <label class="field"><span>Riferimento verifica / documento di origine</span><input name="evidence_reference" maxlength="500" value="<?= View::e($editSchedule['evidence_reference'] ?? '') ?>" required></label>
         </div><div class="form-actions"><button type="submit" class="button primary">Salva scheda annuale</button></div>
     </form>
-    <div class="table-wrap"><table><thead><tr><th>Cespite</th><th>Fondo iniziale civile</th><th>Quota civile</th><th>Quota fiscale</th><th>Verifica</th><th></th></tr></thead><tbody>
-    <?php foreach (($registerYears ?? []) as $schedule): ?><tr><td><?= View::e($schedule['asset_code']) ?></td><td><?= View::money($schedule['civil_opening_fund']) ?></td><td><?= View::money($schedule['civil_quota']) ?></td><td><?= View::money($schedule['tax_quota']) ?></td><td><?= View::e($schedule['evidence_reference']) ?></td><td><a class="table-action" href="?year=<?= (int) $year ?>&register_asset=<?= (int) $schedule['fixed_asset_id'] ?>#asset-register-year">Modifica</a></td></tr><?php endforeach; ?>
-    <?php if (empty($registerYears)): ?><tr><td colspan="6">Nessuna scheda annuale verificata.</td></tr><?php endif; ?>
+    <div class="table-wrap"><table><thead><tr><th>Cespite</th><th>Fornitore / documento</th><th>Fondo iniziale civile</th><th>Quota civile</th><th>Quota fiscale</th><th>Verifica</th><th></th></tr></thead><tbody>
+    <?php foreach (($registerYears ?? []) as $schedule): ?><tr><td><?= View::e($schedule['asset_code'] . ' · ' . $schedule['description']) ?></td><td><?= View::e($schedule['supplier_name'] ?: '—') ?><small class="cell-subtitle"><?= View::e($schedule['purchase_document_number'] ?: 'Documento non indicato') ?> · <?= View::date($schedule['purchase_date']) ?></small></td><td><?= View::money($schedule['civil_opening_fund']) ?></td><td><?= View::money($schedule['civil_quota']) ?></td><td><?= View::money($schedule['tax_quota']) ?></td><td><?= View::e($schedule['evidence_reference']) ?></td><td><a class="table-action" href="?year=<?= (int) $year ?>&register_asset=<?= (int) $schedule['fixed_asset_id'] ?>#asset-register-year">Modifica</a></td></tr><?php endforeach; ?>
+    <?php if (empty($registerYears)): ?><tr><td colspan="7">Nessuna scheda annuale verificata.</td></tr><?php endif; ?>
     </tbody></table></div>
 </section>

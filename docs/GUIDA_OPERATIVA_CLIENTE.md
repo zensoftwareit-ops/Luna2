@@ -416,7 +416,7 @@ Configurare codice, nome, tipo, prefisso e prossimo protocollo. Indicare il sezi
 
 ### 10.4 Causali contabili
 
-Le causali definiscono la natura delle registrazioni e le righe proposte. Modificarle solo dopo aver verificato gli effetti su prima nota, IVA e report.
+Le causali definiscono la natura delle registrazioni e le righe proposte. Le causali standard e quelle importate da DATEV sono selezionabili in prima nota; dalla tabella è possibile aprire **Modifica** e decidere se una causale deve restare attiva. Disattivarla la esclude dalle nuove registrazioni, senza eliminarla dallo storico. Modificarle solo dopo aver verificato gli effetti su prima nota, IVA e report.
 
 ## 11. Prima nota
 
@@ -455,13 +455,13 @@ Nel campo **Contropartita finanziaria** si può scegliere un conto bancario conf
 7. Premere **Salva bozza** se la registrazione deve essere completata successivamente.
 8. Premere **Contabilizza** quando la registrazione è completa: Luna2 salva la scrittura e apre immediatamente una nuova registrazione vuota mantenendo la stessa data di registrazione. Questo automatismo si applica soltanto alle nuove scritture manuali, non alla modifica di scritture esistenti.
 
-La tendina **Causale contabile** propone le causali standard attive (registrazione generica, fatture, incassi, pagamenti, assestamenti, ammortamenti, ritenute, chiusure e aperture). Le causali DATEV importate ma non ancora verificate restano disattivate finché non vengono abilitate da **Contabilità → Piano dei conti e causali**. Se la tendina mostra soltanto “Nessuna”, verificare che tutte le migrazioni siano applicate.
+La tendina **Causale contabile** propone tutte le causali attive (registrazione generica, fatture, incassi, pagamenti, assestamenti, ammortamenti, ritenute, chiusure, aperture e causali DATEV importate). Se manca una voce, aprire **Contabilità → Piano dei conti e causali → Causali**, modificarla e verificare che sia attiva. Se la tendina mostra soltanto “Nessuna”, verificare che tutte le migrazioni siano applicate.
 
-Il pulsante **Aggiungi riga** inserisce una nuova riga Dare/Avere. Cercare il conto per codice o descrizione e selezionare il risultato; la tendina dei risultati resta visibile anche dentro una tabella scorrevole. Per una scrittura manuale servono almeno due righe e il totale Dare deve coincidere con il totale Avere.
+Il pulsante **Aggiungi riga** inserisce una nuova riga Dare/Avere. Cercare il conto per codice o descrizione e selezionare il risultato; la tendina dei risultati resta visibile anche dentro una tabella scorrevole. Dopo la selezione compare **Apri mastrino ↗**: il dettaglio si apre in una nuova scheda, quindi la registrazione in corso e i dati non ancora salvati restano nella pagina originale. Per una scrittura manuale servono almeno due righe e il totale Dare deve coincidere con il totale Avere.
 
 ### 11.3 Cercare una scrittura
 
-Usare ricerca, intervallo date, stato e conto. La ricerca riconosce protocollo Luna2, protocollo DATEV e descrizione.
+Usare ricerca, intervallo date, stato, conto e **causale contabile**. La ricerca riconosce protocollo Luna2, protocollo DATEV, descrizione, codice e nome causale. Il filtro causale consente, per esempio, di estrarre tutte le registrazioni con ritenuta oppure tutti gli acquisti e le vendite di beni strumentali, mantenendo lo stesso filtro negli export PDF/XLSX/CSV.
 
 ### 11.4 Correggere una scrittura provvisoria
 
@@ -650,7 +650,7 @@ Per ottenere una stampa analoga alla scheda contabile DATEV:
 4. verificare i progressivi e i movimenti visualizzati;
 5. scegliere **Stampa scheda contabile PDF**.
 
-Il PDF è in formato A4 e identifica conto collettivo, codice del sottoconto, anagrafica e dati fiscali. Il saldo della scheda segue il segno contabile Dare meno Avere; per un fornitore un debito può quindi apparire con segno negativo, come nelle schede DATEV. Il valore operativo ancora da pagare resta esposto separatamente nello scadenzario.
+Il PDF è in formato A4 e identifica conto collettivo, codice del sottoconto, anagrafica e dati fiscali. Se nell'intervallo è presente una scrittura di apertura, questa sostituisce il riporto dello storico precedente: i progressivi antecedenti non vengono sommati una seconda volta. Il saldo della scheda segue il segno contabile Dare meno Avere; per un fornitore un debito può quindi apparire con segno negativo, come nelle schede DATEV. Il valore operativo ancora da pagare resta esposto separatamente nello scadenzario.
 
 ### 15.1 Consultare
 
@@ -705,7 +705,7 @@ Il messaggio **Nessun saldo precedente da riprendere** significa che il prospett
 
 ### 16.2 Aprire un mastrino
 
-Premere il codice blu del conto. Il mastrino mostra saldo iniziale, movimenti del periodo e saldo progressivo. È possibile cercare il conto anche per codice o descrizione e consultare conti senza saldo nel periodo.
+Premere il codice blu del conto. Il mastrino mostra saldo iniziale, movimenti del periodo e saldo progressivo. È possibile cercare il conto anche per codice o descrizione e consultare conti senza saldo nel periodo. La stampa PDF usa lo stesso schema professionale della scheda cliente/fornitore: progressivi, data e numero documento, protocollo, causale, descrizione, controparte, Dare, Avere e saldo progressivo.
 
 ### 16.3 Controlli minimi
 
@@ -753,7 +753,7 @@ Percorsi:
 - **Adempimenti e chiusure** per categorie, calcolo e contabilizzazione;
 - **Centro professionale** per il registro ufficiale.
 
-Controllare costo storico, data entrata in funzione, categoria, aliquota, fondo iniziale, quote, dismissioni e valore netto. Il calcolo deve essere verificato prima della contabilizzazione.
+Controllare costo storico, data entrata in funzione, categoria, aliquota, fondo iniziale, quote, dismissioni e valore netto. Le schede annuali e il registro riportano anche fornitore e documento di acquisto. Il calcolo deve essere verificato prima della contabilizzazione.
 
 Per creare un cespite:
 

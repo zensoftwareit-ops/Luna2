@@ -26,9 +26,12 @@ final class LedgerReportService
         if (!$account) { throw new InvalidArgumentException('Conto non trovato.'); }
         $statement = $this->db->prepare(
             "SELECT e.id AS entry_id, e.entry_date, e.entry_type, e.protocol_number, e.source_protocol, e.description AS entry_description,
-                    e.document_number, e.counterparty, l.description, l.debit, l.credit
+                    e.document_number, e.counterparty, COALESCE(d.document_date, e.competence_date) AS document_date,
+                    c.code AS cause_code, c.name AS cause_name, l.description, l.debit, l.credit
              FROM journal_entry_lines l JOIN journal_entries e
                ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+             LEFT JOIN accounting_causes c ON c.id = e.cause_id AND c.organization_id = e.organization_id
+             LEFT JOIN documents d ON e.source_type = 'DOCUMENT' AND d.id = e.source_id AND d.organization_id = e.organization_id
              WHERE l.organization_id = ? AND l.account_id = ? AND e.status = 'POSTED'
                AND (? = 1 OR e.entry_type <> 'CLOSING')
                AND e.entry_date <= ? ORDER BY e.entry_date, e.id, l.line_number, l.id"

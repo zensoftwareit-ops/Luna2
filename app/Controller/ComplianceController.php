@@ -35,8 +35,10 @@ final class ComplianceController extends BaseController
              WHERE s.organization_id = ? ORDER BY s.posting_date DESC LIMIT 300', [$organizationId]
         );
         $categories = $this->query('SELECT * FROM fixed_asset_categories WHERE organization_id = ? ORDER BY code', [$organizationId]);
-        $registerYears = $this->query('SELECT y.*, a.asset_code, a.description FROM fixed_asset_register_years y
+        $registerYears = $this->query('SELECT y.*, a.asset_code, a.description, a.purchase_date, a.purchase_document_number,
+                   s.business_name AS supplier_name FROM fixed_asset_register_years y
             JOIN fixed_assets a ON a.id = y.fixed_asset_id AND a.organization_id = y.organization_id
+            LEFT JOIN suppliers s ON s.id = a.supplier_id AND s.organization_id = a.organization_id
             WHERE y.organization_id = ? AND y.fiscal_year = ? ORDER BY a.asset_code', [$organizationId, $year]);
         $assets = $this->query(
             'SELECT a.*, c.code AS category_code, s.business_name AS supplier_name FROM fixed_assets a LEFT JOIN fixed_asset_categories c ON c.id = a.category_id

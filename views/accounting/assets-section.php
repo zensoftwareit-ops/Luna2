@@ -1,4 +1,4 @@
-<?php use Luna\Core\View; ?>
+<?php use Luna\Core\View; $purchaseDocuments = $purchaseDocuments ?? []; $suppliers = $suppliers ?? []; ?>
 <section class="card" id="assets">
     <div class="card-header"><div><span class="section-kicker">Registro beni ammortizzabili</span><h2>Cespiti: valori civilistici e fiscali</h2></div></div>
     <div class="content-grid embedded-grid">

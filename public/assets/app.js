@@ -225,6 +225,7 @@
       const customer = row.querySelector('[data-account-field="customer_id"]');
       const supplier = row.querySelector('[data-account-field="supplier_id"]');
       const results = row.querySelector('[data-line-account-results]');
+      const ledgerLink = row.querySelector('[data-account-ledger-link]');
       const closeResults = () => {
         results.hidden = true;
         results.classList.remove('account-lookup-results-floating');
@@ -256,6 +257,10 @@
         if (supplier) supplier.value = account.supplier_id ? String(account.supplier_id) : '';
         const suffix = account.kind === 'CUSTOMER' ? ' · Cliente' : account.kind === 'SUPPLIER' ? ' · Fornitore' : '';
         search.value = `${account.code} · ${account.name}${suffix}`;
+        if (ledgerLink && account.ledger_url) {
+          ledgerLink.href = account.ledger_url;
+          ledgerLink.hidden = false;
+        }
         closeResults();
         search.setCustomValidity('');
       };
@@ -282,7 +287,7 @@
         && Number(account.supplier_id || 0) === Number(values.supplier_id || 0));
       if (selected) select(selected);
       search.addEventListener('focus', render);
-      search.addEventListener('input', () => { hidden.value = ''; if (customer) customer.value = ''; if (supplier) supplier.value = ''; search.setCustomValidity(''); render(); });
+      search.addEventListener('input', () => { hidden.value = ''; if (customer) customer.value = ''; if (supplier) supplier.value = ''; if (ledgerLink) { ledgerLink.hidden = true; ledgerLink.removeAttribute('href'); } search.setCustomValidity(''); render(); });
       search.addEventListener('blur', () => window.setTimeout(() => { if (!hidden.value) resolveTypedAccount(); closeResults(); }, 150));
       search.addEventListener('change', () => { if (!hidden.value && !resolveTypedAccount()) search.setCustomValidity('Seleziona un conto dai risultati.'); });
       search.addEventListener('keydown', (event) => {

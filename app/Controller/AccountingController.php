@@ -21,22 +21,23 @@ final class AccountingController extends BaseController
     public function journal(): never
     {
         $this->authorize();
-        [$entries, $from, $to, $status, $type, $search, $accountId] = $this->journalDataset(1500);
+        [$entries, $from, $to, $status, $type, $search, $accountId, $causeId] = $this->journalDataset(1500);
         $totals = [
             'debit' => array_sum(array_column($entries, 'total_debit')),
             'credit' => array_sum(array_column($entries, 'total_credit')),
             'drafts' => count(array_filter($entries, static fn (array $entry): bool => $entry['status'] === 'DRAFT')),
         ];
         $accounts = $this->accounts();
+        $causes = $this->allCauses();
         $this->view->render('accounting/journal', compact(
-            'entries', 'totals', 'from', 'to', 'status', 'type', 'search', 'accountId', 'accounts'
+            'entries', 'totals', 'from', 'to', 'status', 'type', 'search', 'accountId', 'causeId', 'accounts', 'causes'
         ) + ['title' => 'Prima nota']);
     }
 
     public function exportJournal(string $format): never
     {
         $this->authorize();
-        [$rows, $from, $to, $status, $type, $search, $accountId] = $this->journalDataset(null);
+        [$rows, $from, $to, $status, $type, $search, $accountId, $causeId] = $this->journalDataset(null);
         $detail = $this->db->prepare('SELECT a.code AS account_code, a.name AS account_name, l.description AS line_description, l.debit, l.credit
             FROM journal_entry_lines l JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
             WHERE l.organization_id = ? AND l.journal_entry_id = ? ORDER BY l.line_number, l.id');
@@ -53,6 +54,8 @@ final class AccountingController extends BaseController
             ['key' => 'protocol_number', 'label' => 'Protocollo'],
             ['key' => 'source_protocol', 'label' => 'Protocollo origine'],
             ['key' => 'entry_type', 'label' => 'Tipo'],
+            ['key' => 'cause_code', 'label' => 'Codice causale'],
+            ['key' => 'cause_name', 'label' => 'Causale contabile'],
             ['key' => 'description', 'label' => 'Descrizione'],
             ['key' => 'document_number', 'label' => 'Documento'],
             ['key' => 'counterparty', 'label' => 'Controparte'],
@@ -63,7 +66,7 @@ final class AccountingController extends BaseController
             ['key' => 'debit', 'label' => 'Dare', 'type' => 'money'],
             ['key' => 'credit', 'label' => 'Avere', 'type' => 'money'],
             ['key' => 'status', 'label' => 'Stato'],
-        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca' => $search, 'Stato' => $status, 'Tipo' => $type, 'Conto ID' => $accountId ? (string) $accountId : '']), Auth::organizationName(), 'prima-nota');
+        ], $rows, array_filter(['Dal' => $from, 'Al' => $to, 'Ricerca' => $search, 'Stato' => $status, 'Tipo' => $type, 'Conto ID' => $accountId ? (string) $accountId : '', 'Causale ID' => $causeId ? (string) $causeId : '']), Auth::organizationName(), 'prima-nota');
     }
 
     public function create(): never
@@ -469,6 +472,9 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         [$account, $rows, $from, $to, $search, $includeClosing] = $this->ledgerDataset((int) $id);
+        if (strtolower($format) === 'pdf') {
+            $this->exporter()->streamLedgerPdf($account, $rows, $from, $to);
+        }
         array_unshift($rows, ['entry_description' => 'SALDO INIZIALE', 'running_balance' => $account['opening_balance']]);
         $rows[] = ['entry_description' => 'TOTALI INTERO PERIODO / SALDO FINALE', 'debit' => $account['period_debit'],
             'credit' => $account['period_credit'], 'running_balance' => $account['closing_balance']];
@@ -751,34 +757,41 @@ final class AccountingController extends BaseController
         $type = strtoupper((string) ($_GET['type'] ?? ''));
         $search = trim((string) ($_GET['q'] ?? ''));
         $accountId = max(0, (int) ($_GET['account_id'] ?? 0));
-        $sql = 'SELECT id, protocol_number, source_protocol, entry_date, competence_date, entry_type, description, document_number,
-                       counterparty, total_debit, total_credit, status, source_type, source_id, is_finalized, revision_number,
+        $causeId = max(0, (int) ($_GET['cause_id'] ?? 0));
+        $sql = 'SELECT e.id, e.protocol_number, e.source_protocol, e.entry_date, e.competence_date, e.entry_type, e.description, e.document_number,
+                       e.counterparty, e.total_debit, e.total_credit, e.status, e.source_type, e.source_id, e.is_finalized, e.revision_number,
+                       e.cause_id, c.code AS cause_code, c.name AS cause_name,
                        CASE WHEN source_type = \'DOCUMENT\' THEN (SELECT GROUP_CONCAT(dl.description ORDER BY dl.line_number SEPARATOR \' | \') FROM document_lines dl WHERE dl.organization_id = e.organization_id AND dl.document_id = e.source_id) ELSE NULL END AS document_items
-                FROM journal_entries e WHERE organization_id = :organization_id AND entry_date BETWEEN :date_from AND :date_to';
+                FROM journal_entries e LEFT JOIN accounting_causes c ON c.id = e.cause_id AND c.organization_id = e.organization_id
+                WHERE e.organization_id = :organization_id AND e.entry_date BETWEEN :date_from AND :date_to';
         $params = ['organization_id' => Auth::organizationId(), 'date_from' => $from, 'date_to' => $to];
         if (in_array($status, ['DRAFT', 'POSTED', 'REVERSED'], true)) {
-            $sql .= ' AND status = :status';
+            $sql .= ' AND e.status = :status';
             $params['status'] = $status;
         }
         if ($type !== '') {
-            $sql .= ' AND entry_type = :entry_type';
+            $sql .= ' AND e.entry_type = :entry_type';
             $params['entry_type'] = $type;
         }
         if ($search !== '') {
-            $sql .= ' AND (protocol_number LIKE :search_protocol OR source_protocol LIKE :search_source_protocol OR notes LIKE :search_notes OR description LIKE :search_description OR document_number LIKE :search_document OR counterparty LIKE :search_party)';
-            foreach (['search_protocol', 'search_source_protocol', 'search_notes', 'search_description', 'search_document', 'search_party'] as $key) { $params[$key] = '%' . $search . '%'; }
+            $sql .= ' AND (e.protocol_number LIKE :search_protocol OR e.source_protocol LIKE :search_source_protocol OR e.notes LIKE :search_notes OR e.description LIKE :search_description OR e.document_number LIKE :search_document OR e.counterparty LIKE :search_party OR c.code LIKE :search_cause OR c.name LIKE :search_cause_name)';
+            foreach (['search_protocol', 'search_source_protocol', 'search_notes', 'search_description', 'search_document', 'search_party', 'search_cause', 'search_cause_name'] as $key) { $params[$key] = '%' . $search . '%'; }
+        }
+        if ($causeId > 0) {
+            $sql .= ' AND e.cause_id = :cause_id';
+            $params['cause_id'] = $causeId;
         }
         if ($accountId > 0) {
             $sql .= ' AND EXISTS (SELECT 1 FROM journal_entry_lines fl WHERE fl.journal_entry_id = e.id AND fl.organization_id = e.organization_id AND fl.account_id = :account_id)';
             $params['account_id'] = $accountId;
         }
-        $sql .= ' ORDER BY entry_date DESC, id DESC';
+        $sql .= ' ORDER BY e.entry_date DESC, e.id DESC';
         if ($limit !== null) {
             $sql .= ' LIMIT ' . max(1, $limit);
         }
         $statement = $this->db->prepare($sql);
         $statement->execute($params);
-        return [$statement->fetchAll(), $from, $to, $status, $type, $search, $accountId];
+        return [$statement->fetchAll(), $from, $to, $status, $type, $search, $accountId, $causeId];
     }
 
     private function vatMovementsDataset(): array
@@ -895,7 +908,7 @@ final class AccountingController extends BaseController
         $catalog = array_map(static fn (array $account): array => [
             'id' => (int) $account['id'], 'code' => (string) $account['code'],
             'name' => (string) $account['name'], 'customer_id' => null, 'supplier_id' => null,
-            'kind' => 'ACCOUNT',
+            'kind' => 'ACCOUNT', 'ledger_url' => '/accounting/ledger/' . (int) $account['id'],
         ], $accounts);
         $mapping = $this->db->prepare(
             "SELECT mapping_key, account_id FROM accounting_account_mappings
@@ -919,6 +932,7 @@ final class AccountingController extends BaseController
                     'customer_id' => $idKey === 'customer_id' ? (int) $party['id'] : null,
                     'supplier_id' => $idKey === 'supplier_id' ? (int) $party['id'] : null,
                     'kind' => $kind,
+                    'ledger_url' => '/accounting/subledgers?' . http_build_query(['party_type' => $kind, 'party_id' => (int) $party['id']]) . '#scheda',
                 ];
             }
         }
@@ -955,9 +969,18 @@ final class AccountingController extends BaseController
         return [$causes, $statement->fetchAll()];
     }
 
+    private function allCauses(): array
+    {
+        $statement = $this->db->prepare('SELECT id, code, name, category, active FROM accounting_causes WHERE organization_id = ? ORDER BY code');
+        $statement->execute([Auth::organizationId()]);
+        return $statement->fetchAll();
+    }
+
     private function entry(int $id): array
     {
-        $statement = $this->db->prepare('SELECT * FROM journal_entries WHERE id = ? AND organization_id = ?');
+        $statement = $this->db->prepare('SELECT e.*, c.code AS cause_code, c.name AS cause_name FROM journal_entries e
+            LEFT JOIN accounting_causes c ON c.id = e.cause_id AND c.organization_id = e.organization_id
+            WHERE e.id = ? AND e.organization_id = ?');
         $statement->execute([$id, Auth::organizationId()]);
         $entry = $statement->fetch();
         if (!$entry) {

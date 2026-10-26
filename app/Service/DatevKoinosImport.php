@@ -227,9 +227,9 @@ final class DatevKoinosImport
         $q=$this->db->prepare('SELECT id,name FROM accounting_causes WHERE organization_id=? AND code=?');
         $q->execute([$this->organizationId,$data['code']]); $existing=$q->fetch();
         if ($existing) return [(int)$existing['id'],'Causale già presente: mantenuta la configurazione attuale. Confrontare con la fonte.','REFERENCE'];
-        $q=$this->db->prepare("INSERT INTO accounting_causes (organization_id,code,name,category,default_description,automatic,active,created_by,updated_by) VALUES (?,?,?,'GENERAL',?,0,0,?,?)");
+        $q=$this->db->prepare("INSERT INTO accounting_causes (organization_id,code,name,category,default_description,automatic,active,created_by,updated_by) VALUES (?,?,?,'GENERAL',?,0,1,?,?)");
         $q->execute([$this->organizationId,$data['code'],$data['name'],$data['name'],$this->userId,$this->userId]);
-        return [(int)$this->db->lastInsertId(),'Causale acquisita e disattivata: verificare conti, sezionale e automatismi prima di abilitarla.','NEEDS_DATA'];
+        return [(int)$this->db->lastInsertId(),'Causale acquisita e resa selezionabile: verificare conti, sezionale e automatismi.','NEEDS_DATA'];
     }
 
     private function assetCategory(array $data): array

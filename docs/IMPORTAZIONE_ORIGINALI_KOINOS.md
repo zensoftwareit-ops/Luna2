@@ -17,7 +17,7 @@ L’acquisizione è distinta dalla migrazione contabile completa: caricare un fi
 |---|---|
 | Piano dei conti CSV DK | Conti nuovi con gerarchia; nessuna sovrascrittura. Conti d’ordine conservati da classificare. Verificare il raccordo con gli automatismi Luna2. |
 | Lista clienti/fornitori CSV DK | Anagrafiche nuove con codici originali; controllo doppioni per codice, P. IVA e CF. Indirizzi/paesi non determinabili restano da completare nell’archivio. |
-| Causali CSV DK | Causali nuove disattivate, da configurare prima dell’uso; configurazioni esistenti mantenute. |
+| Causali CSV DK | Causali nuove attive e selezionabili in prima nota; configurazioni esistenti mantenute. Verificarle e disattivare soltanto quelle che non devono essere più utilizzate. |
 | Articoli IVA, aliquote IVA, conti per tributo | Cataloghi di riferimento separati, senza abbinamenti fiscali presunti. |
 | Categorie, aliquote e conti cespiti | Le categorie vengono create; aliquote e conti originali restano tracciati per il raccordo. I conti non vengono associati se la fonte non è univoca. |
 | XLS BACespiti (anagrafica completa) | Crea i cespiti operativi con codice, categoria, date, costo, aliquote e stato DATEV. Non sovrascrive codici già presenti con dati diversi. |

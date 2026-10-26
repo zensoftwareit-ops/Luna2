@@ -488,6 +488,36 @@ $assert(str_contains($trialBalanceView, 'PDF sintetico')
 $standardCausesMigration = (string) file_get_contents($base . '/database/migrations/031_restore_standard_accounting_causes.sql');
 $assert((bool) preg_match('/WHERE 1 = 1\s+ON DUPLICATE KEY UPDATE/', $standardCausesMigration),
     'Il ripristino delle causali standard deve evitare l’ambiguità INSERT SELECT / ON DUPLICATE KEY di MariaDB.');
+$causeActivationMigration = (string) file_get_contents($base . '/database/migrations/034_activate_imported_accounting_causes.sql');
+$accountingSetupView = (string) file_get_contents($base . '/views/accounting/setup.php');
+$journalView = (string) file_get_contents($base . '/views/accounting/journal.php');
+$accountingFormView = (string) file_get_contents($base . '/views/accounting/form.php');
+$partyLedgerService = (string) file_get_contents($base . '/app/Service/PartyLedgerService.php');
+$assetRegisterView = (string) file_get_contents($base . '/views/accounting/asset-register-year.php');
+$assert(str_contains($causeActivationMigration, 'UPDATE accounting_causes')
+    && str_contains($causeActivationMigration, 'SET active = 1')
+    && str_contains($accountingSetupView, 'Attiva e selezionabile in prima nota')
+    && str_contains($accountingSetupView, 'cause_id='),
+    'Le causali importate devono essere attive, selezionabili e modificabili dalla configurazione.');
+$assert(str_contains($accountingController, "\$_GET['cause_id']")
+    && str_contains($accountingController, 'c.code AS cause_code')
+    && str_contains($journalView, 'Tutte le causali'),
+    'La prima nota deve poter essere consultata e stampata per causale contabile.');
+$assert(str_contains($partyLedgerService, 'has_period_opening')
+    && str_contains($partyLedgerService, "e.entry_type = 'OPENING'")
+    && str_contains($partyLedgerService, '!$hasPeriodOpening'),
+    'Le schede clienti e fornitori non devono duplicare i progressivi quando esiste una apertura nel periodo.');
+$assert(str_contains($tabularExport, 'ledgerPdfContent')
+    && str_contains($accountingController, 'streamLedgerPdf')
+    && str_contains($tabularExport, 'Causale e descrizione'),
+    'Il PDF del mastrino generale deve usare il formato professionale delle schede clienti e fornitori.');
+$assert(str_contains($accountingFormView, 'data-account-ledger-link')
+    && str_contains($appJs, 'account.ledger_url')
+    && str_contains($accountingController, "'ledger_url'"),
+    'Durante la registrazione deve essere possibile aprire il mastrino senza abbandonare la prima nota.');
+$assert(str_contains($officialPrintService, 'supplier_name')
+    && str_contains($assetRegisterView, 'Fornitore / documento'),
+    'Le schede e il registro cespiti devono riportare fornitore e documento di acquisto.');
 $assert(str_contains($trialBalanceView, 'Apertura non contabilizzata') && str_contains($trialBalanceView, 'Differenza Dare / Avere') && str_contains($accountingController, 'TOTALI SALDI'), 'Controlli di apertura, totali e differenza della situazione contabile mancanti.');
 $assert(str_contains($trialBalanceView, 'Includi scritture di chiusura')
     && str_contains($trialBalanceService, "e.entry_type <> 'CLOSING'")

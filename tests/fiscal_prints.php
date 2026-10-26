@@ -215,6 +215,27 @@ $partyLedgerPath = $base . '/storage/private/fiscal-tests/' . $name . '/scheda-c
 if (!is_dir(dirname($partyLedgerPath))) { mkdir(dirname($partyLedgerPath), 0750, true); }
 file_put_contents($partyLedgerPath, $partyPdf);
 $assert(str_starts_with($partyPdf, '%PDF-') && strlen($partyPdf) > 2000, 'Supplier accounting sheet PDF generated');
+$periodOpening = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'OPEN-SUP-2026',
+    'entry_date' => '2026-01-01', 'competence_date' => '2026-01-01', 'entry_type' => 'OPENING', 'status' => 'POSTED',
+    'description' => 'Apertura fornitore esercizio 2026', 'total_debit' => 50, 'total_credit' => 50]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $periodOpening, 'line_number' => 1,
+    'account_id' => $offset, 'debit' => 50, 'credit' => 0, 'description' => 'Contropartita apertura']);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $periodOpening, 'line_number' => 2,
+    'account_id' => $payableAccount, 'debit' => 0, 'credit' => 50, 'description' => 'Apertura fornitore',
+    'supplier_id' => $partySupplier]);
+$partyWithPeriodOpening = $partyLedger->detail('SUPPLIER', $partySupplier, '2026-01-01', '2026-07-31');
+$assert((float) $partyWithPeriodOpening['totals']['opening_credit'] === 0.0
+    && (float) $partyWithPeriodOpening['totals']['progressive_credit'] === 172.0,
+    'Supplier opening entry replaces rather than duplicates prior progressives');
+$supplierOverview = $partyLedger->overview('SUPPLIER', '2026-01-01', '2026-07-31', 'Magica Luce');
+$assert(count($supplierOverview) === 1 && (float) $supplierOverview[0]['opening_balance'] === 0.0
+    && (float) $supplierOverview[0]['closing_balance'] === 172.0,
+    'Supplier overview applies the same opening replacement rule');
+$ledgerPdf = (new TabularExportService(['business_name' => 'Societa test stampe fiscali S.r.l.',
+    'vat_number' => '01234567890', 'tax_code' => '01234567890']))
+    ->ledgerPdfContent($a, $lines, '2026-01-01', '2026-12-31');
+$assert(str_starts_with($ledgerPdf, '%PDF-') && strlen($ledgerPdf) > 2000,
+    'General ledger PDF uses professional accounting-sheet layout');
 $asset = $add('fixed_assets', ['organization_id' => $org, 'asset_code' => 'CES-01', 'description' => 'Macchinario di collaudo',
     'purchase_date' => '2024-01-15', 'purchase_cost' => 10000, 'depreciation_rate' => 20, 'net_book_value' => 8000]);
 $assetService = new AssetService($db, $org, $user);

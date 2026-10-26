@@ -210,7 +210,8 @@ final class PartyLedgerService
                        COALESCE(m.debit,0) AS period_debit, COALESCE(m.credit,0) AS period_credit,
                        {$openingExpression} AS opening_balance, {$balanceExpression} AS period_balance,
                        {$openingExpression} + {$balanceExpression} AS closing_balance,
-                       COALESCE(o.outstanding,0) AS outstanding, COALESCE(o.open_count,0) AS open_count
+                       COALESCE(o.outstanding,0) AS outstanding, COALESCE(o.open_count,0) AS open_count,
+                       COALESCE(op.has_opening,0) AS has_period_opening
                 FROM {$table} p
                 LEFT JOIN (
                     SELECT l.{$idColumn} AS party_id,
@@ -223,6 +224,13 @@ final class PartyLedgerService
                     WHERE l.organization_id = ? AND l.{$idColumn} IS NOT NULL AND e.status = 'POSTED' AND e.entry_date <= ?
                     GROUP BY l.{$idColumn}
                 ) m ON m.party_id = p.id
+                LEFT JOIN (
+                    SELECT DISTINCT l.{$idColumn} AS party_id, 1 AS has_opening
+                    FROM journal_entry_lines l JOIN journal_entries e
+                      ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+                    WHERE l.organization_id = ? AND l.{$idColumn} IS NOT NULL AND e.status = 'POSTED'
+                      AND e.entry_type = 'OPENING' AND e.entry_date BETWEEN ? AND ?
+                ) op ON op.party_id = p.id
                 LEFT JOIN (
                     SELECT party_id,
                            SUM(CASE WHEN direction = ? THEN GREATEST(original_amount - settled_amount, 0)
@@ -238,6 +246,7 @@ final class PartyLedgerService
         // The movement subquery needs: from, from, from, to, from, to, org, to.
         $expectedDirection = $type === 'SUPPLIER' ? 'PAYABLE' : 'RECEIVABLE';
         $params = [$from, $from, $from, $to, $from, $to, $this->organizationId, $to,
+            $this->organizationId, $from, $to,
             $expectedDirection, $this->organizationId, $type, $this->organizationId];
         if ($search !== '') {
             $like = '%' . $search . '%';
@@ -245,7 +254,15 @@ final class PartyLedgerService
         }
         $statement = $this->db->prepare($sql);
         $statement->execute($params);
-        return $statement->fetchAll();
+        $rows = $statement->fetchAll();
+        foreach ($rows as &$row) {
+            if (!empty($row['has_period_opening'])) {
+                $row['opening_balance'] = 0.0;
+                $row['closing_balance'] = (float) $row['period_balance'];
+            }
+        }
+        unset($row);
+        return $rows;
     }
 
     public function detail(string $type, int $partyId, string $from, string $to): array
@@ -283,14 +300,22 @@ final class PartyLedgerService
              ORDER BY e.entry_date, e.id, l.line_number, l.id"
         );
         $statement->execute([$this->organizationId, $partyId, $to]);
+        $movementRows = $statement->fetchAll();
+        $hasPeriodOpening = count(array_filter($movementRows, static fn (array $row): bool =>
+            (string) ($row['entry_type'] ?? '') === 'OPENING'
+            && (string) $row['entry_date'] >= $from
+            && (string) $row['entry_date'] <= $to
+        )) > 0;
         $opening = $openingDebit = $openingCredit = $balance = $debit = $credit = 0;
         $rows = [];
-        foreach ($statement->fetchAll() as $row) {
+        foreach ($movementRows as $row) {
             $movement = $sign * ((float) $row['debit'] - (float) $row['credit']);
             if ((string) $row['entry_date'] < $from) {
-                $opening += $movement;
-                $openingDebit += (float) $row['debit'];
-                $openingCredit += (float) $row['credit'];
+                if (!$hasPeriodOpening) {
+                    $opening += $movement;
+                    $openingDebit += (float) $row['debit'];
+                    $openingCredit += (float) $row['credit'];
+                }
                 continue;
             }
             $balance += $movement;
