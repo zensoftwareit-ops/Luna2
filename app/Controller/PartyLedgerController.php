@@ -78,6 +78,7 @@ final class PartyLedgerController extends BaseController
         $search = trim((string) ($_GET['q'] ?? ''));
         $partyId = max(0, (int) ($_GET['party_id'] ?? 0));
         $service = $this->service();
+        $service->synchronize();
         if ($partyId > 0) {
             $detail = $service->detail($type, $partyId, $from, $to);
             if (strtolower($format) === 'pdf') {
