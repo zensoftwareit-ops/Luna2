@@ -472,35 +472,44 @@ final class PartyLedgerService
             ['suppliers', 'supplier_id', 'TRADE_PAYABLES'],
             ['customers', 'customer_id', 'TRADE_RECEIVABLES'],
         ] as [$table, $idColumn, $mapping]) {
-            $parties = $this->partyMatchIndex($table);
-            $lineStatement = $this->db->prepare(
-                "SELECT l.id AS line_id, l.journal_entry_id AS entry_id, l.line_number, a.code AS account_code,
-                        CASE WHEN m.account_id IS NULL THEN 0 ELSE 1 END AS is_target, l.{$idColumn} AS party_id
+            $targetStatement = $this->db->prepare(
+                "SELECT DISTINCT l.journal_entry_id
                  FROM journal_entry_lines l
                  JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
-                 JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
-                 LEFT JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
+                 JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
                    AND m.mapping_key = ? AND m.account_id = l.account_id
-                 WHERE l.organization_id = ? AND e.status = 'POSTED'
-                   AND e.entry_type IN ('DATEV_IMPORT','OPENING','CLOSING')
-                 ORDER BY l.journal_entry_id, l.line_number, l.id"
+                 WHERE l.organization_id = ? AND l.{$idColumn} IS NULL AND e.status = 'POSTED'
+                   AND e.entry_type IN ('DATEV_IMPORT','OPENING','CLOSING')"
             );
-            $lineStatement->execute([$mapping, $this->organizationId]);
-            $linesByEntry = [];
-            foreach ($lineStatement->fetchAll() as $line) {
-                $linesByEntry[(int) $line['entry_id']][] = $line;
-            }
-            if ($linesByEntry === []) {
+            $targetStatement->execute([$mapping, $this->organizationId]);
+            $entryIds = array_values(array_unique(array_map('intval', $targetStatement->fetchAll(PDO::FETCH_COLUMN))));
+            if ($entryIds === []) {
                 continue;
+            }
+            $parties = $this->partyMatchIndex($table);
+            $linesByEntry = [];
+            foreach (array_chunk($entryIds, 500) as $chunk) {
+                $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+                $lineStatement = $this->db->prepare(
+                    "SELECT l.id AS line_id, l.journal_entry_id AS entry_id, l.line_number, a.code AS account_code,
+                            CASE WHEN m.account_id IS NULL THEN 0 ELSE 1 END AS is_target
+                     FROM journal_entry_lines l
+                     JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
+                     LEFT JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
+                       AND m.mapping_key = ? AND m.account_id = l.account_id
+                     WHERE l.organization_id = ? AND l.journal_entry_id IN ({$placeholders})
+                     ORDER BY l.journal_entry_id, l.line_number, l.id"
+                );
+                $lineStatement->execute(array_merge([$mapping, $this->organizationId], $chunk));
+                foreach ($lineStatement->fetchAll() as $line) {
+                    $linesByEntry[(int) $line['entry_id']][] = $line;
+                }
             }
             $sourceStatement = $this->db->prepare(
                 "SELECT r.imported_entity_id AS entry_id, r.normalized_data_json
                  FROM import_rows r
                  JOIN import_batches b ON b.id = r.batch_id AND b.organization_id = r.organization_id
                    AND b.import_type = 'journal_entries'
-                 JOIN import_records imported_entry ON imported_entry.organization_id = r.organization_id
-                   AND imported_entry.batch_id = r.batch_id AND imported_entry.entity_type = 'journal_entries'
-                   AND imported_entry.entity_id = r.imported_entity_id AND imported_entry.operation = 'CREATE'
                  WHERE r.organization_id = ? AND r.status = 'IMPORTED'
                    AND r.imported_entity_id IS NOT NULL
                  ORDER BY r.imported_entity_id, r.source_file_id, r.source_row_number, r.id"
@@ -513,10 +522,7 @@ final class PartyLedgerService
                     $sourcesByEntry[$entryId][] = $source;
                 }
             }
-            $save = $this->db->prepare(
-                "UPDATE journal_entry_lines SET {$idColumn} = ?
-                 WHERE id = ? AND organization_id = ? AND ({$idColumn} IS NULL OR {$idColumn} <> ?)"
-            );
+            $save = $this->db->prepare("UPDATE journal_entry_lines SET {$idColumn} = ? WHERE id = ? AND organization_id = ? AND {$idColumn} IS NULL");
             foreach ($linesByEntry as $entryId => $lines) {
                 $sources = $sourcesByEntry[$entryId] ?? [];
                 // Una riga sorgente genera esattamente una riga contabile. Se
@@ -541,7 +547,7 @@ final class PartyLedgerService
                     $sourceName = trim((string) ($row['account_name'] ?? $row['nome_conto'] ?? $row['descrizione_conto'] ?? ''));
                     $ids = $parties['names'][$this->canonical($sourceName)] ?? [];
                     if (count($ids) === 1) {
-                        $save->execute([$ids[0], $line['line_id'], $this->organizationId, $ids[0]]);
+                        $save->execute([$ids[0], $line['line_id'], $this->organizationId]);
                         $updated += $save->rowCount();
                     }
                 }
