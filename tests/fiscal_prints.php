@@ -177,6 +177,10 @@ $payableAccount = $add('chart_of_accounts', ['organization_id' => $org, 'code' =
     'name' => 'Fornitori beni e servizi entro esercizio successivo', 'account_type' => 'LIABILITY']);
 $add('accounting_account_mappings', ['organization_id' => $org, 'mapping_key' => 'TRADE_PAYABLES',
     'account_id' => $payableAccount, 'description' => 'Debiti verso fornitori']);
+$receivableAccount = $add('chart_of_accounts', ['organization_id' => $org, 'code' => '0501010',
+    'name' => 'Crediti verso clienti', 'account_type' => 'ASSET']);
+$add('accounting_account_mappings', ['organization_id' => $org, 'mapping_key' => 'TRADE_RECEIVABLES',
+    'account_id' => $receivableAccount, 'description' => 'Crediti verso clienti']);
 $openingEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'OPEN-SUP-001',
     'entry_date' => '2025-12-31', 'competence_date' => '2025-12-31', 'entry_type' => 'OPENING', 'status' => 'POSTED',
     'description' => 'Progressivi fornitore', 'counterparty' => 'Magica Luce Societa a responsabilita limitata',
@@ -366,6 +370,21 @@ $add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch,
 $sourceDetail = $partyLedger->detail('SUPPLIER', $partySupplier, '2024-01-01', '2026-12-31');
 $assert(in_array('GEN-2026-DATEV-SOURCE-ONLY', array_column($sourceDetail['rows'], 'protocol_number'), true),
     'The party account sheet recovers unassigned movements directly from archived DATEV source rows');
+$directionCustomer = $add('customers', ['organization_id' => $org, 'code' => 'CLI-DIRECTION-001',
+    'business_name' => 'Cliente direzione test', 'active' => 1]);
+$customerEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'GEN-2026-CUSTOMER-DIRECTION',
+    'entry_date' => '2026-06-30', 'competence_date' => '2026-06-30', 'entry_type' => 'SALES_INVOICE',
+    'status' => 'POSTED', 'description' => 'Vendita cliente test', 'total_debit' => 66, 'total_credit' => 66]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $customerEntry,
+    'line_number' => 1, 'account_id' => $receivableAccount, 'debit' => 66, 'credit' => 0,
+    'description' => 'Credito cliente', 'customer_id' => $directionCustomer]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $customerEntry,
+    'line_number' => 2, 'account_id' => $offset, 'debit' => 0, 'credit' => 66, 'description' => 'Ricavo']);
+$db->exec('UPDATE journal_entry_lines SET customer_id = ' . (int) $directionCustomer
+    . ' WHERE id = ' . (int) $datevPayableLine);
+$customerDirectionDetail = $partyLedger->detail('CUSTOMER', $directionCustomer, '2024-01-01', '2026-12-31');
+$assert(array_column($customerDirectionDetail['rows'], 'protocol_number') === ['GEN-2026-CUSTOMER-DIRECTION'],
+    'Customer account sheets exclude supplier/payable movements carrying an incorrect customer link');
 $ledgerPdf = (new TabularExportService(['business_name' => 'Societa test stampe fiscali S.r.l.',
     'vat_number' => '01234567890', 'tax_code' => '01234567890']))
     ->ledgerPdfContent($a, $lines, '2026-01-01', '2026-12-31');

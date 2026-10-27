@@ -365,13 +365,16 @@ final class PartyLedgerService
                     e.description AS entry_description, l.description, l.debit, l.credit
              FROM journal_entry_lines l JOIN journal_entries e
                ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+             JOIN accounting_account_mappings party_mapping
+               ON party_mapping.organization_id = l.organization_id
+              AND party_mapping.mapping_key = ? AND party_mapping.account_id = l.account_id
              LEFT JOIN documents d ON e.source_type = 'DOCUMENT' AND d.id = e.source_id
                AND d.organization_id = e.organization_id
              WHERE l.organization_id = ? AND {$lineScope}
                AND e.status = 'POSTED' AND e.entry_date <= ?
              ORDER BY e.entry_date, e.id, l.line_number, l.id"
         );
-        $statement->execute(array_merge([$this->organizationId], $lineScopeParams, [$to]));
+        $statement->execute(array_merge([$mappingKey, $this->organizationId], $lineScopeParams, [$to]));
         $movementRows = $statement->fetchAll();
         $hasPeriodOpening = count(array_filter($movementRows, static fn (array $row): bool =>
             (string) ($row['entry_type'] ?? '') === 'OPENING'
