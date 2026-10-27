@@ -171,6 +171,8 @@ $partySupplier = $add('suppliers', ['organization_id' => $org, 'code' => 'FOR-TE
     'business_name' => 'Magica Luce Societa a responsabilita limitata', 'vat_number' => '09418840964',
     'tax_code' => '09418840964', 'address' => 'Via Isonzo 24', 'postal_code' => '20100', 'city' => 'Milano',
     'province' => 'MI', 'active' => 1]);
+$correctDatevSupplier = $add('suppliers', ['organization_id' => $org, 'code' => 'FOR-TEST-002',
+    'business_name' => 'Fornitore corretto S.r.l.', 'active' => 1]);
 $payableAccount = $add('chart_of_accounts', ['organization_id' => $org, 'code' => '3901010',
     'name' => 'Fornitori beni e servizi entro esercizio successivo', 'account_type' => 'LIABILITY']);
 $add('accounting_account_mappings', ['organization_id' => $org, 'mapping_key' => 'TRADE_PAYABLES',
@@ -215,7 +217,7 @@ $assert(count($partyDetail['rows']) === 1
 $datevImportBatch = $add('import_batches', ['organization_id' => $org, 'uuid' => '00000000-0000-4000-8000-000000000123',
     'source_system' => 'DATEV_KOINOS', 'import_type' => 'journal_entries', 'status' => 'COMPLETED',
     'original_filename' => 'prima-nota-datev.csv', 'checksum_sha256' => str_repeat('a', 64), 'file_size' => 100,
-    'total_rows' => 4, 'valid_rows' => 4, 'imported_rows' => 4, 'error_rows' => 0]);
+    'total_rows' => 6, 'valid_rows' => 6, 'imported_rows' => 6, 'error_rows' => 0]);
 $datevImportFile = $add('import_files', ['organization_id' => $org, 'batch_id' => $datevImportBatch,
     'filename' => 'prima-nota-datev.csv', 'media_type' => 'text/csv', 'checksum_sha256' => str_repeat('b', 64), 'file_size' => 100]);
 $datevEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'GEN-2026-DATEV-001',
@@ -254,6 +256,25 @@ $add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch,
     'status' => 'IMPORTED', 'imported_entity_id' => $missingPartyEntry]);
 $add('import_records', ['organization_id' => $org, 'batch_id' => $datevImportBatch, 'entity_type' => 'journal_entries',
     'entity_id' => $missingPartyEntry, 'operation' => 'CREATE']);
+$wrongPartyEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'GEN-2026-DATEV-003',
+    'entry_date' => '2026-04-03', 'competence_date' => '2026-04-03', 'entry_type' => 'DATEV_IMPORT',
+    'status' => 'POSTED', 'description' => 'Movimento precedentemente associato al soggetto errato',
+    'source_protocol' => 'KOINOS-003', 'source_type' => 'MANUAL', 'total_debit' => 110, 'total_credit' => 110]);
+$wrongPartyLine = $add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $wrongPartyEntry,
+    'line_number' => 1, 'account_id' => $payableAccount, 'debit' => 0, 'credit' => 110,
+    'description' => 'Debito storico', 'supplier_id' => $partySupplier]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $wrongPartyEntry,
+    'line_number' => 2, 'account_id' => $offset, 'debit' => 110, 'credit' => 0, 'description' => 'Costo storico']);
+$add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch, 'source_file_id' => $datevImportFile,
+    'source_row_number' => 6, 'raw_data_json' => '{}',
+    'normalized_data_json' => json_encode(['account_code' => '3901010', 'account_name' => 'FORNITORE CORRETTO SRL']),
+    'status' => 'IMPORTED', 'imported_entity_id' => $wrongPartyEntry]);
+$add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch, 'source_file_id' => $datevImportFile,
+    'source_row_number' => 7, 'raw_data_json' => '{}',
+    'normalized_data_json' => json_encode(['account_code' => '4001', 'account_name' => 'Costo di prova']),
+    'status' => 'IMPORTED', 'imported_entity_id' => $wrongPartyEntry]);
+$add('import_records', ['organization_id' => $org, 'batch_id' => $datevImportBatch, 'entity_type' => 'journal_entries',
+    'entity_id' => $wrongPartyEntry, 'operation' => 'CREATE']);
 $partyLedger->synchronize();
 $linkedDatevLine = $db->query('SELECT supplier_id FROM journal_entry_lines WHERE id = ' . (int) $datevPayableLine)->fetchColumn();
 $assert((int) $linkedDatevLine === $partySupplier,
@@ -262,6 +283,9 @@ $createdHistoricalSupplier = $db->query("SELECT id FROM suppliers WHERE organiza
 $linkedMissingPartyLine = $db->query('SELECT supplier_id FROM journal_entry_lines WHERE id = ' . (int) $missingPartyLine)->fetchColumn();
 $assert((int) $createdHistoricalSupplier > 0 && (int) $linkedMissingPartyLine === (int) $createdHistoricalSupplier,
     'DATEV reconciliation creates missing historical parties and assigns their collective-account lines automatically');
+$repairedWrongPartyLine = $db->query('SELECT supplier_id FROM journal_entry_lines WHERE id = ' . (int) $wrongPartyLine)->fetchColumn();
+$assert((int) $repairedWrongPartyLine === $correctDatevSupplier,
+    'One-time DATEV reconciliation replaces incorrect pre-existing subaccount associations with the authoritative source party');
 $partyIntegrity = $partyLedger->integrity('SUPPLIER');
 $assert($partyIntegrity['is_balanced'] === true
     && abs($partyIntegrity['total_debit'] - $partyIntegrity['assigned_debit']) < 0.005

@@ -121,7 +121,11 @@ final class PartyLedgerService
         // account_name, mentre la testata puo contenere una causale diversa.
         // Le righe sorgente vengono conservate integralmente in import_rows:
         // usarle evita abbinamenti euristici e recupera anche tutto lo storico.
-        $counts['datev_rows'] += $this->matchHistoricalLinesFromDatevRows();
+        $repairAssigned = $this->datevPartyRepairRequired();
+        $counts['datev_rows'] += $this->matchHistoricalLinesFromDatevRows($repairAssigned);
+        if ($repairAssigned) {
+            $this->markDatevPartyRepairCompleted();
+        }
         $counts['historical'] += $this->matchHistoricalLines();
         return $counts;
     }
@@ -465,7 +469,7 @@ final class PartyLedgerService
         return $updated;
     }
 
-    private function matchHistoricalLinesFromDatevRows(): int
+    private function matchHistoricalLinesFromDatevRows(bool $repairAssigned = false): int
     {
         $updated = 0;
         foreach ([
@@ -478,7 +482,7 @@ final class PartyLedgerService
                  JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
                  JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
                    AND m.mapping_key = ? AND m.account_id = l.account_id
-                 WHERE l.organization_id = ? AND l.{$idColumn} IS NULL AND e.status = 'POSTED'
+                 WHERE l.organization_id = ? " . ($repairAssigned ? '' : "AND l.{$idColumn} IS NULL ") . "AND e.status = 'POSTED'
                    AND e.entry_type IN ('DATEV_IMPORT','OPENING','CLOSING')"
             );
             $targetStatement->execute([$mapping, $this->organizationId]);
@@ -536,7 +540,7 @@ final class PartyLedgerService
                     continue;
                 }
                 foreach ($entryLines as $index => $entryLine) {
-                    if (!(int) $entryLine['is_target'] || !empty($entryLine['party_id'])) {
+                    if (!(int) $entryLine['is_target'] || (!$repairAssigned && !empty($entryLine['party_id']))) {
                         continue;
                     }
                     try {
@@ -555,7 +559,11 @@ final class PartyLedgerService
                 }
             }
             $parties = $this->ensureDatevParties($table, $sourcePartyNames);
-            $save = $this->db->prepare("UPDATE journal_entry_lines SET {$idColumn} = ? WHERE id = ? AND organization_id = ? AND {$idColumn} IS NULL");
+            $otherColumn = $idColumn === 'supplier_id' ? 'customer_id' : 'supplier_id';
+            $save = $this->db->prepare(
+                "UPDATE journal_entry_lines SET {$idColumn} = ?, {$otherColumn} = NULL
+                 WHERE id = ? AND organization_id = ? " . ($repairAssigned ? '' : "AND {$idColumn} IS NULL")
+            );
             foreach ($linesByEntry as $entryId => $lines) {
                 $sources = $sourcesByEntry[$entryId] ?? [];
                 // Una riga sorgente genera esattamente una riga contabile. Se
@@ -587,6 +595,21 @@ final class PartyLedgerService
             }
         }
         return $updated;
+    }
+
+    private function datevPartyRepairRequired(): bool
+    {
+        $statement = $this->db->prepare('SELECT datev_party_reconciliation_version FROM accounting_settings WHERE organization_id = ?');
+        $statement->execute([$this->organizationId]);
+        return (int) $statement->fetchColumn() < 1;
+    }
+
+    private function markDatevPartyRepairCompleted(): void
+    {
+        $this->db->prepare(
+            'INSERT INTO accounting_settings (organization_id, datev_party_reconciliation_version)
+             VALUES (?, 1) ON DUPLICATE KEY UPDATE datev_party_reconciliation_version = 1, updated_at = NOW()'
+        )->execute([$this->organizationId]);
     }
 
     /** @param array<string,array{name:string,batch_id:int}> $sourcePartyNames */
