@@ -124,6 +124,7 @@ final class PartyLedgerService
         $repairAssigned = $this->datevPartyRepairRequired();
         $counts['datev_rows'] += $this->matchHistoricalLinesFromDatevRows($repairAssigned);
         if ($repairAssigned) {
+            $this->deactivateEmptyDatevDuplicates();
             $this->markDatevPartyRepairCompleted();
         }
         $counts['historical'] += $this->matchHistoricalLines();
@@ -608,14 +609,14 @@ final class PartyLedgerService
     {
         $statement = $this->db->prepare('SELECT datev_party_reconciliation_version FROM accounting_settings WHERE organization_id = ?');
         $statement->execute([$this->organizationId]);
-        return (int) $statement->fetchColumn() < 1;
+        return (int) $statement->fetchColumn() < 2;
     }
 
     private function markDatevPartyRepairCompleted(): void
     {
         $this->db->prepare(
             'INSERT INTO accounting_settings (organization_id, datev_party_reconciliation_version)
-             VALUES (?, 1) ON DUPLICATE KEY UPDATE datev_party_reconciliation_version = 1, updated_at = NOW()'
+             VALUES (?, 2) ON DUPLICATE KEY UPDATE datev_party_reconciliation_version = 2, updated_at = NOW()'
         )->execute([$this->organizationId]);
     }
 
@@ -646,9 +647,11 @@ final class PartyLedgerService
             }
             $party = [
                 'id' => (int) $this->db->lastInsertId(),
+                'code' => $code,
                 'business_name' => $name,
                 'vat_number' => null,
                 'tax_code' => null,
+                'source_import_batch_id' => $source['batch_id'] ?: null,
                 'canonical_name' => $canonical,
                 'vat_digits' => '',
                 'tax_key' => '',
@@ -663,7 +666,10 @@ final class PartyLedgerService
     private function partyCandidatesForSourceName(string $sourceName, array $parties): array
     {
         $canonical = $this->canonical($sourceName);
-        $exact = array_values(array_unique($parties['names'][$canonical] ?? []));
+        $exact = $this->preferredPartyCandidates(
+            array_values(array_unique($parties['names'][$canonical] ?? [])),
+            $parties
+        );
         if ($exact !== []) {
             return $exact;
         }
@@ -677,7 +683,35 @@ final class PartyLedgerService
                 $matches[] = (int) $party['id'];
             }
         }
-        return array_values(array_unique($matches));
+        return $this->preferredPartyCandidates(array_values(array_unique($matches)), $parties);
+    }
+
+    /** @param array<int,int> $ids @param array{parties:array<int,array<string,mixed>>} $parties @return array<int,int> */
+    private function preferredPartyCandidates(array $ids, array $parties): array
+    {
+        if (count($ids) <= 1) {
+            return $ids;
+        }
+        $scores = [];
+        foreach ($parties['parties'] as $party) {
+            $id = (int) $party['id'];
+            if (!in_array($id, $ids, true)) {
+                continue;
+            }
+            $code = strtoupper((string) ($party['code'] ?? ''));
+            $score = 0;
+            $score += !empty($party['vat_digits']) ? 100 : 0;
+            $score += !empty($party['tax_key']) ? 80 : 0;
+            $score += !str_contains($code, '-DATEV-') ? 40 : 0;
+            $score += empty($party['source_import_batch_id']) ? 20 : 0;
+            $scores[$id] = $score;
+        }
+        if ($scores === []) {
+            return $ids;
+        }
+        $best = max($scores);
+        $winners = array_keys(array_filter($scores, static fn (int $score): bool => $score === $best));
+        return count($winners) === 1 ? array_map('intval', $winners) : $ids;
     }
 
     private function isUsableDatevPartyName(string $canonical): bool
@@ -693,10 +727,32 @@ final class PartyLedgerService
         return true;
     }
 
+    private function deactivateEmptyDatevDuplicates(): void
+    {
+        foreach ([
+            ['suppliers', 'supplier_id', 'SUPPLIER', 'FOR-DATEV-%'],
+            ['customers', 'customer_id', 'CUSTOMER', 'CLI-DATEV-%'],
+        ] as [$table, $idColumn, $partyType, $codePattern]) {
+            $statement = $this->db->prepare(
+                "UPDATE {$table} p
+                 SET p.active = 0, p.updated_at = NOW()
+                 WHERE p.organization_id = ? AND p.active = 1 AND p.code LIKE ?
+                   AND p.source_import_batch_id IS NOT NULL
+                   AND NOT EXISTS (SELECT 1 FROM journal_entry_lines l
+                                   WHERE l.organization_id = p.organization_id AND l.{$idColumn} = p.id)
+                   AND NOT EXISTS (SELECT 1 FROM documents d
+                                   WHERE d.organization_id = p.organization_id AND d.counterparty_type = ? AND d.counterparty_id = p.id)
+                   AND NOT EXISTS (SELECT 1 FROM accounting_open_items i
+                                   WHERE i.organization_id = p.organization_id AND i.party_type = ? AND i.party_id = p.id)"
+            );
+            $statement->execute([$this->organizationId, $codePattern, $partyType, $partyType]);
+        }
+    }
+
     /** @return array{names:array<string,array<int,int>>,parties:array<int,array<string,mixed>>} */
     private function partyMatchIndex(string $table): array
     {
-        $statement = $this->db->prepare("SELECT id, business_name, vat_number, tax_code FROM {$table} WHERE organization_id = ? AND active = 1");
+        $statement = $this->db->prepare("SELECT id, code, business_name, vat_number, tax_code, source_import_batch_id FROM {$table} WHERE organization_id = ? AND active = 1");
         $statement->execute([$this->organizationId]);
         $names = [];
         $parties = [];

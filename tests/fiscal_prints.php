@@ -220,6 +220,8 @@ $datevImportBatch = $add('import_batches', ['organization_id' => $org, 'uuid' =>
     'total_rows' => 6, 'valid_rows' => 6, 'imported_rows' => 6, 'error_rows' => 0]);
 $datevImportFile = $add('import_files', ['organization_id' => $org, 'batch_id' => $datevImportBatch,
     'filename' => 'prima-nota-datev.csv', 'media_type' => 'text/csv', 'checksum_sha256' => str_repeat('b', 64), 'file_size' => 100]);
+$duplicateDatevSupplier = $add('suppliers', ['organization_id' => $org, 'code' => 'FOR-DATEV-DUPLICATE',
+    'business_name' => 'Magica Luce S.r.l.', 'source_import_batch_id' => $datevImportBatch, 'active' => 1]);
 $datevEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'GEN-2026-DATEV-001',
     'entry_date' => '2026-04-01', 'competence_date' => '2026-04-01', 'entry_type' => 'DATEV_IMPORT',
     'status' => 'POSTED', 'description' => 'Causale che non contiene il fornitore', 'source_protocol' => 'KOINOS-001',
@@ -279,6 +281,9 @@ $partyLedger->synchronize();
 $linkedDatevLine = $db->query('SELECT supplier_id FROM journal_entry_lines WHERE id = ' . (int) $datevPayableLine)->fetchColumn();
 $assert((int) $linkedDatevLine === $partySupplier,
     'DATEV source account name deterministically links historical collective-account lines to supplier subledgers');
+$duplicateDatevActive = $db->query('SELECT active FROM suppliers WHERE id = ' . (int) $duplicateDatevSupplier)->fetchColumn();
+$assert((int) $duplicateDatevActive === 0,
+    'Empty DATEV-generated duplicate parties are deactivated after authoritative reconciliation');
 $createdHistoricalSupplier = $db->query("SELECT id FROM suppliers WHERE organization_id = {$org} AND business_name = 'NUOVO FORNITORE STORICO'")->fetchColumn();
 $linkedMissingPartyLine = $db->query('SELECT supplier_id FROM journal_entry_lines WHERE id = ' . (int) $missingPartyLine)->fetchColumn();
 $assert((int) $createdHistoricalSupplier > 0 && (int) $linkedMissingPartyLine === (int) $createdHistoricalSupplier,
