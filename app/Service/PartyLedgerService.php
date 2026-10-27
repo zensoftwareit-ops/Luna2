@@ -564,6 +564,9 @@ final class PartyLedgerService
                 "UPDATE journal_entry_lines SET {$idColumn} = ?, {$otherColumn} = NULL
                  WHERE id = ? AND organization_id = ? " . ($repairAssigned ? '' : "AND {$idColumn} IS NULL")
             );
+            $clearAmbiguous = $repairAssigned
+                ? $this->db->prepare("UPDATE journal_entry_lines SET {$idColumn} = NULL, {$otherColumn} = NULL WHERE id = ? AND organization_id = ?")
+                : null;
             foreach ($linesByEntry as $entryId => $lines) {
                 $sources = $sourcesByEntry[$entryId] ?? [];
                 // Una riga sorgente genera esattamente una riga contabile. Se
@@ -590,6 +593,10 @@ final class PartyLedgerService
                     if (count($ids) === 1) {
                         $save->execute([$ids[0], $line['line_id'], $this->organizationId]);
                         $updated += $save->rowCount();
+                    } elseif ($clearAmbiguous !== null) {
+                        // Un'associazione precedente non dimostrabile non deve
+                        // restare nascosta su un soggetto probabilmente errato.
+                        $clearAmbiguous->execute([$line['line_id'], $this->organizationId]);
                     }
                 }
             }
