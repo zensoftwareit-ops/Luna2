@@ -336,6 +336,8 @@ final class PartyLedgerService
         if (!$party) {
             throw new InvalidArgumentException('Sottoconto cliente/fornitore non trovato.');
         }
+        $partyIds = $this->partyAliasIds($table, $party);
+        $partyPlaceholders = implode(',', array_fill(0, count($partyIds), '?'));
         $mappingKey = $type === 'SUPPLIER' ? 'TRADE_PAYABLES' : 'TRADE_RECEIVABLES';
         $accountStatement = $this->db->prepare(
             'SELECT a.id, a.code, a.name, a.account_type
@@ -357,10 +359,11 @@ final class PartyLedgerService
                ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
              LEFT JOIN documents d ON e.source_type = 'DOCUMENT' AND d.id = e.source_id
                AND d.organization_id = e.organization_id
-             WHERE l.organization_id = ? AND l.{$idColumn} = ? AND e.status = 'POSTED' AND e.entry_date <= ?
+             WHERE l.organization_id = ? AND l.{$idColumn} IN ({$partyPlaceholders})
+               AND e.status = 'POSTED' AND e.entry_date <= ?
              ORDER BY e.entry_date, e.id, l.line_number, l.id"
         );
-        $statement->execute([$this->organizationId, $partyId, $to]);
+        $statement->execute(array_merge([$this->organizationId], $partyIds, [$to]));
         $movementRows = $statement->fetchAll();
         $hasPeriodOpening = count(array_filter($movementRows, static fn (array $row): bool =>
             (string) ($row['entry_type'] ?? '') === 'OPENING'
@@ -391,10 +394,11 @@ final class PartyLedgerService
         }
         $items = $this->db->prepare(
             "SELECT i.*, GREATEST(i.original_amount - i.settled_amount, 0) AS outstanding
-             FROM accounting_open_items i WHERE i.organization_id = ? AND i.party_type = ? AND i.party_id = ?
+             FROM accounting_open_items i WHERE i.organization_id = ? AND i.party_type = ?
+               AND i.party_id IN ({$partyPlaceholders})
              ORDER BY i.issue_date, i.due_date, i.id"
         );
-        $items->execute([$this->organizationId, $type, $partyId]);
+        $items->execute(array_merge([$this->organizationId, $type], $partyIds));
         $openItems = $items->fetchAll();
         $outstanding = array_sum(array_map(
             static fn (array $item): float => $item['status'] === 'CANCELLED'
@@ -407,7 +411,8 @@ final class PartyLedgerService
         }
         unset($item);
         return [
-            'party' => $party, 'collective_account' => $collectiveAccount, 'rows' => $rows, 'open_items' => $openItems,
+            'party' => $party, 'party_alias_ids' => $partyIds,
+            'collective_account' => $collectiveAccount, 'rows' => $rows, 'open_items' => $openItems,
             'totals' => ['opening' => round($opening, 2), 'debit' => round($debit, 2), 'credit' => round($credit, 2),
                 'closing' => round($opening + $balance, 2), 'outstanding' => round($outstanding, 2),
                 'opening_debit' => round($openingDebit, 2), 'opening_credit' => round($openingCredit, 2),
@@ -425,6 +430,34 @@ final class PartyLedgerService
             'SUPPLIER' => ['suppliers', 'supplier_id', 'PAYABLE', -1],
             default => throw new InvalidArgumentException('Tipo di partitario non valido.'),
         };
+    }
+
+    /** @param array<string,mixed> $party @return array<int,int> */
+    private function partyAliasIds(string $table, array $party): array
+    {
+        $selectedId = (int) $party['id'];
+        $canonical = $this->canonical((string) ($party['business_name'] ?? ''));
+        if ($canonical === '') {
+            return [$selectedId];
+        }
+        $statement = $this->db->prepare(
+            "SELECT id, code, business_name, source_import_batch_id
+             FROM {$table} WHERE organization_id = ? AND id <> ?"
+        );
+        $statement->execute([$this->organizationId, $selectedId]);
+        $ids = [$selectedId];
+        foreach ($statement->fetchAll() as $candidate) {
+            $code = strtoupper((string) ($candidate['code'] ?? ''));
+            $isDatevTechnical = !empty($candidate['source_import_batch_id'])
+                || str_contains($code, '-DATEV-');
+            if (!$isDatevTechnical) {
+                continue;
+            }
+            if ($this->canonical((string) $candidate['business_name']) === $canonical) {
+                $ids[] = (int) $candidate['id'];
+            }
+        }
+        return array_values(array_unique($ids));
     }
 
     private function matchOpenItemsByCanonicalName(): int

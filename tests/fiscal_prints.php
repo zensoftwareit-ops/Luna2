@@ -334,6 +334,18 @@ $supplierOverview = $partyLedger->overview('SUPPLIER', '2026-01-01', '2026-07-31
 $assert(count($supplierOverview) === 1 && (float) $supplierOverview[0]['opening_balance'] === 0.0
     && (float) $supplierOverview[0]['closing_balance'] === 247.0,
     'Supplier overview applies the same opening replacement rule');
+$technicalAliasEntry = $add('journal_entries', ['organization_id' => $org,
+    'protocol_number' => 'GEN-2024-DATEV-ALIAS', 'entry_date' => '2024-06-30',
+    'competence_date' => '2024-06-30', 'entry_type' => 'DATEV_IMPORT', 'status' => 'POSTED',
+    'description' => 'Movimento storico rimasto sul duplicato tecnico', 'total_debit' => 33, 'total_credit' => 33]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $technicalAliasEntry,
+    'line_number' => 1, 'account_id' => $offset, 'debit' => 33, 'credit' => 0, 'description' => 'Costo storico']);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $technicalAliasEntry,
+    'line_number' => 2, 'account_id' => $payableAccount, 'debit' => 0, 'credit' => 33,
+    'description' => 'Debito storico', 'supplier_id' => $duplicateDatevSupplier]);
+$aliasDetail = $partyLedger->detail('SUPPLIER', $partySupplier, '2024-01-01', '2026-12-31');
+$assert(in_array('GEN-2024-DATEV-ALIAS', array_column($aliasDetail['rows'], 'protocol_number'), true),
+    'The real party account sheet includes movements left on an equivalent DATEV technical alias');
 $ledgerPdf = (new TabularExportService(['business_name' => 'Societa test stampe fiscali S.r.l.',
     'vat_number' => '01234567890', 'tax_code' => '01234567890']))
     ->ledgerPdfContent($a, $lines, '2026-01-01', '2026-12-31');
