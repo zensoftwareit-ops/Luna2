@@ -385,6 +385,31 @@ $db->exec('UPDATE journal_entry_lines SET customer_id = ' . (int) $directionCust
 $customerDirectionDetail = $partyLedger->detail('CUSTOMER', $directionCustomer, '2024-01-01', '2026-12-31');
 $assert(array_column($customerDirectionDetail['rows'], 'protocol_number') === ['GEN-2026-CUSTOMER-DIRECTION'],
     'Customer account sheets exclude supplier/payable movements carrying an incorrect customer link');
+$authoritativeDocument = $add('documents', ['organization_id' => $org, 'document_type' => 'PURCHASE_INVOICE',
+    'number' => 'AUTH-1', 'fiscal_year' => 2026, 'document_date' => '2026-07-01',
+    'counterparty_type' => 'SUPPLIER', 'counterparty_id' => $partySupplier,
+    'counterparty_name' => 'Magica Luce S.r.l.', 'total' => 77, 'balance_due' => 77, 'status' => 'RECEIVED']);
+$authoritativeEntry = $add('journal_entries', ['organization_id' => $org,
+    'protocol_number' => 'GEN-2026-AUTHORITATIVE-PARTY', 'entry_date' => '2026-07-01',
+    'competence_date' => '2026-07-01', 'entry_type' => 'PURCHASE_INVOICE', 'status' => 'POSTED',
+    'source_type' => 'DOCUMENT', 'source_id' => $authoritativeDocument,
+    'description' => 'Documento con precedente associazione errata', 'total_debit' => 77, 'total_credit' => 77]);
+$authoritativeLine = $add('journal_entry_lines', ['organization_id' => $org,
+    'journal_entry_id' => $authoritativeEntry, 'line_number' => 1, 'account_id' => $payableAccount,
+    'debit' => 0, 'credit' => 77, 'description' => 'Debito documento',
+    'supplier_id' => $correctDatevSupplier, 'customer_id' => $directionCustomer]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $authoritativeEntry,
+    'line_number' => 2, 'account_id' => $offset, 'debit' => 77, 'credit' => 0, 'description' => 'Costo documento']);
+$add('accounting_open_items', ['organization_id' => $org, 'direction' => 'PAYABLE',
+    'party_type' => 'SUPPLIER', 'party_id' => $partySupplier, 'party_name' => 'Magica Luce S.r.l.',
+    'document_id' => $authoritativeDocument, 'journal_entry_id' => $authoritativeEntry,
+    'account_id' => $payableAccount, 'reference' => 'AUTH-1', 'issue_date' => '2026-07-01',
+    'due_date' => '2026-07-31', 'original_amount' => 77, 'settled_amount' => 0, 'status' => 'OPEN']);
+$partyLedger->synchronize();
+$authoritativeLink = $db->query('SELECT supplier_id, customer_id FROM journal_entry_lines WHERE id = '
+    . (int) $authoritativeLine)->fetch();
+$assert((int) $authoritativeLink['supplier_id'] === $partySupplier && $authoritativeLink['customer_id'] === null,
+    'Document evidence overwrites stale or cross-direction party associations');
 $ledgerPdf = (new TabularExportService(['business_name' => 'Societa test stampe fiscali S.r.l.',
     'vat_number' => '01234567890', 'tax_code' => '01234567890']))
     ->ledgerPdfContent($a, $lines, '2026-01-01', '2026-12-31');

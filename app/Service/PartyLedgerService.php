@@ -76,14 +76,14 @@ final class PartyLedgerService
             $counts['open_items'] += $statement->rowCount();
         }
 
-        foreach ([['SUPPLIER', 'supplier_id'], ['CUSTOMER', 'customer_id']] as [$type, $column]) {
+        foreach ([['SUPPLIER', 'supplier_id', 'customer_id'], ['CUSTOMER', 'customer_id', 'supplier_id']] as [$type, $column, $otherColumn]) {
             $statement = $this->db->prepare(
                 "UPDATE journal_entry_lines l
                  JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
                  JOIN documents d ON d.id = e.source_id AND d.organization_id = e.organization_id
-                 SET l.{$column} = d.counterparty_id
+                 SET l.{$column} = d.counterparty_id, l.{$otherColumn} = NULL
                  WHERE l.organization_id = ? AND e.source_type = 'DOCUMENT' AND d.counterparty_type = ?
-                   AND d.counterparty_id IS NOT NULL AND l.{$column} IS NULL
+                   AND d.counterparty_id IS NOT NULL
                    AND EXISTS (SELECT 1 FROM accounting_open_items i
                                WHERE i.organization_id = l.organization_id AND i.document_id = d.id
                                  AND i.account_id = l.account_id)"
@@ -92,16 +92,16 @@ final class PartyLedgerService
             $counts['documents'] += $statement->rowCount();
         }
 
-        foreach ([['SUPPLIER', 'supplier_id'], ['CUSTOMER', 'customer_id']] as [$type, $column]) {
+        foreach ([['SUPPLIER', 'supplier_id', 'customer_id'], ['CUSTOMER', 'customer_id', 'supplier_id']] as [$type, $column, $otherColumn]) {
             $statement = $this->db->prepare(
                 "UPDATE journal_entry_lines l
                  JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
                  JOIN payments p ON p.id = e.source_id AND p.organization_id = e.organization_id
                  JOIN payment_allocations allocation ON allocation.payment_id = p.id AND allocation.organization_id = p.organization_id
                  JOIN accounting_open_items i ON i.id = allocation.open_item_id AND i.organization_id = allocation.organization_id
-                 SET l.{$column} = i.party_id
+                 SET l.{$column} = i.party_id, l.{$otherColumn} = NULL
                  WHERE l.organization_id = ? AND e.source_type IN ('PAYMENT','PAYMENT_REVERSAL')
-                   AND i.party_type = ? AND i.party_id IS NOT NULL AND l.{$column} IS NULL
+                   AND i.party_type = ? AND i.party_id IS NOT NULL
                    AND l.account_id = i.account_id"
             );
             $statement->execute([$this->organizationId, $type]);
