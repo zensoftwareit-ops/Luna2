@@ -194,7 +194,7 @@ final class Application
         $router->add('GET', '/accounting/journal/{id}/lines/edit', [AccountingController::class, 'editLines']);
         $router->add('POST', '/accounting/journal/{id}/lines', [AccountingController::class, 'saveLines']);
         $router->add('POST', '/accounting/journal/{id}/post', [AccountingController::class, 'postDraft']);
-        $router->add('POST', '/accounting/journal/{id}/delete', [AccountingController::class, 'deleteDraft']);
+        $router->add('POST', '/accounting/journal/{id}/delete', [AccountingController::class, 'deleteProvisional']);
         $router->add('POST', '/accounting/journal/{id}/registration-date', [AccountingController::class, 'registrationDate']);
         $router->add('POST', '/accounting/journal/{id}/lines/{lineId}/account', [AccountingController::class, 'changeLineAccount']);
         $router->add('POST', '/accounting/journal/{id}/lines/{lineId}/split', [AccountingController::class, 'splitLine']);

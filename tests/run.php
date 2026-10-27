@@ -597,6 +597,13 @@ $assert(str_contains($accountingService, 'replaceProvisionalLines')
     && str_contains($journalLinesView, 'data-add-accounting-line')
     && str_contains($journalLinesView, 'data-remove-line'),
     'Le righe di una scrittura provvisoria devono poter essere aggiunte, modificate e rimosse con controllo di quadratura.');
+$assert(str_contains($accountingService, 'deleteProvisional')
+    && str_contains($accountingService, 'rollbackPaymentsForJournal')
+    && str_contains($accountingService, "status IN ('DRAFT','POSTED')")
+    && str_contains($journalView, 'Elimina')
+    && str_contains($entryView, 'Elimina scrittura')
+    && !str_contains($accountingController, "in_array(\$entry['source_type'], ['MANUAL', 'DOCUMENT'], true)"),
+    'Testata ed eliminazione devono essere disponibili su tutte le scritture non definitive, con rollback dei pagamenti collegati.');
 $assert(is_file($base . '/database/migrations/032_document_vat_summaries.sql')
     && str_contains($accountingService, 'replaceDocumentVatSummary')
     && str_contains($accountingService, 'splitLine')

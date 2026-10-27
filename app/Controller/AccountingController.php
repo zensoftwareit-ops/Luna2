@@ -116,7 +116,7 @@ final class AccountingController extends BaseController
     {
         $this->authorize();
         [$entry, $lines] = $this->entry((int) $id);
-        if (!in_array($entry['status'], ['DRAFT', 'POSTED'], true) || !in_array($entry['source_type'], ['MANUAL', 'DOCUMENT'], true) || !empty($entry['is_finalized'])) {
+        if (!in_array($entry['status'], ['DRAFT', 'POSTED'], true) || !empty($entry['is_finalized'])) {
             $this->redirect('/accounting/journal/' . (int) $id, 'La scrittura è definitiva, stornata o non modificabile.', 'error');
         }
         $accounts = $this->accounts();
@@ -256,14 +256,19 @@ final class AccountingController extends BaseController
         $this->redirect('/accounting/journal/' . (int) $id, 'Bozza contabilizzata definitivamente.');
     }
 
-    public function deleteDraft(string $id): never
+    public function deleteProvisional(string $id): never
     {
         $this->authorize();
-        $deleted = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))->deleteDraft((int) $id);
-        if ($deleted) {
-            $this->audit('DELETE_DRAFT', 'journal_entries', (int) $id);
+        try {
+            $result = (new AccountingService($this->db, Auth::organizationId(), Auth::id()))->deleteProvisional((int) $id);
+            $this->audit('DELETE_PROVISIONAL', 'journal_entries', (int) $id, $result);
+            $message = !empty($result['payments_rolled_back'])
+                ? sprintf('Scrittura eliminata e %d pagamento/i collegato/i ripristinati nello scadenzario.', $result['payments_rolled_back'])
+                : 'Scrittura provvisoria eliminata.';
+            $this->redirect('/accounting/journal', $message);
+        } catch (InvalidArgumentException|RuntimeException $exception) {
+            $this->redirect('/accounting/journal/' . (int) $id, $exception->getMessage(), 'error');
         }
-        $this->redirect('/accounting/journal', $deleted ? 'Bozza eliminata.' : 'La registrazione non è una bozza eliminabile.', $deleted ? 'success' : 'error');
     }
 
     public function changeLineAccount(string $id, string $lineId): never

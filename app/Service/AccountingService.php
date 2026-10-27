@@ -121,7 +121,7 @@ final class AccountingService
                 $lock = $this->db->prepare(
                     "SELECT * FROM journal_entries
                      WHERE id = ? AND organization_id = ? AND status IN ('DRAFT','POSTED')
-                       AND source_type IN ('MANUAL','DOCUMENT') AND is_finalized = 0 FOR UPDATE"
+                       AND is_finalized = 0 FOR UPDATE"
                 );
                 $lock->execute([$entryId, $this->organizationId]);
                 $current = $lock->fetch();
@@ -168,6 +168,9 @@ final class AccountingService
                 if ((string) $current['source_type'] === 'DOCUMENT' && !empty($current['source_id']) && $entryDate !== $previousEntryDate) {
                     $this->db->prepare('UPDATE documents SET registration_date = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?')
                         ->execute([$entryDate, (int) $current['source_id'], $this->organizationId]);
+                }
+                if ($entryDate !== $previousEntryDate) {
+                    $this->syncLinkedOperationDate($current, $entryDate);
                 }
             } else {
                 $protocol = $this->nextProtocol($entryDate);
@@ -323,14 +326,209 @@ final class AccountingService
         }
     }
 
-    public function deleteDraft(int $entryId): bool
+    /**
+     * Elimina una scrittura ancora provvisoria. Per incassi e pagamenti il
+     * rollback comprende anche allocazioni, scadenze e stato del documento,
+     * così la cancellazione non lascia il partitario incoerente.
+     */
+    public function deleteProvisional(int $entryId): array
+    {
+        $ownsTransaction = !$this->db->inTransaction();
+        if ($ownsTransaction) $this->db->beginTransaction();
+        try {
+            $statement = $this->db->prepare(
+                "SELECT * FROM journal_entries
+                 WHERE id = ? AND organization_id = ? AND status IN ('DRAFT','POSTED')
+                   AND is_finalized = 0 FOR UPDATE"
+            );
+            $statement->execute([$entryId, $this->organizationId]);
+            $entry = $statement->fetch();
+            if (!$entry) {
+                throw new InvalidArgumentException('La scrittura è definitiva, stornata o non eliminabile.');
+            }
+            $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+
+            $paymentCount = 0;
+            if (in_array((string) $entry['source_type'], ['PAYMENT', 'PAYMENT_BATCH', 'WITHHOLDING_PAYMENT'], true)) {
+                $paymentCount = $this->rollbackPaymentsForJournal($entryId, (string) $entry['source_type']);
+            } elseif ((string) $entry['source_type'] === 'PAYMENT_REVERSAL') {
+                throw new RuntimeException('Lo storno di un pagamento non può essere eliminato isolatamente: correggi il pagamento dalla Tesoreria.');
+            } elseif ((string) $entry['source_type'] === 'DEPRECIATION_ENTRY') {
+                $this->rollbackDepreciationEntry((int) $entry['source_id']);
+            } elseif ((string) $entry['source_type'] === 'ADJUSTMENT_SCHEDULE') {
+                $this->db->prepare("UPDATE accounting_adjustment_schedules SET status = 'DRAFT', journal_entry_id = NULL, updated_at = NOW() WHERE id = ? AND organization_id = ? AND journal_entry_id = ?")
+                    ->execute([(int) $entry['source_id'], $this->organizationId, $entryId]);
+            } elseif ((string) $entry['source_type'] === 'WITHHOLDING_SETTLEMENT') {
+                $this->rollbackWithholdingSettlement((int) $entry['source_id']);
+            } elseif (in_array((string) $entry['source_type'], ['CLOSING_RUN', 'OPENING_RUN'], true)) {
+                throw new RuntimeException('Le scritture di chiusura e apertura vanno annullate dalla procedura di chiusura esercizio.');
+            }
+
+            $delete = $this->db->prepare(
+                'DELETE FROM journal_entries WHERE id = ? AND organization_id = ? AND is_finalized = 0'
+            );
+            $delete->execute([$entryId, $this->organizationId]);
+            if ($delete->rowCount() !== 1) {
+                throw new RuntimeException('La scrittura non è stata eliminata. Aggiorna la pagina e riprova.');
+            }
+            $this->invalidateJournalPrints(null, (string) $entry['entry_date']);
+            if ($ownsTransaction) $this->db->commit();
+            return [
+                'entry_id' => $entryId,
+                'protocol_number' => (string) $entry['protocol_number'],
+                'source_type' => (string) $entry['source_type'],
+                'payments_rolled_back' => $paymentCount,
+            ];
+        } catch (Throwable $exception) {
+            if ($ownsTransaction && $this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+    }
+
+    private function rollbackPaymentsForJournal(int $entryId, string $sourceType): int
     {
         $statement = $this->db->prepare(
-            "DELETE FROM journal_entries
-             WHERE id = ? AND organization_id = ? AND status = 'DRAFT' AND source_type = 'MANUAL'"
+            "SELECT * FROM payments WHERE organization_id = ? AND journal_entry_id = ? AND status = 'POSTED' FOR UPDATE"
         );
-        $statement->execute([$entryId, $this->organizationId]);
-        return $statement->rowCount() > 0;
+        $statement->execute([$this->organizationId, $entryId]);
+        $payments = $statement->fetchAll();
+        if ($payments === []) {
+            throw new RuntimeException('Il pagamento collegato non è disponibile o è già stato stornato.');
+        }
+        $documentIds = [];
+        foreach ($payments as $payment) {
+            $links = $this->db->prepare('SELECT COUNT(*) FROM reconciliation_links WHERE organization_id = ? AND payment_id = ?');
+            $links->execute([$this->organizationId, $payment['id']]);
+            if ((int) $links->fetchColumn() > 0) {
+                throw new RuntimeException('La scrittura contiene un pagamento riconciliato: annulla prima la riconciliazione bancaria.');
+            }
+            $allocations = $this->db->prepare(
+                'SELECT a.*, i.due_date, i.payment_schedule_id, i.document_id
+                 FROM payment_allocations a
+                 JOIN accounting_open_items i ON i.id = a.open_item_id AND i.organization_id = a.organization_id
+                 WHERE a.organization_id = ? AND a.payment_id = ? FOR UPDATE'
+            );
+            $allocations->execute([$this->organizationId, $payment['id']]);
+            foreach ($allocations->fetchAll() as $allocation) {
+                $amount = round((float) $allocation['amount'], 2);
+                $this->db->prepare(
+                    "UPDATE accounting_open_items
+                     SET status = CASE
+                           WHEN GREATEST(0, settled_amount - ?) <= 0.005 THEN IF(due_date < CURRENT_DATE(), 'OVERDUE', 'OPEN')
+                           ELSE 'PARTIAL' END,
+                         settled_amount = GREATEST(0, settled_amount - ?),
+                         updated_by = ?, updated_at = NOW()
+                     WHERE id = ? AND organization_id = ?"
+                )->execute([$amount, $amount, $this->userId, $allocation['open_item_id'], $this->organizationId]);
+                if (!empty($allocation['payment_schedule_id'])) {
+                    $this->db->prepare(
+                        "UPDATE payment_schedules
+                         SET status = CASE
+                               WHEN GREATEST(0, paid_amount - ?) <= 0.005 THEN IF(due_date < CURRENT_DATE(), 'OVERDUE', 'OPEN')
+                               ELSE 'PARTIAL' END,
+                             paid_amount = GREATEST(0, paid_amount - ?),
+                             updated_at = NOW()
+                         WHERE id = ? AND organization_id = ?"
+                    )->execute([$amount, $amount, $allocation['payment_schedule_id'], $this->organizationId]);
+                }
+                if (!empty($allocation['document_id'])) $documentIds[(int) $allocation['document_id']] = true;
+            }
+            $this->db->prepare('DELETE FROM vat_cash_events WHERE organization_id = ? AND payment_id = ?')
+                ->execute([$this->organizationId, $payment['id']]);
+            if ($sourceType === 'WITHHOLDING_PAYMENT') {
+                $records = $this->db->prepare('SELECT id FROM withholding_records WHERE organization_id = ? AND payment_id = ?');
+                $records->execute([$this->organizationId, $payment['id']]);
+                foreach ($records->fetchAll(PDO::FETCH_COLUMN) as $recordId) {
+                    $this->db->prepare("DELETE FROM tax_deadlines WHERE organization_id = ? AND deadline_type = 'WITHHOLDING' AND notes = ?")
+                        ->execute([$this->organizationId, 'Ritenuta #' . $recordId]);
+                }
+                $this->db->prepare('DELETE FROM withholding_records WHERE organization_id = ? AND payment_id = ?')
+                    ->execute([$this->organizationId, $payment['id']]);
+            }
+            $this->db->prepare('DELETE FROM payments WHERE id = ? AND organization_id = ?')
+                ->execute([$payment['id'], $this->organizationId]);
+        }
+        foreach (array_keys($documentIds) as $documentId) $this->refreshDocumentAfterPaymentRollback((int) $documentId);
+        return count($payments);
+    }
+
+    private function refreshDocumentAfterPaymentRollback(int $documentId): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT COALESCE(SUM(original_amount - settled_amount), 0) FROM accounting_open_items
+             WHERE organization_id = ? AND document_id = ? AND status <> 'CANCELLED'"
+        );
+        $statement->execute([$this->organizationId, $documentId]);
+        $balance = max(0, round((float) $statement->fetchColumn(), 2));
+        $this->db->prepare(
+            "UPDATE documents SET balance_due = ?, status = CASE
+                WHEN ? <= 0.005 THEN 'PAID'
+                WHEN ? < ABS(total) THEN 'PARTIALLY_PAID'
+                WHEN due_date < CURRENT_DATE() THEN 'OVERDUE'
+                WHEN document_type = 'PURCHASE_INVOICE' THEN 'RECEIVED'
+                ELSE 'ISSUED' END, updated_at = NOW()
+             WHERE id = ? AND organization_id = ?"
+        )->execute([$balance, $balance, $balance, $documentId, $this->organizationId]);
+    }
+
+    private function rollbackDepreciationEntry(int $depreciationId): void
+    {
+        $statement = $this->db->prepare(
+            "SELECT * FROM depreciation_entries WHERE id = ? AND organization_id = ? AND status = 'POSTED' FOR UPDATE"
+        );
+        $statement->execute([$depreciationId, $this->organizationId]);
+        $row = $statement->fetch();
+        if (!$row) return;
+        $this->db->prepare(
+            'UPDATE fixed_assets SET accumulated_depreciation = GREATEST(0, accumulated_depreciation - ?),
+             net_book_value = net_book_value + ?, tax_accumulated_depreciation = GREATEST(0, tax_accumulated_depreciation - ?),
+             tax_net_value = tax_net_value + ?, updated_by = ?, updated_at = NOW()
+             WHERE id = ? AND organization_id = ?'
+        )->execute([$row['civil_amount'], $row['civil_amount'], $row['tax_amount'], $row['tax_amount'], $this->userId, $row['fixed_asset_id'], $this->organizationId]);
+        $this->db->prepare("UPDATE depreciation_entries SET status = 'DRAFT', journal_entry_id = NULL, posted_at = NULL WHERE id = ? AND organization_id = ?")
+            ->execute([$depreciationId, $this->organizationId]);
+    }
+
+    private function rollbackWithholdingSettlement(int $recordId): void
+    {
+        $this->db->prepare("UPDATE withholding_records SET status = 'WITHHELD', paid_at = NULL, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ? AND status = 'PAID'")
+            ->execute([$this->userId, $recordId, $this->organizationId]);
+        $this->db->prepare("UPDATE tax_deadlines SET status = 'OPEN', completed_at = NULL, updated_by = ?, updated_at = NOW() WHERE organization_id = ? AND deadline_type = 'WITHHOLDING' AND notes = ?")
+            ->execute([$this->userId, $this->organizationId, 'Ritenuta #' . $recordId]);
+    }
+
+    private function syncLinkedOperationDate(array $entry, string $entryDate): void
+    {
+        $sourceType = (string) ($entry['source_type'] ?? '');
+        if (in_array($sourceType, ['PAYMENT', 'PAYMENT_BATCH', 'WITHHOLDING_PAYMENT'], true)) {
+            $eventCount = $this->db->prepare(
+                'SELECT COUNT(*) FROM vat_cash_events v JOIN payments p ON p.id = v.payment_id AND p.organization_id = v.organization_id
+                 WHERE p.organization_id = ? AND p.journal_entry_id = ?'
+            );
+            $eventCount->execute([$this->organizationId, $entry['id']]);
+            $hasCashVat = (int) $eventCount->fetchColumn() > 0;
+            $this->db->prepare(
+                'UPDATE vat_cash_events v JOIN payments p ON p.id = v.payment_id AND p.organization_id = v.organization_id
+                 SET v.recognition_date = ? WHERE p.organization_id = ? AND p.journal_entry_id = ?'
+            )->execute([$entryDate, $this->organizationId, $entry['id']]);
+            $this->db->prepare('UPDATE payments SET payment_date = ?, updated_by = ?, updated_at = NOW() WHERE organization_id = ? AND journal_entry_id = ?')
+                ->execute([$entryDate, $this->userId, $this->organizationId, $entry['id']]);
+            if ($sourceType === 'WITHHOLDING_PAYMENT') {
+                $this->db->prepare(
+                    'UPDATE withholding_records r JOIN payments p ON p.id = r.payment_id AND p.organization_id = r.organization_id
+                     SET r.record_date = ?, r.updated_by = ?, r.updated_at = NOW()
+                     WHERE p.organization_id = ? AND p.journal_entry_id = ?'
+                )->execute([$entryDate, $this->userId, $this->organizationId, $entry['id']]);
+            }
+            if ($hasCashVat) {
+                $vat = new VatService($this->db, $this->organizationId, $this->userId);
+                $vat->invalidateForDate((string) $entry['entry_date']);
+                $vat->invalidateForDate($entryDate);
+            }
+        } elseif ($sourceType === 'WITHHOLDING_SETTLEMENT' && !empty($entry['source_id'])) {
+            $this->db->prepare("UPDATE withholding_records SET paid_at = ?, updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ? AND status = 'PAID'")
+                ->execute([$entryDate, $this->userId, $entry['source_id'], $this->organizationId]);
+        }
     }
 
     /** @return array{old_account_id:int,new_account_id:int,old_account_code:string,new_account_code:string} */

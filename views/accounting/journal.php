@@ -1,4 +1,4 @@
-<?php use Luna\Core\View; $causeId = $causeId ?? 0; $causes = $causes ?? []; ?>
+<?php use Luna\Core\Csrf; use Luna\Core\View; $causeId = $causeId ?? 0; $causes = $causes ?? []; ?>
 <section class="page-intro compact">
     <div><span class="eyebrow">Contabilità generale</span><h1>Prima nota</h1><p>Le scritture provvisorie partecipano a mastrini e bilanci e restano modificabili fino alla stampa definitiva o alla chiusura.</p></div>
     <a class="button primary" href="/accounting/journal/create"><?= View::icon('plus') ?> Nuova registrazione</a>
@@ -35,7 +35,7 @@
             <td><?= View::e($entry['document_number'] ?: '—') ?><small class="cell-subtitle"><?= View::e($entry['counterparty'] ?: '') ?></small></td>
             <td><?= View::money($entry['total_debit']) ?></td><td><?= View::money($entry['total_credit']) ?></td>
             <td><span class="badge status-<?= !empty($entry['is_finalized']) ? 'locked' : strtolower((string) $entry['status']) ?>"><?= match (true) { $entry['status'] === 'DRAFT' => 'Bozza incompleta', $entry['status'] === 'POSTED' && !empty($entry['is_finalized']) => 'Definitiva', $entry['status'] === 'POSTED' => 'Provvisoria', $entry['status'] === 'REVERSED' => 'Stornata', default => View::e($entry['status']) } ?></span><?php if ((int) ($entry['revision_number'] ?? 1) > 1): ?><small class="classification-mark">✓ Già modificata</small><?php endif; ?></td>
-            <td class="row-actions"><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>">Apri</a><?php if (in_array($entry['status'], ['DRAFT','POSTED'], true) && $entry['source_type'] === 'MANUAL' && empty($entry['is_finalized'])): ?><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>/edit">Modifica</a><?php endif; ?></td>
+            <td class="row-actions"><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>">Apri</a><?php if (in_array($entry['status'], ['DRAFT','POSTED'], true) && empty($entry['is_finalized'])): ?><a class="table-action" href="/accounting/journal/<?= (int) $entry['id'] ?>/edit">Modifica</a><form method="post" action="/accounting/journal/<?= (int) $entry['id'] ?>/delete" data-confirm="Eliminare la scrittura <?= View::e($entry['protocol_number']) ?>? L’operazione è consentita solo finché non è definitiva."><input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>"><button class="table-action danger-text" type="submit">Elimina</button></form><?php endif; ?></td>
         </tr>
     <?php endforeach; ?>
     <?php if (!$entries): ?><tr><td colspan="9"><div class="table-empty"><span><?= View::icon('calculator') ?></span><strong>Nessuna registrazione</strong><small>Modifica i filtri o inserisci la prima scrittura.</small></div></td></tr><?php endif; ?>
