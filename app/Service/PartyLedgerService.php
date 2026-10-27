@@ -122,6 +122,13 @@ final class PartyLedgerService
         // Le righe sorgente vengono conservate integralmente in import_rows:
         // usarle evita abbinamenti euristici e recupera anche tutto lo storico.
         $repairAssigned = $this->datevPartyRepairRequired();
+        if ($repairAssigned) {
+            // Una precedente riconciliazione poteva disattivare un sottoconto
+            // DATEV dopo averne scollegato le righe. Riattivarlo prima della
+            // ricostruzione permette di recuperare il soggetto già esistente
+            // (il codice è univoco e non potrebbe essere reinserito).
+            $this->reactivateDatevParties();
+        }
         $counts['datev_rows'] += $this->matchHistoricalLinesFromDatevRows($repairAssigned);
         if ($repairAssigned) {
             $this->deactivateEmptyDatevDuplicates();
@@ -282,7 +289,7 @@ final class PartyLedgerService
                     WHERE organization_id = ? AND party_type = ? AND party_id IS NOT NULL AND status <> 'CANCELLED'
                     GROUP BY party_id
                 ) o ON o.party_id = p.id
-                WHERE p.organization_id = ?{$where}
+                WHERE p.organization_id = ? AND p.active = 1{$where}
                 ORDER BY p.business_name, p.code LIMIT 2000";
 
         // The movement subquery needs: from, from, from, to, from, to, org, to.
@@ -535,17 +542,11 @@ final class PartyLedgerService
                 }
             }
             $sourcePartyNames = [];
-            foreach ($linesByEntry as $entryId => $entryLines) {
+            foreach ($linesByEntry as $entryId => $_entryLines) {
                 $entrySources = $sourcesByEntry[$entryId] ?? [];
-                if (count($entryLines) !== count($entrySources)) {
-                    continue;
-                }
-                foreach ($entryLines as $index => $entryLine) {
-                    if (!(int) $entryLine['is_target'] || (!$repairAssigned && !empty($entryLine['party_id']))) {
-                        continue;
-                    }
+                foreach ($entrySources as $entrySource) {
                     try {
-                        $sourceData = json_decode((string) $entrySources[$index]['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+                        $sourceData = json_decode((string) $entrySource['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
                     } catch (\JsonException) {
                         continue;
                     }
@@ -554,7 +555,7 @@ final class PartyLedgerService
                     if ($sourceAccount !== '' && isset($targetAccountCodes[$sourceAccount]) && $sourceName !== '') {
                         $sourcePartyNames[$this->canonical($sourceName)] = [
                             'name' => $sourceName,
-                            'batch_id' => (int) $entrySources[$index]['batch_id'],
+                            'batch_id' => (int) $entrySource['batch_id'],
                         ];
                     }
                 }
@@ -565,28 +566,35 @@ final class PartyLedgerService
                 "UPDATE journal_entry_lines SET {$idColumn} = ?, {$otherColumn} = NULL
                  WHERE id = ? AND organization_id = ? " . ($repairAssigned ? '' : "AND {$idColumn} IS NULL")
             );
-            $clearAmbiguous = $repairAssigned
-                ? $this->db->prepare("UPDATE journal_entry_lines SET {$idColumn} = NULL, {$otherColumn} = NULL WHERE id = ? AND organization_id = ?")
-                : null;
             foreach ($linesByEntry as $entryId => $lines) {
                 $sources = $sourcesByEntry[$entryId] ?? [];
-                // Una riga sorgente genera esattamente una riga contabile. Se
-                // l'archivio e incompleto non tentiamo associazioni posizionali.
-                if (count($lines) !== count($sources)) {
-                    continue;
-                }
-                foreach ($lines as $index => $line) {
-                    if (!(int) $line['is_target']) {
-                        continue;
-                    }
-                    $source = $sources[$index];
+                // Le righe di una scrittura possono essere state corrette dopo
+                // l'importazione. Ricostruiamo quindi code ordinate per codice
+                // conto invece di richiedere che il numero e la posizione delle
+                // righe coincidano ancora perfettamente con il CSV originale.
+                $sourcesByAccount = [];
+                foreach ($sources as $source) {
                     try {
-                        $row = json_decode((string) $source['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+                        $sourceRow = json_decode((string) $source['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
                     } catch (\JsonException) {
                         continue;
                     }
+                    $sourceAccount = trim((string) ($sourceRow['account_code'] ?? $sourceRow['codice_conto'] ?? $sourceRow['conto'] ?? ''));
+                    if ($sourceAccount !== '') {
+                        $sourcesByAccount[$sourceAccount][] = $sourceRow;
+                    }
+                }
+                foreach ($lines as $line) {
+                    if (!(int) $line['is_target']) {
+                        continue;
+                    }
+                    $lineAccount = trim((string) $line['account_code']);
+                    if (empty($sourcesByAccount[$lineAccount])) {
+                        continue;
+                    }
+                    $row = array_shift($sourcesByAccount[$lineAccount]);
                     $sourceAccount = trim((string) ($row['account_code'] ?? $row['codice_conto'] ?? $row['conto'] ?? ''));
-                    if ($sourceAccount === '' || $sourceAccount !== trim((string) $line['account_code'])) {
+                    if ($sourceAccount === '' || $sourceAccount !== $lineAccount) {
                         continue;
                     }
                     $sourceName = trim((string) ($row['account_name'] ?? $row['nome_conto'] ?? $row['descrizione_conto'] ?? ''));
@@ -594,11 +602,10 @@ final class PartyLedgerService
                     if (count($ids) === 1) {
                         $save->execute([$ids[0], $line['line_id'], $this->organizationId]);
                         $updated += $save->rowCount();
-                    } elseif ($clearAmbiguous !== null) {
-                        // Un'associazione precedente non dimostrabile non deve
-                        // restare nascosta su un soggetto probabilmente errato.
-                        $clearAmbiguous->execute([$line['line_id'], $this->organizationId]);
                     }
+                    // Se il riconoscimento non e univoco conserviamo
+                    // l'associazione esistente: una riparazione automatica non
+                    // deve mai far sparire uno storico gia consultabile.
                 }
             }
         }
@@ -609,15 +616,31 @@ final class PartyLedgerService
     {
         $statement = $this->db->prepare('SELECT datev_party_reconciliation_version FROM accounting_settings WHERE organization_id = ?');
         $statement->execute([$this->organizationId]);
-        return (int) $statement->fetchColumn() < 2;
+        return (int) $statement->fetchColumn() < 3;
     }
 
     private function markDatevPartyRepairCompleted(): void
     {
         $this->db->prepare(
             'INSERT INTO accounting_settings (organization_id, datev_party_reconciliation_version)
-             VALUES (?, 2) ON DUPLICATE KEY UPDATE datev_party_reconciliation_version = 2, updated_at = NOW()'
+             VALUES (?, 3) ON DUPLICATE KEY UPDATE datev_party_reconciliation_version = 3, updated_at = NOW()'
         )->execute([$this->organizationId]);
+    }
+
+    private function reactivateDatevParties(): void
+    {
+        foreach ([
+            ['suppliers', 'FOR-DATEV-%'],
+            ['customers', 'CLI-DATEV-%'],
+        ] as [$table, $codePattern]) {
+            $statement = $this->db->prepare(
+                "UPDATE {$table}
+                 SET active = 1, updated_at = NOW()
+                 WHERE organization_id = ? AND code LIKE ?
+                   AND source_import_batch_id IS NOT NULL AND active = 0"
+            );
+            $statement->execute([$this->organizationId, $codePattern]);
+        }
     }
 
     /** @param array<string,array{name:string,batch_id:int}> $sourcePartyNames */
@@ -839,8 +862,16 @@ final class PartyLedgerService
                 $value = $transliterated;
             }
         }
-        $value = preg_replace('/\b(SRL|SRLS|SPA|SAPA|SAS|SNC|SCARL|SOC COOP|SOCIETA A RESPONSABILITA LIMITATA)\b/', ' ', $value) ?? $value;
-        return trim(preg_replace('/[^A-Z0-9]+/', ' ', $value) ?? '');
+        // Prima uniformiamo la punteggiatura: "S.r.l.", "S R L" e "SRL"
+        // devono diventare la stessa forma. Solo dopo eliminiamo le forme
+        // giuridiche, ordinando quelle estese prima delle abbreviazioni.
+        $value = preg_replace('/[^A-Z0-9]+/', ' ', $value) ?? $value;
+        $value = preg_replace(
+            '/\b(SOCIETA A RESPONSABILITA LIMITATA|SOC COOP|S C A R L|SCARL|S A P A|SAPA|S P A|SPA|S R L S|SRLS|S R L|SRL|S A S|SAS|S N C|SNC)\b/',
+            ' ',
+            $value
+        ) ?? $value;
+        return trim(preg_replace('/\s+/', ' ', $value) ?? '');
     }
 
     private function canonicalDocument(string $value): string

@@ -222,6 +222,10 @@ $datevImportFile = $add('import_files', ['organization_id' => $org, 'batch_id' =
     'filename' => 'prima-nota-datev.csv', 'media_type' => 'text/csv', 'checksum_sha256' => str_repeat('b', 64), 'file_size' => 100]);
 $duplicateDatevSupplier = $add('suppliers', ['organization_id' => $org, 'code' => 'FOR-DATEV-DUPLICATE',
     'business_name' => 'Magica Luce S.r.l.', 'source_import_batch_id' => $datevImportBatch, 'active' => 1]);
+$inactiveHistoricalName = 'NUOVO FORNITORE STORICO';
+$inactiveHistoricalSupplier = $add('suppliers', ['organization_id' => $org,
+    'code' => 'FOR-DATEV-' . strtoupper(substr(hash('sha256', $inactiveHistoricalName), 0, 12)),
+    'business_name' => $inactiveHistoricalName, 'source_import_batch_id' => $datevImportBatch, 'active' => 0]);
 $datevEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'GEN-2026-DATEV-001',
     'entry_date' => '2026-04-01', 'competence_date' => '2026-04-01', 'entry_type' => 'DATEV_IMPORT',
     'status' => 'POSTED', 'description' => 'Causale che non contiene il fornitore', 'source_protocol' => 'KOINOS-001',
@@ -230,6 +234,12 @@ $datevPayableLine = $add('journal_entry_lines', ['organization_id' => $org, 'jou
     'line_number' => 1, 'account_id' => $payableAccount, 'debit' => 0, 'credit' => 75, 'description' => 'Causale DATEV']);
 $add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $datevEntry,
     'line_number' => 2, 'account_id' => $offset, 'debit' => 75, 'credit' => 0, 'description' => 'Costo']);
+// Le correzioni successive all'importazione non devono impedire il recupero:
+// il numero di righe ora differisce da quello del CSV sorgente.
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $datevEntry,
+    'line_number' => 3, 'account_id' => $offset, 'debit' => 1, 'credit' => 0, 'description' => 'Riga aggiunta']);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $datevEntry,
+    'line_number' => 4, 'account_id' => $offset, 'debit' => 0, 'credit' => 1, 'description' => 'Riga aggiunta']);
 $add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch, 'source_file_id' => $datevImportFile,
     'source_row_number' => 2, 'raw_data_json' => '{}',
     'normalized_data_json' => json_encode(['account_code' => '3901010', 'account_name' => 'Magica Luce S.r.l.']),
@@ -286,8 +296,11 @@ $assert((int) $duplicateDatevActive === 0,
     'Empty DATEV-generated duplicate parties are deactivated after authoritative reconciliation');
 $createdHistoricalSupplier = $db->query("SELECT id FROM suppliers WHERE organization_id = {$org} AND business_name = 'NUOVO FORNITORE STORICO'")->fetchColumn();
 $linkedMissingPartyLine = $db->query('SELECT supplier_id FROM journal_entry_lines WHERE id = ' . (int) $missingPartyLine)->fetchColumn();
-$assert((int) $createdHistoricalSupplier > 0 && (int) $linkedMissingPartyLine === (int) $createdHistoricalSupplier,
-    'DATEV reconciliation creates missing historical parties and assigns their collective-account lines automatically');
+$reactivatedHistoricalSupplier = $db->query('SELECT active FROM suppliers WHERE id = ' . (int) $inactiveHistoricalSupplier)->fetchColumn();
+$assert((int) $createdHistoricalSupplier === $inactiveHistoricalSupplier
+    && (int) $linkedMissingPartyLine === $inactiveHistoricalSupplier
+    && (int) $reactivatedHistoricalSupplier === 1,
+    'DATEV reconciliation restores inactive historical parties and assigns their collective-account lines automatically');
 $repairedWrongPartyLine = $db->query('SELECT supplier_id FROM journal_entry_lines WHERE id = ' . (int) $wrongPartyLine)->fetchColumn();
 $assert((int) $repairedWrongPartyLine === $correctDatevSupplier,
     'One-time DATEV reconciliation replaces incorrect pre-existing subaccount associations with the authoritative source party');
@@ -313,11 +326,11 @@ $add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $p
     'supplier_id' => $partySupplier]);
 $partyWithPeriodOpening = $partyLedger->detail('SUPPLIER', $partySupplier, '2026-01-01', '2026-07-31');
 $assert((float) $partyWithPeriodOpening['totals']['opening_credit'] === 0.0
-    && (float) $partyWithPeriodOpening['totals']['progressive_credit'] === 172.0,
+    && (float) $partyWithPeriodOpening['totals']['progressive_credit'] === 247.0,
     'Supplier opening entry replaces rather than duplicates prior progressives');
 $supplierOverview = $partyLedger->overview('SUPPLIER', '2026-01-01', '2026-07-31', 'Magica Luce');
 $assert(count($supplierOverview) === 1 && (float) $supplierOverview[0]['opening_balance'] === 0.0
-    && (float) $supplierOverview[0]['closing_balance'] === 172.0,
+    && (float) $supplierOverview[0]['closing_balance'] === 247.0,
     'Supplier overview applies the same opening replacement rule');
 $ledgerPdf = (new TabularExportService(['business_name' => 'Societa test stampe fiscali S.r.l.',
     'vat_number' => '01234567890', 'tax_code' => '01234567890']))
