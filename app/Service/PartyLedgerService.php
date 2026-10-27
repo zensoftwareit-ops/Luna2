@@ -337,7 +337,15 @@ final class PartyLedgerService
             throw new InvalidArgumentException('Sottoconto cliente/fornitore non trovato.');
         }
         $partyIds = $this->partyAliasIds($table, $party);
+        $datevLineIds = $this->datevLineIdsForParty($party, $to);
         $partyPlaceholders = implode(',', array_fill(0, count($partyIds), '?'));
+        $lineScope = "l.{$idColumn} IN ({$partyPlaceholders})";
+        $lineScopeParams = $partyIds;
+        if ($datevLineIds !== []) {
+            $datevPlaceholders = implode(',', array_fill(0, count($datevLineIds), '?'));
+            $lineScope = "({$lineScope} OR l.id IN ({$datevPlaceholders}))";
+            $lineScopeParams = array_merge($lineScopeParams, $datevLineIds);
+        }
         $mappingKey = $type === 'SUPPLIER' ? 'TRADE_PAYABLES' : 'TRADE_RECEIVABLES';
         $accountStatement = $this->db->prepare(
             'SELECT a.id, a.code, a.name, a.account_type
@@ -359,11 +367,11 @@ final class PartyLedgerService
                ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
              LEFT JOIN documents d ON e.source_type = 'DOCUMENT' AND d.id = e.source_id
                AND d.organization_id = e.organization_id
-             WHERE l.organization_id = ? AND l.{$idColumn} IN ({$partyPlaceholders})
+             WHERE l.organization_id = ? AND {$lineScope}
                AND e.status = 'POSTED' AND e.entry_date <= ?
              ORDER BY e.entry_date, e.id, l.line_number, l.id"
         );
-        $statement->execute(array_merge([$this->organizationId], $partyIds, [$to]));
+        $statement->execute(array_merge([$this->organizationId], $lineScopeParams, [$to]));
         $movementRows = $statement->fetchAll();
         $hasPeriodOpening = count(array_filter($movementRows, static fn (array $row): bool =>
             (string) ($row['entry_type'] ?? '') === 'OPENING'
@@ -455,6 +463,73 @@ final class PartyLedgerService
             }
             if ($this->canonical((string) $candidate['business_name']) === $canonical) {
                 $ids[] = (int) $candidate['id'];
+            }
+        }
+        return array_values(array_unique($ids));
+    }
+
+    /** @param array<string,mixed> $party @return array<int,int> */
+    private function datevLineIdsForParty(array $party, string $to): array
+    {
+        $partyName = $this->canonical((string) ($party['business_name'] ?? ''));
+        if ($partyName === '') {
+            return [];
+        }
+        $statement = $this->db->prepare(
+            "SELECT r.imported_entity_id AS entry_id, r.normalized_data_json
+             FROM import_rows r
+             JOIN import_batches b ON b.id = r.batch_id AND b.organization_id = r.organization_id
+               AND b.import_type = 'journal_entries'
+             JOIN journal_entries e ON e.id = r.imported_entity_id AND e.organization_id = r.organization_id
+             WHERE r.organization_id = ? AND r.status = 'IMPORTED'
+               AND r.imported_entity_id IS NOT NULL AND e.status = 'POSTED' AND e.entry_date <= ?
+             ORDER BY r.imported_entity_id, r.source_file_id, r.source_row_number, r.id"
+        );
+        $statement->execute([$this->organizationId, $to]);
+        $wantedOccurrences = [];
+        $sourceOccurrences = [];
+        foreach ($statement->fetchAll() as $source) {
+            try {
+                $row = json_decode((string) $source['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+            } catch (\JsonException) {
+                continue;
+            }
+            $entryId = (int) $source['entry_id'];
+            $account = trim((string) ($row['account_code'] ?? $row['codice_conto'] ?? $row['conto'] ?? ''));
+            if ($entryId <= 0 || $account === '') {
+                continue;
+            }
+            $occurrence = $sourceOccurrences[$entryId][$account] ?? 0;
+            $sourceOccurrences[$entryId][$account] = $occurrence + 1;
+            $sourceName = trim((string) ($row['account_name'] ?? $row['nome_conto'] ?? $row['descrizione_conto'] ?? ''));
+            if ($this->canonical($sourceName) === $partyName) {
+                $wantedOccurrences[$entryId][$account][$occurrence] = true;
+            }
+        }
+        if ($wantedOccurrences === []) {
+            return [];
+        }
+        $ids = [];
+        $entryIds = array_keys($wantedOccurrences);
+        foreach (array_chunk($entryIds, 500) as $chunk) {
+            $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+            $lines = $this->db->prepare(
+                "SELECT l.id, l.journal_entry_id AS entry_id, a.code AS account_code
+                 FROM journal_entry_lines l
+                 JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
+                 WHERE l.organization_id = ? AND l.journal_entry_id IN ({$placeholders})
+                 ORDER BY l.journal_entry_id, l.line_number, l.id"
+            );
+            $lines->execute(array_merge([$this->organizationId], $chunk));
+            $lineOccurrences = [];
+            foreach ($lines->fetchAll() as $line) {
+                $entryId = (int) $line['entry_id'];
+                $account = trim((string) $line['account_code']);
+                $occurrence = $lineOccurrences[$entryId][$account] ?? 0;
+                $lineOccurrences[$entryId][$account] = $occurrence + 1;
+                if (!empty($wantedOccurrences[$entryId][$account][$occurrence])) {
+                    $ids[] = (int) $line['id'];
+                }
             }
         }
         return array_values(array_unique($ids));

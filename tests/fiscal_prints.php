@@ -346,6 +346,26 @@ $add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $t
 $aliasDetail = $partyLedger->detail('SUPPLIER', $partySupplier, '2024-01-01', '2026-12-31');
 $assert(in_array('GEN-2024-DATEV-ALIAS', array_column($aliasDetail['rows'], 'protocol_number'), true),
     'The real party account sheet includes movements left on an equivalent DATEV technical alias');
+$sourceOnlyEntry = $add('journal_entries', ['organization_id' => $org,
+    'protocol_number' => 'GEN-2026-DATEV-SOURCE-ONLY', 'entry_date' => '2026-05-31',
+    'competence_date' => '2026-05-31', 'entry_type' => 'DATEV_IMPORT', 'status' => 'POSTED',
+    'description' => 'Movimento recuperabile soltanto dalla fonte DATEV', 'total_debit' => 44, 'total_credit' => 44]);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $sourceOnlyEntry,
+    'line_number' => 1, 'account_id' => $offset, 'debit' => 44, 'credit' => 0, 'description' => 'Costo fonte']);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $sourceOnlyEntry,
+    'line_number' => 2, 'account_id' => $payableAccount, 'debit' => 0, 'credit' => 44,
+    'description' => 'Debito fonte']);
+$add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch,
+    'source_file_id' => $datevImportFile, 'source_row_number' => 8, 'raw_data_json' => '{}',
+    'normalized_data_json' => json_encode(['account_code' => '4001', 'account_name' => 'Costo di prova']),
+    'status' => 'IMPORTED', 'imported_entity_id' => $sourceOnlyEntry]);
+$add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch,
+    'source_file_id' => $datevImportFile, 'source_row_number' => 9, 'raw_data_json' => '{}',
+    'normalized_data_json' => json_encode(['account_code' => '3901010', 'account_name' => 'Magica Luce S.r.l.']),
+    'status' => 'IMPORTED', 'imported_entity_id' => $sourceOnlyEntry]);
+$sourceDetail = $partyLedger->detail('SUPPLIER', $partySupplier, '2024-01-01', '2026-12-31');
+$assert(in_array('GEN-2026-DATEV-SOURCE-ONLY', array_column($sourceDetail['rows'], 'protocol_number'), true),
+    'The party account sheet recovers unassigned movements directly from archived DATEV source rows');
 $ledgerPdf = (new TabularExportService(['business_name' => 'Societa test stampe fiscali S.r.l.',
     'vat_number' => '01234567890', 'tax_code' => '01234567890']))
     ->ledgerPdfContent($a, $lines, '2026-01-01', '2026-12-31');
