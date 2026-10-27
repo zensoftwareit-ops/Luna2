@@ -481,7 +481,8 @@ final class PartyLedgerService
                  JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
                  LEFT JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
                    AND m.mapping_key = ? AND m.account_id = l.account_id
-                 WHERE l.organization_id = ? AND e.status = 'POSTED' AND e.source_type = 'DATEV_IMPORT'
+                 WHERE l.organization_id = ? AND e.status = 'POSTED'
+                   AND e.entry_type IN ('DATEV_IMPORT','OPENING','CLOSING')
                  ORDER BY l.journal_entry_id, l.line_number, l.id"
             );
             $lineStatement->execute([$mapping, $this->organizationId]);

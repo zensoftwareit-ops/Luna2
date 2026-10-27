@@ -221,7 +221,7 @@ $datevImportFile = $add('import_files', ['organization_id' => $org, 'batch_id' =
 $datevEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'GEN-2026-DATEV-001',
     'entry_date' => '2026-04-01', 'competence_date' => '2026-04-01', 'entry_type' => 'DATEV_IMPORT',
     'status' => 'POSTED', 'description' => 'Causale che non contiene il fornitore', 'source_protocol' => 'KOINOS-001',
-    'source_type' => 'DATEV_IMPORT', 'total_debit' => 75, 'total_credit' => 75]);
+    'source_type' => 'MANUAL', 'total_debit' => 75, 'total_credit' => 75]);
 $datevPayableLine = $add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $datevEntry,
     'line_number' => 1, 'account_id' => $payableAccount, 'debit' => 0, 'credit' => 75, 'description' => 'Causale DATEV']);
 $add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $datevEntry,
