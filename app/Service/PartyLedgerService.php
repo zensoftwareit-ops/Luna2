@@ -486,13 +486,12 @@ final class PartyLedgerService
             if ($entryIds === []) {
                 continue;
             }
-            $parties = $this->partyMatchIndex($table);
             $linesByEntry = [];
             foreach (array_chunk($entryIds, 500) as $chunk) {
                 $placeholders = implode(',', array_fill(0, count($chunk), '?'));
                 $lineStatement = $this->db->prepare(
                     "SELECT l.id AS line_id, l.journal_entry_id AS entry_id, l.line_number, a.code AS account_code,
-                            CASE WHEN m.account_id IS NULL THEN 0 ELSE 1 END AS is_target
+                            CASE WHEN m.account_id IS NULL THEN 0 ELSE 1 END AS is_target, l.{$idColumn} AS party_id
                      FROM journal_entry_lines l
                      JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
                      LEFT JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
@@ -505,8 +504,16 @@ final class PartyLedgerService
                     $linesByEntry[(int) $line['entry_id']][] = $line;
                 }
             }
+            $targetAccountCodes = [];
+            foreach ($linesByEntry as $entryLines) {
+                foreach ($entryLines as $entryLine) {
+                    if ((int) $entryLine['is_target']) {
+                        $targetAccountCodes[trim((string) $entryLine['account_code'])] = true;
+                    }
+                }
+            }
             $sourceStatement = $this->db->prepare(
-                "SELECT r.imported_entity_id AS entry_id, r.normalized_data_json
+                "SELECT r.batch_id, r.imported_entity_id AS entry_id, r.normalized_data_json
                  FROM import_rows r
                  JOIN import_batches b ON b.id = r.batch_id AND b.organization_id = r.organization_id
                    AND b.import_type = 'journal_entries'
@@ -522,6 +529,32 @@ final class PartyLedgerService
                     $sourcesByEntry[$entryId][] = $source;
                 }
             }
+            $sourcePartyNames = [];
+            foreach ($linesByEntry as $entryId => $entryLines) {
+                $entrySources = $sourcesByEntry[$entryId] ?? [];
+                if (count($entryLines) !== count($entrySources)) {
+                    continue;
+                }
+                foreach ($entryLines as $index => $entryLine) {
+                    if (!(int) $entryLine['is_target'] || !empty($entryLine['party_id'])) {
+                        continue;
+                    }
+                    try {
+                        $sourceData = json_decode((string) $entrySources[$index]['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+                    } catch (\JsonException) {
+                        continue;
+                    }
+                    $sourceAccount = trim((string) ($sourceData['account_code'] ?? $sourceData['codice_conto'] ?? $sourceData['conto'] ?? ''));
+                    $sourceName = trim((string) ($sourceData['account_name'] ?? $sourceData['nome_conto'] ?? $sourceData['descrizione_conto'] ?? ''));
+                    if ($sourceAccount !== '' && isset($targetAccountCodes[$sourceAccount]) && $sourceName !== '') {
+                        $sourcePartyNames[$this->canonical($sourceName)] = [
+                            'name' => $sourceName,
+                            'batch_id' => (int) $entrySources[$index]['batch_id'],
+                        ];
+                    }
+                }
+            }
+            $parties = $this->ensureDatevParties($table, $sourcePartyNames);
             $save = $this->db->prepare("UPDATE journal_entry_lines SET {$idColumn} = ? WHERE id = ? AND organization_id = ? AND {$idColumn} IS NULL");
             foreach ($linesByEntry as $entryId => $lines) {
                 $sources = $sourcesByEntry[$entryId] ?? [];
@@ -545,7 +578,7 @@ final class PartyLedgerService
                         continue;
                     }
                     $sourceName = trim((string) ($row['account_name'] ?? $row['nome_conto'] ?? $row['descrizione_conto'] ?? ''));
-                    $ids = $parties['names'][$this->canonical($sourceName)] ?? [];
+                    $ids = $this->partyCandidatesForSourceName($sourceName, $parties);
                     if (count($ids) === 1) {
                         $save->execute([$ids[0], $line['line_id'], $this->organizationId]);
                         $updated += $save->rowCount();
@@ -554,6 +587,80 @@ final class PartyLedgerService
             }
         }
         return $updated;
+    }
+
+    /** @param array<string,array{name:string,batch_id:int}> $sourcePartyNames */
+    private function ensureDatevParties(string $table, array $sourcePartyNames): array
+    {
+        $parties = $this->partyMatchIndex($table);
+        uasort($sourcePartyNames, static fn (array $left, array $right): int => mb_strlen($right['name']) <=> mb_strlen($left['name']));
+        $prefix = $table === 'suppliers' ? 'FOR-DATEV-' : 'CLI-DATEV-';
+        $insert = $this->db->prepare(
+            "INSERT IGNORE INTO {$table}
+             (organization_id, code, business_name, country_code, active, source_import_batch_id, created_at, updated_at)
+             VALUES (?, ?, ?, 'IT', 1, ?, NOW(), NOW())"
+        );
+        foreach ($sourcePartyNames as $canonical => $source) {
+            if (!$this->isUsableDatevPartyName($canonical)) {
+                continue;
+            }
+            $candidates = $this->partyCandidatesForSourceName($source['name'], $parties);
+            if ($candidates !== []) {
+                continue;
+            }
+            $code = $prefix . strtoupper(substr(hash('sha256', $canonical), 0, 12));
+            $name = mb_substr(trim($source['name']), 0, 190);
+            $insert->execute([$this->organizationId, $code, $name, $source['batch_id'] ?: null]);
+            if ($insert->rowCount() !== 1) {
+                continue;
+            }
+            $party = [
+                'id' => (int) $this->db->lastInsertId(),
+                'business_name' => $name,
+                'vat_number' => null,
+                'tax_code' => null,
+                'canonical_name' => $canonical,
+                'vat_digits' => '',
+                'tax_key' => '',
+            ];
+            $parties['names'][$canonical][] = $party['id'];
+            $parties['parties'][] = $party;
+        }
+        return $parties;
+    }
+
+    /** @param array{names:array<string,array<int,int>>,parties:array<int,array<string,mixed>>} $parties @return array<int,int> */
+    private function partyCandidatesForSourceName(string $sourceName, array $parties): array
+    {
+        $canonical = $this->canonical($sourceName);
+        $exact = array_values(array_unique($parties['names'][$canonical] ?? []));
+        if ($exact !== []) {
+            return $exact;
+        }
+        if (strlen($canonical) < 8) {
+            return [];
+        }
+        $matches = [];
+        foreach ($parties['parties'] as $party) {
+            $partyName = (string) ($party['canonical_name'] ?? '');
+            if ($partyName !== '' && (str_starts_with($partyName, $canonical) || str_starts_with($canonical, $partyName))) {
+                $matches[] = (int) $party['id'];
+            }
+        }
+        return array_values(array_unique($matches));
+    }
+
+    private function isUsableDatevPartyName(string $canonical): bool
+    {
+        if (strlen($canonical) < 3) {
+            return false;
+        }
+        foreach (['FORNITORI BENI E SERVIZI', 'DEBITI VERSO FORNITORI', 'CREDITI VERSO CLIENTI', 'CLIENTI ITALIA'] as $generic) {
+            if (str_contains($canonical, $generic)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** @return array{names:array<string,array<int,int>>,parties:array<int,array<string,mixed>>} */
