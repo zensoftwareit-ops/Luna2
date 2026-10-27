@@ -201,6 +201,8 @@ $add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $p
     'account_id' => $payableAccount, 'debit' => 0, 'credit' => 122, 'description' => 'Debito fattura 100/E',
     'supplier_id' => $partySupplier]);
 $partyLedger = new PartyLedgerService($db, $org);
+$assert($partyLedger->historyStartDate() === '2025-12-31',
+    'Customer and supplier account sheets default to the complete accounting history');
 $partyDetail = $partyLedger->detail('SUPPLIER', $partySupplier, '2026-01-01', '2026-07-31');
 $assert((float) $partyDetail['totals']['opening_credit'] === 50.0
     && (float) $partyDetail['totals']['progressive_credit'] === 172.0

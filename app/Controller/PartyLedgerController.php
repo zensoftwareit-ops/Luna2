@@ -16,16 +16,16 @@ final class PartyLedgerController extends BaseController
     public function index(): never
     {
         $this->authorize();
+        $service = $this->service();
         $type = strtoupper((string) ($_GET['party_type'] ?? 'SUPPLIER'));
         if (!in_array($type, ['CUSTOMER', 'SUPPLIER'], true)) {
             $type = 'SUPPLIER';
         }
-        $from = (string) ($_GET['from'] ?? date('Y-01-01'));
+        $from = (string) ($_GET['from'] ?? $service->historyStartDate());
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
         $search = trim((string) ($_GET['q'] ?? ''));
         $partyId = max(0, (int) ($_GET['party_id'] ?? 0));
         try {
-            $service = $this->service();
             $synchronized = $service->synchronize();
             $parties = $service->overview($type, $from, $to, $search);
             $detail = $partyId > 0 ? $service->detail($type, $partyId, $from, $to) : [];
@@ -72,12 +72,12 @@ final class PartyLedgerController extends BaseController
     public function export(string $format): never
     {
         $this->authorize();
+        $service = $this->service();
         $type = strtoupper((string) ($_GET['party_type'] ?? 'SUPPLIER'));
-        $from = (string) ($_GET['from'] ?? date('Y-01-01'));
+        $from = (string) ($_GET['from'] ?? $service->historyStartDate());
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
         $search = trim((string) ($_GET['q'] ?? ''));
         $partyId = max(0, (int) ($_GET['party_id'] ?? 0));
-        $service = $this->service();
         $service->synchronize();
         if ($partyId > 0) {
             $detail = $service->detail($type, $partyId, $from, $to);

@@ -12,6 +12,18 @@ final class PartyLedgerService
 {
     public function __construct(private readonly PDO $db, private readonly int $organizationId) {}
 
+    public function historyStartDate(): string
+    {
+        $statement = $this->db->prepare(
+            "SELECT MIN(entry_date) FROM journal_entries
+             WHERE organization_id = ? AND status = 'POSTED'"
+        );
+        $statement->execute([$this->organizationId]);
+        $date = (string) ($statement->fetchColumn() ?: '');
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date);
+        return $parsed && $parsed->format('Y-m-d') === $date ? $date : date('Y-01-01');
+    }
+
     /**
      * Rende ogni anagrafica un sottoconto e collega in modo idempotente le
      * scritture gia presenti. Non modifica conti, importi o quadrature.
