@@ -171,6 +171,9 @@ $partySupplier = $add('suppliers', ['organization_id' => $org, 'code' => 'FOR-TE
     'business_name' => 'Magica Luce Societa a responsabilita limitata', 'vat_number' => '09418840964',
     'tax_code' => '09418840964', 'address' => 'Via Isonzo 24', 'postal_code' => '20100', 'city' => 'Milano',
     'province' => 'MI', 'active' => 1]);
+$partyCustomerEquivalent = $add('customers', ['organization_id' => $org, 'code' => 'CLI-TEST-001',
+    'business_name' => 'Magica Luce S.r.l.', 'vat_number' => '09418840964',
+    'tax_code' => '09418840964', 'active' => 1]);
 $correctDatevSupplier = $add('suppliers', ['organization_id' => $org, 'code' => 'FOR-TEST-002',
     'business_name' => 'Fornitore corretto S.r.l.', 'active' => 1]);
 $payableAccount = $add('chart_of_accounts', ['organization_id' => $org, 'code' => '3901010',
@@ -208,6 +211,9 @@ $partyLedger = new PartyLedgerService($db, $org);
 $assert($partyLedger->historyStartDate() === '2025-12-31',
     'Customer and supplier account sheets default to the complete accounting history');
 $partyDetail = $partyLedger->detail('SUPPLIER', $partySupplier, '2026-01-01', '2026-07-31');
+$assert((int) ($partyDetail['opposite_party']['id'] ?? 0) === $partyCustomerEquivalent
+    && ($partyDetail['opposite_party']['party_type'] ?? '') === 'CUSTOMER',
+    'Supplier account sheets expose the matching customer role by VAT number');
 $assert((float) $partyDetail['totals']['opening_credit'] === 50.0
     && (float) $partyDetail['totals']['progressive_credit'] === 172.0
     && (float) $partyDetail['totals']['accounting_closing'] === -172.0,

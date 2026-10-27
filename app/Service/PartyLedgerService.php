@@ -336,6 +336,7 @@ final class PartyLedgerService
         if (!$party) {
             throw new InvalidArgumentException('Sottoconto cliente/fornitore non trovato.');
         }
+        $oppositeParty = $this->oppositeRoleParty($type, $party);
         $partyIds = $this->partyAliasIds($table, $party);
         $datevLineIds = $this->datevLineIdsForParty($party, $to);
         $partyPlaceholders = implode(',', array_fill(0, count($partyIds), '?'));
@@ -422,7 +423,7 @@ final class PartyLedgerService
         }
         unset($item);
         return [
-            'party' => $party, 'party_alias_ids' => $partyIds,
+            'party' => $party, 'opposite_party' => $oppositeParty, 'party_alias_ids' => $partyIds,
             'collective_account' => $collectiveAccount, 'rows' => $rows, 'open_items' => $openItems,
             'totals' => ['opening' => round($opening, 2), 'debit' => round($debit, 2), 'credit' => round($credit, 2),
                 'closing' => round($opening + $balance, 2), 'outstanding' => round($outstanding, 2),
@@ -469,6 +470,49 @@ final class PartyLedgerService
             }
         }
         return array_values(array_unique($ids));
+    }
+
+    /** @param array<string,mixed> $party @return array<string,mixed>|null */
+    private function oppositeRoleParty(string $type, array $party): ?array
+    {
+        $table = strtoupper($type) === 'SUPPLIER' ? 'customers' : 'suppliers';
+        $statement = $this->db->prepare(
+            "SELECT id, code, business_name, vat_number, tax_code
+             FROM {$table} WHERE organization_id = ? AND active = 1"
+        );
+        $statement->execute([$this->organizationId]);
+        $vat = preg_replace('/\D+/', '', (string) ($party['vat_number'] ?? '')) ?: '';
+        $tax = $this->canonical((string) ($party['tax_code'] ?? ''));
+        $name = $this->canonical((string) ($party['business_name'] ?? ''));
+        $ranked = [];
+        foreach ($statement->fetchAll() as $candidate) {
+            $candidateVat = preg_replace('/\D+/', '', (string) ($candidate['vat_number'] ?? '')) ?: '';
+            $candidateTax = $this->canonical((string) ($candidate['tax_code'] ?? ''));
+            $candidateName = $this->canonical((string) ($candidate['business_name'] ?? ''));
+            $score = 0;
+            if ($vat !== '' && strlen($vat) >= 8 && $candidateVat === $vat) {
+                $score += 100;
+            }
+            if ($tax !== '' && strlen($tax) >= 8 && $candidateTax === $tax) {
+                $score += 80;
+            }
+            if ($name !== '' && $candidateName === $name) {
+                $score += 20;
+            }
+            if ($score > 0) {
+                $ranked[] = ['score' => $score, 'party' => $candidate];
+            }
+        }
+        if ($ranked === []) {
+            return null;
+        }
+        usort($ranked, static fn (array $left, array $right): int => $right['score'] <=> $left['score']);
+        if (isset($ranked[1]) && $ranked[1]['score'] === $ranked[0]['score']) {
+            return null;
+        }
+        return $ranked[0]['party'] + [
+            'party_type' => strtoupper($type) === 'SUPPLIER' ? 'CUSTOMER' : 'SUPPLIER',
+        ];
     }
 
     /** @param array<string,mixed> $party @return array<int,int> */
