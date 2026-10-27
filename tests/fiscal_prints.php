@@ -208,6 +208,43 @@ $assert(count($partyDetail['rows']) === 1
     && $partyDetail['rows'][0]['document_date'] === '2026-03-10'
     && $partyDetail['rows'][0]['source_protocol'] === '137',
     'Supplier accounting sheet includes document date and source protocol');
+
+// Le prime note DATEV conservano il nominativo del sottoconto nel nome conto,
+// non necessariamente nella controparte di testata. La sincronizzazione deve
+// quindi recuperarlo dalla riga sorgente archiviata e quadrarne Dare/Avere.
+$datevImportBatch = $add('import_batches', ['organization_id' => $org, 'uuid' => '00000000-0000-4000-8000-000000000123',
+    'source_system' => 'DATEV_KOINOS', 'import_type' => 'journal_entries', 'status' => 'COMPLETED',
+    'original_filename' => 'prima-nota-datev.csv', 'checksum_sha256' => str_repeat('a', 64), 'file_size' => 100,
+    'total_rows' => 2, 'valid_rows' => 2, 'imported_rows' => 2, 'error_rows' => 0]);
+$datevImportFile = $add('import_files', ['organization_id' => $org, 'batch_id' => $datevImportBatch,
+    'filename' => 'prima-nota-datev.csv', 'media_type' => 'text/csv', 'checksum_sha256' => str_repeat('b', 64), 'file_size' => 100]);
+$datevEntry = $add('journal_entries', ['organization_id' => $org, 'protocol_number' => 'GEN-2026-DATEV-001',
+    'entry_date' => '2026-04-01', 'competence_date' => '2026-04-01', 'entry_type' => 'DATEV_IMPORT',
+    'status' => 'POSTED', 'description' => 'Causale che non contiene il fornitore', 'source_protocol' => 'KOINOS-001',
+    'source_type' => 'DATEV_IMPORT', 'total_debit' => 75, 'total_credit' => 75]);
+$datevPayableLine = $add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $datevEntry,
+    'line_number' => 1, 'account_id' => $payableAccount, 'debit' => 0, 'credit' => 75, 'description' => 'Causale DATEV']);
+$add('journal_entry_lines', ['organization_id' => $org, 'journal_entry_id' => $datevEntry,
+    'line_number' => 2, 'account_id' => $offset, 'debit' => 75, 'credit' => 0, 'description' => 'Costo']);
+$add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch, 'source_file_id' => $datevImportFile,
+    'source_row_number' => 2, 'raw_data_json' => '{}',
+    'normalized_data_json' => json_encode(['account_code' => '3901010', 'account_name' => 'Magica Luce S.r.l.']),
+    'status' => 'IMPORTED', 'imported_entity_id' => $datevEntry]);
+$add('import_rows', ['organization_id' => $org, 'batch_id' => $datevImportBatch, 'source_file_id' => $datevImportFile,
+    'source_row_number' => 3, 'raw_data_json' => '{}',
+    'normalized_data_json' => json_encode(['account_code' => '4001', 'account_name' => 'Costo di prova']),
+    'status' => 'IMPORTED', 'imported_entity_id' => $datevEntry]);
+$add('import_records', ['organization_id' => $org, 'batch_id' => $datevImportBatch, 'entity_type' => 'journal_entries',
+    'entity_id' => $datevEntry, 'operation' => 'CREATE']);
+$partyLedger->synchronize();
+$linkedDatevLine = $db->query('SELECT supplier_id FROM journal_entry_lines WHERE id = ' . (int) $datevPayableLine)->fetchColumn();
+$assert((int) $linkedDatevLine === $partySupplier,
+    'DATEV source account name deterministically links historical collective-account lines to supplier subledgers');
+$partyIntegrity = $partyLedger->integrity('SUPPLIER');
+$assert($partyIntegrity['is_balanced'] === true
+    && abs($partyIntegrity['total_debit'] - $partyIntegrity['assigned_debit']) < 0.005
+    && abs($partyIntegrity['total_credit'] - $partyIntegrity['assigned_credit']) < 0.005,
+    'Supplier subledger integrity reconciles assigned debit and credit with the collective account');
 $partyPdf = (new TabularExportService(['business_name' => 'Societa test stampe fiscali S.r.l.',
     'vat_number' => '01234567890', 'tax_code' => '01234567890']))
     ->partyLedgerPdfContent($partyDetail, '2026-01-01', '2026-07-31', 'SUPPLIER');

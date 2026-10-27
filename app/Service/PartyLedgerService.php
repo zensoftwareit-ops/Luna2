@@ -18,7 +18,7 @@ final class PartyLedgerService
      */
     public function synchronize(): array
     {
-        $counts = ['codes' => 0, 'open_items' => 0, 'document_items' => 0, 'documents' => 0, 'payments' => 0, 'historical' => 0];
+        $counts = ['codes' => 0, 'open_items' => 0, 'document_items' => 0, 'documents' => 0, 'payments' => 0, 'historical' => 0, 'datev_rows' => 0];
         foreach ([['customers', 'CLI-'], ['suppliers', 'FOR-']] as [$table, $prefix]) {
             $statement = $this->db->prepare(
                 "UPDATE {$table} SET code = CONCAT(?, LPAD(id, 8, '0')), updated_at = NOW()
@@ -117,6 +117,11 @@ final class PartyLedgerService
             $counts['historical'] += $statement->rowCount();
         }
         $counts['open_items'] += $this->matchOpenItemsByCanonicalName();
+        // I CSV di prima nota DATEV usano il nome del sottoconto nella colonna
+        // account_name, mentre la testata puo contenere una causale diversa.
+        // Le righe sorgente vengono conservate integralmente in import_rows:
+        // usarle evita abbinamenti euristici e recupera anche tutto lo storico.
+        $counts['datev_rows'] += $this->matchHistoricalLinesFromDatevRows();
         $counts['historical'] += $this->matchHistoricalLines();
         return $counts;
     }
@@ -156,6 +161,38 @@ final class PartyLedgerService
         );
         $statement->execute([$mapping, $this->organizationId]);
         return (int) $statement->fetchColumn();
+    }
+
+    /** @return array{total_debit:float,total_credit:float,assigned_debit:float,assigned_credit:float,unassigned_count:int,is_balanced:bool} */
+    public function integrity(string $type): array
+    {
+        [, $idColumn, , ] = $this->typeConfig($type);
+        $mapping = strtoupper($type) === 'SUPPLIER' ? 'TRADE_PAYABLES' : 'TRADE_RECEIVABLES';
+        $statement = $this->db->prepare(
+            "SELECT COALESCE(SUM(l.debit),0) AS total_debit, COALESCE(SUM(l.credit),0) AS total_credit,
+                    COALESCE(SUM(CASE WHEN l.{$idColumn} IS NOT NULL THEN l.debit ELSE 0 END),0) AS assigned_debit,
+                    COALESCE(SUM(CASE WHEN l.{$idColumn} IS NOT NULL THEN l.credit ELSE 0 END),0) AS assigned_credit,
+                    SUM(CASE WHEN l.{$idColumn} IS NULL THEN 1 ELSE 0 END) AS unassigned_count
+             FROM journal_entry_lines l
+             JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+             JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
+               AND m.mapping_key = ? AND m.account_id = l.account_id
+             WHERE l.organization_id = ? AND e.status = 'POSTED'"
+        );
+        $statement->execute([$mapping, $this->organizationId]);
+        $row = $statement->fetch() ?: [];
+        $result = [
+            'total_debit' => (float) ($row['total_debit'] ?? 0),
+            'total_credit' => (float) ($row['total_credit'] ?? 0),
+            'assigned_debit' => (float) ($row['assigned_debit'] ?? 0),
+            'assigned_credit' => (float) ($row['assigned_credit'] ?? 0),
+            'unassigned_count' => (int) ($row['unassigned_count'] ?? 0),
+            'is_balanced' => false,
+        ];
+        $result['is_balanced'] = $result['unassigned_count'] === 0
+            && abs($result['total_debit'] - $result['assigned_debit']) < 0.005
+            && abs($result['total_credit'] - $result['assigned_credit']) < 0.005;
+        return $result;
     }
 
     /** @return array<int,array{id:int,code:string,business_name:string}> */
@@ -423,6 +460,90 @@ final class PartyLedgerService
                 }
                 $save->execute([$partyId, $line['line_id'], $this->organizationId]);
                 $updated += $save->rowCount();
+            }
+        }
+        return $updated;
+    }
+
+    private function matchHistoricalLinesFromDatevRows(): int
+    {
+        $updated = 0;
+        foreach ([
+            ['suppliers', 'supplier_id', 'TRADE_PAYABLES'],
+            ['customers', 'customer_id', 'TRADE_RECEIVABLES'],
+        ] as [$table, $idColumn, $mapping]) {
+            $parties = $this->partyMatchIndex($table);
+            $lineStatement = $this->db->prepare(
+                "SELECT l.id AS line_id, l.journal_entry_id AS entry_id, l.line_number, a.code AS account_code,
+                        CASE WHEN m.account_id IS NULL THEN 0 ELSE 1 END AS is_target, l.{$idColumn} AS party_id
+                 FROM journal_entry_lines l
+                 JOIN journal_entries e ON e.id = l.journal_entry_id AND e.organization_id = l.organization_id
+                 JOIN chart_of_accounts a ON a.id = l.account_id AND a.organization_id = l.organization_id
+                 LEFT JOIN accounting_account_mappings m ON m.organization_id = l.organization_id
+                   AND m.mapping_key = ? AND m.account_id = l.account_id
+                 WHERE l.organization_id = ? AND e.status = 'POSTED' AND e.source_type = 'DATEV_IMPORT'
+                 ORDER BY l.journal_entry_id, l.line_number, l.id"
+            );
+            $lineStatement->execute([$mapping, $this->organizationId]);
+            $linesByEntry = [];
+            foreach ($lineStatement->fetchAll() as $line) {
+                $linesByEntry[(int) $line['entry_id']][] = $line;
+            }
+            if ($linesByEntry === []) {
+                continue;
+            }
+            $sourceStatement = $this->db->prepare(
+                "SELECT r.imported_entity_id AS entry_id, r.normalized_data_json
+                 FROM import_rows r
+                 JOIN import_batches b ON b.id = r.batch_id AND b.organization_id = r.organization_id
+                   AND b.import_type = 'journal_entries'
+                 JOIN import_records imported_entry ON imported_entry.organization_id = r.organization_id
+                   AND imported_entry.batch_id = r.batch_id AND imported_entry.entity_type = 'journal_entries'
+                   AND imported_entry.entity_id = r.imported_entity_id AND imported_entry.operation = 'CREATE'
+                 WHERE r.organization_id = ? AND r.status = 'IMPORTED'
+                   AND r.imported_entity_id IS NOT NULL
+                 ORDER BY r.imported_entity_id, r.source_file_id, r.source_row_number, r.id"
+            );
+            $sourceStatement->execute([$this->organizationId]);
+            $sourcesByEntry = [];
+            foreach ($sourceStatement->fetchAll() as $source) {
+                $entryId = (int) $source['entry_id'];
+                if (isset($linesByEntry[$entryId])) {
+                    $sourcesByEntry[$entryId][] = $source;
+                }
+            }
+            $save = $this->db->prepare(
+                "UPDATE journal_entry_lines SET {$idColumn} = ?
+                 WHERE id = ? AND organization_id = ? AND ({$idColumn} IS NULL OR {$idColumn} <> ?)"
+            );
+            foreach ($linesByEntry as $entryId => $lines) {
+                $sources = $sourcesByEntry[$entryId] ?? [];
+                // Una riga sorgente genera esattamente una riga contabile. Se
+                // l'archivio e incompleto non tentiamo associazioni posizionali.
+                if (count($lines) !== count($sources)) {
+                    continue;
+                }
+                foreach ($lines as $index => $line) {
+                    if (!(int) $line['is_target']) {
+                        continue;
+                    }
+                    $source = $sources[$index];
+                    try {
+                        $row = json_decode((string) $source['normalized_data_json'], true, 512, JSON_THROW_ON_ERROR);
+                    } catch (\JsonException) {
+                        continue;
+                    }
+                    $sourceAccount = trim((string) ($row['account_code'] ?? $row['codice_conto'] ?? $row['conto'] ?? ''));
+                    if ($sourceAccount === '' || $sourceAccount !== trim((string) $line['account_code'])) {
+                        continue;
+                    }
+                    $sourceName = trim((string) ($row['account_name'] ?? $row['nome_conto'] ?? $row['descrizione_conto'] ?? ''));
+                    $ids = $parties['names'][$this->canonical($sourceName)] ?? [];
+                    if (count($ids) === 1) {
+                        $save->execute([$ids[0], $line['line_id'], $this->organizationId, $ids[0]]);
+                        $updated += $save->rowCount();
+                    }
+                }
             }
         }
         return $updated;

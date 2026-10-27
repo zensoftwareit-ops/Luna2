@@ -31,6 +31,7 @@ final class PartyLedgerController extends BaseController
             $detail = $partyId > 0 ? $service->detail($type, $partyId, $from, $to) : [];
             $unassigned = $service->unassigned($type);
             $unassignedCount = $service->unassignedCount($type);
+            $integrity = $service->integrity($type);
             $reconcileLineId = max(0, (int) ($_GET['reconcile_line'] ?? 0));
             $reconcileLine = $reconcileLineId > 0
                 ? (array_values(array_filter($unassigned, static fn (array $line): bool => (int) $line['line_id'] === $reconcileLineId))[0] ?? [])
@@ -47,7 +48,7 @@ final class PartyLedgerController extends BaseController
         ];
         $this->view->render('accounting/subledgers', compact(
             'type', 'from', 'to', 'search', 'parties', 'partyId', 'detail', 'totals', 'synchronized',
-            'unassigned', 'unassignedCount', 'reconcileLineId', 'reconcileLine', 'partyChoices'
+            'unassigned', 'unassignedCount', 'reconcileLineId', 'reconcileLine', 'partyChoices', 'integrity'
         ) + ['title' => 'Mastrini clienti e fornitori']);
     }
 

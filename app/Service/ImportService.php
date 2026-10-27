@@ -763,6 +763,11 @@ final class ImportService
                 }
             }
         }
+        if ($imported > 0) {
+            // Collega in un solo passaggio le righe dei conti collettivi al
+            // sottoconto indicato nel tracciato DATEV conservato.
+            (new PartyLedgerService($this->db, $this->organizationId))->synchronize();
+        }
         return compact('imported', 'errors', 'skipped');
     }
 
