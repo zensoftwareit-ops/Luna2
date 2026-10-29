@@ -222,13 +222,26 @@ final class ReceivablesService
                 $lines = array_merge($lines, $this->cashVatLines($item, $amount));
                 $total += $amount;
             }
+            $partyNames = array_values(array_unique(array_filter(array_map(
+                static fn (array $item): string => trim((string) ($item['party_name'] ?? '')),
+                $items,
+            ))));
+            $visibleParties = array_slice($partyNames, 0, 3);
+            $partySummary = implode(', ', $visibleParties);
+            if (count($partyNames) > count($visibleParties)) {
+                $partySummary .= ' e ' . (count($partyNames) - count($visibleParties)) . ' altri';
+            }
+            $operationLabel = $paymentType === 'RECEIPT' ? 'Incasso' : 'Pagamento';
+            $batchDescription = $operationLabel . ' ' . ($partySummary !== '' ? $partySummary : 'partite selezionate')
+                . ' · ' . count($items) . ' fatture';
             $lines[] = $paymentType === 'RECEIPT'
-                ? ['account_id' => $cashAccountId, 'debit' => $total, 'credit' => 0, 'description' => 'Incasso multiplo da ' . count($items) . ' partite']
-                : ['account_id' => $cashAccountId, 'debit' => 0, 'credit' => $total, 'description' => 'Pagamento multiplo di ' . count($items) . ' partite'];
+                ? ['account_id' => $cashAccountId, 'debit' => $total, 'credit' => 0, 'description' => $batchDescription]
+                : ['account_id' => $cashAccountId, 'debit' => 0, 'credit' => $total, 'description' => $batchDescription];
             $journalId = (new AccountingService($this->db, $this->organizationId, $this->userId))->postAutomated([
                 'entry_date' => $date, 'competence_date' => $date, 'entry_type' => $paymentType, 'cause_id' => $causeId,
-                'description' => ($paymentType === 'RECEIPT' ? 'Incasso' : 'Pagamento') . ' multiplo · ' . count($items) . ' fatture',
+                'description' => mb_substr($batchDescription, 0, 500),
                 'document_number' => $this->nullable($data['reference_number'] ?? null),
+                'counterparty' => $partySummary !== '' ? mb_substr($partySummary, 0, 255) : null,
             ], $lines, 'PAYMENT_BATCH', $paymentIds[0]);
             foreach ($items as $index => $item) {
                 $paymentId = $paymentIds[$index];

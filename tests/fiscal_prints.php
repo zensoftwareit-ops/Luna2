@@ -115,6 +115,26 @@ $settlement = $vat->calculateSettlement(['period_type' => 'MONTHLY', 'period_yea
     'payment_due_date' => '2026-02-16']);
 $vat->updateSettlementStatus($settlement, 'SUBMITTED');
 $vat->updateSettlementStatus($settlement, 'PAID', '2026-02-16', 'F24-TEST-123');
+$statement = $db->prepare('SELECT * FROM vat_settlements WHERE id = ? AND organization_id = ?');
+$statement->execute([$settlement, $org]);
+$settlementSnapshot = $statement->fetch();
+$statement = $db->prepare(
+    'SELECT register_type, vat_code, vat_description, vat_rate, vat_nature, vat_legal_reference,
+            taxable_amount, vat_amount, vat_due_amount, deductible_vat, non_deductible_vat, suspended_vat
+     FROM vat_settlement_details WHERE settlement_id = ? AND organization_id = ?
+     ORDER BY register_type, vat_code, vat_rate, vat_nature'
+);
+$statement->execute([$settlement, $org]);
+$vatSettlementPdf = (new TabularExportService([
+    'business_name' => 'Società test stampe fiscali S.r.l.', 'vat_number' => '01234567890',
+    'tax_code' => '01234567890', 'address' => 'Via del Collaudo 1', 'postal_code' => '20100',
+    'city' => 'Milano', 'province' => 'MI',
+]))->vatSettlementPdfContent($settlementSnapshot, $statement->fetchAll());
+$vatSettlementPdfPath = $base . '/storage/private/fiscal-tests/' . $name . '/liquidazione-iva-fiscale.pdf';
+if (!is_dir(dirname($vatSettlementPdfPath))) { mkdir(dirname($vatSettlementPdfPath), 0750, true); }
+file_put_contents($vatSettlementPdfPath, $vatSettlementPdf);
+$assert(str_starts_with($vatSettlementPdf, '%PDF-') && strlen($vatSettlementPdf) > 2000,
+    'Server-side VAT settlement PDF generated');
 $add('vat_movements', ['organization_id' => $org, 'source_type' => 'DATEV_PDF', 'document_fiscal_type' => 'TD01', 'register_type' => 'PURCHASES',
     'movement_date' => '2026-02-10', 'vat_code' => '22%', 'vat_rate' => 22, 'taxable_amount' => 100, 'vat_amount' => 22,
     'counterparty_name' => 'Fornitore DATEV', 'document_reference' => 'FT-2026-01', 'document_reference_date' => '2026-02-10',
@@ -469,4 +489,5 @@ try { $prints->validate($next, 'SHOULD-FAIL'); $assert(false, 'Tampered snapshot
 catch (RuntimeException $e) { $assert(true, 'Tampered snapshot rejected'); }
 $artifacts = array_map(static fn ($row) => $row[2], $ids);
 $artifacts['PARTY_LEDGER'] = $partyLedgerPath;
+$artifacts['VAT_SETTLEMENT'] = $vatSettlementPdfPath;
 echo json_encode(['checks' => $checks, 'database' => $name, 'artifacts' => $artifacts], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

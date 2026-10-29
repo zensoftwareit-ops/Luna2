@@ -472,6 +472,10 @@ $ledgerService = (string) file_get_contents($base . '/app/Service/LedgerReportSe
 $importService = (string) file_get_contents($base . '/app/Service/ImportService.php');
 $vatRegistersView = (string) file_get_contents($base . '/views/accounting/vat-registers.php');
 $vatSettlementView = (string) file_get_contents($base . '/views/accounting/vat-settlement.php');
+$assert(str_contains($vatSettlementView, 'data-no-table-tools')
+    && str_contains($vatSettlementView, 'Scarica PDF fiscale')
+    && str_contains((string) file_get_contents($base . '/app/Service/TabularExportService.php'), 'vatSettlementPdfContent'),
+    'La liquidazione IVA usa il PDF fiscale server-side e non la stampa della pagina web.');
 $importPreviewView = (string) file_get_contents($base . '/views/imports/preview.php');
 $assert(str_contains($trialBalanceView, 'Stato patrimoniale') && str_contains($trialBalanceView, 'Conto economico') && str_contains($trialBalanceView, 'statement-account-link'), 'La situazione contabile deve essere gerarchica e collegata ai mastrini.');
 $assert(str_contains($trialBalanceView, 'PDF sintetico')
@@ -665,6 +669,9 @@ $assert(str_contains($vatService, 'nextVatProtocol')
     'Il protocollo IVA deve essere distinto dal numero del documento originale.');
 $partyLedgerService = (string) file_get_contents($base . '/app/Service/PartyLedgerService.php');
 $receivablesService = (string) file_get_contents($base . '/app/Service/ReceivablesService.php');
+$assert(str_contains($receivablesService, '$partySummary')
+    && str_contains($receivablesService, "'counterparty' => \$partySummary"),
+    'I pagamenti multipli mantengono i nominativi delle controparti nella scrittura.');
 $resourceController = (string) file_get_contents($base . '/app/Controller/ResourceController.php');
 $assert(str_contains($partyLedgerService, 'journal_entry_lines') && str_contains($partyLedgerService, 'accounting_open_items') && str_contains($partyLedgerService, 'signed_outstanding'), 'Il partitario deve integrare movimenti, partite e note di credito.');
 $assert(str_contains($partyLedgerService, 'document_date')

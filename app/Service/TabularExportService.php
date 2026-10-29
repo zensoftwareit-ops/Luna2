@@ -308,7 +308,7 @@ final class TabularExportService
     }
 
     /** @param array<int,array<string,mixed>> $rows */
-    public function streamVatSettlementPdf(array $settlement, array $rows, string $filename): never
+    public function vatSettlementPdfContent(array $settlement, array $rows): string
     {
         $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $money = static fn (mixed $value): string => number_format((float) $value, 2, ',', '.') . ' €';
@@ -318,6 +318,12 @@ final class TabularExportService
             $this->company['business_name'] ?? 'Luna2',
             !empty($this->company['vat_number']) ? 'P.IVA ' . $this->company['vat_number'] : '',
             !empty($this->company['tax_code']) ? 'CF ' . $this->company['tax_code'] : '',
+        ]));
+        $companyAddress = implode(' ', array_filter([
+            $this->company['address'] ?? '',
+            $this->company['postal_code'] ?? '',
+            $this->company['city'] ?? '',
+            $this->company['province'] ?? '',
         ]));
         $labels = ['SALES' => 'REGISTRO VENDITE', 'PURCHASES' => 'REGISTRO ACQUISTI', 'CORRISPETTIVI' => 'REGISTRO CORRISPETTIVI'];
         $grouped = [];
@@ -342,18 +348,34 @@ final class TabularExportService
             } else {
                 $operationTotals['ACTIVE']['taxable'] += $taxable; $operationTotals['ACTIVE']['debit'] += $debit;
             }
-            $tables .= '<section><h2>' . $escape($labels[$register] ?? $register) . '</h2><table><thead><tr><th>Articolo IVA</th><th>Aliquota</th><th>Natura / riferimento</th><th>Imponibile</th><th>Debito</th><th>IVA acquisti (lordo)</th><th>IVA detraibile (da sottrarre)</th><th>Indetr.</th><th>Sospesa</th></tr></thead><tbody>' . $body . '</tbody><tfoot><tr><th colspan="3">Totale registro</th><th class="num">' . $money($taxable) . '</th><th class="num">' . $money($debit) . '</th><th class="num">' . $money($register === 'PURCHASES' ? -$credit : $credit) . '</th><th class="num">' . $money($register === 'PURCHASES' ? -$effective : $effective) . '</th><th class="num">' . $money($nonDeductible) . '</th><th class="num">' . $money($suspended) . '</th></tr></tfoot></table></section>';
+            $tables .= '<section><h2>' . $escape($labels[$register] ?? $register) . '</h2><table><thead><tr><th>Articolo IVA</th><th>Aliquota</th><th>Natura / riferimento</th><th>Imponibile</th><th>Debito</th><th>IVA acquisti (lordo)</th><th>IVA esigibile / detraibile</th><th>Indetr.</th><th>Sospesa</th></tr></thead><tbody>' . $body . '</tbody><tfoot><tr><th colspan="3">Totale registro</th><th class="num">' . $money($taxable) . '</th><th class="num">' . $money($debit) . '</th><th class="num">' . $money($register === 'PURCHASES' ? -$credit : $credit) . '</th><th class="num">' . $money($register === 'PURCHASES' ? -$effective : $effective) . '</th><th class="num">' . $money($nonDeductible) . '</th><th class="num">' . $money($suspended) . '</th></tr></tfoot></table></section>';
         }
         $tables .= '<section><h2>RIEPILOGO OPERAZIONI</h2><table><thead><tr><th>Operazioni</th><th>Imponibile</th><th>Imposta</th><th>Esigibile / detraibile</th><th>Indetraibile</th></tr></thead><tbody><tr><td><b>TOTALI OPERAZIONI ATTIVE</b></td><td class="num">' . $money($operationTotals['ACTIVE']['taxable']) . '</td><td class="num">' . $money($operationTotals['ACTIVE']['debit']) . '</td><td class="num">' . $money($settlement['vat_debit']) . '</td><td class="num">' . $money(0) . '</td></tr><tr><td><b>TOTALI OPERAZIONI PASSIVE</b></td><td class="num">' . $money($operationTotals['PASSIVE']['taxable']) . '</td><td class="num">' . $money($operationTotals['PASSIVE']['credit']) . '</td><td class="num">' . $money($operationTotals['PASSIVE']['effective']) . '</td><td class="num">' . $money($operationTotals['PASSIVE']['non_deductible']) . '</td></tr></tbody></table></section>';
         $period = ((string) $settlement['period_type'] === 'MONTHLY' ? 'Mese ' : 'Trimestre ') . $settlement['period_number'] . ' / ' . $settlement['period_year'];
         $reconciliation = (($settlement['source_reconciliation_mode'] ?? 'STANDARD') === 'DATEV_PRIORITY')
             ? '<p class="reconciliation"><b>Riconciliazione fonti:</b> registro DATEV prioritario; ' . (int) ($settlement['excluded_document_rows'] ?? 0) . ' righe XML escluse dal secondo conteggio (IVA acquisti lorda ' . $money($settlement['excluded_document_purchase_vat'] ?? 0) . ', IVA detraibile ' . $money($settlement['excluded_document_vat_credit'] ?? 0) . ', IVA a debito ' . $money($settlement['excluded_document_vat_debit'] ?? 0) . ').</p>'
             : '';
-        $html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><style>@page{margin:12mm 10mm}body{font-family:DejaVu Sans,sans-serif;color:#172033;font-size:8px}header{border-bottom:2px solid #17365d;padding-bottom:7px;margin-bottom:9px}h1{font-size:16px;margin:0 0 3px}.meta{color:#64748b}.result{margin:10px 0 12px;padding:12px 15px;border:2px solid ' . ($balance > .005 ? '#c43d49' : '#21835e') . ';background:#f8fafc}.result span{font-size:11px;font-weight:bold}.result strong{float:right;font-size:20px;color:' . ($balance > .005 ? '#a92330' : '#087a50') . '}.formula{clear:both;padding-top:8px;color:#475569;font-size:8px}.formula b{color:#172033}.reconciliation{padding:7px 9px;background:#eef6ff;border:1px solid #b9d6f5}section{margin-top:12px;page-break-inside:avoid}h2{font-size:10px;margin:0;padding:6px 7px;background:#17365d;color:#fff}table{width:100%;border-collapse:collapse}th,td{padding:4px;border:1px solid #d7dee8;vertical-align:top}thead th{background:#eaf0f7;text-align:left}tfoot th{background:#f2f5f9;border-top:2px solid #8291a5}.num{text-align:right;white-space:nowrap}small{display:block;color:#64748b;margin-top:2px}footer{position:fixed;bottom:-6mm;right:0;color:#64748b}</style></head><body><header><h1>Liquidazione IVA</h1><div class="meta">' . $escape($company) . ' · ' . $escape($period) . ' · elaborata il ' . date('d/m/Y H:i') . '</div></header><div class="result"><span>' . $resultLabel . '</span><strong>' . $money(abs($balance)) . '</strong><div class="formula"><b>' . $money($settlement['vat_debit']) . '</b> IVA a debito − <b>' . $money($settlement['vat_credit']) . '</b> IVA detraibile − <b>' . $money($settlement['previous_credit']) . '</b> credito precedente + <b>' . $money($settlement['interest_amount']) . '</b> interessi</div></div>' . $reconciliation . '<p>Le note di credito sono esposte con imponibile e imposta negativi. Nel registro acquisti IVA lorda e detraibile sono esposte col segno di sottrazione.</p>' . $tables . '<footer>Luna2 · prospetto di liquidazione IVA</footer></body></html>';
+        $status = match ((string) ($settlement['status'] ?? '')) {
+            'PAID' => 'Pagata', 'SUBMITTED' => 'Definitiva', 'CALCULATED' => 'Calcolata', default => 'Bozza',
+        };
+        $paymentReference = trim((string) ($settlement['payment_reference'] ?? ''));
+        $dueDate = !empty($settlement['payment_due_date']) && strtotime((string) $settlement['payment_due_date'])
+            ? date('d/m/Y', strtotime((string) $settlement['payment_due_date'])) : '—';
+        $html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><style>@page{margin:12mm 10mm 13mm}body{font-family:DejaVu Sans,sans-serif;color:#172033;font-size:8px}header{border-bottom:2px solid #17365d;padding-bottom:7px;margin-bottom:9px}header h1{font-size:17px;margin:0 0 4px;color:#17365d}.company{font-size:10px;font-weight:bold}.meta{color:#64748b;margin-top:2px}.document-data{width:100%;margin:8px 0 10px;border-collapse:separate;border-spacing:5px 0}.document-data td{width:25%;border:1px solid #d7dee8;background:#f8fafc;padding:7px}.document-data span{display:block;text-transform:uppercase;font-size:6px;letter-spacing:.4px;color:#64748b;margin-bottom:2px}.document-data b{font-size:8px}.result{margin:8px 0 11px;padding:12px 15px;border:2px solid ' . ($balance > .005 ? '#c43d49' : '#21835e') . ';background:#f8fafc}.result span{font-size:11px;font-weight:bold}.result strong{float:right;font-size:20px;color:' . ($balance > .005 ? '#a92330' : '#087a50') . '}.formula{clear:both;padding-top:8px;color:#475569;font-size:8px}.formula b{color:#172033}.reconciliation{padding:7px 9px;background:#eef6ff;border:1px solid #b9d6f5}section{margin-top:12px;page-break-inside:avoid}h2{font-size:10px;margin:0;padding:6px 7px;background:#17365d;color:#fff}table{width:100%;border-collapse:collapse}th,td{padding:4px;border:1px solid #d7dee8;vertical-align:top}thead{display:table-header-group}thead th{background:#eaf0f7;text-align:left}tfoot th{background:#f2f5f9;border-top:2px solid #8291a5}.num{text-align:right;white-space:nowrap}small{display:block;color:#64748b;margin-top:2px}.legend{color:#475569;font-size:7px;margin:8px 0}footer{position:fixed;bottom:-7mm;left:0;right:0;border-top:1px solid #cbd5e1;padding-top:3px;color:#64748b}</style></head><body><header><h1>LIQUIDAZIONE PERIODICA IVA</h1><div class="company">' . $escape($company) . '</div><div class="meta">' . $escape($companyAddress) . '</div></header><table class="document-data"><tr><td><span>Periodo di riferimento</span><b>' . $escape($period) . '</b></td><td><span>Stato elaborazione</span><b>' . $escape($status) . '</b></td><td><span>Data elaborazione</span><b>' . date('d/m/Y H:i') . '</b></td><td><span>Scadenza versamento</span><b>' . $escape($dueDate) . '</b></td></tr></table><div class="result"><span>' . $resultLabel . '</span><strong>' . $money(abs($balance)) . '</strong><div class="formula"><b>' . $money($settlement['vat_debit']) . '</b> IVA a debito − <b>' . $money($settlement['vat_credit']) . '</b> IVA detraibile − <b>' . $money($settlement['previous_credit']) . '</b> credito precedente + <b>' . $money($settlement['interest_amount']) . '</b> interessi</div></div>' . $reconciliation . '<p class="legend">Le note di credito sono esposte con imponibile e imposta negativi. Nel registro acquisti l’IVA lorda e quella detraibile sono indicate come componenti in sottrazione.</p>' . $tables . '<footer>Luna2 · Prospetto fiscale di liquidazione IVA' . ($paymentReference !== '' ? ' · F24 ' . $escape($paymentReference) : '') . '</footer></body></html>';
         $options = new Options(); $options->set('isRemoteEnabled', false); $options->set('isHtml5ParserEnabled', true);
         $pdf = new Dompdf($options); $pdf->loadHtml($html, 'UTF-8'); $pdf->setPaper('A4', 'landscape'); $pdf->render();
         $canvas = $pdf->getCanvas(); $canvas->page_text(28, $canvas->get_height() - 20, 'Pagina {PAGE_NUM} / {PAGE_COUNT}', $pdf->getFontMetrics()->getFont('DejaVu Sans'), 7);
-        $pdf->stream($this->filename($filename) . '.pdf', ['Attachment' => true]); exit;
+        return $pdf->output();
+    }
+
+    /** @param array<int,array<string,mixed>> $rows */
+    public function streamVatSettlementPdf(array $settlement, array $rows, string $filename): never
+    {
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $this->filename($filename) . '.pdf"');
+        header('Cache-Control: private, no-store, max-age=0');
+        echo $this->vatSettlementPdfContent($settlement, $rows);
+        exit;
     }
     /**
      * @param array<int,array{key:string,label:string,type?:string}> $columns
