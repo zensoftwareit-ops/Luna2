@@ -131,12 +131,16 @@ final class ImportService
 
     public function ingestRemoteInvoices(array $files, int $maxBytes): int
     {
-        $uuid=$this->uuid();$directory=$this->storagePath.'/imports/'.$uuid;
-        if(!is_dir($directory)&&!mkdir($directory,0750,true)&&!is_dir($directory)){throw new RuntimeException('Impossibile creare la cartella di importazione.');}
         $totalBytes=array_sum(array_map(static fn(array $file):int=>strlen((string)($file['content']??'')),$files));
         if($totalBytes<=0||$totalBytes>$maxBytes){throw new InvalidArgumentException('Dimensione complessiva delle fatture non ammessa.');}
+        $checksum=hash('sha256',implode('',array_column($files,'content')));
+        $existing=$this->db->prepare("SELECT id FROM import_batches WHERE organization_id=? AND source_system='SDI_API' AND checksum_sha256=? AND status<>'ERROR' ORDER BY id DESC LIMIT 1");
+        $existing->execute([$this->organizationId,$checksum]);
+        if($existingId=$existing->fetchColumn()){return (int)$existingId;}
+        $uuid=$this->uuid();$directory=$this->storagePath.'/imports/'.$uuid;
+        if(!is_dir($directory)&&!mkdir($directory,0750,true)&&!is_dir($directory)){throw new RuntimeException('Impossibile creare la cartella di importazione.');}
         $this->db->prepare("INSERT INTO import_batches (organization_id,uuid,source_system,import_type,status,original_filename,checksum_sha256,file_size,total_rows,valid_rows,error_rows,created_by,created_at,updated_at) VALUES (?,?,'SDI_API','fatturapa','STAGING','Ricezione endpoint SDI',?,?,0,0,0,?,NOW(),NOW())")
-            ->execute([$this->organizationId,$uuid,hash('sha256',implode('',array_column($files,'content'))),$totalBytes,$this->userId]);
+            ->execute([$this->organizationId,$uuid,$checksum,$totalBytes,$this->userId]);
         $batchId=(int)$this->db->lastInsertId();
         try{foreach($files as $index=>$file){$name=basename((string)($file['name']??('fattura-'.($index+1).'.xml')));if(mb_strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='xml')continue;$path=$directory.'/'.($index+1).'.xml';if(file_put_contents($path,(string)$file['content'],LOCK_EX)===false){throw new RuntimeException('Impossibile archiviare una fattura ricevuta.');}$this->stageFile($batchId,$path,$name,'fatturapa',$maxBytes,0);} $this->refreshCounters($batchId,'READY');return $batchId;}
         catch(Throwable $exception){$this->db->prepare("UPDATE import_batches SET status='ERROR',error_message=?,updated_at=NOW() WHERE id=?")->execute([mb_substr($exception->getMessage(),0,2000),$batchId]);throw $exception;}

@@ -36,8 +36,10 @@ final class ImportController extends BaseController
     {
         $this->guard();$this->requireRoles(['OWNER','ADMIN','ACCOUNTANT']);
         try {
-            $files=(new InboundInvoiceService($this->db,Auth::organizationId()))->receive();
+            $remote=new InboundInvoiceService($this->db,Auth::organizationId());
+            $files=$remote->receive();
             $id=$this->service()->ingestRemoteInvoices($files,Env::int('IMPORT_MAX_BYTES',52428800));
+            $remote->acknowledge($files);
             $this->audit('RECEIVE','import_batches',$id,['source'=>'EINVOICE','files'=>count($files)]);
             $this->redirect('/imports/'.$id,'Fatture ricevute dall’endpoint. Verifica l’anteprima e conferma l’importazione.');
         } catch (Throwable $exception) {

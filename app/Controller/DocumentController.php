@@ -8,6 +8,7 @@ use Dompdf\Dompdf;
 use InvalidArgumentException;
 use Luna\Core\Auth;
 use Luna\Service\AccountingService;
+use Luna\Service\EinvoiceService;
 use Luna\Service\FatturaPaService;
 use Luna\Service\PartyAutomationService;
 use Luna\Service\ReceivablesService;
@@ -242,7 +243,13 @@ final class DocumentController extends BaseController
         $statement = $this->db->prepare('SELECT dl.*, d.number, d.document_type, d.document_date FROM document_links dl INNER JOIN documents d ON d.id = dl.source_document_id WHERE dl.organization_id = ? AND dl.target_document_id = ? ORDER BY dl.id DESC');
         $statement->execute([Auth::organizationId(), (int) $id]);
         $incomingLinks = $statement->fetchAll();
-        $this->view->render('documents/view', compact('type', 'definition', 'document', 'lines', 'conversionTargets', 'targetSlugs', 'warehouses', 'outgoingLinks', 'incomingLinks') + ['title' => $definition['singular'] . ' ' . $document['number']]);
+        $transmission = null;
+        if (in_array($definition['code'], ['SALES_INVOICE', 'CREDIT_NOTE'], true)) {
+            $statement = $this->db->prepare('SELECT * FROM sdi_transmissions WHERE organization_id = ? AND document_id = ? ORDER BY id DESC LIMIT 1');
+            $statement->execute([Auth::organizationId(), (int) $id]);
+            $transmission = $statement->fetch() ?: null;
+        }
+        $this->view->render('documents/view', compact('type', 'definition', 'document', 'lines', 'conversionTargets', 'targetSlugs', 'warehouses', 'outgoingLinks', 'incomingLinks', 'transmission') + ['title' => $definition['singular'] . ' ' . $document['number']]);
     }
 
     public function convert(string $type, string $id): never
@@ -346,9 +353,44 @@ final class DocumentController extends BaseController
         $service = new FatturaPaService($this->db, Auth::organizationId());
         $xml = $service->generate((int) $id);
         header('Content-Type: application/xml; charset=UTF-8');
-        header('Content-Disposition: attachment; filename="IT' . Auth::organizationId() . '_' . str_pad($id, 5, '0', STR_PAD_LEFT) . '.xml"');
+        header('Content-Disposition: attachment; filename="' . $service->filename((int) $id) . '"');
         echo $xml;
         exit;
+    }
+
+    public function sendSdi(string $type, string $id): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
+        $definition = $this->type($type);
+        if (!in_array($definition['code'], ['SALES_INVOICE', 'CREDIT_NOTE'], true)) {
+            $this->redirect('/documents/' . $type . '/' . (int) $id, 'Questo documento non può essere trasmesso allo SdI.', 'error');
+        }
+        try {
+            $this->loadDocument((int) $id, $definition['code']);
+            $result = (new EinvoiceService($this->db, Auth::organizationId(), Auth::id()))->send((int) $id);
+            $this->audit('SDI_SEND', 'documents', (int) $id, ['transmission_id' => $result['id'] ?? null, 'status' => $result['status'] ?? null]);
+            $this->redirect('/documents/' . $type . '/' . (int) $id, 'Fattura affidata al canale SdI. Stato: ' . ($result['status'] ?? 'in elaborazione') . '.');
+        } catch (Throwable $exception) {
+            $this->redirect('/documents/' . $type . '/' . (int) $id, 'Invio SdI non completato: ' . $exception->getMessage(), 'error');
+        }
+    }
+
+    public function syncSdi(string $type, string $id): never
+    {
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
+        $definition = $this->type($type);
+        if (!in_array($definition['code'], ['SALES_INVOICE', 'CREDIT_NOTE'], true)) {
+            $this->redirect('/documents/' . $type . '/' . (int) $id, 'Questo documento non prevede stati SdI.', 'error');
+        }
+        try {
+            $service = new EinvoiceService($this->db, Auth::organizationId(), Auth::id());
+            $result = $service->syncTransmission((int) $id);
+            $notifications = $service->syncNotifications();
+            $this->audit('SDI_SYNC', 'documents', (int) $id, ['status' => $result['status'] ?? null] + $notifications);
+            $this->redirect('/documents/' . $type . '/' . (int) $id, 'Stato SdI aggiornato: ' . ($result['status'] ?? 'sconosciuto') . '.');
+        } catch (Throwable $exception) {
+            $this->redirect('/documents/' . $type . '/' . (int) $id, 'Aggiornamento SdI non completato: ' . $exception->getMessage(), 'error');
+        }
     }
 
     public function status(string $type, string $id): never

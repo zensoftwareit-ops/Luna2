@@ -15,7 +15,7 @@ final class FatturaPaService
     {
     }
 
-    public function generate(int $documentId): string
+    public function generate(int $documentId, int $attempt = 1): string
     {
         $statement = $this->db->prepare('SELECT * FROM documents WHERE id = ? AND organization_id = ?');
         $statement->execute([$documentId, $this->organizationId]);
@@ -35,6 +35,16 @@ final class FatturaPaService
         if (!$organization || !$customer) {
             throw new InvalidArgumentException('Dati fiscali azienda o cliente incompleti.');
         }
+        if ($lines === []) {
+            throw new InvalidArgumentException('La fattura non contiene righe da trasmettere.');
+        }
+        $organizationVat = preg_replace('/\D/', '', (string) ($organization['vat_number'] ?? ''));
+        if (($organization['country_code'] ?: 'IT') === 'IT' && strlen($organizationVat) !== 11) {
+            throw new InvalidArgumentException('La partita IVA italiana del cedente deve contenere 11 cifre.');
+        }
+        if (trim((string) ($customer['vat_number'] ?? '')) === '' && trim((string) ($customer['tax_code'] ?? '')) === '') {
+            throw new InvalidArgumentException('Indica partita IVA o codice fiscale del cliente prima dell’invio.');
+        }
 
         $dom = new DOMDocument('1.0', 'UTF-8');
         $dom->formatOutput = true;
@@ -49,7 +59,7 @@ final class FatturaPaService
         $sender = $this->append($dom, $transmission, 'IdTrasmittente');
         $this->value($dom, $sender, 'IdPaese', $organization['country_code'] ?: 'IT');
         $this->value($dom, $sender, 'IdCodice', preg_replace('/\D/', '', (string) $organization['vat_number']));
-        $this->value($dom, $transmission, 'ProgressivoInvio', str_pad((string) $document['id'], 5, '0', STR_PAD_LEFT));
+        $this->value($dom, $transmission, 'ProgressivoInvio', $this->progressive($documentId, $attempt));
         $this->value($dom, $transmission, 'FormatoTrasmissione', 'FPR12');
         $this->value($dom, $transmission, 'CodiceDestinatario', $customer['sdi_code'] ?: '0000000');
         if (!empty($customer['pec'])) {
@@ -96,6 +106,11 @@ final class FatturaPaService
             $this->value($dom, $withholding, 'ImportoRitenuta', $this->amount($document['withholding_total']));
             $this->value($dom, $withholding, 'AliquotaRitenuta', number_format((float) $document['withholding_rate'], 2, '.', ''));
             $this->value($dom, $withholding, 'CausalePagamento', $document['withholding_cause'] ?: 'A');
+        }
+        if ((float) ($document['stamp_duty_total'] ?? 0) > 0) {
+            $stampDuty = $this->append($dom, $generalDocument, 'DatiBollo');
+            $this->value($dom, $stampDuty, 'BolloVirtuale', 'SI');
+            $this->value($dom, $stampDuty, 'ImportoBollo', $this->amount($document['stamp_duty_total']));
         }
         $this->value($dom, $generalDocument, 'ImportoTotaleDocumento', $this->amount($document['total']));
 
@@ -152,6 +167,25 @@ final class FatturaPaService
         }
 
         return $dom->saveXML() ?: '';
+    }
+
+    public function filename(int $documentId, int $attempt = 1): string
+    {
+        $statement = $this->db->prepare('SELECT vat_number FROM organizations WHERE id = ?');
+        $statement->execute([$this->organizationId]);
+        $vat = preg_replace('/\D/', '', (string) $statement->fetchColumn());
+        if ($vat === '') {
+            throw new InvalidArgumentException('Partita IVA del trasmittente mancante.');
+        }
+        return 'IT' . $vat . '_' . $this->progressive($documentId, $attempt) . '.xml';
+    }
+
+    private function progressive(int $documentId, int $attempt): string
+    {
+        $document = str_pad(substr(strtoupper(base_convert((string) $documentId, 10, 36)), -7), 7, '0', STR_PAD_LEFT);
+        $attempt = max(1, $attempt);
+        $sequence = str_pad(substr(strtoupper(base_convert((string) $attempt, 10, 36)), -2), 2, '0', STR_PAD_LEFT);
+        return $document . $sequence;
     }
 
     private function address(DOMDocument $dom, DOMElement $parent, array $data): void

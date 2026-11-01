@@ -40,12 +40,22 @@ final class EndpointConfigService
         }
         $headers = $this->headers($data['header_json'] ?? null);
         $timeout = min(300, max(1, (int) ($data['timeout_seconds'] ?? 30)));
+        $verifyTls = isset($data['verify_tls']);
+        $enabled = isset($data['enabled']);
+        $sendPath = $this->path($data['send_path'] ?? null);
+        $receivePath = $this->path($data['receive_path'] ?? null);
+        if ($enabled && $environment === 'PRODUCTION' && (!$verifyTls || !in_array($authType, ['BEARER', 'API_KEY'], true))) {
+            throw new InvalidArgumentException('Il canale di produzione richiede verifica TLS e autenticazione Bearer o API key.');
+        }
+        if ($enabled && in_array($serviceKey, ['EINVOICE_SDI', 'EINVOICE'], true) && ($sendPath === null || $receivePath === null)) {
+            throw new InvalidArgumentException('Per abilitare il canale SdI indica sia il percorso di invio sia quello di ricezione.');
+        }
         $values = [
             $serviceKey, $name, $environment, $baseUrl,
-            $this->path($data['send_path'] ?? null), $this->path($data['receive_path'] ?? null),
+            $sendPath, $receivePath,
             $this->path($data['status_path'] ?? null), $this->path($data['webhook_path'] ?? null),
             $authType, $secretReference, $headers === [] ? null : json_encode($headers, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-            $timeout, isset($data['verify_tls']) ? 1 : 0, isset($data['enabled']) ? 1 : 0,
+            $timeout, $verifyTls ? 1 : 0, $enabled ? 1 : 0,
             $this->nullable($data['notes'] ?? null),
         ];
         if ($endpointId !== null) {

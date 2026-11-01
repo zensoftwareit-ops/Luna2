@@ -736,6 +736,14 @@ $endpointService = (string) file_get_contents($base . '/app/Service/EndpointConf
 $assert(!preg_match('/\bcurl_|file_get_contents\s*\(\s*\$baseUrl|new\s+(?:Client|HttpClient)\b/', $endpointService), 'La configurazione endpoint non deve effettuare chiamate di rete.');
 $endpointView = (string) file_get_contents($base . '/views/settings/endpoints.php');
 $assert(str_contains($endpointView, 'endpoint_id=') && str_contains($endpointView, 'name="id"'), 'Le configurazioni endpoint devono poter essere modificate e disattivate.');
+$einvoiceService = (string) file_get_contents($base . '/app/Service/EinvoiceService.php');
+$inboundInvoiceService = (string) file_get_contents($base . '/app/Service/InboundInvoiceService.php');
+$documentView = (string) file_get_contents($base . '/views/documents/view.php');
+$assert(str_contains($einvoiceService, "strlen(\$recipientCode) === 6") && str_contains($einvoiceService, 'Invio verso PA non ancora attivo'), 'L’invio PA deve essere bloccato tecnicamente nel gestionale.');
+$assert(str_contains($einvoiceService, 'checksum_sha256') && str_contains($einvoiceService, "['SEND_FAILED', 'SDI_ERROR', 'ERROR']"), 'L’invio SdI deve essere idempotente e ritentabile soltanto dopo errore.');
+$assert(str_contains($inboundInvoiceService, 'pending_only') && str_contains($inboundInvoiceService, 'function acknowledge'), 'Le fatture passive devono essere acquisite con presa in carico esplicita.');
+$assert(str_contains($documentView, '/sdi-send') && str_contains($documentView, '/sdi-sync'), 'La fattura attiva deve esporre invio e sincronizzazione SdI.');
+$assert(str_contains((string) file_get_contents($base . '/bin/luna'), "case 'einvoice:sync':"), 'Comando schedulabile di sincronizzazione SdI mancante.');
 $importService = (string) file_get_contents($base . '/app/Service/ImportService.php');
 foreach (['open_items', 'vat_movements', 'fixed_assets', 'bank_transactions'] as $target) {
     $assert(str_contains($importService, "'{$target}'"), "Target import DATEV mancante: {$target}");

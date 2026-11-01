@@ -14,6 +14,9 @@ use Luna\Service\RentalService;
 use Luna\Service\WorkspaceService;
 use Luna\Service\DatevKoinosImport;
 use Luna\Service\CustomDomainService;
+use Luna\Service\EinvoiceService;
+use Luna\Service\InboundInvoiceService;
+use Luna\Service\ImportService;
 
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
@@ -193,9 +196,46 @@ try {
             echo "Totale: create {$totals['created']}, raccordate {$totals['linked']}, da verificare {$totals['pending']}, errori {$totals['errors']}.\n";
             break;
 
+        case 'einvoice:sync':
+            $db = Database::connect();
+            $organizations = $db->query("SELECT DISTINCT organization_id FROM api_endpoint_configs WHERE enabled=1 AND service_key IN ('EINVOICE_SDI','EINVOICE')")->fetchAll(PDO::FETCH_COLUMN);
+            $totals = ['inbound' => 0, 'notifications' => 0, 'updated' => 0, 'errors' => 0];
+            foreach ($organizations as $organizationId) {
+                $organizationId = (int) $organizationId;
+                $user = $db->prepare("SELECT id FROM users WHERE organization_id=? AND active=1 ORDER BY FIELD(role,'OWNER','ADMIN','ACCOUNTANT'),id LIMIT 1");
+                $user->execute([$organizationId]);
+                $userId = (int) ($user->fetchColumn() ?: 0);
+                try {
+                    $notifications = (new EinvoiceService($db, $organizationId, $userId))->syncNotifications();
+                    $totals['notifications'] += $notifications['received'];
+                    $totals['updated'] += $notifications['updated'];
+                } catch (Throwable $exception) {
+                    $totals['errors']++;
+                    fwrite(STDERR, "Azienda {$organizationId}, notifiche: {$exception->getMessage()}\n");
+                }
+                try {
+                    $remote = new InboundInvoiceService($db, $organizationId);
+                    $files = $remote->receive();
+                    (new ImportService($db, $organizationId, $userId, BASE_PATH . '/storage'))
+                        ->ingestRemoteInvoices($files, Env::int('IMPORT_MAX_BYTES', 52428800));
+                    $remote->acknowledge($files);
+                    $totals['inbound'] += count($files);
+                } catch (InvalidArgumentException $exception) {
+                    if (!str_contains($exception->getMessage(), 'non ha restituito nuove fatture')) {
+                        $totals['errors']++;
+                        fwrite(STDERR, "Azienda {$organizationId}, fatture passive: {$exception->getMessage()}\n");
+                    }
+                } catch (Throwable $exception) {
+                    $totals['errors']++;
+                    fwrite(STDERR, "Azienda {$organizationId}, fatture passive: {$exception->getMessage()}\n");
+                }
+            }
+            echo "Fatturazione elettronica: passive {$totals['inbound']}, notifiche {$totals['notifications']}, trasmissioni aggiornate {$totals['updated']}, errori {$totals['errors']}.\n";
+            break;
+
         default:
             echo "Luna2 CLI\n\n";
-            echo "  storage:init\n  key:generate\n  migrate\n  license:status\n  license:sync\n  cron:license\n  cron:daily\n  custom-domains:sync\n  datev:materialize-invoices\n";
+            echo "  storage:init\n  key:generate\n  migrate\n  license:status\n  license:sync\n  cron:license\n  cron:daily\n  custom-domains:sync\n  datev:materialize-invoices\n  einvoice:sync\n";
     }
 } catch (Throwable $exception) {
     fwrite(STDERR, 'Errore: ' . $exception->getMessage() . PHP_EOL);

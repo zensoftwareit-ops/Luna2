@@ -6,7 +6,9 @@ namespace Luna\Controller;
 
 use InvalidArgumentException;
 use Luna\Core\Auth;
+use Luna\Service\EinvoiceService;
 use Luna\Service\EndpointConfigService;
+use Throwable;
 
 final class IntegrationController extends BaseController
 {
@@ -37,6 +39,24 @@ final class IntegrationController extends BaseController
             $this->redirect('/settings/endpoints', 'Endpoint salvato. Nessuna chiamata esterna è stata eseguita.');
         } catch (InvalidArgumentException $exception) {
             $this->redirect('/settings/endpoints', $exception->getMessage(), 'error');
+        }
+    }
+
+    public function testEndpoint(): never
+    {
+        $this->authorize();
+        try {
+            $result = (new EinvoiceService($this->db, Auth::organizationId(), Auth::id()))->readiness();
+            $checks = (array) ($result['checks'] ?? []);
+            if (empty($result['ready'])) {
+                $failed = implode(', ', array_keys(array_filter($checks, static fn (mixed $value): bool => $value === false)));
+                $this->redirect('/settings/endpoints', 'Canale non pronto: ' . ($failed ?: 'verifica configurazione API e certificati.'), 'error');
+            }
+            $pa = !empty($checks['pa_outbound_enabled']) ? 'attivo' : 'disattivato come previsto';
+            $this->audit('TEST', 'api_endpoint_configs', 0, ['ready' => true, 'pa_outbound' => $pa]);
+            $this->redirect('/settings/endpoints', 'Collegamento verificato: canale privati pronto; invio PA ' . $pa . '.');
+        } catch (Throwable $exception) {
+            $this->redirect('/settings/endpoints', 'Verifica non riuscita: ' . $exception->getMessage(), 'error');
         }
     }
 

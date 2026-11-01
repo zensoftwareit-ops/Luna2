@@ -36,7 +36,7 @@ Il titolare o amministratore dell’azienda può configurare autonomamente un do
 
 ## Stato del progetto
 
-Il branch `luna2-php` è aggiornato alle funzioni operative documentate al 9 ottobre 2026. Il via libera al primo cliente resta subordinato alla quadratura dei dati DATEV reali, ai collaudi con credenziali dei provider e all’UAT amministrativa/fiscale. SDI, conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. L’indice aggiornato è in [docs/README.md](docs/README.md), la matrice puntuale in [docs/FUNCTIONAL_PARITY.md](docs/FUNCTIONAL_PARITY.md) e il collaudo esteso in [docs/ERP_PARITY_RELEASE.md](docs/ERP_PARITY_RELEASE.md).
+Il branch `luna2-php` include il collegamento operativo all’API centrale SDICoop per invio FPR12, ricezione delle notifiche e acquisizione delle fatture passive. Il go-live iniziale esclude tecnicamente l’invio FPA12 alla Pubblica Amministrazione, da attivare solo dopo il relativo collaudo. Conservazione a norma, file telematici ministeriali e formato proprietario Koinos restano dipendenze esterne. Per il rilascio seguire [docs/FATTURAZIONE_ELETTRONICA_GO_LIVE.md](docs/FATTURAZIONE_ELETTRONICA_GO_LIVE.md).
 
 Il manuale destinato agli utenti finali è [docs/GUIDA_OPERATIVA_CLIENTE.md](docs/GUIDA_OPERATIVA_CLIENTE.md); la versione impaginata è disponibile in `output/pdf/Luna2_Guida_Operativa_Cliente.pdf`.
 
@@ -92,7 +92,7 @@ L’applicazione genera XML FatturaPA, ma non simula un endpoint pubblico inesis
 - canale Web Service/FTP preventivamente accreditato presso SdI;
 - PEC o upload manuale, per volumi contenuti.
 
-Gli URL dei servizi si configurano in **Contabilità → Endpoint e-invoice**. Le credenziali restano fuori dal database e vengono indicate soltanto tramite riferimenti `ENV:NOME_VARIABILE`. Il connettore di ricezione usa l’endpoint `EINVOICE`: la risposta deve contenere `invoices`, con `filename` e `content_base64` per ciascun XML. Da **Importazioni e fatture passive** si acquisiscono i file in staging e si confermano solo dopo l’anteprima. Restano disponibili anche XML, P7M e ZIP caricati manualmente.
+Gli URL dei servizi si configurano in **Impostazioni → Fatturazione elettronica** con chiave `EINVOICE_SDI`. Le credenziali restano fuori dal database e vengono indicate soltanto tramite riferimenti `ENV:NOME_VARIABILE`. Le fatture passive vengono scaricate in staging e confermate solo dopo l’anteprima; l’API riceve l’ack esclusivamente dopo l’archiviazione locale. Il comando `php bin/luna einvoice:sync` acquisisce passive e notifiche in modo schedulabile. Restano disponibili XML, P7M e ZIP caricati manualmente.
 
 ## Automatismi fiscali e anagrafici
 

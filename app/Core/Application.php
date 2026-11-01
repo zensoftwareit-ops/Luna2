@@ -125,6 +125,8 @@ final class Application
         $router->add('GET', '/documents/{type}/{id}', [DocumentController::class, 'view']);
         $router->add('GET', '/documents/{type}/{id}/pdf', [DocumentController::class, 'pdf']);
         $router->add('GET', '/documents/{type}/{id}/xml', [DocumentController::class, 'xml']);
+        $router->add('POST', '/documents/{type}/{id}/sdi-send', [DocumentController::class, 'sendSdi']);
+        $router->add('POST', '/documents/{type}/{id}/sdi-sync', [DocumentController::class, 'syncSdi']);
         $router->add('POST', '/documents/{type}/{id}/status', [DocumentController::class, 'status']);
         $router->add('POST', '/documents/{type}/{id}/registration-date', [DocumentController::class, 'registrationDate']);
         $router->add('POST', '/documents/{type}/{id}/convert', [DocumentController::class, 'convert']);
@@ -276,6 +278,7 @@ final class Application
         $router->add('POST', '/settings/domains/{id}/remove', [CustomDomainController::class, 'remove'], true, true, ['module' => null, 'permission' => 'settings.domains', 'operation' => 'TECHNICAL']);
         $router->add('GET', '/settings/endpoints', [IntegrationController::class, 'endpoints']);
         $router->add('POST', '/settings/endpoints', [IntegrationController::class, 'saveEndpoint']);
+        $router->add('POST', '/settings/endpoints/test', [IntegrationController::class, 'testEndpoint']);
         $router->add('GET', '/settings/company', [PlatformController::class, 'index']);
         $router->add('POST', '/settings/company', [PlatformController::class, 'createCompany']);
         $router->add('POST', '/settings/company/update', [PlatformController::class, 'updateCompany']);
