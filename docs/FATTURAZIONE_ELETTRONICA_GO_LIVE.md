@@ -1,5 +1,7 @@
 # Go-live fatturazione elettronica Luna2
 
+Per la procedura completa di accreditamento, caricamento certificati e collegamento delle singole istanze vedere [GUIDA_ACCREDITAMENTO_CANALE_SDI.md](GUIDA_ACCREDITAMENTO_CANALE_SDI.md).
+
 Questa procedura mette in produzione il canale per fatture e note di credito verso privati (`FPR12`), notifiche SdI e fatture passive. L'invio verso Pubblica Amministrazione (`FPA12`) deve restare disattivato fino al successivo collaudo dedicato.
 
 ## 1. Prerequisito non sostituibile dal software
