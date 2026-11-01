@@ -145,6 +145,25 @@ final class EncryptedFileStore
         return null;
     }
 
+    /** @return array<string,mixed>|null */
+    public function findByChecksum(SdiEnvironment $environment, string $clientId, string $direction, string $checksum): ?array
+    {
+        if (!preg_match('/^[a-f0-9]{64}$/', $checksum)) {
+            return null;
+        }
+        $directory = $this->directory($environment, $clientId, $direction, false);
+        foreach (glob($directory . '/*.json') ?: [] as $file) {
+            $row = $this->readJson($file);
+            if (!is_array($row)) {
+                continue;
+            }
+            if (hash_equals((string) ($row['content_sha256'] ?? ''), $checksum)) {
+                return $row;
+            }
+        }
+        return null;
+    }
+
     private function directory(SdiEnvironment $environment, string $clientId, string $direction, bool $create = true): string
     {
         if (!preg_match('/^[A-Za-z0-9._-]{2,80}$/', $clientId) || !in_array($direction, ['inbound', 'outbound', 'notifications'], true)) {

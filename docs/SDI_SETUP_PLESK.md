@@ -33,6 +33,7 @@ LUNA_API_CLIENTS=cliente-1=TOKEN_LUNGO_CLIENTE_1
 SDI_RECIPIENT_MAP=PARTITA_IVA_CLIENTE_1=cliente-1
 SDI_STORAGE_KEY=SEGRETO_CASUALE_DI_ALMENO_32_CARATTERI
 SDI_REQUIRE_MTLS=true
+SDI_ENABLE_PA_OUTBOUND=false
 
 SDI_PRODUCTION_ENDPOINT=URL_RICEVIFILE_PRODUZIONE_FORNITO_DA_SDI
 SDI_PRODUCTION_CERT_PATH=/percorso/privato/cert-produzione.pem
@@ -133,3 +134,5 @@ Riferimenti ufficiali:
 - una fattura privata FPR12 di prova.
 - una fattura PA FPA12 con codice ufficio di sei caratteri.
 - verifica di ricezione scarto, consegna, esito PA e decorrenza termini.
+
+Per il primo go-live privati, l’endpoint autenticato `GET /v1/einvoices/readiness` deve restituire `ready: true`; verifica anche leggibilità e validità temporale del certificato. Il controllo `pa_outbound_enabled` deve invece restare `false` fino al successivo collaudo PA.

@@ -14,6 +14,7 @@ final class SdiService
         private readonly FatturaPaInspector $inspector,
         private readonly SdiTransport $transport,
         private readonly array $recipientMap,
+        private readonly bool $paOutboundEnabled = false,
     ) {
     }
 
@@ -21,6 +22,13 @@ final class SdiService
     public function send(SdiEnvironment $environment, string $clientId, string $filename, string $content, ?string $recipientType = null): array
     {
         $inspection = $this->inspector->inspect($filename, $content, $recipientType);
+        if ($inspection['recipient_type'] === 'PA' && !$this->paOutboundEnabled) {
+            throw new InvalidArgumentException('L’invio verso Pubbliche Amministrazioni non è ancora abilitato su questo canale.');
+        }
+        $existing = $this->store->findByChecksum($environment, $clientId, 'outbound', hash('sha256', $content));
+        if ($existing !== null && !in_array((string) ($existing['status'] ?? ''), ['SEND_FAILED', 'SDI_ERROR'], true)) {
+            return $existing;
+        }
         $record = $this->store->create($environment, $clientId, 'outbound', $filename, $content, [
             'status' => 'SENDING',
             'format' => $inspection['format'],
@@ -83,6 +91,10 @@ final class SdiService
         $inbound = $outbound === null ? $this->store->findBySdiId($environment, 'inbound', $payload->sdiId) : null;
         $related = $outbound ?? $inbound;
         $clientId = $related['client_id'] ?? 'unmatched';
+        $existing = $this->store->findByChecksum($environment, $clientId, 'notifications', hash('sha256', $payload->content));
+        if ($existing !== null) {
+            return $existing;
+        }
         $operation = ucfirst($payload->operation);
         $status = match (strtolower($operation)) {
             'ricevutaconsegna' => 'DELIVERED',

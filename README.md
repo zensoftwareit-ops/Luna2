@@ -1,6 +1,6 @@
 # Luna2 API
 
-Servizio centrale, indipendente dal gestionale, per le integrazioni esterne di Luna2. Comprende ricerca anagrafica da partita IVA e canale SDICoop per invio/ricezione di fatture elettroniche private e PA.
+Servizio centrale, indipendente dal gestionale, per le integrazioni esterne di Luna2. Comprende ricerca anagrafica da partita IVA e canale SDICoop per invio/ricezione di fatture elettroniche. Il primo go-live abilita i privati; l’invio PA resta bloccato fino al collaudo dedicato.
 
 ## Requisiti
 
@@ -88,6 +88,7 @@ Gli endpoint REST usati dalle installazioni Luna2 sono disponibili sia in produz
 | GET | `/v1/einvoices?direction=outbound` | `/test/v1/einvoices?direction=outbound` |
 | GET | `/v1/einvoices?direction=notifications` | `/test/v1/einvoices?direction=notifications` |
 | POST | `/v1/einvoices/{direzione}/{id}/ack` | `/test/v1/einvoices/{direzione}/{id}/ack` |
+| GET | `/v1/einvoices/readiness` | `/test/v1/einvoices/readiness` |
 
 L’invio accetta `multipart/form-data` con campo `invoice` oppure JSON:
 
@@ -95,11 +96,11 @@ L’invio accetta `multipart/form-data` con campo `invoice` oppure JSON:
 {
   "filename": "IT01234567890_00001.xml",
   "content_base64": "...",
-  "recipient_type": "PA"
+  "recipient_type": "PRIVATE"
 }
 ```
 
-`recipient_type=PA` impone un tracciato `FPA12` e un codice ufficio di sei caratteri. Il sistema riconosce anche il normale tracciato privati `FPR12`.
+Il go-live iniziale accetta esclusivamente il tracciato privati `FPR12`. L’invio `FPA12` verso Pubbliche Amministrazioni è bloccato lato servizio finché `SDI_ENABLE_PA_OUTBOUND` resta `false`; sarà attivato soltanto dopo il collaudo dedicato con SdI.
 
 Gli endpoint SOAP chiamati direttamente da SdI sono:
 

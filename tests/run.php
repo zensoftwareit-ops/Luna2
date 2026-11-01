@@ -78,6 +78,25 @@ $test('distingue correttamente fattura privata e fattura PA', static function ()
     $assert($pa['recipient_code'] === 'ABC123');
 });
 
+$test('blocca tecnicamente l’invio PA finché non viene abilitato', static function () use ($assert, $invoiceXml): void {
+    $directory = sys_get_temp_dir() . '/luna2-sdi-pa-block-' . bin2hex(random_bytes(5));
+    $service = new SdiService(
+        new EncryptedFileStore($directory, str_repeat('p', 32)),
+        new FatturaPaInspector(),
+        new SdiTransport(),
+        [],
+        false,
+    );
+    try {
+        $service->send(SdiEnvironment::Test, 'azienda-demo', 'IT12485671007_00002.xml', $invoiceXml('FPA12', 'ABC123'), 'PA');
+        throw new RuntimeException('La fattura PA è stata accettata senza abilitazione.');
+    } catch (InvalidArgumentException $exception) {
+        $assert(str_contains($exception->getMessage(), 'Pubbliche Amministrazioni'));
+    } finally {
+        if (is_dir($directory)) { rmdir($directory); }
+    }
+});
+
 $test('cifra e separa lo storage SdI per ambiente e cliente', static function () use ($assert): void {
     if (!function_exists('openssl_encrypt')) {
         throw new RuntimeException('Estensione OpenSSL non caricata nel runtime di test.');

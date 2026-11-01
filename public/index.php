@@ -59,7 +59,13 @@ if ($method === 'GET' && in_array($applicationPath, ['/sdi/ricezione-fatture', '
 
 $makeSdi = static function () use ($root): array {
     $store = new EncryptedFileStore($root . '/storage/sdi', Config::string('SDI_STORAGE_KEY'));
-    $service = new SdiService($store, new FatturaPaInspector(), new SdiTransport(), ClientRegistry::recipientMap());
+    $service = new SdiService(
+        $store,
+        new FatturaPaInspector(),
+        new SdiTransport(),
+        ClientRegistry::recipientMap(),
+        Config::boolean('SDI_ENABLE_PA_OUTBOUND', false),
+    );
     return [$store, $service];
 };
 
@@ -124,6 +130,52 @@ try {
         }
         [$store, $sdi] = $makeSdi();
         $maximum = Config::integer('SDI_MAX_FILE_BYTES', 5242880);
+
+        if ($method === 'GET' && $applicationPath === '/v1/einvoices/readiness') {
+            $prefix = $sdiEnvironment->configPrefix();
+            $endpoint = (string) (getenv($prefix . 'ENDPOINT') ?: '');
+            $certificate = (string) (getenv($prefix . 'CERT_PATH') ?: '');
+            $certificateType = strtoupper((string) (getenv($prefix . 'CERT_TYPE') ?: 'PEM'));
+            $certificatePassword = (string) (getenv($prefix . 'CERT_PASSWORD') ?: '');
+            $key = (string) (getenv($prefix . 'KEY_PATH') ?: '');
+            $ca = (string) (getenv($prefix . 'CA_PATH') ?: '');
+            $certificateReadable = $certificate !== '' && is_file($certificate) && is_readable($certificate);
+            $certificateValid = false;
+            if ($certificateReadable) {
+                $certificateContents = (string) file_get_contents($certificate);
+                $certificateResource = null;
+                if ($certificateType === 'P12') {
+                    $bundle = [];
+                    if (openssl_pkcs12_read($certificateContents, $bundle, $certificatePassword)) {
+                        $certificateResource = openssl_x509_read((string) ($bundle['cert'] ?? ''));
+                    }
+                } else {
+                    $certificateResource = openssl_x509_read($certificateContents);
+                }
+                if ($certificateResource !== false && $certificateResource !== null) {
+                    $certificateData = openssl_x509_parse($certificateResource) ?: [];
+                    $certificateValid = (int) ($certificateData['validFrom_time_t'] ?? PHP_INT_MAX) <= time()
+                        && (int) ($certificateData['validTo_time_t'] ?? 0) > time();
+                }
+            }
+            $checks = [
+                'https_endpoint' => str_starts_with(strtolower($endpoint), 'https://'),
+                'client_certificate' => $certificateReadable,
+                'client_certificate_valid' => $certificateValid,
+                'private_key' => $certificateType === 'P12' ? $certificateReadable : ($key !== '' && is_file($key) && is_readable($key)),
+                'sdi_ca' => $ca !== '' && is_file($ca) && is_readable($ca),
+                'recipient_routing' => ClientRegistry::recipientMap() !== [],
+                'mtls_callbacks' => Config::boolean('SDI_REQUIRE_MTLS', true),
+                'pa_outbound_enabled' => Config::boolean('SDI_ENABLE_PA_OUTBOUND', false),
+            ];
+            $ready = !in_array(false, array_diff_key($checks, ['pa_outbound_enabled' => true]), true);
+            JsonResponse::send([
+                'ready' => $ready,
+                'environment' => $sdiEnvironment->value,
+                'checks' => $checks,
+                'request_id' => $requestId,
+            ], $ready ? 200 : 503);
+        }
 
         if ($method === 'POST' && $applicationPath === '/v1/einvoices/outbound') {
             $contentType = strtolower((string) ($_SERVER['CONTENT_TYPE'] ?? ''));
@@ -234,6 +286,8 @@ try {
         JsonResponse::send(['error' => 'company_not_found', 'message' => 'Nessuna impresa trovata per la partita IVA indicata.', 'request_id' => $requestId], 404, ['X-Cache' => $result['cache']]);
     }
     JsonResponse::send($result['data'] + ['request_id' => $requestId], 200, ['X-Cache' => $result['cache']]);
+} catch (InvalidArgumentException $exception) {
+    JsonResponse::send(['error' => 'validation_error', 'message' => $exception->getMessage(), 'request_id' => $requestId], 422);
 } catch (ProviderException $exception) {
     error_log('[luna2-api][' . $requestId . '] provider: ' . $exception->getMessage());
     JsonResponse::send(['error' => 'provider_error', 'message' => $exception->getMessage(), 'request_id' => $requestId], $exception->httpStatus);
