@@ -18,10 +18,11 @@ Configurazione minima dell'API:
 APP_ENV=production
 APP_DEBUG=false
 APP_BASE_URL=https://api.gestionaleluna.it
-LUNA_API_CLIENTS=basic-srl=TOKEN_CASUALE_DI_ALMENO_32_BYTE
 SDI_STORAGE_KEY=CHIAVE_CASUALE_DISTINTA_DI_ALMENO_32_BYTE
-SDI_RECIPIENT_MAP=02572350185=basic-srl
+LUNA_PROVISIONING_KEY=CHIAVE_AMMINISTRATIVA_CASUALE_DI_ALMENO_32_BYTE
 SDI_REQUIRE_MTLS=true
+SDI_PRODUCTION_REQUIRE_MTLS=true
+SDI_TEST_REQUIRE_MTLS=true
 SDI_TRUST_PROXY_MTLS=true
 SDI_TRUSTED_PROXY_IPS=127.0.0.1,::1
 SDI_ENABLE_PA_OUTBOUND=false
@@ -30,6 +31,10 @@ SDI_PRODUCTION_CERT_PATH=/percorso/privato/certificato.pem
 SDI_PRODUCTION_KEY_PATH=/percorso/privato/chiave.pem
 SDI_PRODUCTION_CA_PATH=/percorso/privato/ca-sdi.pem
 ```
+
+`LUNA_PROVISIONING_KEY` si configura una sola volta sull'API centrale. Non modificare più `LUNA_API_CLIENTS` o `SDI_RECIPIENT_MAP` per ogni nuova istanza. L'automazione di creazione dell'istanza chiama `POST /v1/provision/clients` indicando `client_id` e partita IVA/codice fiscale; l'API salva la mappatura nel registro persistente e restituisce il token del tenant una sola volta.
+
+I WSDL di collaudo funzionano con `SDI_TEST_REQUIRE_MTLS=true` e senza certificati SdI, perché il contratto viene servito prima del controllo mTLS. Il dominio deve comunque avere il normale certificato HTTPS Plesk/Let's Encrypt. Usare temporaneamente `false` soltanto se SdI richiede esplicitamente un `POST` preliminare prima della consegna della CA di test. `SDI_PRODUCTION_REQUIRE_MTLS` non deve mai essere disattivato.
 
 Non usare il token REST come chiave di cifratura. Conservare una copia sicura di `SDI_STORAGE_KEY`: senza di essa i payload archiviati non sono recuperabili.
 
@@ -60,7 +65,7 @@ php bin/luna storage:init
 Nel `.env` dell'istanza:
 
 ```env
-LUNA_EINVOICE_TOKEN=LO_STESSO_TOKEN_ASSOCIATO_A_BASIC_SRL_NELL_API
+LUNA_EINVOICE_TOKEN=TOKEN_RESTITUITO_DAL_PROVISIONING_DELL_ISTANZA
 ```
 
 In **Impostazioni → Fatturazione elettronica** salvare:

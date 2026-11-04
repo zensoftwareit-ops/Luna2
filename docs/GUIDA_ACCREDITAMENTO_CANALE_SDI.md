@@ -165,19 +165,42 @@ Riavviare/ricaricare la configurazione del dominio. Una richiesta `POST` senza c
 
 ## 6. Verificare test e produzione
 
-Ogni client Luna2 ha un token proprio. Nell'API centrale:
+### 6.1 Bootstrap prima dei certificati SdI
+
+Non occorre attendere i certificati di canale per pubblicare i contratti. Il certificato HTTPS del dominio `api.gestionaleluna.it`, emesso da Plesk/Let's Encrypt, è un certificato diverso. Nella fase iniziale:
+
+1. pubblicare l'API con i campi `SDI_TEST_*_PATH` vuoti;
+2. lasciare `SDI_PRODUCTION_REQUIRE_MTLS=true`;
+3. lasciare `SDI_TEST_REQUIRE_MTLS=true`: i WSDL non richiedono certificato client;
+4. verificare che i quattro URL `?wsdl` rispondano HTTP 200;
+5. inserire gli URL di test nella richiesta di accreditamento.
+
+Il WSDL non inizializza né il trasporto verso SdI né l'archivio fatture e quindi non dipende dalla presenza dei certificati di canale.
+
+### 6.2 Dopo la consegna del materiale di collaudo
+
+Caricare certificato, chiave e CA di test nei percorsi privati e compilare `SDI_TEST_CERT_PATH`, `SDI_TEST_KEY_PATH` e `SDI_TEST_CA_PATH`. Solo a questo punto eseguire il collaudo bidirezionale. Usare temporaneamente `SDI_TEST_REQUIRE_MTLS=false` soltanto se SdI richiede espressamente un `POST` preliminare prima di rendere disponibile la CA di test; ripristinare subito `true`. La configurazione di produzione resta chiusa e separata fino al rilascio del materiale definitivo.
+
+### 6.3 Provisioning delle istanze
+
+Ogni client Luna2 ha un token proprio, ma i tenant non vengono più elencati nell'`.env` centrale. Configurare una sola volta:
 
 ```env
-LUNA_API_CLIENTS=basic-srl=TOKEN_BASIC_LUNGO_E_CASUALE
-SDI_RECIPIENT_MAP=02572350185=basic-srl
+LUNA_PROVISIONING_KEY=CHIAVE_AMMINISTRATIVA_CASUALE_DI_ALMENO_32_BYTE
 ```
 
-Più aziende e più identificativi si separano con virgole:
+Quando viene creata un'istanza, l'automazione registra client e destinatari:
 
-```env
-LUNA_API_CLIENTS=basic-srl=TOKEN_BASIC,cliente-due=TOKEN_DUE
-SDI_RECIPIENT_MAP=02572350185=basic-srl,01234567890=cliente-due,RSSMRA80A01H501U=cliente-due
+```bash
+curl -X POST https://api.gestionaleluna.it/v1/provision/clients \
+  -H "X-Luna-Provisioning-Key: CHIAVE_AMMINISTRATIVA" \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"basic-srl","recipients":["02572350185"]}'
 ```
+
+La risposta contiene il token tenant una sola volta. Il registro persistente deve essere protetto dai permessi del filesystem e incluso nei backup; i token sono memorizzati esclusivamente tramite hash. Per aggiungere un identificativo usare `PUT /v1/provision/clients/basic-srl`; per cambiare credenziale usare `POST /v1/provision/clients/basic-srl/rotate`. Queste operazioni non richiedono modifiche a `.env` né riavvii dell'API.
+
+### 6.4 Verifica applicativa
 
 Verifica ambiente test:
 
@@ -203,7 +226,7 @@ Concluso l'accreditamento, SdI assegna al canale un **codice destinatario di 7 c
 2. aprire **Registrazione dell'indirizzo telematico dove ricevere tutte le fatture elettroniche**;
 3. registrare il codice destinatario di 7 caratteri assegnato al nostro canale;
 4. in alternativa/comunque comunicarlo ai fornitori;
-5. aggiungere partita IVA e, se utile, codice fiscale dell'azienda a `SDI_RECIPIENT_MAP`.
+5. verificare che partita IVA e, se utile, codice fiscale dell'azienda siano presenti tra i `recipients` del tenant creato tramite provisioning.
 
 La registrazione dell'indirizzo prevale sul codice eventualmente scritto dal fornitore. Senza registrazione o comunicazione ai fornitori, le fatture non arriveranno necessariamente al nostro canale. [Guida ufficiale dell'Agenzia delle Entrate](https://www1.agenziaentrate.gov.it/web_app_entrate/fatturazione_elettronica.html/guide-gallery.html).
 
@@ -223,7 +246,7 @@ php bin/luna storage:init
 Nel `.env` dell'istanza inserire il token assegnato a quella specifica azienda:
 
 ```env
-LUNA_EINVOICE_TOKEN=TOKEN_BASIC_LUNGO_E_CASUALE
+LUNA_EINVOICE_TOKEN=TOKEN_RESTITUITO_DA_POST_V1_PROVISION_CLIENTS
 ```
 
 ### 8.2 Configurazione di test in Luna2
