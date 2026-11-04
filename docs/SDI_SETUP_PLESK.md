@@ -29,13 +29,13 @@ La cartella `certificates/` del progetto è esclusa da Git, ma è preferibile us
 
 ```env
 APP_BASE_URL=https://api.gestionaleluna.it
-LUNA_API_CLIENTS=cliente-1=TOKEN_LUNGO_CLIENTE_1
-SDI_RECIPIENT_MAP=PARTITA_IVA_CLIENTE_1=cliente-1
 SDI_STORAGE_KEY=SEGRETO_CASUALE_DI_ALMENO_32_CARATTERI
 SDI_REQUIRE_MTLS=true
 SDI_ENABLE_PA_OUTBOUND=false
+LUNA_PROVISIONING_KEY=CHIAVE_AMMINISTRATIVA_CASUALE_DI_ALMENO_32_BYTE
 
 SDI_PRODUCTION_ENDPOINT=URL_RICEVIFILE_PRODUZIONE_FORNITO_DA_SDI
+SDI_PRODUCTION_REQUIRE_MTLS=true
 SDI_PRODUCTION_CERT_PATH=/percorso/privato/cert-produzione.pem
 SDI_PRODUCTION_CERT_TYPE=PEM
 SDI_PRODUCTION_KEY_PATH=/percorso/privato/key-produzione.pem
@@ -43,12 +43,21 @@ SDI_PRODUCTION_CERT_PASSWORD=
 SDI_PRODUCTION_CA_PATH=/percorso/privato/ca-sdi-produzione.pem
 
 SDI_TEST_ENDPOINT=URL_RICEVIFILE_TEST_FORNITO_DA_SDI
+SDI_TEST_REQUIRE_MTLS=true
 SDI_TEST_CERT_PATH=/percorso/privato/cert-test.pem
 SDI_TEST_CERT_TYPE=PEM
 SDI_TEST_KEY_PATH=/percorso/privato/key-test.pem
 SDI_TEST_CERT_PASSWORD=
 SDI_TEST_CA_PATH=/percorso/privato/ca-sdi-test.pem
 ```
+
+`LUNA_PROVISIONING_KEY` si configura una sola volta sull'API centrale. Le nuove istanze vengono poi registrate tramite `/v1/provision/clients`; non aggiungere più manualmente token e partite IVA a `LUNA_API_CLIENTS` e `SDI_RECIPIENT_MAP`. Verificare che `storage/clients` sia scrivibile dal processo PHP e incluso nei backup.
+
+### Bootstrap senza certificati SdI
+
+Il certificato HTTPS pubblico di `api.gestionaleluna.it` (Plesk/Let's Encrypt) è distinto dai certificati di canale SdI. Per presentare gli endpoint nella richiesta di accreditamento non servono ancora `SDI_TEST_CERT_PATH`, `SDI_TEST_KEY_PATH` o `SDI_TEST_CA_PATH`: lasciarli vuoti. I WSDL/XSD devono rispondere comunque perché vengono serviti prima dell'inizializzazione del trasporto SdI.
+
+I WSDL funzionano con `SDI_TEST_REQUIRE_MTLS=true`, perché le richieste `GET ?wsdl` vengono servite prima del controllo del certificato client. Usare temporaneamente `false` esclusivamente se la procedura SdI richiede espressamente un test `POST` prima di rendere disponibile la CA di collaudo; ripristinare subito `true` appena ricevuto il materiale. `SDI_PRODUCTION_REQUIRE_MTLS` deve restare sempre `true`.
 
 Per un P12/PFX impostare `CERT_TYPE=P12`, indicare il contenitore in `CERT_PATH`, lasciare vuoto `KEY_PATH` e valorizzare `CERT_PASSWORD`.
 
@@ -101,7 +110,7 @@ La notifica aggiorna automaticamente lo stato della trasmissione collegata trami
 
 ### Fatture passive
 
-La callback `RiceviFatture` accetta SOAP base64 e MTOM, conserva file e metadati e risponde `ER01` soltanto dopo l’archiviazione. Il destinatario viene individuato dalla partita IVA/codice fiscale della fattura e dalla mappa `SDI_RECIPIENT_MAP`. Un destinatario non censito viene conservato nell’area `unmatched` con stato `ROUTING_REQUIRED`, evitando perdita del documento.
+La callback `RiceviFatture` accetta SOAP base64 e MTOM, conserva file e metadati e risponde `ER01` soltanto dopo l’archiviazione. Il destinatario viene individuato dalla partita IVA/codice fiscale della fattura e dal registro dinamico dei tenant. Un destinatario non censito viene conservato nell’area `unmatched` con stato `ROUTING_REQUIRED`, evitando perdita del documento.
 
 ## Prove PA
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace LunaApi\Security;
 
 use InvalidArgumentException;
-use LunaApi\Config;
 
 final class ClientRegistry
 {
@@ -15,9 +14,6 @@ final class ClientRegistry
         $clients = self::pairs((string) (getenv('LUNA_API_CLIENTS') ?: ''));
         foreach (array_filter(array_map('trim', explode(',', (string) (getenv('LUNA_API_TOKENS') ?: '')))) as $token) {
             $clients['legacy-' . substr(hash('sha256', $token), 0, 16)] = $token;
-        }
-        if ($clients === []) {
-            Config::string('LUNA_API_CLIENTS');
         }
         return $clients;
     }

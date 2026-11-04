@@ -2,9 +2,11 @@
 /storage/cache/*
 /storage/logs/*
 /storage/sdi/*
+/storage/clients/*
 !/storage/cache/.gitkeep
 !/storage/logs/.gitkeep
 !/storage/sdi/.gitkeep
+!/storage/clients/.gitkeep
 /certificates/*
 !/certificates/README.md
 /vendor/

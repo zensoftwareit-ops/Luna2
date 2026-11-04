@@ -79,6 +79,21 @@ Le risposte positive vengono conservate in cache per sette giorni per ridurre co
 
 ### Fatturazione elettronica
 
+#### Provisioning multi-tenant
+
+I tenant non devono essere aggiunti a `LUNA_API_CLIENTS` o `SDI_RECIPIENT_MAP` a ogni installazione. Queste variabili restano disponibili soltanto per compatibilità. La configurazione ordinaria usa il registro persistente `storage/clients/registry.json`, aggiornato tramite API senza modificare `.env` e senza riavviare il servizio.
+
+Configurare una sola volta `LUNA_PROVISIONING_KEY`, quindi creare un tenant:
+
+```bash
+curl -X POST https://api.gestionaleluna.it/v1/provision/clients \
+  -H "X-Luna-Provisioning-Key: $LUNA_PROVISIONING_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"client_id":"basic-srl","recipients":["02572350185"]}'
+```
+
+La risposta restituisce il token client una sola volta. L'automazione che crea l'istanza lo salva nel relativo secret store. Per ruotarlo usare `POST /v1/provision/clients/{client_id}/rotate`; per modificare destinatari o disabilitare il tenant usare `PUT /v1/provision/clients/{client_id}`. Il file del registro contiene esclusivamente hash dei token e deve essere incluso nei backup insieme a `storage/sdi`.
+
 Gli endpoint REST usati dalle installazioni Luna2 sono disponibili sia in produzione sia con prefisso `/test`:
 
 | Metodo | Produzione | Collaudo |
@@ -116,10 +131,10 @@ I due ambienti usano endpoint SdI, certificati e storage logicamente separati. T
 ## Sicurezza
 
 - Non inserire mai token reali nel repository.
-- Usare token diversi per installazioni o gruppi di installazioni separati; `LUNA_API_TOKENS` accetta valori separati da virgola.
+- Usare un token diverso per ogni installazione e generarlo tramite il provisioning centrale. `LUNA_API_CLIENTS` e `LUNA_API_TOKENS` sono mantenuti solo per migrazioni e compatibilità.
 - Ruotare un token aggiungendo temporaneamente vecchio e nuovo valore, aggiornando i client e infine rimuovendo il vecchio.
 - `APP_DEBUG` deve rimanere `false` in produzione.
-- Lasciare `SDI_REQUIRE_MTLS=true` dopo la configurazione dei certificati del canale.
+- Lasciare `SDI_PRODUCTION_REQUIRE_MTLS=true` in ogni fase. Anche `SDI_TEST_REQUIRE_MTLS` resta normalmente `true`: i WSDL non richiedono certificato. Il valore `false` è ammesso soltanto per un eventuale test preliminare richiesto da SdI prima della consegna della CA di collaudo.
 - Non riutilizzare `SDI_STORAGE_KEY` come token client e conservarne una copia nel gestore segreti: senza tale chiave i documenti archiviati non sono recuperabili.
 - L’API non interroga né effettua scraping della pagina pubblica dell’Agenzia delle Entrate.
 

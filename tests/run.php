@@ -7,6 +7,7 @@ use LunaApi\Domain\VatNumber;
 use LunaApi\Provider\CompanyProvider;
 use LunaApi\Provider\OpenApiCompanyProvider;
 use LunaApi\Security\BearerAuthenticator;
+use LunaApi\Security\PersistentClientRegistry;
 use LunaApi\Service\VatLookupService;
 use LunaApi\Sdi\EncryptedFileStore;
 use LunaApi\Sdi\FatturaPaInspector;
@@ -66,6 +67,27 @@ $test('autentica token bearer senza confronto debole', static function () use ($
     $assert($auth->authenticate('Bearer token-corretto') === 'azienda-demo');
     $assert($auth->authenticate('Bearer token-errato') === null);
     $assert($auth->authenticate(null) === null);
+});
+
+$test('provisiona tenant e destinatari senza modificare env', static function () use ($assert): void {
+    $directory = sys_get_temp_dir() . '/luna2-client-registry-' . bin2hex(random_bytes(5));
+    $registry = new PersistentClientRegistry($directory);
+    try {
+        $created = $registry->create('cliente-demo', ['IT 09876543210', 'RSSMRA80A01H501U']);
+        $assert(str_starts_with($created['token'], 'l2.'));
+        $assert($registry->authenticate($created['token']) === 'cliente-demo');
+        $assert($registry->recipientMap()['09876543210'] === 'cliente-demo');
+        $assert($registry->recipientMap()['RSSMRA80A01H501U'] === 'cliente-demo');
+        $rotated = $registry->rotate('cliente-demo');
+        $assert($registry->authenticate($created['token']) === null);
+        $assert($registry->authenticate($rotated['token']) === 'cliente-demo');
+        $registry->update('cliente-demo', ['09876543210'], false);
+        $assert($registry->authenticate($rotated['token']) === null);
+        $assert($registry->recipientMap() === []);
+    } finally {
+        foreach (glob($directory . '/*') ?: [] as $file) @unlink($file);
+        @rmdir($directory);
+    }
 });
 
 $test('distingue correttamente fattura privata e fattura PA', static function () use ($assert, $invoiceXml): void {

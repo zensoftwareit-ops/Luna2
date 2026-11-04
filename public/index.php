@@ -10,6 +10,7 @@ use LunaApi\Provider\OpenApiCompanyProvider;
 use LunaApi\Provider\ProviderException;
 use LunaApi\Security\BearerAuthenticator;
 use LunaApi\Security\ClientRegistry;
+use LunaApi\Security\PersistentClientRegistry;
 use LunaApi\Security\RateLimiter;
 use LunaApi\Service\VatLookupService;
 use LunaApi\Sdi\EncryptedFileStore;
@@ -25,6 +26,7 @@ use LunaApi\Sdi\MutualTlsGuard;
 $root = dirname(__DIR__);
 require $root . '/bootstrap/autoload.php';
 Config::load($root);
+$persistentClients = new PersistentClientRegistry($root . '/storage/clients');
 
 $requestId = preg_match('/^[A-Za-z0-9._-]{8,80}$/', (string) ($_SERVER['HTTP_X_REQUEST_ID'] ?? ''))
     ? (string) $_SERVER['HTTP_X_REQUEST_ID']
@@ -57,13 +59,51 @@ if ($method === 'GET' && in_array($applicationPath, ['/sdi/ricezione-fatture', '
     );
 }
 
-$makeSdi = static function () use ($root): array {
+if ($sdiEnvironment === SdiEnvironment::Production && str_starts_with($applicationPath, '/v1/provision/clients')) {
+    try {
+        $configuredKey = Config::string('LUNA_PROVISIONING_KEY');
+        if (strlen($configuredKey) < 32) {
+            throw new RuntimeException('LUNA_PROVISIONING_KEY deve contenere almeno 32 caratteri casuali.');
+        }
+        $providedKey = trim((string) ($_SERVER['HTTP_X_LUNA_PROVISIONING_KEY'] ?? ''));
+        if ($providedKey === '' || !hash_equals($configuredKey, $providedKey)) {
+            JsonResponse::send(['error' => 'unauthorized', 'message' => 'Chiave di provisioning mancante o non valida.', 'request_id' => $requestId], 401);
+        }
+        $input = [];
+        if (in_array($method, ['POST','PUT'], true)) {
+            $input = json_decode((string) file_get_contents('php://input'), true);
+            if (!is_array($input)) JsonResponse::send(['error' => 'invalid_json', 'message' => 'Corpo JSON non valido.', 'request_id' => $requestId], 422);
+        }
+        if ($method === 'GET' && $applicationPath === '/v1/provision/clients') {
+            JsonResponse::send(['clients' => $persistentClients->clients(), 'request_id' => $requestId]);
+        }
+        if ($method === 'POST' && $applicationPath === '/v1/provision/clients') {
+            $client = $persistentClients->create((string) ($input['client_id'] ?? ''), (array) ($input['recipients'] ?? []));
+            JsonResponse::send(['client' => $client, 'request_id' => $requestId], 201);
+        }
+        if (preg_match('~^/v1/provision/clients/([A-Za-z0-9._-]{2,80})/rotate$~', $applicationPath, $match) && $method === 'POST') {
+            JsonResponse::send(['client' => $persistentClients->rotate($match[1]), 'request_id' => $requestId]);
+        }
+        if (preg_match('~^/v1/provision/clients/([A-Za-z0-9._-]{2,80})$~', $applicationPath, $match) && $method === 'PUT') {
+            $client = $persistentClients->update($match[1], (array) ($input['recipients'] ?? []), (bool) ($input['active'] ?? true));
+            JsonResponse::send(['client' => $client, 'request_id' => $requestId]);
+        }
+        JsonResponse::send(['error' => 'not_found', 'message' => 'Operazione di provisioning non disponibile.', 'request_id' => $requestId], 404);
+    } catch (InvalidArgumentException $exception) {
+        JsonResponse::send(['error' => 'validation_error', 'message' => $exception->getMessage(), 'request_id' => $requestId], 422);
+    } catch (Throwable $exception) {
+        error_log('[luna2-api][' . $requestId . '] provisioning: ' . $exception->getMessage());
+        JsonResponse::send(['error' => 'internal_error', 'message' => Config::boolean('APP_DEBUG') ? $exception->getMessage() : 'Errore interno del servizio.', 'request_id' => $requestId], 500);
+    }
+}
+
+$makeSdi = static function () use ($root, $persistentClients): array {
     $store = new EncryptedFileStore($root . '/storage/sdi', Config::string('SDI_STORAGE_KEY'));
     $service = new SdiService(
         $store,
         new FatturaPaInspector(),
         new SdiTransport(),
-        ClientRegistry::recipientMap(),
+        array_replace(ClientRegistry::recipientMap(), $persistentClients->recipientMap()),
         Config::boolean('SDI_ENABLE_PA_OUTBOUND', false),
     );
     return [$store, $service];
@@ -75,7 +115,11 @@ if (in_array($applicationPath, ['/sdi/ricezione-fatture', '/sdi/trasmissione-fat
         header('Allow: POST');
         exit;
     }
-    if (Config::boolean('SDI_REQUIRE_MTLS', true) && !MutualTlsGuard::verified($_SERVER)) {
+    $requireMutualTls = Config::boolean(
+        $sdiEnvironment->configPrefix() . 'REQUIRE_MTLS',
+        Config::boolean('SDI_REQUIRE_MTLS', true),
+    );
+    if ($requireMutualTls && !MutualTlsGuard::verified($_SERVER)) {
         http_response_code(403);
         header('Content-Type: text/plain; charset=utf-8');
         echo 'Certificato client SdI non verificato.';
@@ -113,7 +157,10 @@ if (in_array($applicationPath, ['/sdi/ricezione-fatture', '/sdi/trasmissione-fat
 
 try {
     $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
-    $clientId = (new BearerAuthenticator(ClientRegistry::credentials()))->authenticate(is_string($authorization) ? $authorization : null);
+    $clientId = (new BearerAuthenticator(
+        ClientRegistry::credentials(),
+        static fn (string $token): ?string => $persistentClients->authenticate($token),
+    ))->authenticate(is_string($authorization) ? $authorization : null);
     if ($clientId === null) {
         JsonResponse::send(['error' => 'unauthorized', 'message' => 'Token Bearer mancante o non valido.', 'request_id' => $requestId], 401, ['WWW-Authenticate' => 'Bearer']);
     }
@@ -126,7 +173,7 @@ try {
 
     if (str_starts_with($applicationPath, '/v1/einvoices')) {
         if (str_starts_with($clientId, 'legacy-')) {
-            JsonResponse::send(['error' => 'named_client_required', 'message' => 'Configurare il client in LUNA_API_CLIENTS per usare i servizi SdI.', 'request_id' => $requestId], 403);
+            JsonResponse::send(['error' => 'named_client_required', 'message' => 'Registrare l\'istanza tramite il provisioning centrale per usare i servizi SdI.', 'request_id' => $requestId], 403);
         }
         [$store, $sdi] = $makeSdi();
         $maximum = Config::integer('SDI_MAX_FILE_BYTES', 5242880);
@@ -164,8 +211,11 @@ try {
                 'client_certificate_valid' => $certificateValid,
                 'private_key' => $certificateType === 'P12' ? $certificateReadable : ($key !== '' && is_file($key) && is_readable($key)),
                 'sdi_ca' => $ca !== '' && is_file($ca) && is_readable($ca),
-                'recipient_routing' => ClientRegistry::recipientMap() !== [],
-                'mtls_callbacks' => Config::boolean('SDI_REQUIRE_MTLS', true),
+                'recipient_routing' => array_replace(ClientRegistry::recipientMap(), $persistentClients->recipientMap()) !== [],
+                'mtls_callbacks' => Config::boolean(
+                    $prefix . 'REQUIRE_MTLS',
+                    Config::boolean('SDI_REQUIRE_MTLS', true),
+                ),
                 'pa_outbound_enabled' => Config::boolean('SDI_ENABLE_PA_OUTBOUND', false),
             ];
             $ready = !in_array(false, array_diff_key($checks, ['pa_outbound_enabled' => true]), true);
