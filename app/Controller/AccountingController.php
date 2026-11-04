@@ -992,8 +992,16 @@ final class AccountingController extends BaseController
             $this->redirect('/accounting/journal', 'Registrazione non trovata.', 'error');
         }
         $statement = $this->db->prepare(
-            'SELECT l.*, a.code AS account_code, a.name AS account_name, a.account_type
+            'SELECT l.*, a.code AS account_code, a.name AS account_name, a.account_type,
+                    s.adjustment_type, s.counterpart_account_id AS adjustment_counterpart_account_id,
+                    s.amount AS adjustment_amount, s.calculation_method AS adjustment_calculation_method,
+                    s.competence_from AS adjustment_competence_from, s.competence_to AS adjustment_competence_to,
+                    s.posting_date AS adjustment_posting_date, s.reversal_date AS adjustment_reversal_date,
+                    s.status AS adjustment_status
              FROM journal_entry_lines l JOIN chart_of_accounts a ON a.id = l.account_id
+             LEFT JOIN accounting_adjustment_schedules s
+               ON s.organization_id = l.organization_id AND s.source_journal_entry_id = l.journal_entry_id
+              AND s.source_line_number = l.line_number
              WHERE l.journal_entry_id = ? AND l.organization_id = ? ORDER BY l.line_number'
         );
         $statement->execute([$id, Auth::organizationId()]);

@@ -459,6 +459,12 @@ La tendina **Causale contabile** propone tutte le causali attive (registrazione 
 
 Il pulsante **Aggiungi riga** inserisce una nuova riga Dare/Avere. Cercare il conto per codice o descrizione e selezionare il risultato; la tendina dei risultati resta visibile anche dentro una tabella scorrevole. Dopo la selezione compare **Apri mastrino ↗**: il dettaglio si apre in una nuova scheda, quindi la registrazione in corso e i dati non ancora salvati restano nella pagina originale. Per una scrittura manuale servono almeno due righe e il totale Dare deve coincidere con il totale Avere.
 
+#### Dati di competenza durante la registrazione
+
+Sulla riga di costo o ricavo premere **Dati competenza** quando l'operazione richiede un rateo, un risconto oppure una fattura da ricevere/emettere. Selezionare il tipo, indicare il periodo **Dal/Al** e il conto patrimoniale di contropartita. Con **Pro-rata giornaliero** Luna calcola la quota in base ai giorni compresi nel periodo; con **Importo manuale** la quota deve essere indicata dall'operatore. Controllare la data di assestamento e, se prevista, quella di storno.
+
+Il salvataggio della prima nota crea una proposta di assestamento collegata esattamente alla riga originaria. La proposta resta modificabile insieme alla scrittura finché è in bozza e non produce da sola movimenti definitivi. Prima di contabilizzarla aprire **Adempimenti e chiusure**, verificare conto, periodo e importo e farla approvare dal responsabile contabile. Dopo la contabilizzazione dell'assestamento la scrittura originaria non può alterarne i dati: occorre prima eseguire lo storno autorizzato.
+
 ### 11.3 Cercare una scrittura
 
 Usare ricerca, intervallo date, stato, conto e **causale contabile**. La ricerca riconosce protocollo Luna2, protocollo DATEV, descrizione, codice e nome causale. Il filtro causale consente, per esempio, di estrarre tutte le registrazioni con ritenuta oppure tutti gli acquisti e le vendite di beni strumentali, mantenendo lo stesso filtro negli export PDF/XLSX/CSV.
@@ -726,11 +732,11 @@ Registrare soltanto rettifiche documentate. I prospetti LIPE e IVA annuale sono 
 
 ### 17.2 Ratei, risconti e assestamenti
 
-1. selezionare l'esercizio;
-2. creare la proposta;
-3. controllare periodo, conti e importi;
+1. durante la prima nota usare **Dati competenza** sulla riga originaria; in alternativa creare la proposta manualmente da questa sezione;
+2. selezionare tipo, periodo, conto di contropartita e metodo di calcolo;
+3. controllare esercizio, quota calcolata, data di assestamento e data di storno;
 4. farla approvare dal responsabile;
-5. contabilizzare.
+5. contabilizzare soltanto dopo il controllo.
 
 ### 17.3 Chiusura e apertura
 

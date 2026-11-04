@@ -306,6 +306,27 @@
         input.addEventListener('change', refresh);
       });
       setupAccountLookup(row, values);
+      const adjustmentPanel = row.querySelector('[data-adjustment-panel]');
+      const adjustmentEnabled = row.querySelector('[data-account-field="adjustment_enabled"]');
+      const toggleAdjustment = (enabled) => {
+        adjustmentPanel.hidden = !enabled;
+        adjustmentEnabled.value = enabled ? '1' : '0';
+        row.querySelector('[data-adjustment-toggle]').textContent = enabled ? '− Nascondi dati competenza' : '+ Dati competenza';
+        adjustmentPanel.querySelectorAll('select,input').forEach((field) => {
+          if (['adjustment_type','adjustment_counterpart_account_id','adjustment_competence_from','adjustment_competence_to','adjustment_posting_date'].includes(field.dataset.accountField || '')) field.required = enabled;
+          field.disabled = !enabled;
+        });
+      };
+      const entryDate = accountingForm.querySelector('[name="entry_date"]')?.value || new Date().toISOString().slice(0, 10);
+      const year = entryDate.slice(0, 4);
+      if (!values.adjustment_posting_date) row.querySelector('[data-account-field="adjustment_posting_date"]').value = `${year}-12-31`;
+      if (!values.adjustment_reversal_date) row.querySelector('[data-account-field="adjustment_reversal_date"]').value = `${Number(year) + 1}-01-01`;
+      toggleAdjustment(Boolean(Number(values.adjustment_enabled || 0)));
+      row.querySelector('[data-adjustment-toggle]').addEventListener('click', () => toggleAdjustment(adjustmentPanel.hidden));
+      row.querySelector('[data-adjustment-clear]').addEventListener('click', () => {
+        adjustmentPanel.querySelectorAll('input,select').forEach((field) => { if (field !== adjustmentEnabled) field.value = ''; });
+        toggleAdjustment(false);
+      });
       row.querySelector('[data-remove-line]').addEventListener('click', () => { row.remove(); refresh(); });
       body.appendChild(fragment);
       index += 1;

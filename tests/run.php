@@ -806,6 +806,16 @@ foreach ($iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterato
     }
 }
 
+$journalAdjustmentMigration = (string) file_get_contents($base . '/database/migrations/037_journal_line_adjustments.sql');
+$accountingForm = (string) file_get_contents($base . '/views/accounting/form.php');
+$accountingService = (string) file_get_contents($base . '/app/Service/AccountingService.php');
+$assert(str_contains($journalAdjustmentMigration, 'source_journal_entry_id')
+    && str_contains($journalAdjustmentMigration, 'INVOICE_TO_RECEIVE'), 'Migrazione dati competenza da prima nota incompleta.');
+$assert(str_contains($accountingForm, 'data-adjustment-panel')
+    && str_contains($accountingForm, 'Risconto attivo'), 'Interfaccia dati competenza in prima nota assente.');
+$assert(str_contains($accountingService, 'syncLineAdjustments')
+    && str_contains($accountingService, 'calculatedAdjustmentAmount'), 'Sincronizzazione assestamenti da prima nota assente.');
+
 echo sprintf("Controlli superati: %d\n", $passes);
 if ($failures !== []) {
     fwrite(STDERR, "Controlli falliti:\n- " . implode("\n- ", $failures) . "\n");

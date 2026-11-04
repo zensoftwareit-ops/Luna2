@@ -192,6 +192,7 @@ final class AccountingService
                 $entryId = (int) $this->db->lastInsertId();
             }
             $this->insertLines($entryId, $normalized);
+            $this->syncLineAdjustments($entryId, $entryDate, $normalized);
             if (isset($current) && (string) $current['source_type'] === 'DOCUMENT' && !empty($current['source_id']) && $entryDate !== $previousEntryDate) {
                 (new VatService($this->db, $this->organizationId, $this->userId))->syncDocument((int) $current['source_id']);
             }
@@ -268,6 +269,13 @@ final class AccountingService
                 throw new InvalidArgumentException('La scrittura è definitiva, stornata o non modificabile.');
             }
             $this->assertAccountingPeriodOpen((string) $entry['entry_date']);
+            $linkedAdjustment = $this->db->prepare(
+                'SELECT COUNT(*) FROM accounting_adjustment_schedules WHERE organization_id = ? AND source_journal_entry_id = ?'
+            );
+            $linkedAdjustment->execute([$this->organizationId, $entryId]);
+            if ((int) $linkedAdjustment->fetchColumn() > 0) {
+                throw new InvalidArgumentException('Questa scrittura contiene dati di competenza. Usa Modifica registrazione per mantenere allineati ratei e risconti alle rispettive righe.');
+            }
 
             $existingStatement = $this->db->prepare(
                 'SELECT id, cost_center_id, customer_id, supplier_id
@@ -1358,6 +1366,15 @@ final class AccountingService
                 'cost_center_id' => !empty($line['cost_center_id']) ? (int) $line['cost_center_id'] : null,
                 'customer_id' => !empty($line['customer_id']) ? (int) $line['customer_id'] : null,
                 'supplier_id' => !empty($line['supplier_id']) ? (int) $line['supplier_id'] : null,
+                'adjustment_enabled' => !empty($line['adjustment_enabled']),
+                'adjustment_type' => strtoupper(trim((string) ($line['adjustment_type'] ?? ''))),
+                'adjustment_counterpart_account_id' => !empty($line['adjustment_counterpart_account_id']) ? (int) $line['adjustment_counterpart_account_id'] : null,
+                'adjustment_amount' => round($this->decimal($line['adjustment_amount'] ?? 0), 2),
+                'adjustment_calculation_method' => strtoupper((string) ($line['adjustment_calculation_method'] ?? 'DAILY')),
+                'adjustment_competence_from' => trim((string) ($line['adjustment_competence_from'] ?? '')),
+                'adjustment_competence_to' => trim((string) ($line['adjustment_competence_to'] ?? '')),
+                'adjustment_posting_date' => trim((string) ($line['adjustment_posting_date'] ?? '')),
+                'adjustment_reversal_date' => trim((string) ($line['adjustment_reversal_date'] ?? '')),
             ];
         }
         if (count($normalized) < $minimumLines) {
@@ -1440,6 +1457,83 @@ final class AccountingService
                 $line['description'] ?: null, $line['cost_center_id'], $line['customer_id'], $line['supplier_id'],
             ]);
         }
+    }
+
+    private function syncLineAdjustments(int $entryId, string $entryDate, array $lines): void
+    {
+        $existing = $this->db->prepare(
+            "SELECT COUNT(*) FROM accounting_adjustment_schedules
+             WHERE organization_id = ? AND source_journal_entry_id = ? AND status <> 'DRAFT'"
+        );
+        $existing->execute([$this->organizationId, $entryId]);
+        if ((int) $existing->fetchColumn() > 0) {
+            throw new InvalidArgumentException('Gli assestamenti già contabilizzati non possono essere modificati dalla scrittura di origine. Stornali prima dalla sezione Adempimenti e chiusure.');
+        }
+        $this->db->prepare(
+            "DELETE FROM accounting_adjustment_schedules
+             WHERE organization_id = ? AND source_journal_entry_id = ? AND status = 'DRAFT'"
+        )->execute([$this->organizationId, $entryId]);
+
+        $validTypes = ['ACCRUAL','DEFERRAL','PREPAID','DEFERRED_INCOME','ACCRUED_INCOME','INVOICE_TO_RECEIVE','INVOICE_TO_ISSUE','OTHER'];
+        $accountCheck = $this->db->prepare(
+            'SELECT COUNT(*) FROM chart_of_accounts WHERE id = ? AND organization_id = ? AND active = 1 AND is_postable = 1'
+        );
+        $insert = $this->db->prepare(
+            "INSERT INTO accounting_adjustment_schedules
+             (organization_id, source_journal_entry_id, source_line_number, adjustment_type, description,
+              source_account_id, counterpart_account_id, amount, calculation_method, competence_from,
+              competence_to, posting_date, reversal_date, status, created_by, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, NOW(), NOW())"
+        );
+        foreach ($lines as $index => $line) {
+            if (empty($line['adjustment_enabled'])) continue;
+            $type = (string) $line['adjustment_type'];
+            $counterpart = (int) ($line['adjustment_counterpart_account_id'] ?? 0);
+            $from = (string) $line['adjustment_competence_from'];
+            $to = (string) $line['adjustment_competence_to'];
+            $posting = (string) $line['adjustment_posting_date'];
+            $reversal = (string) $line['adjustment_reversal_date'];
+            if (!in_array($type, $validTypes, true) || !$this->isIsoDate($from) || !$this->isIsoDate($to) || $to < $from
+                || !$this->isIsoDate($posting) || ($reversal !== '' && !$this->isIsoDate($reversal))
+                || $counterpart <= 0 || $counterpart === (int) $line['account_id']) {
+                throw new InvalidArgumentException('Completa correttamente i dati di competenza della riga ' . ($index + 1) . '.');
+            }
+            $accountCheck->execute([$counterpart, $this->organizationId]);
+            if ((int) $accountCheck->fetchColumn() !== 1) {
+                throw new InvalidArgumentException('Il conto di contropartita della riga ' . ($index + 1) . ' non è valido.');
+            }
+            $baseAmount = max((float) $line['debit'], (float) $line['credit']);
+            $amount = (float) $line['adjustment_amount'];
+            $method = in_array($line['adjustment_calculation_method'], ['DAILY','MANUAL'], true) ? $line['adjustment_calculation_method'] : 'DAILY';
+            if ($amount <= 0 && $method === 'DAILY') {
+                $amount = $this->calculatedAdjustmentAmount($type, $baseAmount, $from, $to, $posting);
+            }
+            if ($amount <= 0) throw new InvalidArgumentException('Indica un importo di rettifica valido per la riga ' . ($index + 1) . '.');
+            if (in_array($type, ['DEFERRAL','DEFERRED_INCOME'], true) && $amount > $baseAmount + 0.005) {
+                throw new InvalidArgumentException('La quota di risconto non può superare l’importo della riga ' . ($index + 1) . '.');
+            }
+            $description = trim((string) $line['description']) ?: 'Assestamento da prima nota del ' . $entryDate;
+            $insert->execute([$this->organizationId, $entryId, $index + 1, $type, $description,
+                $line['account_id'], $counterpart, round($amount, 2), $method, $from, $to, $posting,
+                $reversal !== '' ? $reversal : null, $this->userId]);
+        }
+    }
+
+    private function calculatedAdjustmentAmount(string $type, float $baseAmount, string $from, string $to, string $postingDate): float
+    {
+        $start = new DateTimeImmutable($from);
+        $end = new DateTimeImmutable($to);
+        $cutoff = new DateTimeImmutable($postingDate);
+        $totalDays = max(1, (int) $start->diff($end)->days + 1);
+        if (in_array($type, ['INVOICE_TO_RECEIVE','INVOICE_TO_ISSUE','OTHER'], true)) return round($baseAmount, 2);
+        if (in_array($type, ['DEFERRAL','DEFERRED_INCOME'], true)) {
+            $portionStart = $cutoff->modify('+1 day') > $start ? $cutoff->modify('+1 day') : $start;
+            $days = $portionStart > $end ? 0 : (int) $portionStart->diff($end)->days + 1;
+        } else {
+            $portionEnd = $cutoff < $end ? $cutoff : $end;
+            $days = $portionEnd < $start ? 0 : (int) $start->diff($portionEnd)->days + 1;
+        }
+        return round($baseAmount * $days / $totalDays, 2);
     }
 
     private function systemAccounts(array $keys): array

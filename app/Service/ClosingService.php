@@ -209,7 +209,7 @@ final class ClosingService
         $posting = $this->date((string) ($data['posting_date'] ?? ''));
         $sourceAccountId = (int) ($data['source_account_id'] ?? 0);
         $counterpartAccountId = (int) ($data['counterpart_account_id'] ?? 0);
-        if (!in_array($type, ['ACCRUAL','DEFERRAL','PREPAID','DEFERRED_INCOME','OTHER'], true)
+        if (!in_array($type, ['ACCRUAL','DEFERRAL','PREPAID','DEFERRED_INCOME','ACCRUED_INCOME','INVOICE_TO_RECEIVE','INVOICE_TO_ISSUE','OTHER'], true)
             || $description === '' || $amount <= 0 || $to < $from || $sourceAccountId <= 0 || $counterpartAccountId <= 0
             || $sourceAccountId === $counterpartAccountId) {
             throw new InvalidArgumentException('Dati dell’assestamento non validi.');
@@ -242,7 +242,7 @@ final class ClosingService
         if (!$schedule) {
             throw new InvalidArgumentException('Assestamento non trovato o già contabilizzato.');
         }
-        $debitSource = in_array($schedule['adjustment_type'], ['ACCRUAL','PREPAID'], true);
+        $debitSource = in_array($schedule['adjustment_type'], ['ACCRUAL','PREPAID','DEFERRED_INCOME','INVOICE_TO_RECEIVE'], true);
         $lines = $debitSource
             ? [
                 ['account_id' => $schedule['source_account_id'], 'debit' => $schedule['amount'], 'credit' => 0, 'description' => $schedule['description']],
