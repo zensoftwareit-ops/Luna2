@@ -248,6 +248,9 @@ final class ImportService
         if (!in_array($batch['status'], ['COMPLETED', 'COMPLETED_WITH_ERRORS'], true)) {
             throw new InvalidArgumentException('Questo lotto non può essere annullato.');
         }
+        if ($batch['import_type'] === 'fatturapa') {
+            return $this->rollbackFatturaPa($batchId);
+        }
         $allowedTables = [
             'customers', 'suppliers', 'chart_of_accounts', 'journal_entries', 'payments', 'documents',
             'accounting_open_items', 'vat_codes', 'vat_movements', 'fixed_assets', 'bank_transactions',
@@ -282,6 +285,163 @@ final class ImportService
                 }
             }
             $this->db->prepare("UPDATE import_batches SET status = 'ROLLED_BACK', rolled_back_at = NOW(), updated_at = NOW() WHERE id = ?")->execute([$batchId]);
+            $this->db->commit();
+            return $count;
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
+    /**
+     * Cancella in modo atomico una acquisizione FatturaPA e tutti gli effetti
+     * contabili generati automaticamente. I record di audit del lotto restano
+     * disponibili per ricostruire chi, quando e da quale file ha operato.
+     */
+    private function rollbackFatturaPa(int $batchId): int
+    {
+        $this->db->beginTransaction();
+        try {
+            $batch = $this->batch($batchId, true);
+            if (!in_array($batch['status'], ['COMPLETED', 'COMPLETED_WITH_ERRORS'], true)) {
+                throw new InvalidArgumentException('Questo lotto non può essere annullato.');
+            }
+
+            $updated = $this->db->prepare(
+                "SELECT COUNT(*) FROM import_records
+                 WHERE organization_id = ? AND batch_id = ? AND entity_type = 'documents' AND operation = 'UPDATE'"
+            );
+            $updated->execute([$this->organizationId, $batchId]);
+            if ((int) $updated->fetchColumn() > 0) {
+                throw new RuntimeException(
+                    'Il lotto ha completato o modificato documenti già esistenti: il ripristino esatto richiede il backup precedente all’importazione.'
+                );
+            }
+
+            $documents = $this->db->prepare(
+                "SELECT d.id, COALESCE(d.registration_date, d.document_date) AS registration_date
+                 FROM import_records r
+                 JOIN documents d ON d.id = r.entity_id AND d.organization_id = r.organization_id
+                 WHERE r.organization_id = ? AND r.batch_id = ? AND r.entity_type = 'documents'
+                   AND r.operation = 'CREATE'
+                 ORDER BY d.id FOR UPDATE"
+            );
+            $documents->execute([$this->organizationId, $batchId]);
+            $documentRows = $documents->fetchAll();
+            $documentIds = array_values(array_unique(array_map('intval', array_column($documentRows, 'id'))));
+            if ($documentIds === []) {
+                throw new InvalidArgumentException('Il lotto non contiene fatture create da eliminare.');
+            }
+            $placeholders = implode(',', array_fill(0, count($documentIds), '?'));
+            $organizationAndDocuments = array_merge([$this->organizationId], $documentIds);
+
+            $payments = $this->db->prepare(
+                "SELECT COUNT(DISTINCT p.id)
+                 FROM payments p
+                 LEFT JOIN payment_allocations pa ON pa.payment_id = p.id
+                 LEFT JOIN accounting_open_items oi ON oi.id = pa.open_item_id
+                 WHERE p.organization_id = ? AND (
+                    p.document_id IN ({$placeholders})
+                    OR p.payment_schedule_id IN (
+                        SELECT ps.id FROM payment_schedules ps
+                        WHERE ps.organization_id = ? AND ps.document_id IN ({$placeholders})
+                    )
+                    OR oi.document_id IN ({$placeholders})
+                 )"
+            );
+            $payments->execute(array_merge(
+                $organizationAndDocuments,
+                [$this->organizationId],
+                $documentIds,
+                $documentIds,
+            ));
+            if ((int) $payments->fetchColumn() > 0) {
+                throw new RuntimeException('Rollback bloccato: una o più fatture del lotto hanno già pagamenti o incassi collegati.');
+            }
+
+            $dependencies = [
+                ['fixed_assets', 'document_id', 'cespiti'],
+                ['project_expenses', 'source_document_id', 'costi di commessa'],
+                ['withholding_records', 'document_id', 'ritenute'],
+            ];
+            foreach ($dependencies as [$table, $column, $label]) {
+                $dependency = $this->db->prepare(
+                    "SELECT COUNT(*) FROM `{$table}` WHERE organization_id = ? AND `{$column}` IN ({$placeholders})"
+                );
+                $dependency->execute($organizationAndDocuments);
+                if ((int) $dependency->fetchColumn() > 0) {
+                    throw new RuntimeException("Rollback bloccato: le fatture hanno {$label} collegati.");
+                }
+            }
+
+            $derivedDocuments = $this->db->prepare(
+                "SELECT COUNT(*) FROM documents
+                 WHERE organization_id = ? AND source_document_id IN ({$placeholders})
+                   AND id NOT IN ({$placeholders})"
+            );
+            $derivedDocuments->execute(array_merge($organizationAndDocuments, $documentIds));
+            if ((int) $derivedDocuments->fetchColumn() > 0) {
+                throw new RuntimeException('Rollback bloccato: dal lotto sono stati generati altri documenti.');
+            }
+
+            $finalized = $this->db->prepare(
+                "SELECT COUNT(*) FROM journal_entries
+                 WHERE organization_id = ? AND source_type = 'DOCUMENT' AND source_id IN ({$placeholders})
+                   AND is_finalized = 1"
+            );
+            $finalized->execute($organizationAndDocuments);
+            if ((int) $finalized->fetchColumn() > 0) {
+                throw new RuntimeException('Rollback bloccato: la prima nota del lotto è già definitiva. Riapri prima il giornale contabile.');
+            }
+
+            foreach (array_unique(array_filter(array_column($documentRows, 'registration_date'))) as $date) {
+                (new VatService($this->db, $this->organizationId, $this->userId))->invalidateForDate((string) $date);
+            }
+
+            $count = 0;
+            foreach ([
+                "DELETE FROM accounting_open_items WHERE organization_id = ? AND document_id IN ({$placeholders})",
+                "DELETE FROM vat_movements WHERE organization_id = ? AND document_id IN ({$placeholders})",
+                "DELETE FROM journal_entries WHERE organization_id = ? AND source_type = 'DOCUMENT' AND source_id IN ({$placeholders}) AND is_finalized = 0",
+                "DELETE FROM documents WHERE organization_id = ? AND id IN ({$placeholders})",
+            ] as $sql) {
+                $delete = $this->db->prepare($sql);
+                $delete->execute($organizationAndDocuments);
+                $count += $delete->rowCount();
+            }
+
+            foreach (['suppliers' => 'SUPPLIER', 'customers' => 'CUSTOMER'] as $table => $partyType) {
+                $parties = $this->db->prepare(
+                    "SELECT entity_id FROM import_records
+                     WHERE organization_id = ? AND batch_id = ? AND entity_type = ? AND operation = 'CREATE'"
+                );
+                $parties->execute([$this->organizationId, $batchId, $table]);
+                foreach (array_map('intval', $parties->fetchAll(PDO::FETCH_COLUMN)) as $partyId) {
+                    $partyColumn = $partyType === 'SUPPLIER' ? 'supplier_id' : 'customer_id';
+                    $supplierDependencies = $partyType === 'SUPPLIER'
+                        ? ' AND NOT EXISTS (SELECT 1 FROM fixed_assets fa WHERE fa.organization_id = p.organization_id AND fa.supplier_id = p.id)'
+                            . ' AND NOT EXISTS (SELECT 1 FROM project_expenses pe WHERE pe.organization_id = p.organization_id AND pe.supplier_id = p.id)'
+                        : '';
+                    $deleteParty = $this->db->prepare(
+                        "DELETE p FROM `{$table}` p
+                         WHERE p.id = ? AND p.organization_id = ? AND p.source_import_batch_id = ?
+                           AND NOT EXISTS (SELECT 1 FROM documents d WHERE d.organization_id = p.organization_id AND d.counterparty_type = ? AND d.counterparty_id = p.id)
+                           AND NOT EXISTS (SELECT 1 FROM accounting_open_items oi WHERE oi.organization_id = p.organization_id AND oi.party_type = ? AND oi.party_id = p.id)
+                           AND NOT EXISTS (SELECT 1 FROM payments pay WHERE pay.organization_id = p.organization_id AND pay.`{$partyColumn}` = p.id)
+                           AND NOT EXISTS (SELECT 1 FROM journal_entry_lines jl WHERE jl.organization_id = p.organization_id AND jl.`{$partyColumn}` = p.id)"
+                            . $supplierDependencies
+                    );
+                    $deleteParty->execute([$partyId, $this->organizationId, $batchId, $partyType, $partyType]);
+                    $count += $deleteParty->rowCount();
+                }
+            }
+
+            $this->db->prepare(
+                "UPDATE import_batches SET status = 'ROLLED_BACK', rolled_back_at = NOW(), updated_at = NOW()
+                 WHERE id = ? AND organization_id = ?"
+            )->execute([$batchId, $this->organizationId]);
             $this->db->commit();
             return $count;
         } catch (Throwable $exception) {

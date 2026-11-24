@@ -30,7 +30,7 @@
                     <button class="button">Recupera dati SdI</button>
                 </form><?php endif; ?>
             <?php endif; ?>
-            <form method="post" action="/imports/<?= (int) $batch['id'] ?>/rollback" class="inline-form" data-confirm="Annullare tutti i record riconducibili a questo lotto?">
+            <form method="post" action="/imports/<?= (int) $batch['id'] ?>/rollback" class="inline-form" data-confirm="<?= ($batch['import_type'] ?? '') === 'fatturapa' ? 'Eliminare tutte le fatture create dal lotto, incluse prima nota, IVA, scadenze e partite? L’operazione è atomica e non può essere annullata.' : 'Annullare tutti i record riconducibili a questo lotto?' ?>">
                 <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
                 <button class="button danger">Annulla importazione</button>
             </form>

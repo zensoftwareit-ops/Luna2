@@ -579,6 +579,15 @@ $assert(is_file($base . '/database/migrations/026_document_registration_date.sql
     && str_contains($importPreviewView, 'name="registration_date"')
     && str_contains($importService, 'non può precedere la data documento'),
     'L’import FatturaPA deve richiedere e conservare una data di registrazione distinta dalla data documento.');
+$assert(str_contains($importService, 'rollbackFatturaPa')
+    && str_contains($importService, 'DELETE FROM accounting_open_items')
+    && str_contains($importService, 'DELETE FROM vat_movements')
+    && str_contains($importService, 'DELETE FROM journal_entries')
+    && str_contains($importService, 'DELETE FROM documents')
+    && str_contains($importService, 'is_finalized = 1')
+    && str_contains($importService, 'pagamenti o incassi collegati')
+    && str_contains($importPreviewView, 'incluse prima nota, IVA, scadenze e partite'),
+    'Il rollback FatturaPA deve eliminare atomicamente tutti gli effetti generati e bloccare dipendenze successive.');
 $assert(str_contains($officialPrintService, 'VAT_REVERSE_CHARGE') && str_contains($officialPrintService, 'VAT_SELF_INVOICES') && str_contains($officialPrintService, 'VAT_LIQUIDATION'), 'Tipi di stampa IVA ufficiale incompleti.');
 $assert(str_contains($vatService, 'vat_description, vat_legal_reference') && str_contains($vatService, 'GROUP BY register_type, vat_code, vat_rate'), 'Liquidazioni IVA prive del raggruppamento storico per articolo e aliquota.');
 $accountingService = (string) file_get_contents($base . '/app/Service/AccountingService.php');

@@ -836,7 +836,7 @@ Ogni importazione segue tre fasi:
 2. controllo dell'anteprima;
 3. conferma nel database operativo.
 
-I dati non vengono applicati fino alla conferma. Dopo la conferma, quando previsto, è disponibile **Annulla importazione**. Usarla solo dopo aver verificato gli effetti e senza aver costruito altre operazioni dipendenti dal lotto.
+I dati non vengono applicati fino alla conferma. Dopo la conferma, quando previsto, è disponibile **Annulla importazione**. Per i lotti FatturaPA l’annullamento elimina in un’unica transazione fatture create, prima nota, movimenti IVA, scadenze, partite e anagrafiche create dal lotto rimaste inutilizzate; conserva invece il tracciato tecnico dell’importazione. L’operazione viene bloccata se esistono pagamenti, documenti derivati, cespiti, costi di commessa, ritenute, periodi IVA definitivi o scritture di prima nota definitive. I documenti già esistenti completati o modificati dal lotto richiedono il ripristino del backup precedente all’importazione.
 
 ### 19.2 Tipi disponibili
 
