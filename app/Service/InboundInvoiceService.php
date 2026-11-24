@@ -20,7 +20,13 @@ final class InboundInvoiceService
             $contentPayload=$this->request($e,'GET',rtrim((string)$e['receive_path'],'/').'/inbound/'.rawurlencode($externalId).'/content');
             $content=base64_decode((string)($contentPayload['content_base64']??''),true);
             if($content===false||$content==='')continue;
-            $files[]=['external_id'=>$externalId,'name'=>basename((string)($item['filename']??('fattura-'.($i+1).'.xml'))),'content'=>$content];
+            $files[]=[
+                'external_id'=>$externalId,
+                'name'=>basename((string)($item['filename']??('fattura-'.($i+1).'.xml'))),
+                'content'=>$content,
+                'sdi_id'=>trim((string)($item['sdi_id']??$item['sdi_identifier']??''))?:null,
+                'sdi_received_at'=>$item['sdi_received_at']??$item['received_at']??null,
+            ];
         }
         if($files===[]){throw new InvalidArgumentException('L’endpoint non ha restituito nuove fatture XML.');}return $files;
     }

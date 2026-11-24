@@ -138,6 +138,7 @@ $assert(str_contains($application, "'/accounting/vat-settlements/{id}/export/{fo
 $assert(str_contains($application, "'/accounting/setup'"), 'Rotta configurazione piano dei conti mancante.');
 $assert(str_contains($application, "'/accounting/treasury'"), 'Rotta tesoreria e partite mancante.');
 $assert(str_contains($application, "'/accounting/compliance'"), 'Rotta adempimenti e chiusure mancante.');
+$assert(str_contains($application, "'/accounting/compliance/lipe/{id}/export/{format}'"), 'Esportazione completa del raccordo LIPE mancante.');
 $assert(str_contains($application, "'/settings/endpoints'"), 'Rotta endpoint fatturazione elettronica mancante.');
 $assert(str_contains($application, "'/r/{module}/vat-lookup'") && is_file($base . '/app/Service/VatLookupService.php'), 'Verifica assistita Partita IVA mancante.');
 $assert(str_contains($application, "'/imports/einvoice/pull'") && is_file($base . '/app/Service/InboundInvoiceService.php'), 'Ricezione fatture passive da endpoint mancante.');
@@ -184,6 +185,12 @@ $assert(
 $assert(is_file($base . '/app/Service/TabularExportService.php'), 'Servizio esportazioni tabellari mancante.');
 $tabularExport = (string) file_get_contents($base . '/app/Service/TabularExportService.php');
 $assert(str_contains($tabularExport, "['pdf', 'xlsx', 'csv']") && str_contains($tabularExport, "setPaper('A4', 'landscape')"), 'Formati tabellari o PDF tecnico orizzontale incompleti.');
+$assert(str_contains($tabularExport, 'lipePdfContent')
+    && str_contains($tabularExport, 'Riepilogo mensile')
+    && str_contains($tabularExport, 'Liquidazioni collegate')
+    && str_contains($tabularExport, 'Controlli di riconciliazione')
+    && str_contains($tabularExport, 'excluded_document_purchase_vat'),
+    'Gli export LIPE devono includere riepilogo, liquidazioni e controlli di riconciliazione.');
 $assert(str_contains($tabularExport, 'partyLedgerPdfContent')
     && str_contains($tabularExport, 'SCHEDA CONTABILE')
     && str_contains($tabularExport, "setPaper('A4', 'portrait')")
@@ -378,9 +385,14 @@ try {
     $renderedAccounting .= $renderAccountingView('treasury', ['direction' => '', 'openItems' => [], 'payments' => [], 'bankAccounts' => [], 'bankTransactions' => [], 'links' => [], 'withholdings' => [], 'accounts' => []]);
     $periodStart = new DateTimeImmutable('2026-01-01');
     $periodEnd = new DateTimeImmutable('2026-12-31');
-    $renderedAccounting .= $renderAccountingView('compliance', ['year' => 2026, 'adjustments' => [], 'lipe' => [], 'annual' => [], 'closingRuns' => [], 'schedules' => [], 'categories' => [], 'assets' => [], 'depreciations' => [], 'accounts' => [], 'statements' => [], 'statementTotals' => [], 'periodStart' => $periodStart, 'periodEnd' => $periodEnd]);
+    $lipeRow = ['id' => 7, 'quarter_number' => 3, 'schema_version' => '2026-draft', 'validation_json' => '{"valid":true,"errors":[]}', 'status' => 'DRAFT', 'updated_at' => '2026-11-24 10:00:00'];
+    $renderedAccounting .= $renderAccountingView('compliance', ['year' => 2026, 'adjustments' => [], 'lipe' => [$lipeRow], 'annual' => [], 'closingRuns' => [], 'schedules' => [], 'categories' => [], 'assets' => [], 'depreciations' => [], 'accounts' => [], 'statements' => [], 'statementTotals' => [], 'periodStart' => $periodStart, 'periodEnd' => $periodEnd]);
     $assert(str_contains($renderedAccounting, 'Prima nota') && str_contains($renderedAccounting, 'Registri IVA') && str_contains($renderedAccounting, 'Liquidazioni IVA'), 'Rendering viste contabili incompleto.');
     $assert(str_contains($renderedAccounting, 'Piano dei conti') && str_contains($renderedAccounting, 'Tesoreria e partite') && str_contains($renderedAccounting, 'Adempimenti, bilancio e cespiti'), 'Rendering contabilità avanzata incompleto.');
+    $assert(str_contains($renderedAccounting, '/accounting/compliance/lipe/7/export/pdf')
+        && str_contains($renderedAccounting, '/accounting/compliance/lipe/7/export/xlsx')
+        && str_contains($renderedAccounting, '/accounting/compliance/lipe/7/export/csv'),
+        'Pulsanti di esportazione del raccordo LIPE mancanti.');
 } catch (Throwable $exception) {
     $assert(false, 'Errore rendering viste contabili: ' . $exception->getMessage());
 }
@@ -742,9 +754,19 @@ $documentView = (string) file_get_contents($base . '/views/documents/view.php');
 $assert(str_contains($einvoiceService, "strlen(\$recipientCode) === 6") && str_contains($einvoiceService, 'Invio verso PA non ancora attivo'), 'L’invio PA deve essere bloccato tecnicamente nel gestionale.');
 $assert(str_contains($einvoiceService, 'checksum_sha256') && str_contains($einvoiceService, "['SEND_FAILED', 'SDI_ERROR', 'ERROR']"), 'L’invio SdI deve essere idempotente e ritentabile soltanto dopo errore.');
 $assert(str_contains($inboundInvoiceService, 'pending_only') && str_contains($inboundInvoiceService, 'function acknowledge'), 'Le fatture passive devono essere acquisite con presa in carico esplicita.');
+$assert(str_contains($inboundInvoiceService, "'sdi_id'") && str_contains($inboundInvoiceService, "'sdi_received_at'"), 'La ricezione API deve conservare identificativo e data SdI.');
 $assert(str_contains($documentView, '/sdi-send') && str_contains($documentView, '/sdi-sync'), 'La fattura attiva deve esporre invio e sincronizzazione SdI.');
 $assert(str_contains((string) file_get_contents($base . '/bin/luna'), "case 'einvoice:sync':"), 'Comando schedulabile di sincronizzazione SdI mancante.');
 $importService = (string) file_get_contents($base . '/app/Service/ImportService.php');
+$assert(is_file($base . '/database/migrations/038_inbound_sdi_metadata.sql')
+    && str_contains($importService, 'loadFatturaPaMetadata')
+    && str_contains($importService, 'backfillFatturaPaSdiMetadata')
+    && str_contains($importService, "['nome_file'], \$headers['id_sdi'], \$headers['data_ricezione']")
+    && str_contains($documentView, 'Data e ora di ricezione'),
+    'ID e data di ricezione SdI devono essere importati dal report Aruba e mostrati sulla fattura passiva.');
+$assert(str_contains($application, "'/imports/{id}/sdi-metadata'")
+    && str_contains((string) file_get_contents($base . '/views/imports/preview.php'), 'Recupera dati SdI'),
+    'I lotti già importati devono poter recuperare i metadati SdI senza reimportare la contabilità.');
 foreach (['open_items', 'vat_movements', 'fixed_assets', 'bank_transactions'] as $target) {
     $assert(str_contains($importService, "'{$target}'"), "Target import DATEV mancante: {$target}");
 }

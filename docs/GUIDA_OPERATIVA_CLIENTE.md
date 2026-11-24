@@ -351,6 +351,10 @@ Esempio: una fattura datata 30 settembre ricevuta quando settembre è già chius
 
 Luna rifiuta la contabilizzazione se la data di registrazione appartiene a un periodo contabile o IVA già chiuso. Non riaprire un periodo solo per forzare l'importazione: verificare prima la data con il responsabile contabile.
 
+Quando il pacchetto ZIP del fornitore contiene il report delle fatture ricevute, Luna collega ogni XML tramite il nome file e conserva anche **Identificativo SdI** e **Data/ora di ricezione SdI**. Questi dati restano distinti dalla data documento e dalla data di registrazione e sono visibili nella scheda della fattura passiva e negli export. La ricezione automatica tramite API conserva gli stessi metadati quando sono restituiti dal servizio.
+
+Per un lotto Aruba importato prima dell’introduzione di questi campi, aprire il lotto concluso e premere **Recupera dati SdI**. Luna rilegge il report dal pacchetto originale e completa soltanto i metadati dei documenti già collegati, senza modificare prima nota, IVA, scadenze o data di registrazione.
+
 #### Correggere una data dopo l'importazione
 
 1. Aprire la fattura da **Fatture passive**, **Fatture attive** o **Note di credito**.
@@ -729,6 +733,8 @@ Percorso: **Contabilità - Adempimenti e chiusure**.
 ### 17.1 Rettifiche e prospetti IVA
 
 Registrare soltanto rettifiche documentate. I prospetti LIPE e IVA annuale sono strumenti di raccordo: non equivalgono a file già trasmessi all'Agenzia delle Entrate.
+
+Per il raccordo LIPE scegliere il trimestre e premere **Genera raccordo LIPE**. Sulla riga del prospetto usare **PDF**, **XLSX** o **CSV** per scaricare il dettaglio: riepiloghi mensili, liquidazioni collegate, credito precedente, interessi, saldo, scadenze e stato. I file prodotti sono prospetti di controllo e non file telematici trasmissibili.
 
 ### 17.2 Ratei, risconti e assestamenti
 

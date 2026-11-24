@@ -132,6 +132,23 @@ final class ImportController extends BaseController
         }
     }
 
+    public function sdiMetadata(string $id): never
+    {
+        $this->guard();
+        $this->requireRoles(['OWNER', 'ADMIN', 'ACCOUNTANT']);
+        try {
+            $result = $this->service()->backfillFatturaPaSdiMetadata((int) $id);
+            $this->audit('SDI_METADATA_BACKFILL', 'import_batches', (int) $id, $result);
+            $this->redirect('/imports/' . (int) $id, sprintf(
+                'Metadati SdI recuperati: %d fatture abbinate, %d documenti aggiornati.',
+                $result['matched'],
+                $result['updated'],
+            ));
+        } catch (Throwable $exception) {
+            $this->redirect('/imports/' . (int) $id, 'Metadati SdI non aggiornati: ' . $exception->getMessage(), 'error');
+        }
+    }
+
     private function service(): ImportService
     {
         return new ImportService($this->db, Auth::organizationId(), Auth::id(), $this->config['app']['storage_path']);

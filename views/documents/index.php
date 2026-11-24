@@ -9,7 +9,9 @@ $url = static fn (array $changes = []): string => '/documents/' . rawurlencode($
 $exportQuery = http_build_query(array_diff_key($currentQuery, ['per_page' => true]));
 $headers = [
     'number' => 'Documento', 'counterparty_name' => 'Controparte', 'subject' => 'Oggetto',
-    'document_date' => 'Data', 'due_date' => 'Scadenza', 'taxable_total' => 'Imponibile',
+    'document_date' => 'Data documento',
+] + ($definition['code'] === 'PURCHASE_INVOICE' ? ['sdi_received_at' => 'Ricezione SdI'] : []) + [
+    'due_date' => 'Scadenza', 'taxable_total' => 'Imponibile',
     'vat_total' => 'IVA', 'total' => 'Totale', 'balance_due' => 'Residuo', 'status' => 'Stato',
 ];
 $lower = static fn (mixed $value): string => function_exists('mb_strtolower')
@@ -40,8 +42,8 @@ $lower = static fn (mixed $value): string => function_exists('mb_strtolower')
         <?php endforeach; ?>
     </tr></thead><tbody>
     <?php $showInvoiceKind = in_array($definition['code'], ['SALES_INVOICE','PURCHASE_INVOICE','CREDIT_NOTE'], true); ?>
-    <?php foreach ($documents as $document): $creditNote = (string) $document['document_type'] === 'CREDIT_NOTE' || in_array(strtoupper((string) ($document['fatturapa_type'] ?? '')), ['TD04','TD08'], true); ?><tr class="clickable-row" data-href="/documents/<?= View::e($type) ?>/<?= (int) $document['id'] ?>"><td class="primary-cell"><a href="/documents/<?= View::e($type) ?>/<?= (int) $document['id'] ?>"><?= View::e($document['number']) ?></a><?php if ($showInvoiceKind): ?><small><span class="badge <?= $creditNote ? 'status-reversed' : '' ?>"><?= $creditNote ? 'Nota di credito' : 'Fattura' ?></span></small><?php endif; ?></td><td><?= View::e($document['counterparty_name']) ?></td><td><?= View::e($document['subject'] ?: '—') ?></td><td><?= View::date($document['document_date']) ?></td><td><?= View::date($document['due_date']) ?></td><td class="numeric"><?= View::money($document['taxable_total']) ?></td><td class="numeric"><?= View::money($document['vat_total']) ?></td><td class="numeric"><strong><?= View::money($document['total']) ?></strong></td><td class="numeric"><?= View::money($document['balance_due']) ?></td><td><span class="badge status-<?= View::e(strtolower($document['status'])) ?>"><?= View::e(View::label($document['status'])) ?></span></td></tr><?php endforeach; ?>
-    <?php if (!$documents): ?><tr><td colspan="10"><div class="table-empty"><span><?= View::icon('receipt') ?></span><strong>Nessun documento</strong><small>Modifica i filtri o crea il primo documento.</small></div></td></tr><?php endif; ?>
+    <?php foreach ($documents as $document): $creditNote = (string) $document['document_type'] === 'CREDIT_NOTE' || in_array(strtoupper((string) ($document['fatturapa_type'] ?? '')), ['TD04','TD08'], true); ?><tr class="clickable-row" data-href="/documents/<?= View::e($type) ?>/<?= (int) $document['id'] ?>"><td class="primary-cell"><a href="/documents/<?= View::e($type) ?>/<?= (int) $document['id'] ?>"><?= View::e($document['number']) ?></a><?php if ($showInvoiceKind): ?><small><span class="badge <?= $creditNote ? 'status-reversed' : '' ?>"><?= $creditNote ? 'Nota di credito' : 'Fattura' ?></span></small><?php endif; ?></td><td><?= View::e($document['counterparty_name']) ?></td><td><?= View::e($document['subject'] ?: '—') ?></td><td><?= View::date($document['document_date']) ?></td><?php if ($definition['code'] === 'PURCHASE_INVOICE'): ?><td><?= View::date($document['sdi_received_at'] ?? null) ?></td><?php endif; ?><td><?= View::date($document['due_date']) ?></td><td class="numeric"><?= View::money($document['taxable_total']) ?></td><td class="numeric"><?= View::money($document['vat_total']) ?></td><td class="numeric"><strong><?= View::money($document['total']) ?></strong></td><td class="numeric"><?= View::money($document['balance_due']) ?></td><td><span class="badge status-<?= View::e(strtolower($document['status'])) ?>"><?= View::e(View::label($document['status'])) ?></span></td></tr><?php endforeach; ?>
+    <?php if (!$documents): ?><tr><td colspan="<?= count($headers) ?>"><div class="table-empty"><span><?= View::icon('receipt') ?></span><strong>Nessun documento</strong><small>Modifica i filtri o crea il primo documento.</small></div></td></tr><?php endif; ?>
     </tbody></table></div>
 </section>
 

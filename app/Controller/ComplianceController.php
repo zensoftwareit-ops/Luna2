@@ -9,6 +9,7 @@ use DateTimeImmutable;
 use Luna\Core\Auth;
 use Luna\Service\AssetService;
 use Luna\Service\ClosingService;
+use Luna\Service\TabularExportService;
 use Luna\Service\VatComplianceService;
 use RuntimeException;
 
@@ -81,6 +82,147 @@ final class ComplianceController extends BaseController
 
     public function vatAdjustment(): never { $this->perform(fn (): int => $this->vat()->saveAdjustment($_POST), 'Rettifica IVA salvata.', 'CREATE', 'vat_adjustments'); }
     public function generateLipe(): never { $this->perform(fn (): int => $this->vat()->generateLipe((int) ($_POST['year'] ?? 0), (int) ($_POST['quarter'] ?? 0)), 'Prospetto LIPE di raccordo rigenerato.', 'GENERATE', 'lipe_communications'); }
+    public function exportLipe(string $id, string $format): never
+    {
+        $this->authorize();
+        if (!in_array(strtolower($format), ['pdf', 'xlsx', 'csv'], true)) {
+            $this->redirect('/accounting/compliance', 'Formato di esportazione non supportato.', 'error');
+        }
+        $rows = $this->query(
+            'SELECT * FROM lipe_communications WHERE id = ? AND organization_id = ?',
+            [(int) $id, Auth::organizationId()]
+        );
+        $lipe = $rows[0] ?? null;
+        if (!$lipe) {
+            $this->redirect('/accounting/compliance', 'Prospetto LIPE non trovato.', 'error');
+        }
+        $payload = json_decode((string) $lipe['payload_json'], true);
+        if (!is_array($payload)) {
+            $this->redirect('/accounting/compliance?year=' . (int) $lipe['fiscal_year'], 'Il dettaglio del raccordo LIPE non è leggibile.', 'error');
+        }
+        $validation = json_decode((string) $lipe['validation_json'], true);
+        $validation = is_array($validation) ? $validation : ['valid' => false, 'errors' => ['Validazione non leggibile.']];
+        if (strtolower($format) === 'pdf') {
+            $this->exporter()->streamLipePdf($lipe, $payload, $validation);
+        }
+        if (strtolower($format) === 'xlsx') {
+            $this->exporter()->streamLipeXlsx($lipe, $payload, $validation);
+        }
+
+        $periodicity = strtoupper((string) ($payload['periodicity'] ?? ''));
+        $baseExport = [
+            'fiscal_year' => (int) $lipe['fiscal_year'],
+            'quarter' => (int) $lipe['quarter_number'],
+            'periodicity' => $periodicity === 'MONTHLY' ? 'Mensile' : ($periodicity === 'QUARTERLY' ? 'Trimestrale' : $periodicity),
+            'schema_version' => (string) $lipe['schema_version'],
+            'lipe_status' => match (strtoupper((string) $lipe['status'])) { 'DRAFT' => 'Bozza', 'REVIEWED' => 'Revisionato', 'LOCKED' => 'Bloccato', default => (string) $lipe['status'] },
+            'validation' => !empty($validation['valid']) ? 'OK' : 'CON ANOMALIE',
+            'warning' => 'Prospetto di raccordo interno non trasmissibile',
+        ];
+        $exportRows = [];
+        foreach ((array) ($payload['months'] ?? []) as $month) {
+            $monthNumber = (int) ($month['month'] ?? 0);
+            $period = $monthNumber >= 1 && $monthNumber <= 12
+                ? str_pad((string) $monthNumber, 2, '0', STR_PAD_LEFT) . '/' . (int) $lipe['fiscal_year']
+                : (string) $monthNumber;
+            $exportRows[] = $baseExport + [
+                'section' => 'Riepilogo mensile',
+                'period' => $period,
+                'active_operations' => $month['active_operations'] ?? 0,
+                'passive_operations' => $month['passive_operations'] ?? 0,
+                'cash_recognized_taxable' => $month['cash_recognized_taxable'] ?? 0,
+                'vat_debit' => $month['vat_due'] ?? 0,
+                'vat_credit' => $month['vat_credit'] ?? 0,
+                'previous_credit' => null,
+                'interest' => null,
+                'balance' => round((float) ($month['vat_due'] ?? 0) - (float) ($month['vat_credit'] ?? 0), 2),
+                'status' => '',
+                'due_date' => null,
+                'payment_date' => null,
+            ];
+        }
+        foreach ((array) ($payload['settlements'] ?? []) as $settlement) {
+            $periodType = strtoupper((string) ($settlement['period_type'] ?? ''));
+            $periodNumber = (int) ($settlement['period_number'] ?? 0);
+            $period = $periodType === 'QUARTERLY'
+                ? 'T' . $periodNumber . '/' . (int) $lipe['fiscal_year']
+                : str_pad((string) $periodNumber, 2, '0', STR_PAD_LEFT) . '/' . (int) $lipe['fiscal_year'];
+            $status = strtoupper((string) ($settlement['status'] ?? ''));
+            $creditMode = strtoupper((string) ($settlement['previous_credit_mode'] ?? ''));
+            $exportRows[] = $baseExport + [
+                'section' => $periodType === 'QUARTERLY' ? 'Liquidazione trimestrale' : 'Liquidazione mensile',
+                'period' => $period,
+                'active_operations' => null,
+                'passive_operations' => null,
+                'cash_recognized_taxable' => null,
+                'vat_debit' => $settlement['vat_debit'] ?? 0,
+                'vat_credit' => $settlement['vat_credit'] ?? 0,
+                'previous_credit' => $settlement['previous_credit'] ?? 0,
+                'previous_credit_mode' => $creditMode === 'AUTO' ? 'Automatico' : ($creditMode === 'MANUAL' ? 'Manuale' : $creditMode),
+                'interest' => $settlement['interest_amount'] ?? 0,
+                'balance' => $settlement['balance'] ?? 0,
+                'status' => match ($status) { 'DRAFT' => 'Bozza', 'CALCULATED' => 'Calcolata', 'SUBMITTED' => 'Presentata', 'PAID' => 'Pagata', 'OVERDUE' => 'Scaduta', default => $status },
+                'due_date' => $settlement['payment_due_date'] ?? null,
+                'payment_date' => $settlement['payment_date'] ?? null,
+                'payment_reference' => (string) ($settlement['payment_reference'] ?? ''),
+                'notes' => (string) ($settlement['notes'] ?? ''),
+                'calculated_at' => $settlement['calculated_at'] ?? null,
+                'reconciliation_mode' => (string) ($settlement['source_reconciliation_mode'] ?? ''),
+                'excluded_document_rows' => $settlement['excluded_document_rows'] ?? 0,
+                'excluded_document_vat_debit' => $settlement['excluded_document_vat_debit'] ?? 0,
+                'excluded_document_vat_credit' => $settlement['excluded_document_vat_credit'] ?? 0,
+                'excluded_document_purchase_vat' => $settlement['excluded_document_purchase_vat'] ?? 0,
+            ];
+        }
+
+        $this->exporter()->stream(
+            $format,
+            'Raccordo LIPE T' . (int) $lipe['quarter_number'] . ' - ' . (int) $lipe['fiscal_year'],
+            [
+                ['key' => 'fiscal_year', 'label' => 'Esercizio', 'type' => 'number'],
+                ['key' => 'quarter', 'label' => 'Trimestre', 'type' => 'number'],
+                ['key' => 'periodicity', 'label' => 'Periodicità'],
+                ['key' => 'schema_version', 'label' => 'Schema'],
+                ['key' => 'lipe_status', 'label' => 'Stato raccordo'],
+                ['key' => 'validation', 'label' => 'Validazione'],
+                ['key' => 'warning', 'label' => 'Avvertenza'],
+                ['key' => 'section', 'label' => 'Sezione'],
+                ['key' => 'period', 'label' => 'Periodo'],
+                ['key' => 'active_operations', 'label' => 'Operazioni attive', 'type' => 'money'],
+                ['key' => 'passive_operations', 'label' => 'Operazioni passive', 'type' => 'money'],
+                ['key' => 'cash_recognized_taxable', 'label' => 'Imponibile per cassa', 'type' => 'money'],
+                ['key' => 'vat_debit', 'label' => 'IVA a debito', 'type' => 'money'],
+                ['key' => 'vat_credit', 'label' => 'IVA a credito', 'type' => 'money'],
+                ['key' => 'previous_credit', 'label' => 'Credito precedente', 'type' => 'money'],
+                ['key' => 'previous_credit_mode', 'label' => 'Origine credito'],
+                ['key' => 'interest', 'label' => 'Interessi', 'type' => 'money'],
+                ['key' => 'balance', 'label' => 'Saldo', 'type' => 'money'],
+                ['key' => 'status', 'label' => 'Stato'],
+                ['key' => 'due_date', 'label' => 'Scadenza', 'type' => 'date'],
+                ['key' => 'payment_date', 'label' => 'Pagamento', 'type' => 'date'],
+                ['key' => 'payment_reference', 'label' => 'Riferimento pagamento'],
+                ['key' => 'notes', 'label' => 'Note'],
+                ['key' => 'calculated_at', 'label' => 'Calcolata il', 'type' => 'datetime'],
+                ['key' => 'reconciliation_mode', 'label' => 'Modalità riconciliazione'],
+                ['key' => 'excluded_document_rows', 'label' => 'Righe escluse', 'type' => 'number'],
+                ['key' => 'excluded_document_vat_debit', 'label' => 'IVA debito esclusa', 'type' => 'money'],
+                ['key' => 'excluded_document_vat_credit', 'label' => 'IVA credito esclusa', 'type' => 'money'],
+                ['key' => 'excluded_document_purchase_vat', 'label' => 'IVA acquisti esclusa', 'type' => 'money'],
+            ],
+            $exportRows,
+            [
+                'Schema' => (string) $lipe['schema_version'],
+                'Periodicità' => (string) ($payload['periodicity'] ?? ''),
+                'Stato raccordo' => (string) $lipe['status'],
+                'Generato' => (string) ($payload['generated_at'] ?? ''),
+                'Validazione' => !empty($validation['valid']) ? 'OK' : 'CON ANOMALIE',
+                'Anomalie' => implode(' | ', (array) ($validation['errors'] ?? [])),
+                'Avvertenza' => 'Prospetto di raccordo non trasmissibile',
+            ],
+            'Luna2',
+            'raccordo-lipe-' . (int) $lipe['fiscal_year'] . '-t' . (int) $lipe['quarter_number'],
+        );
+    }
     public function generateAnnual(): never { $this->perform(fn (): int => $this->vat()->generateAnnual((int) ($_POST['year'] ?? 0)), 'Prospetto IVA annuale di raccordo rigenerato.', 'GENERATE', 'vat_annual_summaries'); }
     public function vatStatus(string $kind, string $id): never
     {
@@ -118,5 +260,11 @@ final class ComplianceController extends BaseController
     private function vat(): VatComplianceService { return new VatComplianceService($this->db, Auth::organizationId(), Auth::id()); }
     private function closing(): ClosingService { return new ClosingService($this->db, Auth::organizationId(), Auth::id()); }
     private function assets(): AssetService { return new AssetService($this->db, Auth::organizationId(), Auth::id()); }
+    private function exporter(): TabularExportService
+    {
+        $company = $this->db->prepare('SELECT business_name, vat_number, tax_code, address, postal_code, city, province FROM organizations WHERE id = ?');
+        $company->execute([Auth::organizationId()]);
+        return new TabularExportService($company->fetch() ?: []);
+    }
     private function query(string $sql, array $params): array { $statement = $this->db->prepare($sql); $statement->execute($params); return $statement->fetchAll(); }
 }

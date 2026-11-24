@@ -8,6 +8,7 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -377,6 +378,249 @@ final class TabularExportService
         echo $this->vatSettlementPdfContent($settlement, $rows);
         exit;
     }
+
+    public function streamLipePdf(array $lipe, array $payload, array $validation): never
+    {
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: attachment; filename="' . $this->filename('raccordo-lipe-' . $lipe['fiscal_year'] . '-t' . $lipe['quarter_number']) . '.pdf"');
+        header('Cache-Control: private, no-store, max-age=0');
+        echo $this->lipePdfContent($lipe, $payload, $validation);
+        exit;
+    }
+
+    public function lipePdfContent(array $lipe, array $payload, array $validation): string
+    {
+        $escape = static fn (mixed $value): string => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $money = static fn (mixed $value): string => $value === null || $value === '' ? '—' : number_format((float) $value, 2, ',', '.') . ' €';
+        $date = static fn (mixed $value): string => ($value && ($time = strtotime((string) $value))) ? date('d/m/Y', $time) : '—';
+        $months = (array) ($payload['months'] ?? []);
+        $settlements = (array) ($payload['settlements'] ?? []);
+        $company = $this->organizationLabel();
+        $monthRows = '';
+        $monthTotals = ['active_operations' => 0.0, 'passive_operations' => 0.0, 'cash_recognized_taxable' => 0.0, 'vat_due' => 0.0, 'vat_credit' => 0.0];
+        foreach ($months as $month) {
+            foreach (array_keys($monthTotals) as $key) $monthTotals[$key] += (float) ($month[$key] ?? 0);
+            $difference = round((float) ($month['vat_due'] ?? 0) - (float) ($month['vat_credit'] ?? 0), 2);
+            $monthRows .= '<tr><td>' . str_pad((string) ($month['month'] ?? ''), 2, '0', STR_PAD_LEFT) . '/' . (int) $lipe['fiscal_year'] . '</td>'
+                . '<td class="num">' . $money($month['active_operations'] ?? 0) . '</td>'
+                . '<td class="num">' . $money($month['passive_operations'] ?? 0) . '</td>'
+                . '<td class="num">' . $money($month['cash_recognized_taxable'] ?? 0) . '</td>'
+                . '<td class="num">' . $money($month['vat_due'] ?? 0) . '</td>'
+                . '<td class="num">' . $money($month['vat_credit'] ?? 0) . '</td>'
+                . '<td class="num strong">' . $money($difference) . '</td></tr>';
+        }
+        if ($monthRows === '') $monthRows = '<tr><td colspan="7" class="empty">Nessun riepilogo mensile disponibile.</td></tr>';
+        else {
+            $monthRows .= '<tr class="total"><td>Totale dati mensili</td><td class="num">' . $money($monthTotals['active_operations'])
+                . '</td><td class="num">' . $money($monthTotals['passive_operations']) . '</td><td class="num">'
+                . $money($monthTotals['cash_recognized_taxable']) . '</td><td class="num">' . $money($monthTotals['vat_due'])
+                . '</td><td class="num">' . $money($monthTotals['vat_credit']) . '</td><td class="num">'
+                . $money($monthTotals['vat_due'] - $monthTotals['vat_credit']) . '</td></tr>';
+        }
+        $settlementRows = '';
+        $reconciliationRows = '';
+        foreach ($settlements as $settlement) {
+            $type = strtoupper((string) ($settlement['period_type'] ?? ''));
+            $number = (int) ($settlement['period_number'] ?? 0);
+            $period = $type === 'QUARTERLY' ? 'T' . $number : str_pad((string) $number, 2, '0', STR_PAD_LEFT);
+            $notes = implode(' · ', array_filter([
+                trim((string) ($settlement['payment_reference'] ?? '')) !== '' ? 'Pagamento: ' . $settlement['payment_reference'] : '',
+                trim((string) ($settlement['notes'] ?? '')),
+            ]));
+            $settlementRows .= '<tr><td>' . $escape($period . '/' . (int) $lipe['fiscal_year']) . '</td><td>'
+                . $escape($type === 'QUARTERLY' ? 'Trimestrale' : 'Mensile') . '</td><td class="num">' . $money($settlement['vat_debit'] ?? 0)
+                . '</td><td class="num">' . $money($settlement['vat_credit'] ?? 0) . '</td><td class="num">'
+                . $money($settlement['previous_credit'] ?? 0) . '</td><td class="num">' . $money($settlement['interest_amount'] ?? 0)
+                . '</td><td class="num strong">' . $money($settlement['balance'] ?? 0) . '</td><td>'
+                . $escape($this->lipeLabel((string) ($settlement['status'] ?? ''))) . '</td><td>' . $date($settlement['payment_due_date'] ?? null)
+                . '</td><td>' . $date($settlement['payment_date'] ?? null) . '</td><td>' . $escape($notes ?: '—') . '</td></tr>';
+            $reconciliationRows .= '<tr><td>' . $escape($period . '/' . (int) $lipe['fiscal_year']) . '</td><td>'
+                . $escape($this->lipeLabel((string) ($settlement['source_reconciliation_mode'] ?? 'STANDARD'))) . '</td><td class="num">'
+                . (int) ($settlement['excluded_document_rows'] ?? 0) . '</td><td class="num">'
+                . $money($settlement['excluded_document_vat_debit'] ?? 0) . '</td><td class="num">'
+                . $money($settlement['excluded_document_vat_credit'] ?? 0) . '</td><td class="num">'
+                . $money($settlement['excluded_document_purchase_vat'] ?? 0) . '</td><td>'
+                . $date($settlement['calculated_at'] ?? null) . '</td></tr>';
+        }
+        if ($settlementRows === '') $settlementRows = '<tr><td colspan="11" class="empty">Nessuna liquidazione collegata.</td></tr>';
+        if ($reconciliationRows === '') $reconciliationRows = '<tr><td colspan="7" class="empty">Nessun controllo di riconciliazione disponibile.</td></tr>';
+        $errors = array_values(array_filter(array_map('strval', (array) ($validation['errors'] ?? []))));
+        $validationText = !empty($validation['valid']) ? 'OK - nessuna anomalia rilevata' : 'Con anomalie: ' . implode(' · ', $errors);
+        $generatedAt = $payload['generated_at'] ?? $lipe['updated_at'] ?? null;
+        $html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><style>
+            @page{margin:10mm 9mm 12mm}body{font-family:DejaVu Sans,sans-serif;color:#172033;font-size:8px}h1{font-size:18px;margin:0 0 2px;color:#17365d}
+            .subtitle{font-size:9px;color:#526174;margin-bottom:10px}.meta{width:100%;border-collapse:separate;border-spacing:0;margin-bottom:9px}.meta td{border:0;padding:2px 7px 2px 0}
+            .meta strong{color:#17365d}.notice{border-left:4px solid #d97706;background:#fff7ed;padding:6px 8px;margin:7px 0 11px;color:#7c2d12}
+            h2{font-size:11px;color:#17365d;margin:12px 0 5px;border-bottom:1px solid #9eb2cb;padding-bottom:3px}table.data{width:100%;border-collapse:collapse;table-layout:fixed}
+            .data th{background:#17365d;color:#fff;text-transform:uppercase;letter-spacing:.02em;font-size:6.7px;padding:5px 4px;border:1px solid #17365d;text-align:left}
+            .data td{padding:4px;border-bottom:1px solid #d7dee8;vertical-align:top;word-break:break-word}.data tr:nth-child(even) td{background:#f7f9fc}.num{text-align:right;white-space:nowrap}
+            .strong{font-weight:bold}.total td{font-weight:bold;background:#eaf0f7!important;border-top:1px solid #8197b3}.empty{text-align:center;color:#64748b;padding:9px!important}
+            .validation{margin-top:10px;padding:6px 8px;background:#f3f6fa;color:#334155}.validation strong{color:#17365d}footer{position:fixed;bottom:-7mm;left:0;right:0;color:#64748b;font-size:6.5px}
+            footer .page{float:right}.settlements th:nth-child(11),.settlements td:nth-child(11){width:20%}
+            </style></head><body><h1>Raccordo LIPE T' . (int) $lipe['quarter_number'] . ' - ' . (int) $lipe['fiscal_year'] . '</h1>'
+            . '<div class="subtitle">Prospetto di controllo delle liquidazioni periodiche IVA</div><table class="meta"><tr><td><strong>Azienda</strong><br>' . $escape($company)
+            . '</td><td><strong>Periodicità</strong><br>' . $escape($this->lipeLabel((string) ($payload['periodicity'] ?? ''))) . '</td><td><strong>Schema</strong><br>' . $escape($lipe['schema_version'] ?? '—')
+            . '</td><td><strong>Stato</strong><br>' . $escape($this->lipeLabel((string) ($lipe['status'] ?? ''))) . '</td></tr><tr><td><strong>Generato</strong><br>' . $date($generatedAt)
+            . '</td><td><strong>Aggiornato</strong><br>' . $date($lipe['updated_at'] ?? null) . '</td><td colspan="2"><strong>Validazione</strong><br>' . $escape($validationText) . '</td></tr></table>'
+            . '<div class="notice"><strong>Avvertenza:</strong> prospetto di raccordo interno. Non costituisce il modello LIPE ufficiale né un file telematico trasmissibile.</div>'
+            . '<h2>Riepilogo mensile</h2><table class="data"><thead><tr><th>Periodo</th><th>Operazioni attive</th><th>Operazioni passive</th><th>Imponibile per cassa</th><th>IVA esigibile</th><th>IVA detraibile</th><th>Differenza</th></tr></thead><tbody>' . $monthRows . '</tbody></table>'
+            . '<h2>Liquidazioni collegate</h2><table class="data settlements"><thead><tr><th>Periodo</th><th>Tipo</th><th>IVA a debito</th><th>IVA a credito</th><th>Credito precedente</th><th>Interessi</th><th>Saldo</th><th>Stato</th><th>Scadenza</th><th>Pagamento</th><th>Riferimenti e note</th></tr></thead><tbody>'
+            . $settlementRows . '</tbody></table><h2>Controlli di riconciliazione</h2><table class="data"><thead><tr><th>Periodo</th><th>Fonte prioritaria</th><th>Righe XML escluse</th><th>IVA debito esclusa</th><th>IVA credito esclusa</th><th>IVA acquisti esclusa</th><th>Calcolata il</th></tr></thead><tbody>'
+            . $reconciliationRows . '</tbody></table><div class="validation"><strong>Controllo:</strong> ' . $escape($validationText) . '</div>'
+            . '<footer>Luna2 · Raccordo LIPE · Generato il ' . date('d/m/Y H:i') . '</footer></body></html>';
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('isHtml5ParserEnabled', true);
+        $pdf = new Dompdf($options);
+        $pdf->loadHtml($html, 'UTF-8');
+        $pdf->setPaper('A4', 'landscape');
+        $pdf->render();
+        $canvas = $pdf->getCanvas();
+        $canvas->page_text($canvas->get_width() - 88, $canvas->get_height() - 18, 'Pagina {PAGE_NUM} / {PAGE_COUNT}',
+            $pdf->getFontMetrics()->getFont('DejaVu Sans'), 7, [0.39, 0.45, 0.55]);
+        return $pdf->output();
+    }
+
+    public function streamLipeXlsx(array $lipe, array $payload, array $validation): never
+    {
+        $book = new Spreadsheet();
+        $sheet = $book->getActiveSheet();
+        $sheet->setTitle('LIPE T' . (int) $lipe['quarter_number'] . ' ' . (int) $lipe['fiscal_year']);
+        $lastColumn = 'M';
+        $sheet->mergeCells("A1:{$lastColumn}1");
+        $sheet->setCellValue('A1', 'Raccordo LIPE T' . (int) $lipe['quarter_number'] . ' - ' . (int) $lipe['fiscal_year']);
+        $sheet->mergeCells("A2:{$lastColumn}2");
+        $sheet->setCellValue('A2', $this->organizationLabel());
+        $sheet->mergeCells("A3:{$lastColumn}3");
+        $sheet->setCellValue('A3', 'Prospetto di raccordo interno - non costituisce il modello LIPE ufficiale né un file telematico trasmissibile.');
+        $metadata = [
+            ['Esercizio', (int) $lipe['fiscal_year'], 'Trimestre', (int) $lipe['quarter_number'], 'Periodicità', $this->lipeLabel((string) ($payload['periodicity'] ?? '')), 'Schema', (string) ($lipe['schema_version'] ?? '')],
+            ['Stato', $this->lipeLabel((string) ($lipe['status'] ?? '')), 'Validazione', !empty($validation['valid']) ? 'OK' : 'CON ANOMALIE', 'Generato', (string) ($payload['generated_at'] ?? ''), 'Aggiornato', (string) ($lipe['updated_at'] ?? '')],
+        ];
+        $sheet->fromArray($metadata, null, 'A5', true);
+        foreach (['F6' => $payload['generated_at'] ?? null, 'H6' => $lipe['updated_at'] ?? null] as $cell => $value) {
+            if ($value) {
+                $sheet->setCellValue($cell, ExcelDate::PHPToExcel(new \DateTimeImmutable((string) $value)));
+                $sheet->getStyle($cell)->getNumberFormat()->setFormatCode('dd/mm/yyyy hh:mm');
+            }
+        }
+        $row = 8;
+        $sheet->mergeCells("A{$row}:{$lastColumn}{$row}");
+        $sheet->setCellValue("A{$row}", 'Riepilogo mensile');
+        $row++;
+        $monthHeaderRow = $row;
+        $monthHeaders = ['Periodo','Operazioni attive','Operazioni passive','Imponibile per cassa','IVA esigibile','IVA detraibile','Differenza'];
+        $sheet->fromArray($monthHeaders, null, "A{$row}", true);
+        $row++;
+        $monthTotals = array_fill_keys(['active_operations','passive_operations','cash_recognized_taxable','vat_due','vat_credit'], 0.0);
+        foreach ((array) ($payload['months'] ?? []) as $month) {
+            foreach (array_keys($monthTotals) as $key) $monthTotals[$key] += (float) ($month[$key] ?? 0);
+            $sheet->fromArray([[str_pad((string) ($month['month'] ?? ''), 2, '0', STR_PAD_LEFT) . '/' . (int) $lipe['fiscal_year'],
+                (float) ($month['active_operations'] ?? 0), (float) ($month['passive_operations'] ?? 0),
+                (float) ($month['cash_recognized_taxable'] ?? 0), (float) ($month['vat_due'] ?? 0),
+                (float) ($month['vat_credit'] ?? 0), round((float) ($month['vat_due'] ?? 0) - (float) ($month['vat_credit'] ?? 0), 2)]], null, "A{$row}", true);
+            $row++;
+        }
+        $monthEndRow = max($monthHeaderRow + 1, $row - 1);
+        $sheet->fromArray([['Totale dati mensili', round($monthTotals['active_operations'], 2), round($monthTotals['passive_operations'], 2),
+            round($monthTotals['cash_recognized_taxable'], 2), round($monthTotals['vat_due'], 2), round($monthTotals['vat_credit'], 2),
+            round($monthTotals['vat_due'] - $monthTotals['vat_credit'], 2)]], null, "A{$row}", true);
+        $monthTotalRow = $row++;
+        $row += 2;
+        $sheet->mergeCells("A{$row}:{$lastColumn}{$row}");
+        $sheet->setCellValue("A{$row}", 'Liquidazioni collegate');
+        $row++;
+        $settlementHeaderRow = $row;
+        $settlementHeaders = ['Periodo','Tipo','IVA a debito','IVA a credito','Credito precedente','Origine credito','Interessi','Saldo','Stato','Scadenza','Data pagamento','Riferimento pagamento','Note'];
+        $sheet->fromArray($settlementHeaders, null, "A{$row}", true);
+        $row++;
+        foreach ((array) ($payload['settlements'] ?? []) as $settlement) {
+            $type = strtoupper((string) ($settlement['period_type'] ?? ''));
+            $number = (int) ($settlement['period_number'] ?? 0);
+            $period = ($type === 'QUARTERLY' ? 'T' . $number : str_pad((string) $number, 2, '0', STR_PAD_LEFT)) . '/' . (int) $lipe['fiscal_year'];
+            $sheet->fromArray([[$period, $type === 'QUARTERLY' ? 'Trimestrale' : 'Mensile',
+                (float) ($settlement['vat_debit'] ?? 0), (float) ($settlement['vat_credit'] ?? 0),
+                (float) ($settlement['previous_credit'] ?? 0), $this->lipeLabel((string) ($settlement['previous_credit_mode'] ?? '')),
+                (float) ($settlement['interest_amount'] ?? 0), (float) ($settlement['balance'] ?? 0),
+                $this->lipeLabel((string) ($settlement['status'] ?? '')), null, null, (string) ($settlement['payment_reference'] ?? ''),
+                (string) ($settlement['notes'] ?? '')]], null, "A{$row}", true);
+            foreach (['J' => $settlement['payment_due_date'] ?? null, 'K' => $settlement['payment_date'] ?? null] as $column => $value) {
+                if ($value) {
+                    $sheet->setCellValue($column . $row, ExcelDate::PHPToExcel(new \DateTimeImmutable((string) $value)));
+                    $sheet->getStyle($column . $row)->getNumberFormat()->setFormatCode('dd/mm/yyyy');
+                }
+            }
+            $row++;
+        }
+        $settlementEndRow = max($settlementHeaderRow + 1, $row - 1);
+        $row += 2;
+        $reconciliationSectionRow = $row;
+        $sheet->mergeCells("A{$row}:{$lastColumn}{$row}");
+        $sheet->setCellValue("A{$row}", 'Controlli di riconciliazione');
+        $row++;
+        $reconciliationHeaderRow = $row;
+        $sheet->fromArray(['Periodo','Fonte prioritaria','Righe XML escluse','IVA debito esclusa','IVA credito esclusa','IVA acquisti esclusa','Calcolata il'], null, "A{$row}", true);
+        $row++;
+        foreach ((array) ($payload['settlements'] ?? []) as $settlement) {
+            $type = strtoupper((string) ($settlement['period_type'] ?? ''));
+            $number = (int) ($settlement['period_number'] ?? 0);
+            $period = ($type === 'QUARTERLY' ? 'T' . $number : str_pad((string) $number, 2, '0', STR_PAD_LEFT)) . '/' . (int) $lipe['fiscal_year'];
+            $sheet->fromArray([[$period, $this->lipeLabel((string) ($settlement['source_reconciliation_mode'] ?? 'STANDARD')),
+                (int) ($settlement['excluded_document_rows'] ?? 0), (float) ($settlement['excluded_document_vat_debit'] ?? 0),
+                (float) ($settlement['excluded_document_vat_credit'] ?? 0), (float) ($settlement['excluded_document_purchase_vat'] ?? 0), null]], null, "A{$row}", true);
+            if (!empty($settlement['calculated_at'])) {
+                $sheet->setCellValue("G{$row}", ExcelDate::PHPToExcel(new \DateTimeImmutable((string) $settlement['calculated_at'])));
+                $sheet->getStyle("G{$row}")->getNumberFormat()->setFormatCode('dd/mm/yyyy hh:mm');
+            }
+            $row++;
+        }
+        $reconciliationEndRow = max($reconciliationHeaderRow + 1, $row - 1);
+        $row += 2;
+        $sheet->mergeCells("A{$row}:{$lastColumn}{$row}");
+        $errors = array_values(array_filter(array_map('strval', (array) ($validation['errors'] ?? []))));
+        $sheet->setCellValue("A{$row}", !empty($validation['valid']) ? 'Controllo: OK - nessuna anomalia rilevata.' : 'Controllo: ' . implode(' | ', $errors));
+        $lastRow = $row;
+
+        $sheet->getStyle("A1:{$lastColumn}1")->getFont()->setBold(true)->setSize(16)->getColor()->setRGB('FFFFFF');
+        $sheet->getStyle("A1:{$lastColumn}1")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('17365D');
+        $sheet->getStyle("A2:{$lastColumn}3")->getFont()->setSize(9)->getColor()->setRGB('526174');
+        $sheet->getStyle("A3:{$lastColumn}3")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFF7ED');
+        foreach ([8, $settlementHeaderRow - 1, $reconciliationSectionRow] as $sectionRow) {
+            $sheet->getStyle("A{$sectionRow}:{$lastColumn}{$sectionRow}")->getFont()->setBold(true)->getColor()->setRGB('17365D');
+            $sheet->getStyle("A{$sectionRow}:{$lastColumn}{$sectionRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EAF0F7');
+        }
+        foreach ([$monthHeaderRow, $settlementHeaderRow, $reconciliationHeaderRow] as $headerRow) {
+            $sheet->getStyle("A{$headerRow}:{$lastColumn}{$headerRow}")->getFont()->setBold(true)->getColor()->setRGB('FFFFFF');
+            $sheet->getStyle("A{$headerRow}:{$lastColumn}{$headerRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('2563EB');
+            $sheet->getStyle("A{$headerRow}:{$lastColumn}{$headerRow}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_CENTER)->setWrapText(true);
+        }
+        $sheet->getStyle("B" . ($monthHeaderRow + 1) . ":G{$monthTotalRow}")->getNumberFormat()->setFormatCode('#,##0.00 [$€-it-IT]');
+        $sheet->getStyle("C" . ($settlementHeaderRow + 1) . ":H{$settlementEndRow}")->getNumberFormat()->setFormatCode('#,##0.00 [$€-it-IT]');
+        $sheet->getStyle("D" . ($reconciliationHeaderRow + 1) . ":F{$reconciliationEndRow}")->getNumberFormat()->setFormatCode('#,##0.00 [$€-it-IT]');
+        $sheet->getStyle("C" . ($reconciliationHeaderRow + 1) . ":C{$reconciliationEndRow}")->getNumberFormat()->setFormatCode('0');
+        $sheet->getStyle("A{$monthTotalRow}:G{$monthTotalRow}")->getFont()->setBold(true);
+        $sheet->getStyle("A{$monthTotalRow}:G{$monthTotalRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EAF0F7');
+        $sheet->getStyle("A5:H6")->getBorders()->getBottom()->setBorderStyle(Border::BORDER_HAIR)->getColor()->setRGB('D8E0EA');
+        $sheet->getStyle("A{$monthHeaderRow}:G{$monthTotalRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_HAIR)->getColor()->setRGB('D8E0EA');
+        $sheet->getStyle("A{$settlementHeaderRow}:M{$settlementEndRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_HAIR)->getColor()->setRGB('D8E0EA');
+        $sheet->getStyle("A{$reconciliationHeaderRow}:G{$reconciliationEndRow}")->getBorders()->getAllBorders()->setBorderStyle(Border::BORDER_HAIR)->getColor()->setRGB('D8E0EA');
+        $sheet->getStyle("A1:{$lastColumn}{$lastRow}")->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
+        $sheet->getStyle("L" . ($settlementHeaderRow + 1) . ":M{$settlementEndRow}")->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
+        foreach (['A'=>18,'B'=>18,'C'=>17,'D'=>17,'E'=>18,'F'=>16,'G'=>14,'H'=>14,'I'=>14,'J'=>14,'K'=>14,'L'=>24,'M'=>34] as $column => $width) $sheet->getColumnDimension($column)->setWidth($width);
+        $sheet->freezePane('A10');
+        $sheet->getPageSetup()->setOrientation(\PhpOffice\PhpSpreadsheet\Worksheet\PageSetup::ORIENTATION_LANDSCAPE)->setFitToWidth(1)->setFitToHeight(0);
+        $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, 3);
+        $sheet->getPageMargins()->setTop(0.4)->setRight(0.3)->setLeft(0.3)->setBottom(0.5);
+        $sheet->getPageSetup()->setPrintArea("A1:{$lastColumn}{$lastRow}");
+        $sheet->setShowGridlines(false);
+        $book->getProperties()->setCreator('Luna2')->setCompany($this->organizationLabel())->setTitle('Raccordo LIPE');
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $this->filename('raccordo-lipe-' . $lipe['fiscal_year'] . '-t' . $lipe['quarter_number']) . '.xlsx"');
+        header('Cache-Control: private, no-store, max-age=0');
+        (new Xlsx($book))->save('php://output');
+        $book->disconnectWorksheets();
+        exit;
+    }
     /**
      * @param array<int,array{key:string,label:string,type?:string}> $columns
      * @param array<int,array<string,mixed>> $rows
@@ -419,12 +663,12 @@ final class TabularExportService
         header('Cache-Control: private, no-store, max-age=0');
         $output = fopen('php://output', 'wb');
         fwrite($output, "\xEF\xBB\xBF");
-        fputcsv($output, array_column($columns, 'label'), ';');
+        fputcsv($output, array_column($columns, 'label'), ';', '"', '', "\r\n");
         foreach ($rows as $row) {
             fputcsv($output, array_map(
                 fn (array $column): mixed => $this->plain($row[$column['key']] ?? null, $column['type'] ?? 'text'),
                 $columns,
-            ), ';');
+            ), ';', '"', '', "\r\n");
         }
         fclose($output);
         exit;
@@ -587,5 +831,29 @@ final class TabularExportService
         $value = mb_strtolower(trim($value));
         $value = preg_replace('/[^a-z0-9]+/i', '-', $value) ?: 'esportazione';
         return trim($value, '-') . '-' . date('Ymd-His');
+    }
+
+    private function organizationLabel(string $fallback = 'Luna2'): string
+    {
+        if ($this->company === []) return $fallback;
+        return implode(' · ', array_filter([
+            $this->company['business_name'] ?? $fallback,
+            'P.IVA ' . ($this->company['vat_number'] ?? 'non indicata'),
+            'CF ' . ($this->company['tax_code'] ?? 'non indicato'),
+            implode(' ', array_filter([$this->company['address'] ?? '', $this->company['postal_code'] ?? '',
+                $this->company['city'] ?? '', $this->company['province'] ?? ''])),
+        ]));
+    }
+
+    private function lipeLabel(string $value): string
+    {
+        return match (strtoupper($value)) {
+            'MONTHLY' => 'Mensile', 'QUARTERLY' => 'Trimestrale',
+            'DRAFT' => 'Bozza', 'REVIEWED' => 'Revisionato', 'LOCKED' => 'Bloccato', 'EXPORTED' => 'Esportato',
+            'CALCULATED' => 'Calcolata', 'SUBMITTED' => 'Presentata', 'PAID' => 'Pagata', 'OVERDUE' => 'Scaduta',
+            'AUTO' => 'Automatico', 'MANUAL' => 'Manuale',
+            'DATEV_PRIORITY' => 'Registro DATEV', 'STANDARD' => 'Documenti contabili',
+            default => $value === '' ? '—' : $value,
+        };
     }
 }

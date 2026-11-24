@@ -89,6 +89,8 @@ final class DocumentController extends BaseController
                 ['key' => 'document_kind', 'label' => 'Tipo'], ['key' => 'number', 'label' => 'Numero documento'],
                 ['key' => 'document_date', 'label' => 'Data documento', 'type' => 'date'],
                 ['key' => 'registration_date', 'label' => 'Data registrazione', 'type' => 'date'],
+                ['key' => 'sdi_received_at', 'label' => 'Data ricezione SdI', 'type' => 'datetime'],
+                ['key' => 'sdi_id', 'label' => 'Identificativo SdI'],
                 ['key' => 'counterparty_name', 'label' => $definition['counterparty'] === 'customer' ? 'Cliente' : 'Fornitore'],
                 ['key' => 'line_number', 'label' => 'Riga'], ['key' => 'description', 'label' => 'Articolo / descrizione'],
                 ['key' => 'quantity', 'label' => 'Quantità'], ['key' => 'unit', 'label' => 'UM'],
@@ -440,7 +442,7 @@ final class DocumentController extends BaseController
         $to = (string) ($_GET['to'] ?? date('Y-12-31'));
         $counterpartyId = max(0, (int) ($_GET['counterparty_id'] ?? 0));
         $status = strtoupper(trim((string) ($_GET['status'] ?? '')));
-        $allowedSort = ['number', 'counterparty_name', 'subject', 'document_date', 'due_date', 'taxable_total', 'vat_total', 'total', 'balance_due', 'status'];
+        $allowedSort = ['number', 'counterparty_name', 'subject', 'document_date', 'sdi_received_at', 'due_date', 'taxable_total', 'vat_total', 'total', 'balance_due', 'status'];
         $sort = in_array((string) ($_GET['sort'] ?? ''), $allowedSort, true) ? (string) $_GET['sort'] : 'document_date';
         $direction = strtoupper((string) ($_GET['direction'] ?? 'DESC')) === 'ASC' ? 'ASC' : 'DESC';
         $perPage = in_array((int) ($_GET['per_page'] ?? 50), [25, 50, 100, 250], true) ? (int) $_GET['per_page'] : 50;
@@ -481,7 +483,7 @@ final class DocumentController extends BaseController
                 $page = min($page, $pages);
                 $offset = ($page - 1) * $perPage;
             }
-            $sql = 'SELECT id, document_type, fatturapa_type, number, document_date, registration_date, due_date,
+            $sql = 'SELECT id, document_type, fatturapa_type, number, document_date, registration_date, sdi_id, sdi_received_at, due_date,
                            counterparty_id, counterparty_name, subject, taxable_total, vat_total, total, balance_due, status' . $where
                 . ' ORDER BY `' . $sort . '` ' . $direction . ', id ' . $direction;
             if ($paginate) {

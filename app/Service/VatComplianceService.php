@@ -68,8 +68,10 @@ final class VatComplianceService
             $months[$month] = $this->monthSummary($year, $month);
         }
         $settlements = $this->db->prepare(
-            "SELECT id, period_type, period_number, vat_debit, vat_credit, previous_credit, interest_amount,
-                    balance, status, payment_due_date, payment_date
+            "SELECT id, period_type, period_number, vat_debit, vat_credit, previous_credit, previous_credit_mode,
+                    interest_amount, balance, status, payment_due_date, payment_date, payment_reference, notes,
+                    calculated_at, source_reconciliation_mode, excluded_document_rows, excluded_document_vat_debit,
+                    excluded_document_vat_credit, excluded_document_purchase_vat
              FROM vat_settlements
              WHERE organization_id = ? AND period_year = ? AND
                ((period_type = 'MONTHLY' AND period_number BETWEEN ? AND ?)

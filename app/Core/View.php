@@ -104,6 +104,13 @@ final class View
         return $time ? date('d/m/Y', $time) : self::e($value);
     }
 
+    public static function dateTime(mixed $value): string
+    {
+        if (!$value) return '—';
+        $time = strtotime((string) $value);
+        return $time ? date('d/m/Y H:i', $time) : self::e($value);
+    }
+
     public function features(): array
     {
         return $this->modules()->all();

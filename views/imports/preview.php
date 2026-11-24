@@ -25,6 +25,10 @@
                     </label>
                     <button class="button primary">Correggi date lotto</button>
                 </form>
+                <?php if (str_ends_with(mb_strtolower((string) $batch['original_filename']), '.zip')): ?><form method="post" action="/imports/<?= (int) $batch['id'] ?>/sdi-metadata" class="inline-form" data-confirm="Recuperare ID e data di ricezione SdI dal report presente nel pacchetto originale? La contabilità non verrà modificata.">
+                    <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
+                    <button class="button">Recupera dati SdI</button>
+                </form><?php endif; ?>
             <?php endif; ?>
             <form method="post" action="/imports/<?= (int) $batch['id'] ?>/rollback" class="inline-form" data-confirm="Annullare tutti i record riconducibili a questo lotto?">
                 <input type="hidden" name="_token" value="<?= View::e(Csrf::token()) ?>">
@@ -44,6 +48,7 @@
     'description' => 'Descrizione', 'date' => 'Data', 'amount' => 'Importo',
     'account_code' => 'Codice conto', 'debit' => 'Dare', 'credit' => 'Avere',
     'document_number' => 'Numero documento', 'document_date' => 'Data documento',
+    'sdi_id' => 'Identificativo SdI', 'sdi_received_at' => 'Data e ora ricezione SdI',
     'due_date' => 'Scadenza', 'taxable_amount' => 'Imponibile', 'vat_amount' => 'IVA',
     'payment_schedule_total' => 'Totale scadenze XML', 'payment_schedule_expected' => 'Netto da pagare/incassare',
     'payment_schedule_recalculated' => 'Ricalcolo scadenze necessario', 'payment_schedules' => 'Rate XML',

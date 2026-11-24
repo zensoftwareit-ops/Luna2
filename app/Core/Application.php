@@ -244,6 +244,7 @@ final class Application
         $router->add('GET', '/accounting/compliance', [ComplianceController::class, 'index']);
         $router->add('POST', '/accounting/compliance/vat-adjustments', [ComplianceController::class, 'vatAdjustment']);
         $router->add('POST', '/accounting/compliance/lipe', [ComplianceController::class, 'generateLipe']);
+        $router->add('GET', '/accounting/compliance/lipe/{id}/export/{format}', [ComplianceController::class, 'exportLipe']);
         $router->add('POST', '/accounting/compliance/annual-vat', [ComplianceController::class, 'generateAnnual']);
         $router->add('POST', '/accounting/compliance/{kind}/{id}/status', [ComplianceController::class, 'vatStatus']);
         $router->add('POST', '/accounting/compliance/closings', [ComplianceController::class, 'prepareClosing']);
@@ -262,6 +263,7 @@ final class Application
         $router->add('GET', '/imports/files/{id}/download', [ImportController::class, 'download']);
         $router->add('POST', '/imports/{id}/commit', [ImportController::class, 'commit']);
         $router->add('POST', '/imports/{id}/registration-date', [ImportController::class, 'registrationDate']);
+        $router->add('POST', '/imports/{id}/sdi-metadata', [ImportController::class, 'sdiMetadata']);
         $router->add('POST', '/imports/{id}/rollback', [ImportController::class, 'rollback']);
 
         $router->add('GET', '/settings/modules', [SettingsController::class, 'modules']);

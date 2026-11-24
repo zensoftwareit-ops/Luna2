@@ -7,7 +7,9 @@ namespace Luna\Service;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use PDO;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 use RuntimeException;
 use SimpleXMLElement;
 use Throwable;
@@ -21,6 +23,8 @@ final class ImportService
     ];
     private const EXTENSIONS = ['csv', 'txt', 'xls', 'xlsx', 'xml', 'p7m', 'zip', 'pdf'];
     private int $unpackedBytes = 0;
+    /** @var array<string,array{sdi_id:?string,sdi_received_at:?string}> */
+    private array $fatturaPaMetadata = [];
 
     public function __construct(
         private readonly PDO $db,
@@ -142,7 +146,7 @@ final class ImportService
         $this->db->prepare("INSERT INTO import_batches (organization_id,uuid,source_system,import_type,status,original_filename,checksum_sha256,file_size,total_rows,valid_rows,error_rows,created_by,created_at,updated_at) VALUES (?,?,'SDI_API','fatturapa','STAGING','Ricezione endpoint SDI',?,?,0,0,0,?,NOW(),NOW())")
             ->execute([$this->organizationId,$uuid,$checksum,$totalBytes,$this->userId]);
         $batchId=(int)$this->db->lastInsertId();
-        try{foreach($files as $index=>$file){$name=basename((string)($file['name']??('fattura-'.($index+1).'.xml')));if(mb_strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='xml')continue;$path=$directory.'/'.($index+1).'.xml';if(file_put_contents($path,(string)$file['content'],LOCK_EX)===false){throw new RuntimeException('Impossibile archiviare una fattura ricevuta.');}$this->stageFile($batchId,$path,$name,'fatturapa',$maxBytes,0);} $this->refreshCounters($batchId,'READY');return $batchId;}
+        try{foreach($files as $index=>$file){$name=basename((string)($file['name']??('fattura-'.($index+1).'.xml')));if(mb_strtolower(pathinfo($name,PATHINFO_EXTENSION))!=='xml')continue;$this->fatturaPaMetadata[$this->invoiceMetadataKey($name)]=['sdi_id'=>$this->nullableString($file['sdi_id']??null),'sdi_received_at'=>$this->dateTimeValue($file['sdi_received_at']??null)];$path=$directory.'/'.($index+1).'.xml';if(file_put_contents($path,(string)$file['content'],LOCK_EX)===false){throw new RuntimeException('Impossibile archiviare una fattura ricevuta.');}$this->stageFile($batchId,$path,$name,'fatturapa',$maxBytes,0);} $this->refreshCounters($batchId,'READY');return $batchId;}
         catch(Throwable $exception){$this->db->prepare("UPDATE import_batches SET status='ERROR',error_message=?,updated_at=NOW() WHERE id=?")->execute([mb_substr($exception->getMessage(),0,2000),$batchId]);throw $exception;}
     }
 
@@ -179,6 +183,62 @@ final class ImportService
             }
             throw $exception;
         }
+    }
+
+    public function backfillFatturaPaSdiMetadata(int $batchId): array
+    {
+        $batch = $this->batch($batchId, true);
+        if ($batch['import_type'] !== 'fatturapa' || !in_array($batch['status'], ['COMPLETED', 'COMPLETED_WITH_ERRORS'], true)) {
+            throw new InvalidArgumentException('Il lotto non è un’importazione FatturaPA già completata.');
+        }
+        $extension = mb_strtolower(pathinfo((string) $batch['original_filename'], PATHINFO_EXTENSION));
+        $path = $this->storagePath . '/imports/' . $batch['uuid'] . '/original.' . $extension;
+        if ($extension !== 'zip' || !is_file($path)) {
+            throw new InvalidArgumentException('Il pacchetto ZIP originale non è più disponibile.');
+        }
+        $this->fatturaPaMetadata = [];
+        $zip = new ZipArchive();
+        if ($zip->open($path) !== true) throw new InvalidArgumentException('Il pacchetto ZIP originale non è leggibile.');
+        try {
+            $this->loadFatturaPaMetadataFromZip($zip, dirname($path));
+        } finally {
+            $zip->close();
+        }
+        if ($this->fatturaPaMetadata === []) {
+            throw new InvalidArgumentException('Nel pacchetto non è presente un report con ID e data di ricezione SdI.');
+        }
+
+        $rows = $this->db->prepare(
+            'SELECT r.imported_entity_id AS document_id, f.filename
+             FROM import_rows r
+             JOIN import_files f ON f.id = r.source_file_id AND f.organization_id = r.organization_id
+             WHERE r.batch_id = ? AND r.organization_id = ? AND r.imported_entity_id IS NOT NULL'
+        );
+        $rows->execute([$batchId, $this->organizationId]);
+        $documentRows = $rows->fetchAll();
+        $update = $this->db->prepare(
+            'UPDATE documents SET sdi_id = COALESCE(sdi_id, ?), sdi_received_at = COALESCE(sdi_received_at, ?),
+                updated_by = ?, updated_at = NOW() WHERE id = ? AND organization_id = ?'
+        );
+        $matched = 0;
+        $updated = 0;
+        $this->db->beginTransaction();
+        try {
+            foreach ($documentRows as $row) {
+                $metadata = $this->fatturaPaMetadata[$this->invoiceMetadataKey((string) $row['filename'])] ?? null;
+                if (!$metadata) continue;
+                $matched++;
+                $update->execute([$metadata['sdi_id'], $metadata['sdi_received_at'], $this->userId,
+                    (int) $row['document_id'], $this->organizationId]);
+                $updated += $update->rowCount();
+            }
+            $this->db->commit();
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) $this->db->rollBack();
+            throw $exception;
+        }
+        if ($matched === 0) throw new InvalidArgumentException('Nessuna fattura del lotto corrisponde al report SdI.');
+        return compact('matched', 'updated');
     }
 
     public function rollback(int $batchId): int
@@ -258,6 +318,7 @@ final class ImportService
             }
             $total = 0;
             if ($zip->numFiles > 10000) { $zip->close(); throw new InvalidArgumentException('Archivio con troppi file.'); }
+            if ($target === 'fatturapa') $this->loadFatturaPaMetadataFromZip($zip, dirname($path));
             for ($index = 0; $index < $zip->numFiles; $index++) {
                 $stat = $zip->statIndex($index);
                 $entryName = (string) ($stat['name'] ?? '');
@@ -310,7 +371,7 @@ final class ImportService
         if ($target === 'fatturapa' && in_array($extension,['xls','xlsx'],true)) return;
 
         if ($extension === 'xml') {
-            $this->stageFatturaPa($batchId, $fileId, $path, $target === 'datev_koinos');
+            $this->stageFatturaPa($batchId, $fileId, $path, $target === 'datev_koinos', $name);
             return;
         }
         if ($extension === 'p7m') {
@@ -320,7 +381,7 @@ final class ImportService
             }
             $xmlPath = dirname($path) . '/extracted-' . $fileId . '.xml';
             if (file_put_contents($xmlPath, $xml, LOCK_EX) === false) { throw new RuntimeException('Impossibile archiviare l’XML estratto.'); }
-            $this->stageFatturaPa($batchId, $fileId, $xmlPath, $target === 'datev_koinos');
+            $this->stageFatturaPa($batchId, $fileId, $xmlPath, $target === 'datev_koinos', $name);
             return;
         }
         if (in_array($extension, ['xls','xlsx'],true)) {
@@ -401,7 +462,78 @@ final class ImportService
         $spreadsheet->disconnectWorksheets();
     }
 
-    private function stageFatturaPa(int $batchId, int $fileId, string $path, bool $history = false): void
+    private function loadFatturaPaMetadata(string $path): void
+    {
+        $reader = IOFactory::createReaderForFile($path);
+        $reader->setReadDataOnly(true);
+        $spreadsheet = $reader->load($path);
+        try {
+            foreach ($spreadsheet->getWorksheetIterator() as $sheet) {
+                $columnCount = Coordinate::columnIndexFromString($sheet->getHighestDataColumn());
+                $headers = [];
+                for ($column = 1; $column <= $columnCount; $column++) {
+                    $headers[$this->normalizeHeader($sheet->getCell([$column, 1])->getFormattedValue())] = $column;
+                }
+                if (!isset($headers['nome_file'], $headers['id_sdi'], $headers['data_ricezione'])) continue;
+                for ($row = 2; $row <= $sheet->getHighestDataRow(); $row++) {
+                    $filename = trim((string) $sheet->getCell([$headers['nome_file'], $row])->getFormattedValue());
+                    if ($filename === '') continue;
+                    $this->fatturaPaMetadata[$this->invoiceMetadataKey($filename)] = [
+                        'sdi_id' => $this->nullableString($sheet->getCell([$headers['id_sdi'], $row])->getFormattedValue()),
+                        'sdi_received_at' => $this->dateTimeValue($sheet->getCell([$headers['data_ricezione'], $row])->getValue()),
+                    ];
+                }
+            }
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+        }
+    }
+
+    private function loadFatturaPaMetadataFromZip(ZipArchive $zip, string $directory): void
+    {
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $stat = $zip->statIndex($index);
+            $name = (string) ($stat['name'] ?? '');
+            $extension = mb_strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (!in_array($extension, ['xls', 'xlsx'], true)) continue;
+            $content = $zip->getFromIndex($index);
+            if ($content === false) continue;
+            $path = $directory . '/metadata-' . bin2hex(random_bytes(6)) . '.' . $extension;
+            if (file_put_contents($path, $content, LOCK_EX) === false) {
+                throw new RuntimeException('Impossibile leggere il report delle fatture ricevute.');
+            }
+            try {
+                $this->loadFatturaPaMetadata($path);
+            } finally {
+                @unlink($path);
+            }
+        }
+    }
+
+    private function invoiceMetadataKey(string $filename): string
+    {
+        $filename = mb_strtolower(basename(trim($filename)));
+        if (str_ends_with($filename, '.p7m')) $filename = substr($filename, 0, -4);
+        return $filename;
+    }
+
+    private function nullableString(mixed $value): ?string
+    {
+        $value = trim((string) $value);
+        return $value === '' ? null : $value;
+    }
+
+    private function dateTimeValue(mixed $value): ?string
+    {
+        if ($value === null || $value === '') return null;
+        if (is_numeric($value) && (float) $value > 1000) {
+            return ExcelDate::excelToDateTimeObject((float) $value)->format('Y-m-d H:i:s');
+        }
+        $timestamp = strtotime(trim((string) $value));
+        return $timestamp === false ? null : date('Y-m-d H:i:s', $timestamp);
+    }
+
+    private function stageFatturaPa(int $batchId, int $fileId, string $path, bool $history = false, ?string $sourceName = null): void
     {
         libxml_use_internal_errors(true);
         $payload = (string) file_get_contents($path);
@@ -522,6 +654,7 @@ final class ImportService
             }
             $expectedPayment = round(max(0, $paymentBase - abs($withholdingAmount)), 2);
             $scheduledPayment = round(array_sum(array_map(static fn (array $schedule): float => abs((float) $schedule['amount']), $paymentSchedules)), 2);
+            $metadata = $this->fatturaPaMetadata[$this->invoiceMetadataKey($sourceName ?: basename($path))] ?? [];
             $normalized = [
                 'document_type' => in_array($type, ['TD04', 'TD08'], true) && $direction === 'SALES_INVOICE' ? 'CREDIT_NOTE' : $direction,
                 'fatturapa_type' => $type, 'number' => $number, 'document_date' => $date,
@@ -548,6 +681,8 @@ final class ImportService
                 'payment_schedule_total' => $scheduledPayment,
                 'payment_schedule_expected' => $expectedPayment,
                 'payment_schedule_recalculated' => $paymentSchedules === [] || abs($scheduledPayment - $expectedPayment) > .02,
+                'sdi_id' => $metadata['sdi_id'] ?? null,
+                'sdi_received_at' => $metadata['sdi_received_at'] ?? null,
                 'lines' => $lines, 'vat_summaries' => $summaries, 'payment_schedules' => $paymentSchedules,
             ];
             if ($history) {
@@ -1257,9 +1392,12 @@ final class ImportService
                     if ($existingRegistrationDate !== $registrationDate) {
                         $this->recordImport($batchId, 'documents', (int) $existing['id'], 'UPDATE', $existing);
                         $this->db->prepare(
-                            'UPDATE documents SET external_key = ?, source_import_batch_id = ?, updated_by = ?, updated_at = NOW()
+                            'UPDATE documents SET external_key = ?, source_import_batch_id = ?,
+                                sdi_id = COALESCE(?, sdi_id), sdi_received_at = COALESCE(?, sdi_received_at),
+                                updated_by = ?, updated_at = NOW()
                              WHERE id = ? AND organization_id = ?'
-                        )->execute([$externalKey, $batchId, $this->userId, (int) $existing['id'], $this->organizationId]);
+                        )->execute([$externalKey, $batchId, $data['sdi_id'] ?: null, $data['sdi_received_at'] ?: null,
+                            $this->userId, (int) $existing['id'], $this->organizationId]);
                         (new AccountingService($this->db, $this->organizationId, $this->userId))
                             ->changeDocumentRegistrationDate((int) $existing['id'], $registrationDate);
                         (new ReceivablesService($this->db, $this->organizationId, $this->userId))
@@ -1270,9 +1408,12 @@ final class ImportService
                         continue;
                     }
                     $this->db->prepare(
-                        'UPDATE documents SET external_key = ?, updated_by = ?, updated_at = NOW()
+                        'UPDATE documents SET external_key = ?, source_import_batch_id = ?,
+                            sdi_id = COALESCE(?, sdi_id), sdi_received_at = COALESCE(?, sdi_received_at),
+                            updated_by = ?, updated_at = NOW()
                          WHERE id = ? AND organization_id = ?'
-                    )->execute([$externalKey, $this->userId, (int) $existing['id'], $this->organizationId]);
+                    )->execute([$externalKey, $batchId, $data['sdi_id'] ?: null, $data['sdi_received_at'] ?: null,
+                        $this->userId, (int) $existing['id'], $this->organizationId]);
                     $this->markRow($staged['id'], 'SKIPPED', 'Documento già importato e presente in prima nota.', (int) $existing['id']);
                     $this->db->exec('RELEASE SAVEPOINT ' . $savepoint);
                     $skipped++;
@@ -1285,6 +1426,7 @@ final class ImportService
                         taxable_total = ?, vat_total = ?, withholding_total = ?, withholding_type = ?, withholding_rate = ?,
                         withholding_taxable_percent = 100, withholding_cause = ?, total = ?, balance_due = ?, status = ?,
                         fatturapa_type = ?, payment_method_code = ?, bank_name = ?, bank_abi = ?, bank_cab = ?, bank_iban = ?,
+                        sdi_id = COALESCE(?, sdi_id), sdi_received_at = COALESCE(?, sdi_received_at),
                         external_key = ?, source_import_batch_id = ?, updated_by = ?, updated_at = NOW()
                      WHERE id = ? AND organization_id = ?'
                 )->execute([
@@ -1294,6 +1436,7 @@ final class ImportService
                     round($total - (float) ($data['withholding_amount'] ?? 0), 2), $status,
                     $data['fatturapa_type'], $data['payment_method_code'] ?: null, $data['bank_name'] ?: null,
                     $data['bank_abi'] ?: null, $data['bank_cab'] ?: null, $data['bank_iban'] ?: null,
+                    $data['sdi_id'] ?: null, $data['sdi_received_at'] ?: null,
                     $externalKey, $batchId, $this->userId, (int) $existing['id'], $this->organizationId,
                 ]);
                 $documentId = (int) $existing['id'];
@@ -1314,8 +1457,10 @@ final class ImportService
                 continue;
             }
             $this->db->prepare(
-                'INSERT INTO documents (organization_id, document_type, number, fiscal_year, document_date, registration_date, due_date, counterparty_type, counterparty_id, counterparty_name, currency, taxable_total, vat_total, withholding_total, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause, total, balance_due, status, fatturapa_type, payment_method_code, bank_name, bank_abi, bank_cab, bank_iban, external_key, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
-            )->execute([$this->organizationId, $data['document_type'], $data['number'], (int) substr($data['document_date'], 0, 4), $data['document_date'], $registrationDate, $data['due_date'] ?: null, $partyTable === 'suppliers' ? 'SUPPLIER' : 'CUSTOMER', $partyId, $data['counterparty_name'], $data['currency'], $taxable, $vat,
+                'INSERT INTO documents (organization_id, document_type, number, fiscal_year, document_date, registration_date, sdi_id, sdi_received_at, due_date, counterparty_type, counterparty_id, counterparty_name, currency, taxable_total, vat_total, withholding_total, withholding_type, withholding_rate, withholding_taxable_percent, withholding_cause, total, balance_due, status, fatturapa_type, payment_method_code, bank_name, bank_abi, bank_cab, bank_iban, external_key, source_import_batch_id, created_by, updated_by, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())'
+            )->execute([$this->organizationId, $data['document_type'], $data['number'], (int) substr($data['document_date'], 0, 4), $data['document_date'], $registrationDate,
+                $data['sdi_id'] ?: null, $data['sdi_received_at'] ?: null, $data['due_date'] ?: null,
+                $partyTable === 'suppliers' ? 'SUPPLIER' : 'CUSTOMER', $partyId, $data['counterparty_name'], $data['currency'], $taxable, $vat,
                 $data['withholding_amount'] ?: 0, $data['withholding_type'] ?: null, $data['withholding_rate'] ?: 0, $data['withholding_cause'] ?: null,
                 $total, round($total - (float) ($data['withholding_amount'] ?? 0), 2), $status, $data['fatturapa_type'], $data['payment_method_code'] ?: null,
                 $data['bank_name'] ?: null, $data['bank_abi'] ?: null, $data['bank_cab'] ?: null, $data['bank_iban'] ?: null,
@@ -1511,7 +1656,7 @@ final class ImportService
             'customers', 'suppliers' => ['code', 'business_name', 'vat_number', 'tax_code', 'sdi_code', 'pec', 'email', 'phone', 'address', 'postal_code', 'city', 'province', 'country_code', 'iban', 'bank_name', 'bank_abi', 'bank_cab', 'payment_terms', 'payment_days', 'payment_month_end', 'payment_method_code', 'active'],
             'chart_of_accounts' => ['code', 'name', 'account_type', 'normal_balance', 'parent_id', 'classification_code', 'statement_section', 'tax_mapping_code', 'is_postable', 'active'],
             'vat_codes' => ['code', 'description', 'rate', 'nature', 'legal_reference', 'deductible_percent', 'operation_scope', 'nature_description', 'taxability', 'vat_regime', 'margin_scheme', 'territoriality', 'reverse_charge', 'split_payment', 'fatturapa_type', 'source_system', 'source_status', 'active'],
-            'documents' => ['registration_date', 'due_date', 'counterparty_name', 'currency', 'taxable_total', 'vat_total', 'withholding_total', 'withholding_type', 'withholding_rate', 'withholding_taxable_percent', 'withholding_cause', 'total', 'balance_due', 'status', 'fatturapa_type', 'payment_method_code', 'bank_name', 'bank_abi', 'bank_cab', 'bank_iban', 'external_key', 'source_import_batch_id'],
+            'documents' => ['registration_date', 'sdi_id', 'sdi_received_at', 'due_date', 'counterparty_name', 'currency', 'taxable_total', 'vat_total', 'withholding_total', 'withholding_type', 'withholding_rate', 'withholding_taxable_percent', 'withholding_cause', 'total', 'balance_due', 'status', 'fatturapa_type', 'payment_method_code', 'bank_name', 'bank_abi', 'bank_cab', 'bank_iban', 'external_key', 'source_import_batch_id'],
             default => [],
         };
     }
